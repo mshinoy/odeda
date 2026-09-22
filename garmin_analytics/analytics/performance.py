@@ -114,10 +114,23 @@ def aerobic_decoupling(
     def half(lo: int, hi: int) -> float | None:
         dt = elapsed_s[hi] - elapsed_s[lo]
         dd = distance_m[hi] - distance_m[lo]
-        hrs = [float(h) for h in hr[lo : hi + 1] if h is not None]
-        if dt <= 0 or dd <= 0 or not hrs:
+        if dt <= 0 or dd <= 0:
             return None
-        mean_hr = sum(hrs) / len(hrs)
+        # Time-weighted mean HR. A plain mean over samples would over-weight dense
+        # stretches of the stream (auto-pause and GPS dropouts make sampling irregular),
+        # and would count the boundary sample fully into both halves.
+        weighted = 0.0
+        span = 0.0
+        for i in range(lo, hi):
+            seg = elapsed_s[i + 1] - elapsed_s[i]
+            a, b = hr[i], hr[i + 1]
+            if seg <= 0 or a is None or b is None:
+                continue
+            weighted += (float(a) + float(b)) / 2.0 * seg
+            span += seg
+        if span <= 0:
+            return None
+        mean_hr = weighted / span
         if mean_hr <= 0:
             return None
         return (dd / dt) / mean_hr  # metres per second per bpm

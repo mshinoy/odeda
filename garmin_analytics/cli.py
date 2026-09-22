@@ -270,7 +270,8 @@ def cmd_report(args: argparse.Namespace) -> int:
         print(f"    projected {p['projected_time']} ({p['projected_pace']}) "
               f"from {p['from_label']} {p['from_time']} on {p['from_day']}")
     for note in race["notes"]:
-        print(f"    · {note}")
+        mark = "·" if note["level"] == "good" else "!"
+        print(f"    {mark} {note['text']}")
 
     print(_colour("\nlast 4 weeks", BOLD, colour))
     print(f"    {'week':<10}{'runs':>5}{'km':>8}{'trimp':>8}{'rhr':>7}{'hrv':>7}{'sleep':>7}")
