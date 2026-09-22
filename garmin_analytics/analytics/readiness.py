@@ -237,7 +237,8 @@ def weekly_distance(store) -> list[dict[str, object]]:
     from . import reports as reports_mod
 
     rows = store.query(
-        "SELECT day, distance_m FROM activities WHERE activity_type = 'running' ORDER BY day"
+        "SELECT day, distance_m FROM v_activities_included "
+        "WHERE activity_type = 'running' ORDER BY day"
     )
     buckets: dict[str, float] = {}
     for r in rows:
@@ -264,12 +265,12 @@ def trailing_weekly_km(store, days: int = 28) -> float:
     Using the last four *calendar* weeks would include the current, incomplete week
     and report a volume drop that is really just a Tuesday.
     """
-    hi = store.scalar("SELECT MAX(day) FROM activities")
+    hi = store.scalar("SELECT MAX(day) FROM v_activities_included")
     if not hi:
         return 0.0
     lo = (date.fromisoformat(hi) - timedelta(days=days - 1)).isoformat()
     total = store.scalar(
-        "SELECT SUM(distance_m) FROM activities "
+        "SELECT SUM(distance_m) FROM v_activities_included "
         "WHERE activity_type = 'running' AND day BETWEEN ? AND ?",
         (lo, hi),
     )

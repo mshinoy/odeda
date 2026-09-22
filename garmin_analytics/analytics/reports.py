@@ -1,4 +1,9 @@
-"""Weekly / monthly rollups, streaks and consistency."""
+"""Weekly / monthly rollups, streaks and consistency.
+
+Everything here reads `v_activities_included` rather than `activities`, so user
+edits are respected (a walk retyped as a run counts as a run) and an activity
+flagged exclude-from-stats is invisible to every total, streak and rollup below.
+"""
 
 from __future__ import annotations
 
@@ -90,7 +95,7 @@ def _sum(rows: Sequence[dict], key: str) -> float:
 
 
 def weekly_report(store, limit: int = 26) -> list[dict[str, object]]:
-    acts = store.query("SELECT * FROM activities ORDER BY day")
+    acts = store.query("SELECT * FROM v_activities_included ORDER BY day")
     daily = store.query("SELECT * FROM v_daily ORDER BY day")
     act_weeks = _group_by_week(acts)
     day_weeks = _group_by_week(daily)
@@ -164,7 +169,7 @@ def monthly_report(store, limit: int = 24) -> list[dict[str, object]]:
                SUM(COALESCE(a.moving_time_s, a.duration_s)) / 3600.0 AS hours,
                SUM(a.trimp)                  AS trimp,
                SUM(a.elevation_gain_m)       AS elev_m
-        FROM activities a
+        FROM v_activities_included a
         GROUP BY month ORDER BY month
         """
     )
@@ -213,7 +218,10 @@ def monthly_report(store, limit: int = 24) -> list[dict[str, object]]:
 
 
 def compute_reports(store) -> dict[str, object]:
-    act_days = [r["day"] for r in store.query("SELECT DISTINCT day FROM activities ORDER BY day")]
+    act_days = [
+        r["day"]
+        for r in store.query("SELECT DISTINCT day FROM v_activities_included ORDER BY day")
+    ]
     wear_days = [r["day"] for r in store.query("SELECT DISTINCT day FROM daily_wellness ORDER BY day")]
     return {
         "weekly": weekly_report(store),
@@ -226,17 +234,18 @@ def compute_reports(store) -> dict[str, object]:
         "weekday_consistency": weekday_consistency(act_days),
         "totals": {
             "activities": len(
-                store.query("SELECT activity_id FROM activities")
+                store.query("SELECT activity_id FROM v_activities_included")
             ),
             "active_days": len(act_days),
             "tracked_days": len(wear_days),
             "total_km": round(
-                float(store.scalar("SELECT SUM(distance_m) FROM activities") or 0) / 1000.0, 1
+                float(store.scalar("SELECT SUM(distance_m) FROM v_activities_included") or 0) / 1000.0, 1
             ),
             "total_run_km": round(
                 float(
                     store.scalar(
-                        "SELECT SUM(distance_m) FROM activities WHERE activity_type = 'running'"
+                        "SELECT SUM(distance_m) FROM v_activities_included "
+                        "WHERE activity_type = 'running'"
                     )
                     or 0
                 )
@@ -246,7 +255,7 @@ def compute_reports(store) -> dict[str, object]:
             "total_hours": round(
                 float(
                     store.scalar(
-                        "SELECT SUM(COALESCE(moving_time_s, duration_s)) FROM activities"
+                        "SELECT SUM(COALESCE(moving_time_s, duration_s)) FROM v_activities_included"
                     )
                     or 0
                 )

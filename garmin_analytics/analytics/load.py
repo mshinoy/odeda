@@ -203,9 +203,16 @@ def activity_trimp(activity: Mapping[str, object], zones: Mapping[int, float], s
 
 
 def daily_loads(store) -> dict[str, float]:
-    """Sum stored per-activity TRIMP by day."""
+    """Sum stored per-activity TRIMP by day.
+
+    Reads `v_activities_included`, not `activities`: an activity the user flagged
+    exclude-from-stats contributes no training impulse. A watch left running in the
+    car for four hours is not four hours of fatigue, and leaving it in poisons CTL,
+    ATL, TSB and every readiness score derived from them for the next six weeks.
+    """
     rows = store.query(
-        "SELECT day, SUM(COALESCE(trimp, 0)) AS load FROM activities GROUP BY day ORDER BY day"
+        "SELECT day, SUM(COALESCE(trimp, 0)) AS load FROM v_activities_included "
+        "GROUP BY day ORDER BY day"
     )
     return {r["day"]: float(r["load"] or 0.0) for r in rows}
 

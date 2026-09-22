@@ -231,7 +231,7 @@ def decoupling_history(store, min_duration_s: float = DECOUPLING_MIN_DURATION_S)
     acts = store.query(
         """
         SELECT a.activity_id, a.day, a.activity_name, a.distance_m, a.moving_time_s, a.avg_hr
-        FROM activities a
+        FROM v_activities_included a
         WHERE a.activity_type = 'running'
           AND COALESCE(a.moving_time_s, a.duration_s) >= ?
         ORDER BY a.day
@@ -299,7 +299,7 @@ def compute_performance(store) -> dict[str, object]:
 def _days_ago(store, n: int) -> str | None:
     from datetime import date, timedelta
 
-    hi = store.scalar("SELECT MAX(day) FROM activities")
+    hi = store.scalar("SELECT MAX(day) FROM v_activities_included")
     if not hi:
         return None
     return (date.fromisoformat(hi) - timedelta(days=n)).isoformat()
