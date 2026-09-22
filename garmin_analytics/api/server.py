@@ -580,6 +580,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_bulk_override(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         ids = payload.get("activity_ids") or []
         field = str(payload.get("field") or "")
+        if not isinstance(ids, list):
+            raise HTTPException(400, "activity_ids must be a list")
         if not ids:
             raise HTTPException(400, "activity_ids is required")
         with store() as st:
@@ -610,9 +612,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_gear_create(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         with store() as st:
             try:
-                return gear_mod.create(st, **payload)
+                attrs = gear_mod.clean_attrs(payload, gear_mod.CREATABLE)
+                return gear_mod.create(st, **attrs)
             except gear_mod.GearError as exc:
                 raise HTTPException(400, str(exc)) from exc
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(400, f"bad gear payload: {exc}") from exc
 
     @app.get("/api/gear/{gear_id}")
     def api_gear_get(gear_id: int) -> dict[str, Any]:
@@ -634,11 +639,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_gear_update(gear_id: int, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         with store() as st:
             try:
-                return gear_mod.update(st, gear_id, **payload)
+                attrs = gear_mod.clean_attrs(payload, gear_mod._EDITABLE)
+                return gear_mod.update(st, gear_id, **attrs)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
             except gear_mod.GearError as exc:
                 raise HTTPException(400, str(exc)) from exc
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(400, f"bad gear payload: {exc}") from exc
 
     @app.delete("/api/gear/{gear_id}")
     def api_gear_delete(gear_id: int) -> dict[str, Any]:

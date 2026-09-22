@@ -12,8 +12,9 @@ kilometres on their shoes either.
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date, datetime
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from ..db.store import Store, utcnow
 
@@ -39,9 +40,26 @@ _EDITABLE = (
     "photo_path",
 )
 
+#: What `create()` will take from a request body. Deliberately not `**anything`: a
+#: payload key that collides with a parameter name (`store`, `gear_id`) used to reach
+#: `create(store, store=1)` and come back as a 500, and a misspelled field used to be
+#: accepted and silently dropped.
+CREATABLE = (*_EDITABLE, "source", "garmin_uuid")
+
 
 class GearError(ValueError):
     pass
+
+
+def clean_attrs(payload: Mapping[str, Any], allowed: Sequence[str]) -> dict[str, Any]:
+    """Validate an API payload's keys against `allowed`, or raise GearError."""
+    unknown = sorted(k for k in payload if k not in allowed)
+    if unknown:
+        raise GearError(
+            f"unknown gear field(s): {', '.join(unknown)}; "
+            f"allowed: {', '.join(sorted(allowed))}"
+        )
+    return dict(payload)
 
 
 def display_name(row: dict[str, Any]) -> str:
@@ -82,10 +100,15 @@ def create(store: Store, **attrs: Any) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
-    cur = store.conn.execute(
-        f"INSERT INTO gear ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
-        list(row.values()),
-    )
+    try:
+        cur = store.conn.execute(
+            f"INSERT INTO gear ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
+            list(row.values()),
+        )
+    except sqlite3.IntegrityError as exc:
+        # The only UNIQUE constraint is garmin_uuid: importing the same Garmin item
+        # twice is a conflict to report, not a crash.
+        raise GearError(f"gear conflicts with an existing item: {exc}") from exc
     store.conn.commit()
     return get(store, int(cur.lastrowid))  # type: ignore[arg-type]
 
