@@ -7,6 +7,9 @@ oauth1_token.json
 oauth2_token.json
 .env
 .env.*
+# ...but the template must ship: `cp .env.example .env` is step three of the
+# README quickstart, and a clone without it cannot start the container at all.
+!.env.example
 
 # Virtualenv
 .venv/

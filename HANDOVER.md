@@ -9,7 +9,11 @@ your credentials.
 
 I left the container up so you can look at it straight away:
 
-**<http://127.0.0.1:8000>** — password `verify-me-2026`
+**<http://127.0.0.1:8000>** — the password is the `APP_PASSWORD` line in your local
+`.env` (`grep APP_PASSWORD .env`). It is a throwaway placeholder from the build, and
+`.env` is gitignored, which is why the value is not written here: this file is going
+to GitHub, and a password in a public repo is a default password for every
+deployment whose owner did not change it.
 
 It is showing **synthetic demo data** (orange banner at the top). Change that
 password, and read step 3 before you connect your real account.
