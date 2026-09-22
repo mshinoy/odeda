@@ -272,9 +272,18 @@ class Store:
         return dict(row) if row else None
 
     def set_sync_status(self, job: str, **cols: Any) -> None:
-        """Checkpoint a job's progress. Called after every activity during a backfill."""
-        cols.setdefault("updated_at", utcnow())
-        self.upsert("sync_status", ["job"], {"job": job, **cols})
+        """Checkpoint a job's progress. Called after every activity during a backfill.
+
+        Merges with whatever is already stored, so a partial update — the common
+        case, e.g. writing only the resume cursor — keeps the rest of the row.
+        A plain upsert cannot do this: SQLite checks NOT NULL on the candidate row
+        *before* it detects the uniqueness conflict, so `state` would fail.
+        """
+        existing = self.sync_status(job) or {}
+        row = {**existing, **cols, "job": job}
+        row.setdefault("state", "idle")
+        row["updated_at"] = cols.get("updated_at", utcnow())
+        self.upsert("sync_status", ["job"], row)
         self.conn.commit()
 
     # -- reads -------------------------------------------------------------------

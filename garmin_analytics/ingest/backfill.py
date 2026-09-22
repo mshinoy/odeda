@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Sequence
 
 from . import connect as connect_mod
@@ -137,7 +137,7 @@ class Progress:
 
 
 def _now() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def status(store, job: str = JOB) -> dict[str, Any]:
@@ -188,7 +188,8 @@ def is_running(store, job: str = JOB, stale_after_s: float = 300.0) -> bool:
         ts = datetime.strptime(str(updated), "%Y-%m-%dT%H:%M:%SZ")
     except ValueError:
         return True
-    return (datetime.utcnow() - ts).total_seconds() < stale_after_s
+    return (datetime.now(timezone.utc) - ts.replace(tzinfo=timezone.utc)
+            ).total_seconds() < stale_after_s
 
 
 # ---------------------------------------------------------------------------

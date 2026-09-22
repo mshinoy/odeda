@@ -154,7 +154,7 @@ def session_valid(store: Store, token: str | None) -> bool:
         expires = datetime.strptime(row["expires_at"], "%Y-%m-%dT%H:%M:%SZ")
     except (TypeError, ValueError):
         return False
-    return expires > datetime.utcnow()
+    return expires.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
 
 
 def destroy_session(store: Store, token: str | None) -> bool:
@@ -176,7 +176,7 @@ def clear_sessions(store: Store) -> int:
 def purge_expired(store: Store) -> int:
     cur = store.conn.execute(
         "DELETE FROM sessions WHERE expires_at <= ?",
-        (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
+        (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),),
     )
     store.conn.commit()
     return cur.rowcount

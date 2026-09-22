@@ -36,7 +36,12 @@ class TestParser:
         args = cli.build_parser().parse_args(["serve"])
         assert args.host == "127.0.0.1" and args.port == 8808
         args = cli.build_parser().parse_args(["seed"])
-        assert args.months == 18 and args.reset is False
+        # `--months` defaults to None so the single source of truth stays
+        # `synthetic.DEFAULT_MONTHS` rather than being duplicated in the parser.
+        from garmin_analytics.seed.synthetic import DEFAULT_MONTHS
+
+        assert args.months is None and args.reset is False
+        assert DEFAULT_MONTHS >= 36, "the seed must cover 3+ years for routes and YoY"
 
     def test_serve_binds_loopback_by_default(self):
         """This is personal health data; it does not go on 0.0.0.0 by accident."""

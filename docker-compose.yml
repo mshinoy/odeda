@@ -1,0 +1,53 @@
+# Single-tenant by design: one deployment is one person's data.
+# `docker compose up -d` is the entire install.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: garmin-analytics:latest
+    container_name: garmin-analytics
+    restart: unless-stopped
+
+    # Bound to localhost by default. Change to "8000:8000" only once APP_PASSWORD
+    # is set and you have thought about who can reach the port.
+    ports:
+      - "127.0.0.1:${GA_PUBLIC_PORT:-8000}:8000"
+
+    env_file:
+      - .env
+
+    environment:
+      # Paths inside the container; the volume below is mounted at /data.
+      GA_DATA_DIR: /data
+      GA_DB: /data/garmin.db
+      GA_RAW_DIR: /data/raw_archive
+      GA_TOKEN_DIR: /data/tokens
+
+    volumes:
+      # The database, the raw payload archive and the Garmin token cache.
+      # A named volume, so `docker compose down` does not delete years of history.
+      - garmin-data:/data
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request, sys
+          sys.exit(0 if urllib.request.urlopen(
+              "http://127.0.0.1:8000/api/health", timeout=4).status == 200 else 1)
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    # Modest hardening: the app writes only to /data and never needs new privileges.
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  garmin-data:
+    name: garmin-analytics-data

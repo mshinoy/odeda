@@ -166,10 +166,11 @@ def cmd_import_fit(args: argparse.Namespace) -> int:
 
 
 def cmd_seed(args: argparse.Namespace) -> int:
-    from .seed.synthetic import seed_database
+    from .seed.synthetic import DEFAULT_MONTHS, seed_database
 
     settings = load_settings()
     end = date.fromisoformat(args.end) if args.end else date.today()
+    months = args.months or DEFAULT_MONTHS
     with _store() as st:
         if not args.reset and st.scalar("SELECT COUNT(*) FROM activities"):
             print(
@@ -178,16 +179,72 @@ def cmd_seed(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
-        print(f"Seeding {args.months} months of synthetic data ending {end} into "
+        print(f"Seeding {months} months of synthetic data ending {end} into "
               f"{settings.db_path} ...")
-        counts = seed_database(st, end=end, months=args.months, reset=args.reset)
+        counts = seed_database(st, end=end, months=months, reset=args.reset)
     print(
         f"  days={counts['days']}  activities={counts['activities']}  "
         f"samples={counts['samples']}  raw_documents={counts['raw']}  "
-        f"best_efforts={counts['best_efforts']}"
+        f"best_efforts={counts['best_efforts']}  routes={counts.get('routes', 0)}  "
+        f"gear={counts.get('gear', 0)}"
     )
     print("  This data is SYNTHETIC. `doctor` and the dashboard both say so.")
     _emit(counts, args.json)
+    return 0
+
+
+def cmd_backfill(args: argparse.Namespace) -> int:
+    """Pull the entire history. Interruptible: re-running resumes where it stopped."""
+    from .ingest import backfill as backfill_mod
+
+    settings = load_settings()
+    with _store() as st:
+        if args.estimate:
+            est = backfill_mod.estimate(st)
+            print(f"History: {est['first_day']} → {est['last_day']}  ({est['days']} days)")
+            print(f"Activity streams still to fetch: {est['activities_pending_details']}")
+            print(f"Estimated requests: {est['estimated_requests']}")
+            print(f"Estimated time: {est['estimated_low']} – {est['estimated_high']}")
+            _emit(est, args.json)
+            return 0
+
+        phases = (
+            [p.strip() for p in args.phases.split(",")]
+            if args.phases
+            else list(backfill_mod.PHASES)
+        )
+        unknown = [p for p in phases if p not in backfill_mod.PHASES]
+        if unknown:
+            print(f"unknown phase(s): {', '.join(unknown)}; "
+                  f"valid: {', '.join(backfill_mod.PHASES)}", file=sys.stderr)
+            return 2
+
+        result = backfill_mod.run(
+            st,
+            settings,
+            end=date.fromisoformat(args.end) if args.end else None,
+            since=date.fromisoformat(args.since) if args.since else None,
+            phases=phases,
+            detail_limit=args.detail_limit,
+            echo=print,
+        )
+    _emit(result, args.json)
+    return 0 if result.get("state") == "done" else 1
+
+
+def cmd_cluster(args: argparse.Namespace) -> int:
+    """Group GPS activities into routes. Pinned routes are left alone."""
+    from .analytics import routes as routes_mod
+
+    with _store() as st:
+        kwargs = {} if args.threshold is None else {"threshold": args.threshold}
+        result = routes_mod.cluster_all(st, progress=print, **kwargs)
+    print(
+        f"  {result['activities']} activities → {result['routes']} routes "
+        f"({result['created']} new, {result['joined']} matched, "
+        f"{result['no_gps']} without GPS, {result['kept_manual']} left alone)"
+    )
+    _emit(result, args.json)
     return 0
 
 
@@ -327,8 +384,23 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--tz-offset", type=float, default=3.0,
                     help="local hours ahead of UTC (default 3.0 for Asia/Qatar)")
 
+    sp = add("backfill", cmd_backfill,
+             "pull EVERYTHING back to the start of the account (resumable)")
+    sp.add_argument("--phases", help="comma-separated subset of: "
+                    "activities,details,wellness,derive")
+    sp.add_argument("--detail-limit", type=int,
+                    help="stop after this many activity streams (for a trial run)")
+    sp.add_argument("--since", help="earliest day for wellness, ISO date")
+    sp.add_argument("--end", help="last day, ISO date (default today)")
+    sp.add_argument("--estimate", action="store_true",
+                    help="report the size of the job and exit without fetching")
+
+    sp = add("cluster", cmd_cluster, "(re)group GPS activities into routes")
+    sp.add_argument("--threshold", type=float, default=None,
+                    help="path-overlap needed to call two tracks the same route")
+
     sp = add("seed", cmd_seed, "generate synthetic data for demos and tests")
-    sp.add_argument("--months", type=int, default=18)
+    sp.add_argument("--months", type=int, default=None)
     sp.add_argument("--end", help="last day, ISO date (default today)")
     sp.add_argument("--reset", action="store_true", help="wipe existing rows first")
 

@@ -1,0 +1,54 @@
+# Keep the build context small and keep secrets and personal data out of the image.
+
+# Credentials and personal data — never in a layer.
+.env
+.env.*
+!.env.example
+.garminconnect/
+*.token
+*.tokens
+tokens.json
+oauth*token*.json
+data/
+raw_archive/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+exports/
+*.fit
+*.gpx
+*.tcx
+
+# Build / VCS noise
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Not needed at runtime
+tests/
+docs/
+scripts/
+screenshots/
+*.md
+!README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp

@@ -473,4 +473,36 @@ def renormalize(store) -> dict[str, int]:
                 store.upsert("fitness", ["day"], row)
                 n += 1
             counts[ep.name] = n
+
+        # Activities too, from whatever archived them (connect, seed, an export ZIP).
+        # This is the same write path a sync takes — it rewrites every row in
+        # `activities` from the raw payload — which makes it the honest way to prove
+        # that user overrides survive a re-ingest rather than merely asserting it.
+        from ..analytics import load as load_mod
+        import json as _json
+
+        rows = store.query(
+            "SELECT ref_key, payload FROM raw_documents WHERE endpoint = 'activities' "
+            "ORDER BY id"
+        )
+        n = 0
+        for r in rows:
+            try:
+                payload = _json.loads(r["payload"])
+            except (TypeError, ValueError):
+                continue
+            row = norm.normalize_activity(payload)
+            if not row.get("activity_id") or not row.get("day"):
+                continue
+            zones = {
+                int(z["zone"]): float(z["seconds"])
+                for z in store.query(
+                    "SELECT zone, seconds FROM activity_hr_zones WHERE activity_id = ?",
+                    (row["activity_id"],),
+                )
+            }
+            row["trimp"] = load_mod.activity_trimp(row, zones, store.settings)
+            store.upsert("activities", ["activity_id"], row)
+            n += 1
+        counts["activities"] = n
     return counts
