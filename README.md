@@ -93,6 +93,12 @@ look at the overrides table. Every edit is timestamped and revertible to the val
 Garmin supplied. Editable: title, activity type, notes, RPE, private, and
 exclude-from-stats — for the time you left the watch running in the car.
 
+Excluding an activity removes it from *every* statistic, not just the obvious ones:
+the training-load curve, the records wall, the lifetime totals, the streaks, the
+weekly running volume and your shoes' mileage. Retyping a walk as a run moves it
+between the per-sport totals everywhere for the same reason — everything reads the
+same edit-resolved view.
+
 Adding another editable field is [one entry in a registry](garmin_analytics/db/fields.py);
 the view DDL, the API schema, validation and the UI editor are all generated from it.
 
@@ -131,6 +137,12 @@ Training load (TRIMP → CTL/ATL/TSB with ramp-rate warnings), recovery trends a
 rolling baselines (RHR, HRV, sleep, Body Battery) with anomaly flags, rolling best
 efforts, aerobic decoupling, efficiency factor, VO2max, and a race panel with a
 Riegel projection.
+
+Best efforts are extracted from every activity that has a distance stream, but the
+records wall and the race projection only read the foot-borne ones. A bike covers
+5 km in nine minutes; letting that count as a "5 k PB" makes the wall meaningless
+and the Riegel projection — a running formula — absurd. Filter the Aggregates tab to
+cycling and you get the cycling records, which is the case where you meant it.
 
 ---
 
@@ -184,8 +196,21 @@ Read this part.
   container.
 * **`APP_PASSWORD` is one shared password, not an identity system.** It stops the
   port being wide open. It is not a substitute for not exposing the port.
-* **This is a POC, freshly built.** It has 645 tests and a verification transcript,
-  but it has not been run against a real Garmin account for months on end.
+* **`APP_PASSWORD` has no brute-force lockout.** A wrong guess costs the attacker
+  one second and costs you one worker thread; there is no attempt counter and no
+  ban. That is adequate behind localhost or a VPN and is *not* adequate on a public
+  port. Use a long random password and put a reverse proxy in front if you expose it.
+* **Set `TZ`.** The container is UTC unless you say otherwise, and the race
+  countdown, the current streak and the 28-day rolling volume are all computed for
+  "today" in local time.
+* **Re-clustering is synchronous.** `Re-cluster` on the Routes tab compares every
+  GPS activity against every candidate route in the request thread — about thirteen
+  seconds for five hundred tracks here, and it grows faster than linearly. On a
+  large history, start it and leave the tab alone.
+* **This is a POC, freshly built.** It has 669 tests and a verification transcript,
+  but it has not been run against a real Garmin account for months on end. It has
+  had one adversarial review pass over the security and the maths — see
+  [`REVIEW.md`](REVIEW.md) for what that found and what it did not.
 
 ---
 
@@ -224,6 +249,7 @@ Every setting is documented in [`.env.example`](.env.example). The ones that mat
 | `GA_SEED_DEMO` | `0` | `1` generates synthetic data on first start. |
 | `GA_TILE_URL` | OSM | Your own tile server goes here. |
 | `GA_HR_REST` / `GA_HR_MAX` | 52 / 187 | Used by TRIMP and zone maths. |
+| `TZ` | `Etc/UTC` | Your IANA zone. Anything anchored on "today" needs it. |
 
 There is deliberately **no** `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Credentials are
 entered in the web UI, exchanged for a token, and discarded.
@@ -261,7 +287,8 @@ Inside Docker: `docker compose exec app garmin-analytics doctor`.
 * The container runs as a non-root user (uid 10001) with `no-new-privileges`.
 * Compose binds the port to `127.0.0.1` by default.
 * `.gitignore` and `.dockerignore` both cover `.env`, token caches, databases and
-  activity files.
+  activity files. `.env.example` is the one deliberate exception.
+* There is **no brute-force lockout** on the password — see Honest limits.
 
 ---
 
@@ -272,7 +299,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Short version:
 ```bash
 pip install -r requirements.txt && pip install -e .
 garmin-analytics seed --reset     # no Garmin account needed to develop
-pytest                            # 645 tests
+pytest                            # 669 tests
 ./scripts/verify.sh               # local end-to-end transcript
 ./scripts/verify_docker.sh        # container transcript (destroys the volume)
 ```
