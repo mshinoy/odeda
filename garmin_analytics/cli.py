@@ -308,6 +308,16 @@ def cmd_report(args: argparse.Namespace) -> int:
         return 0
 
     colour = sys.stdout.isatty()
+
+    if rd["day"] is None:
+        # Fresh install, nothing synced yet. Printing "None readiness None (None)"
+        # reads like a bug; say what is actually true and what to do about it.
+        print(_colour("\nNo data yet.", BOLD, colour))
+        print("    Connect your Garmin account and run a sync:")
+        print("      garmin-analytics login   # then: garmin-analytics backfill")
+        print("    Or explore the app first:  garmin-analytics seed")
+        return 0
+
     print(_colour(f"\n{rd['day']}  readiness {rd['score']} ({rd['band']})", BOLD, colour))
     for reason in rd["reasons"]:
         print(f"    · {reason}")

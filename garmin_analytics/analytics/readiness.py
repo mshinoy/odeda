@@ -124,7 +124,20 @@ def recommendation(score: float, tsb: float | None, flags: Sequence[Mapping[str,
 def compute_readiness(store, day: str | None = None) -> dict[str, object]:
     day = day or store.scalar("SELECT MAX(day) FROM v_daily")
     if not day:
-        return {"day": None, "score": None, "reasons": ["No data."], "components": {}}
+        # A fresh install, before the first sync, lands here. Callers index this
+        # dict by key (the CLI report did, and crashed), so the empty shape must
+        # match the populated one exactly — same keys, empty values.
+        return {
+            "day": None,
+            "score": None,
+            "band": None,
+            "components": {},
+            "weights": WEIGHTS,
+            "reasons": ["No data."],
+            "recommendation": "Not enough data to judge.",
+            "garmin_training_readiness": None,
+            "flags": [],
+        }
 
     row = store.query("SELECT * FROM v_daily WHERE day = ?", (day,))
     latest = row[0] if row else {}
