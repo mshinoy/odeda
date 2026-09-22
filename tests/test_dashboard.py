@@ -235,15 +235,31 @@ class TestHeadlessRender:
     # Booting Chromium costs a few seconds, so each URL is rendered once per session.
     _dom_cache: dict[str, str] = {}
 
-    def _dump_dom(self, url: str) -> str:
-        if url not in self._dom_cache:
+    def _dump_dom(self, url: str, require: str = 'data-ready="1"') -> str:
+        """Render `url` and return the DOM once `require` is present.
+
+        The virtual-time budget bounds *virtual* time, but the fetches app.js waits
+        on are real: under a loaded machine (the full suite runs a live server and
+        667 other tests) a single dump can return before the page has settled.
+        So retry with a growing budget, and only cache a settled DOM.
+        """
+        if url in self._dom_cache:
+            return self._dom_cache[url]
+
+        dom = ""
+        for budget in (9000, 20000, 40000):
             out = subprocess.run(
                 [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
-                 "--virtual-time-budget=9000", "--dump-dom", url],
+                 f"--virtual-time-budget={budget}", "--dump-dom", url],
                 capture_output=True, text=True, timeout=180,
             )
-            self._dom_cache[url] = out.stdout
-        return self._dom_cache[url]
+            dom = out.stdout
+            if require in dom:
+                self._dom_cache[url] = dom
+                return dom
+        # Never settled. Return the last attempt so the assertion reports the real
+        # failure rather than a timeout from here.
+        return dom
 
     def test_overview_bootstraps_and_draws(self, live_server):
         dom = self._dump_dom(live_server + "/#overview")
@@ -291,7 +307,11 @@ class TestHeadlessRender:
         ) as fh:
             aid = json.load(fh)["rows"][0]["activity_id"]
 
-        dom = self._dump_dom(f"{live_server}/#activities/{aid}")
+        # The drawer fills from its own fetch, which resolves after the page is
+        # otherwise ready — so settle on drawer content, not just the boot flag.
+        dom = self._dump_dom(
+            f"{live_server}/#activities/{aid}", require="Best efforts in this activity"
+        )
         assert 'id="drawer"' in dom
         assert "drawer" in dom and 'hidden=""' not in dom.split('id="drawer"')[1][:60]
         assert "Time in heart-rate zones" in dom
