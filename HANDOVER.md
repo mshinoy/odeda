@@ -272,3 +272,37 @@ demo data is where you left it.
 `REVIEW.md` also lists seven things found and deliberately **not** fixed, including
 one — the login endpoint has no brute-force lockout — that matters if you ever move
 this off localhost.
+
+---
+
+## 11. Two more fixes after the review, and one machine note
+
+I re-verified the review's own work rather than taking its word for it: the git
+history is clean (`.env` never committed, the password no longer anywhere in the
+tree), the container is healthy on the rebuilt image, and the race projection now
+reads **2:09:23 from a 15 k in 1:30:07** — a running activity, at 6:08/km. That one
+is confirmed, not just claimed.
+
+Two things that verification turned up on its own:
+
+**`report` crashed on a fresh install.** `KeyError: 'band'` — the exact state you
+would be in after `docker compose up` on a clean machine, before the first sync. The
+no-data branch of the readiness calculation returned a dict missing keys its callers
+index. The analytics handled the empty database fine; the shape contract between it
+and the CLI did not. Fixed at the source, so every consumer benefits, and the empty
+report now tells you what to run next instead of printing `None readiness None
+(None)`. `tests/test_fresh_install.py` pins it — four of those tests fail without the
+fix. This only ever affected a database with no rows in it, so your seeded demo was
+never touched.
+
+**One test was flaky.** The headless dashboard test passed alone and failed in a full
+run: its virtual-time budget was fixed at 9 s, but the fetches the page waits on are
+real, and a loaded machine outran it. It now retries against a growing budget and
+settles on content. Three consecutive full runs, then a fourth after the fixes above:
+**676 passed**, no flakes.
+
+**Machine note, not a code problem.** This box has 3 GB of RAM and about 2 GB free.
+One full-suite run was killed by the OOM killer (exit 137) while Chromium and the
+container were both up; the next run passed cleanly. If you see a 137 during a test
+run, that is memory pressure, not a regression — close the container or run
+`pytest --deselect tests/test_dashboard.py` and it goes away.
