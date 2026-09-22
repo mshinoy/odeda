@@ -67,11 +67,13 @@ SHAPES: list[Shape] = [
 ]
 
 
-def iter_json_documents(zip_path: Path | str) -> Iterator[tuple[str, Any]]:
+def iter_json_documents(
+    zip_path: Path | str, skipped: list[str] | None = None
+) -> Iterator[tuple[str, Any]]:
     """Yield (member name, decoded JSON) for every JSON member in the archive.
 
-    Members that are not valid JSON are skipped with a warning — the export also
-    contains CSVs, images and, occasionally, an empty file.
+    Members that are not valid JSON are skipped with a warning and recorded in
+    `skipped` — the export also contains CSVs, images and, occasionally, an empty file.
     """
     with zipfile.ZipFile(zip_path) as zf:
         for info in zf.infolist():
@@ -82,20 +84,38 @@ def iter_json_documents(zip_path: Path | str) -> Iterator[tuple[str, Any]]:
                     yield info.filename, json.loads(fh.read().decode("utf-8-sig"))
             except (json.JSONDecodeError, UnicodeDecodeError) as exc:
                 log.warning("skipping %s: %s", info.filename, exc)
+                if skipped is not None:
+                    skipped.append(info.filename)
+
+
+WRAPPER_KEYS = (
+    "summarizedActivitiesExport",
+    "dailySleepDTO",
+    "allMetrics",
+    "hrvSummaries",
+    "dailyWeightSummaries",
+)
 
 
 def records_of(doc: Any) -> list[Mapping[str, Any]]:
-    """Flatten the handful of containers Garmin wraps its arrays in."""
+    """Flatten the handful of containers Garmin wraps its arrays in.
+
+    The activity export is doubly wrapped — a list holding one object holding the
+    array (`[{"summarizedActivitiesExport": [...]}]`) — so a list has to be unwrapped
+    again, not just returned as-is.
+    """
     if isinstance(doc, list):
-        return [r for r in doc if isinstance(r, Mapping)]
+        out: list[Mapping[str, Any]] = []
+        for item in doc:
+            if not isinstance(item, Mapping):
+                continue
+            if any(isinstance(item.get(k), list) for k in WRAPPER_KEYS):
+                out.extend(records_of(item))
+            else:
+                out.append(item)
+        return out
     if isinstance(doc, Mapping):
-        for key in (
-            "summarizedActivitiesExport",
-            "dailySleepDTO",
-            "allMetrics",
-            "hrvSummaries",
-            "dailyWeightSummaries",
-        ):
+        for key in WRAPPER_KEYS:
             inner = doc.get(key)
             if isinstance(inner, list):
                 return [r for r in inner if isinstance(r, Mapping)]
@@ -124,10 +144,11 @@ def import_zip(store, zip_path: Path | str, limit_members: int | None = None) ->
 
     counts: dict[str, int] = {}
     unrecognised: list[str] = []
+    skipped: list[str] = []
     members = 0
 
     with store.tx():
-        for member, doc in iter_json_documents(zip_path):
+        for member, doc in iter_json_documents(zip_path, skipped):
             members += 1
             if limit_members and members > limit_members:
                 break
@@ -186,4 +207,6 @@ def import_zip(store, zip_path: Path | str, limit_members: int | None = None) ->
         "written": counts,
         "unrecognised": unrecognised[:20],
         "unrecognised_count": len(unrecognised),
+        "undecodable": skipped[:20],
+        "undecodable_count": len(skipped),
     }

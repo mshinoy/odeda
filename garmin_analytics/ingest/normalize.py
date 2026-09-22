@@ -385,8 +385,13 @@ def normalize_training_status(payload: Mapping[str, Any], day: str | None = None
     }
 
 
-def normalize_weight(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """`/weight-service/weight/dateRange` -> one row per day. Garmin reports grams."""
+def normalize_weight(payload: Mapping[str, Any], day: str | None = None) -> list[dict[str, Any]]:
+    """`/weight-service/weight/dateRange` -> one row per day. Garmin reports grams.
+
+    `day` is accepted and ignored: every normaliser is called with the same
+    `(payload, day)` signature by the sync loop, and this endpoint carries its own
+    dates. Omitting the parameter made `sync` raise TypeError on the body endpoint.
+    """
     out: list[dict[str, Any]] = []
     summaries = pick(payload, "dailyWeightSummaries") or []
     if not isinstance(summaries, list):
