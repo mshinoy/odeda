@@ -171,7 +171,18 @@ def weekly_loads(curve: Sequence[Mapping[str, float | str]]) -> list[dict[str, f
         wk["load"] = round(float(wk["load"]), 1)
         prev = float(weeks[i - 1]["load"]) if i else 0.0
         wk["delta_pct"] = round((float(wk["load"]) - prev) / prev * 100.0, 1) if prev > 0 else None
-        wk["overreaching"] = bool(wk["delta_pct"] is not None and wk["delta_pct"] > RAMP_FLAG_PCT)
+        # The over-training flag is on the CTL ramp, not on raw weekly load. A 3:1
+        # mesocycle makes raw load jump ~40 % every fourth week by design; flagging
+        # that would cry wolf on every post-recovery week. CTL is what actually has to
+        # stay under ~10 %/wk.
+        prev_ctl = float(weeks[i - 1].get("ctl_end") or 0.0) if i else 0.0
+        cur_ctl = float(wk.get("ctl_end") or 0.0)
+        wk["ctl_delta_pct"] = (
+            round((cur_ctl - prev_ctl) / prev_ctl * 100.0, 1) if prev_ctl > 1e-6 else None
+        )
+        wk["overreaching"] = bool(
+            wk["ctl_delta_pct"] is not None and wk["ctl_delta_pct"] > RAMP_FLAG_PCT
+        )
     return weeks
 
 
@@ -210,9 +221,18 @@ def compute_load(store, start: str | None = None, end: str | None = None) -> dic
     weeks = weekly_loads(curve)
     ramp = ramp_rate(curve)
     latest = curve[-1]
+    # CTL is seeded at zero, so the first chronic time constant of any series ramps
+    # steeply no matter what the athlete did. Say so rather than letting the chart
+    # imply a heroic first six weeks.
+    warmup_until = (lo + timedelta(days=CTL_TAU_DAYS)).isoformat()
     return {
         "curve": curve,
         "weeks": weeks,
+        "warmup_until": warmup_until,
+        "warmup_note": (
+            f"CTL/ATL start from zero on {lo.isoformat()}; values before "
+            f"{warmup_until} are a cold-start artefact, not fitness."
+        ),
         "current": {
             "day": latest["day"],
             "ctl": latest["ctl"],

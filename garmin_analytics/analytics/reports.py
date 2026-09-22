@@ -4,9 +4,20 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, timedelta
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def iso_week_key(day: str) -> str:
+    """`2026-W38`. ISO weeks, not SQLite's `%Y-%W`, which disagrees at year boundaries."""
+    iso = date.fromisoformat(day).isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+
+def week_start(day: str) -> str:
+    d = date.fromisoformat(day)
+    return (d - timedelta(days=d.isocalendar().weekday - 1)).isoformat()
 
 
 def longest_streak(days: Iterable[str]) -> dict[str, object]:
@@ -62,39 +73,59 @@ def pct_delta(now: float | None, prev: float | None) -> float | None:
 # ---------------------------------------------------------------------------
 
 
+def _group_by_week(rows: Sequence[dict], day_key: str = "day") -> dict[str, list[dict]]:
+    buckets: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        buckets[iso_week_key(str(r[day_key]))].append(r)
+    return buckets
+
+
+def _avg(rows: Sequence[dict], key: str) -> float | None:
+    vals = [float(r[key]) for r in rows if r.get(key) is not None]
+    return sum(vals) / len(vals) if vals else None
+
+
+def _sum(rows: Sequence[dict], key: str) -> float:
+    return sum(float(r[key]) for r in rows if r.get(key) is not None)
+
+
 def weekly_report(store, limit: int = 26) -> list[dict[str, object]]:
-    rows = store.query(
-        """
-        SELECT strftime('%Y-%W', a.day)      AS week,
-               MIN(a.day)                    AS start,
-               COUNT(*)                      AS sessions,
-               SUM(a.distance_m) / 1000.0    AS km,
-               SUM(COALESCE(a.moving_time_s, a.duration_s)) / 3600.0 AS hours,
-               SUM(a.trimp)                  AS trimp,
-               SUM(a.elevation_gain_m)       AS elev_m,
-               AVG(a.avg_hr)                 AS avg_hr
-        FROM activities a
-        GROUP BY week
-        ORDER BY week
-        """
-    )
-    wellness = {
-        r["week"]: r
-        for r in store.query(
-            """
-            SELECT strftime('%Y-%W', d.day) AS week,
-                   AVG(d.resting_hr) AS rhr,
-                   AVG(s.sleep_score) AS sleep_score,
-                   AVG(s.total_sleep_s) / 3600.0 AS sleep_h,
-                   AVG(h.last_night_avg) AS hrv,
-                   SUM(d.steps) AS steps
-            FROM daily_wellness d
-            LEFT JOIN sleep s ON s.day = d.day
-            LEFT JOIN hrv_daily h ON h.day = d.day
-            GROUP BY week
-            """
+    acts = store.query("SELECT * FROM activities ORDER BY day")
+    daily = store.query("SELECT * FROM v_daily ORDER BY day")
+    act_weeks = _group_by_week(acts)
+    day_weeks = _group_by_week(daily)
+
+    rows = []
+    for wk in sorted(act_weeks):
+        a = act_weeks[wk]
+        runs = [r for r in a if r["activity_type"] == "running"]
+        rows.append(
+            {
+                "week": wk,
+                "start": week_start(str(min(r["day"] for r in a))),
+                "sessions": len(a),
+                "runs": len(runs),
+                # `km` is all-sport (a bike ride is 20 km of nothing much); `run_km` is
+                # the number a runner actually cares about. Both, clearly labelled.
+                "km": _sum(a, "distance_m") / 1000.0,
+                "run_km": _sum(runs, "distance_m") / 1000.0,
+                "hours": _sum(a, "moving_time_s") / 3600.0,
+                "trimp": _sum(a, "trimp"),
+                "elev_m": _sum(a, "elevation_gain_m"),
+                "avg_hr": _avg(a, "avg_hr"),
+            }
         )
-    }
+
+    wellness = {}
+    for wk, d in day_weeks.items():
+        wellness[wk] = {
+            "rhr": _avg(d, "resting_hr"),
+            "hrv": _avg(d, "hrv"),
+            "sleep_score": _avg(d, "sleep_score"),
+            "sleep_h": (lambda v: v / 3600.0 if v is not None else None)(_avg(d, "total_sleep_s")),
+            "steps": _sum(d, "steps"),
+        }
+
     out = []
     for i, r in enumerate(rows):
         w = wellness.get(r["week"], {})
@@ -104,7 +135,9 @@ def weekly_report(store, limit: int = 26) -> list[dict[str, object]]:
                 "week": r["week"],
                 "start": r["start"],
                 "sessions": r["sessions"],
+                "runs": r["runs"],
                 "km": round(float(r["km"] or 0), 1),
+                "run_km": round(float(r["run_km"] or 0), 1),
                 "hours": round(float(r["hours"] or 0), 2),
                 "trimp": round(float(r["trimp"] or 0), 1),
                 "elev_m": round(float(r["elev_m"] or 0)),
@@ -114,7 +147,7 @@ def weekly_report(store, limit: int = 26) -> list[dict[str, object]]:
                 "sleep_h": round(float(w["sleep_h"]), 2) if w.get("sleep_h") else None,
                 "sleep_score": round(float(w["sleep_score"]), 1) if w.get("sleep_score") else None,
                 "steps": int(w["steps"]) if w.get("steps") else None,
-                "km_delta_pct": pct_delta(r["km"], prev.get("km")),
+                "km_delta_pct": pct_delta(r["run_km"], prev.get("run_km")),
                 "trimp_delta_pct": pct_delta(r["trimp"], prev.get("trimp")),
             }
         )
@@ -127,6 +160,7 @@ def monthly_report(store, limit: int = 24) -> list[dict[str, object]]:
         SELECT substr(a.day, 1, 7)           AS month,
                COUNT(*)                      AS sessions,
                SUM(a.distance_m) / 1000.0    AS km,
+               SUM(CASE WHEN a.activity_type = 'running' THEN a.distance_m ELSE 0 END) / 1000.0 AS run_km,
                SUM(COALESCE(a.moving_time_s, a.duration_s)) / 3600.0 AS hours,
                SUM(a.trimp)                  AS trimp,
                SUM(a.elevation_gain_m)       AS elev_m
@@ -162,6 +196,7 @@ def monthly_report(store, limit: int = 24) -> list[dict[str, object]]:
                 "month": r["month"],
                 "sessions": r["sessions"],
                 "km": round(float(r["km"] or 0), 1),
+                "run_km": round(float(r["run_km"] or 0), 1),
                 "hours": round(float(r["hours"] or 0), 2),
                 "trimp": round(float(r["trimp"] or 0), 1),
                 "elev_m": round(float(r["elev_m"] or 0)),
@@ -170,7 +205,7 @@ def monthly_report(store, limit: int = 24) -> list[dict[str, object]]:
                 "sleep_score": round(float(w["sleep_score"]), 1) if w.get("sleep_score") else None,
                 "weight_kg": round(float(w["weight_kg"]), 1) if w.get("weight_kg") else None,
                 "vo2max": round(float(w["vo2max"]), 1) if w.get("vo2max") else None,
-                "km_delta_pct": pct_delta(r["km"], prev.get("km")),
+                "km_delta_pct": pct_delta(r["run_km"], prev.get("run_km")),
                 "trimp_delta_pct": pct_delta(r["trimp"], prev.get("trimp")),
             }
         )
@@ -197,6 +232,16 @@ def compute_reports(store) -> dict[str, object]:
             "tracked_days": len(wear_days),
             "total_km": round(
                 float(store.scalar("SELECT SUM(distance_m) FROM activities") or 0) / 1000.0, 1
+            ),
+            "total_run_km": round(
+                float(
+                    store.scalar(
+                        "SELECT SUM(distance_m) FROM activities WHERE activity_type = 'running'"
+                    )
+                    or 0
+                )
+                / 1000.0,
+                1,
             ),
             "total_hours": round(
                 float(

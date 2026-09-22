@@ -234,17 +234,46 @@ def project_race_time(
 
 
 def weekly_distance(store) -> list[dict[str, object]]:
+    from . import reports as reports_mod
+
     rows = store.query(
-        """
-        SELECT strftime('%Y-%W', day) AS wk,
-               MIN(day) AS start,
-               SUM(distance_m) / 1000.0 AS km
-        FROM activities
-        WHERE activity_type = 'running'
-        GROUP BY wk ORDER BY wk
-        """
+        "SELECT day, distance_m FROM activities WHERE activity_type = 'running' ORDER BY day"
     )
-    return [{"week": r["wk"], "start": r["start"], "km": round(float(r["km"] or 0), 1)} for r in rows]
+    buckets: dict[str, float] = {}
+    for r in rows:
+        key = reports_mod.iso_week_key(str(r["day"]))
+        buckets[key] = buckets.get(key, 0.0) + float(r["distance_m"] or 0.0)
+    return [
+        {
+            "week": wk,
+            "start": _week_start_from_key(wk),
+            "km": round(km / 1000.0, 1),
+        }
+        for wk, km in sorted(buckets.items())
+    ]
+
+
+def _week_start_from_key(key: str) -> str:
+    year, week = key.split("-W")
+    return date.fromisocalendar(int(year), int(week), 1).isoformat()
+
+
+def trailing_weekly_km(store, days: int = 28) -> float:
+    """Running kilometres per week over the last `days`, anchored on the last activity.
+
+    Using the last four *calendar* weeks would include the current, incomplete week
+    and report a volume drop that is really just a Tuesday.
+    """
+    hi = store.scalar("SELECT MAX(day) FROM activities")
+    if not hi:
+        return 0.0
+    lo = (date.fromisoformat(hi) - timedelta(days=days - 1)).isoformat()
+    total = store.scalar(
+        "SELECT SUM(distance_m) FROM activities "
+        "WHERE activity_type = 'running' AND day BETWEEN ? AND ?",
+        (lo, hi),
+    )
+    return round(float(total or 0.0) / 1000.0 / (days / 7.0), 1)
 
 
 def compute_race(store, today: date | None = None) -> dict[str, object]:
@@ -260,8 +289,7 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
     ctl = float(current.get("ctl") or 0.0)
 
     weeks = weekly_distance(store)
-    recent_km = [w["km"] for w in weeks[-4:]]
-    avg_km = round(sum(recent_km) / len(recent_km), 1) if recent_km else 0.0
+    avg_km = trailing_weekly_km(store, 28)
 
     # Straight-line CTL requirement to hit the target by race week.
     weeks_left = max(days_to_go / 7.0, 0.0)
