@@ -23,6 +23,16 @@ DISTANCE_LABELS = {
 RIEGEL_EXPONENT = 1.06
 DECOUPLING_MIN_DURATION_S = 40 * 60  # spec: runs longer than 40 minutes
 
+#: Sports a standard-distance best effort means something for.
+#:
+#: `best_efforts` rows are extracted from any activity with a distance stream, which
+#: is correct — but reading them back without filtering is not. A bike covers 5 km in
+#: nine minutes, so an unfiltered "5 k PB" is always the fastest ride, the records
+#: wall becomes a list of bike rides labelled in min/km, and the Riegel projection
+#: (a *running* formula) reports a half marathon faster than the world record.
+#: `walking` is in the family because it is foot-borne and can never flatter anyone.
+BEST_EFFORT_TYPES = ("running", "treadmill_running", "walking")
+
 
 def riegel(known_time_s: float, known_distance_m: float, target_distance_m: float,
            exponent: float = RIEGEL_EXPONENT) -> float:
@@ -197,16 +207,32 @@ def rebuild_best_efforts(store, activity_ids: Sequence[str] | None = None) -> in
     return n
 
 
-def personal_bests(store, since_day: str | None = None) -> list[dict[str, object]]:
-    """Best effort per standard distance, optionally restricted to recent history."""
+def personal_bests(
+    store,
+    since_day: str | None = None,
+    activity_types: Sequence[str] = BEST_EFFORT_TYPES,
+) -> list[dict[str, object]]:
+    """Best effort per standard distance, optionally restricted to recent history.
+
+    Joins `v_activities_included`, so the effort is attributed to the activity's
+    *effective* type (a ride the user retyped as a run counts as a run) and an
+    activity excluded from stats cannot hold a record.
+    """
+    if not activity_types:
+        return []
     out = []
+    placeholders = ", ".join("?" for _ in activity_types)
     for target in STANDARD_DISTANCES:
-        sql = "SELECT * FROM best_efforts WHERE distance_m = ?"
-        params: list[object] = [target]
+        sql = (
+            "SELECT b.* FROM best_efforts b "
+            "JOIN v_activities_included v ON v.activity_id = b.activity_id "
+            f"WHERE b.distance_m = ? AND v.activity_type IN ({placeholders})"
+        )
+        params: list[object] = [target, *activity_types]
         if since_day:
-            sql += " AND day >= ?"
+            sql += " AND b.day >= ?"
             params.append(since_day)
-        sql += " ORDER BY seconds LIMIT 1"
+        sql += " ORDER BY b.seconds LIMIT 1"
         rows = store.query(sql, params)
         if not rows:
             continue

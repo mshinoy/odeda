@@ -443,15 +443,28 @@ def records(store: Store, **f: Any) -> dict[str, Any]:
     """The records wall: best efforts at each distance, plus the extremes."""
     clause, params = _filters(**f)
 
+    # Best efforts are labelled "5 k" and priced in min/km, so with no explicit sport
+    # filter they have to be restricted to the foot-borne sports; otherwise the wall
+    # is just a list of bike rides. An explicit activity_type filter is the user
+    # asking for that sport's records and is honoured as given.
+    effort_clause, effort_params = clause, list(params)
+    if not f.get("activity_type"):
+        effort_clause += (
+            " AND v.activity_type IN ("
+            + ", ".join("?" for _ in perf.BEST_EFFORT_TYPES)
+            + ")"
+        )
+        effort_params += list(perf.BEST_EFFORT_TYPES)
+
     best_efforts = []
     for dist in RECORD_DISTANCES:
         row = store.query(
             "SELECT b.distance_m, b.seconds, b.day, b.activity_id, v.activity_name "
             "FROM best_efforts b "
             "JOIN v_activities_included v ON v.activity_id = b.activity_id "
-            f"WHERE {clause} AND b.distance_m = ? "
+            f"WHERE {effort_clause} AND b.distance_m = ? "
             "ORDER BY b.seconds LIMIT 1",
-            [*params, dist],
+            [*effort_params, dist],
         )
         if not row:
             continue
