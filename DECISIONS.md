@@ -155,3 +155,159 @@ document described the wrong process — including a "shutdown" section where th
 was still up. The script now checks the port first and kills by recorded PID rather than
 by pattern (a `pkill -f` on the process name also matches the script's own command line,
 which killed the shell running it).
+
+---
+
+# v2 decisions
+
+The brief changed a few hours in: from a personal script to a shareable, Docker-
+deployed web product with routes, maps, an editing layer and gear. These are the calls
+made for that, again without asking.
+
+### D25 — overrides are a separate table, not columns on `activities`
+The requirement is that a sync can never clobber a user edit. Two ways to do that:
+be careful in the sync path, or make it structurally impossible. Columns on
+`activities` mean every present and future write path has to remember to preserve
+them — one `upsert` with the full row and the edit is gone.
+
+So: `activities` holds what Garmin said, `overrides` holds what the user said, and a
+generated view resolves `COALESCE(override, garmin_value)`. Sync writes one table, the
+user writes the other, and there is no code path that touches both. The cost is a
+six-way `LEFT JOIN` in the read path, which on a few thousand activities is free.
+
+### D26 — the editable-field registry generates the view DDL
+The brief asked that another editable field be "a small change, not a refactor". So
+`db/fields.py` holds a list of `EditableField`s and *generates* the `v_activities`
+DDL, the API schema, the validation and the UI editor from it. Adding a field is one
+entry.
+
+The trap with a generated schema is drift: change the registry, forget to migrate, and
+the view silently no longer matches. `PRAGMA user_version` therefore stores a
+fingerprint mixing `SCHEMA_VERSION` with a digest of the registry, so a registry change
+invalidates the stored schema automatically and the view is rebuilt on next open.
+
+### D27 — migration is skipped entirely when the fingerprint matches
+v1 ran the whole DDL script on every `Store.open()`, and the API opens a connection
+per request. Adding `DROP VIEW`/`CREATE VIEW` to that made it a *write* on every
+request, and two concurrent requests dropping the same view is a write-lock race. It
+showed up as two intermittently failing dashboard tests before I understood it.
+
+Now: `PRAGMA user_version` is one integer read; if it matches, `migrate()` returns
+immediately and touches nothing.
+
+### D28 — route matching is symmetric overlap, and the minimum of the two directions
+Comparing tracks by start/end proximity plus total distance merges any two loops of
+similar length from the same house. Comparing by mean nearest-neighbour distance lets
+a 5 km out-and-back match the 10 km route that contains it, because every one of its
+points really is on that route.
+
+Taking `min(fraction of A within tolerance of B, fraction of B within tolerance of A)`
+fixes the subset case: the long route scores badly against the short one. Tolerance is
+45 m — enough for GPS drift and opposite pavements, not enough to merge parallel
+streets. Threshold 0.80. On the synthetic seed this produces exactly the 15 routes the
+generator used, with no false merges, including two pairs deliberately built at the
+same distance in different parts of the city.
+
+### D29 — tracks are resampled by distance, not by time
+So that a slow run and a fast run of the same loop produce the same point sequence.
+Time-based resampling makes pace a confounder in a geometry comparison.
+
+### D30 — the representative track for a route is the median-length attempt
+Not the first (arbitrary), not an average of all attempts (an average of GPS tracks
+is a smear that corresponds to no real path). The median attempt is robust to one run
+where the signal wandered, and it is always a track the user actually ran.
+
+### D31 — segment speed is normalised by each attempt's own average
+"Where do I slow down" must not answer "on the days you were tired". Dividing each
+segment's speed by that attempt's mean speed before aggregating across attempts
+removes the day-to-day fitness signal and leaves the route's own profile. Verified on
+the seed: the segments flagged slowest are exactly the ones with a +3.3 % gradient,
+and heart rate rises across them.
+
+### D32 — the heatmap is hand-rolled canvas, not `leaflet.heat`
+One more vendored dependency for one view. It is ~70 lines: stamp radial gradients
+into an accumulation buffer, then map the buffer through the same colour ramp the
+polylines use. Aggregation happens server-side onto a grid, so the browser receives
+tens of thousands of counted cells rather than millions of raw points.
+
+### D33 — chart↔map hover is matched on elapsed time, not array index
+The chart plots every sample; the track only the samples that carried a position.
+Indexing one array with the other's index is the obvious implementation and it
+silently mis-aligns wherever GPS dropped out. Binary search on elapsed time instead.
+
+### D34 — indoor activities keep their own activity type
+v1's `TYPE_MAP` folded `treadmill_running` into `running` and `indoor_cycling` into
+`cycling`. They have no GPS, no elevation and a different pace profile; folding them
+together distorts every per-type average and removes the user's ability to filter them
+out. They are still runs, but they are not the same runs. The seeder deliberately
+produces ~9 % treadmill runs and ~22 % indoor rides so the no-GPS path is always
+exercised.
+
+### D35 — gear mileage excludes activities flagged exclude-from-stats
+The watch left running in the car should not retire your shoes. Same view
+(`v_activities_included`) as every other aggregate, so there is one definition of
+"counts" rather than two.
+
+### D36 — a single `APP_PASSWORD`, no user accounts
+Single-tenant was the brief. A login system implies user records, password resets and
+a session model per user; none of that adds safety for one person, and all of it adds
+surface. One password, PBKDF2 at rest, session tokens stored as hashes so a copy of
+the database cannot be replayed. Sessions live in the database so a container restart
+does not sign you out.
+
+Empty `APP_PASSWORD` runs unprotected and says so loudly in the logs, in `/api/config`
+and on the Settings tab. Forcing a password on someone running it on a laptop would
+just make them set `APP_PASSWORD=x`.
+
+### D37 — Garmin credentials go through the web UI, never through env or the image
+`garth 0.8.0` supports `login(..., return_on_mfa=True)`, which returns a client state
+instead of prompting on a TTY. That makes a real MFA pause possible in a browser. The
+in-flight state is held in memory with a 10-minute expiry and never written to disk —
+it is an auth context, not a preference. The password is used once and discarded;
+`.env.example` deliberately has no `GARMIN_PASSWORD` line to copy.
+
+### D38 — backfill state lives in the database, not in the process
+The work queue is a query ("which activities have no stream yet"), and progress is
+checkpointed after every activity. That makes resume exact and free: there is nothing
+in memory to lose. The background job is a plain thread with a stop flag, because
+single-tenant means at most one backfill matters at a time and a task queue would be
+infrastructure bought for nothing.
+
+### D39 — `GA_SEED_DEMO` is opt-in, and off by default
+`docker compose up -d` showing an empty dashboard is a bad first impression; a real
+deployment silently filling with fabricated activities is much worse. Off by default,
+on in `.env.example`'s commentary, only ever runs when no database exists, and the UI
+carries a banner while synthetic data is present.
+
+### D40 — `renormalize` now rebuilds `activities` too
+It previously covered only the per-day endpoints, which meant the offline re-parse
+could not rebuild the largest table — and, more to the point, there was no honest way
+to *prove* the override-survival claim without network access. It now re-normalises
+every archived activity payload, which is the same write path a sync takes. That is
+what section 7 of `VERIFICATION.md` exercises.
+
+### D41 — average pace is distance-weighted
+Total distance over total time, not the mean of per-activity paces. The two differ,
+and the mean lets a 1 km jog count as much as a 30 km long run. Where the filter spans
+several sports the UI says "mixed sports — filter by type" rather than presenting a
+number that averages running and cycling.
+
+### D42 — four bugs found by rendering the dashboard rather than asserting about it
+Listed rather than quietly fixed, because they are the argument for looking:
+
+1. `baseOpts` already prepends the x-series, so the leading `{ label: … }` I copied
+   into every new chart gave each one more series than data arrays. All six aggregate
+   charts and the segment profile drew blank.
+2. The segment profile shared one y-axis between relative speed (±10 %), gradient
+   (±5 %) and heart rate (120–180 bpm). At that scale the percentages were a flat
+   line. Split into two charts.
+3. The activity-type `<select>` only contained values from the suggestion list, so a
+   strength session displayed "running" — and Save would have silently retyped it.
+   The select now always contains the activity's real value.
+4. Leaflet caches the container size at creation, and the drawer keeps growing after
+   the map is inserted. `invalidateSize()` after the drawer finishes.
+
+And one found by writing the verification script carefully: the gear-mileage
+comparison passed while both sides were empty strings, because the embedded Python had
+a quoting error. `check()` now fails on an empty value rather than comparing `""` with
+`""` and reporting success.

@@ -1,345 +1,295 @@
 # Garmin Analytics
 
-Personal analytics over Garmin Connect data — training load, recovery trends,
-performance and race readiness — running entirely on this machine.
+Self-hosted analytics over **your own** Garmin Connect history. Clone it, bring your
+account, get your data — routes clustered into the loops you actually run, segment
+analysis showing where you speed up and slow down, gear mileage, training load,
+recovery trends, and lifetime aggregates over every activity you have ever recorded.
 
-Built for one athlete training for the **half marathon at the Doha Marathon by Ooredoo,
-Friday 15 January 2027, 07:35** (`garmin_analytics/config.py`).
+Single-tenant by design: one deployment is one person's data. There is no user
+account system, no shared database, and nobody else's Garmin password anywhere.
 
-Nothing leaves the machine. There is no telemetry, no cloud component, and the frontend
-has no CDN links.
+![Routes and maps](docs/screenshots/routes.png)
 
----
-
-## Why this exists
-
-Garmin has no self-serve API for individuals — the Connect Developer Program
-(Health/Activity/Training API) is enterprise-only. And Strava, the usual escape hatch,
-never receives sleep, HRV, Body Battery, stress or training readiness. That data is the
-whole point of this app, so it reads from Garmin Connect directly.
-
-The analytics are the kind a coach would actually use: Banister TRIMP summed over
-heart-rate zones, CTL/ATL/TSB, z-scores against the athlete's *own* rolling baseline,
-best efforts extracted from sample streams, aerobic decoupling, and a Riegel race
-projection that shows its working.
+> Every screenshot in this repository is of **synthetic data** from the built-in
+> seeder. No real training, no real GPS traces, no real names.
 
 ---
 
-## Quick start
+## 60-second quickstart
 
 ```bash
-# 1. Environment (see "Installing" below if python3-venv is missing)
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-
-# 2. Demo data — 18 months of synthetic, physiologically coherent training
-.venv/bin/python -m garmin_analytics.cli seed --reset
-
-# 3. Run it
-.venv/bin/python -m garmin_analytics.cli serve
-# → http://127.0.0.1:8808/
+git clone https://github.com/<you>/garmin-analytics.git
+cd garmin-analytics
+cp .env.example .env
+$EDITOR .env                 # set APP_PASSWORD, and GA_SEED_DEMO=1 to look around first
+docker compose up -d
 ```
 
-To connect the real account instead, see **HANDOVER.md**. Short version:
+Open <http://127.0.0.1:8000>, sign in with `APP_PASSWORD`, then go to **Settings →
+Garmin account** and connect your account. Your Garmin password is used once to
+obtain a token and is never stored.
+
+Then **Settings → Sync → Start full backfill**. It tells you how many requests it
+expects and roughly how long they will take before you commit to it.
+
+That is the whole install. No Python on the host, no database to provision.
+
+<details>
+<summary>Running without Docker</summary>
 
 ```bash
-.venv/bin/python -m garmin_analytics.cli login
-.venv/bin/python -m garmin_analytics.cli sync --days 540
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt && pip install -e .
+
+garmin-analytics seed --reset      # ~3 years of synthetic data, no account needed
+garmin-analytics serve             # http://127.0.0.1:8808
 ```
+
+For a real account: `garmin-analytics login`, then `garmin-analytics backfill`.
+</details>
 
 ---
 
-## Installing
+## What it does
 
-This box has no `python3-venv`, so `python3 -m venv .venv` fails at the ensurepip step.
-The workaround, which also leaves pip inside the venv:
+### Routes and maps
 
-```bash
-python3 -m venv --without-pip .venv
-python3 -m pip --python .venv/bin/python install -r requirements.txt
+This is the part that does not exist elsewhere. Garmin shows you 163 unrelated
+activities; what you actually have is **one route you have run 163 times**.
+
+* **Clustering.** Tracks are resampled to a fixed number of points *by distance*, so
+  a slow run and a fast run of the same loop line up. Two tracks are compared by
+  symmetric path overlap — the fraction of each lying within 45 m of the other,
+  taking the worse of the two, which is what stops a 5 km out-and-back being
+  swallowed by the 10 km route that contains it.
+* **Clustering gets some wrong, so you can fix it.** Rename, merge, split, or move a
+  single activity. A route you have touched is *pinned* and never re-filed
+  automatically.
+* **Segment analysis** — the headline. Each attempt is split into fixed segments
+  (200 m / 500 m / 1 km depending on route length), and each segment's speed is
+  divided by *that attempt's own average* before aggregating. So the profile shows
+  where **the route** is fast or slow rather than which days were, with median HR,
+  gradient and cadence alongside. The hills and the fade points show up as exactly
+  what they are.
+* **Maps.** Polyline coloured by pace, heart rate, elevation or gradient; a second
+  attempt overlaid for comparison; a lifetime heatmap of every GPS point; and hover
+  linking that works **both ways** — move along the chart and a marker tracks the
+  route, move over the map and the chart's crosshair follows.
+* **Indoor activities degrade gracefully.** A treadmill run has no route and no map,
+  and everything else on the page still works.
+
+### Your edits survive every sync
+
+Garmin gets things wrong. The design point:
+
+```
+activities   ← what Garmin said.   A sync rewrites this freely.
+overrides    ← what you said.      Nothing in the sync path touches it.
+v_activities ← COALESCE(override, garmin_value).  Everything reads this.
 ```
 
-If `python3-venv` *is* available, the normal `python3 -m venv .venv` works fine.
+A sync *cannot* clobber an edit, because there is no code path where it would even
+look at the overrides table. Every edit is timestamped and revertible to the value
+Garmin supplied. Editable: title, activity type, notes, RPE, private, and
+exclude-from-stats — for the time you left the watch running in the car.
 
-Installing the package itself (`pip install -e .`) puts a `garmin-analytics` command on
-the path; everything below also works as `python -m garmin_analytics.cli <command>`.
+Adding another editable field is [one entry in a registry](garmin_analytics/db/fields.py);
+the view DDL, the API schema, validation and the UI editor are all generated from it.
 
-Dependencies are pinned in `requirements.txt`. The whole virtualenv is ~100 MB: no
-numpy, no pandas, no node_modules, no Docker.
+### Gear
+
+![Gear](docs/screenshots/gear.png)
+
+Shoes, bikes, straps — brand, model, nickname, purchase date, an initial distance
+offset for mileage they already had, and a retirement threshold with a warning state.
+
+* Assign gear to **any** activity from a dropdown, retroactively, at any time.
+* **Bulk reassign** across a date range and activity type — the only sane way to add
+  gear to years of imported history that has none. Preview tells you how many
+  activities it would touch before you commit.
+* Default gear per activity type, applied to **new** activities only — backfilling
+  four years of history with today's shoes would simply be a lie.
+* Mileage counts activities you have not excluded from stats, so a bad GPS fix does
+  not retire your shoes early.
+
+### Aggregates
+
+![Aggregates](docs/screenshots/aggregates.png)
+
+Lifetime and per-period, filterable by type, date range and gear: totals, "you have
+run 833 times over 3.3 years at an average of 5:42/km", pace / distance / duration
+histograms, HR-zone split, day-of-week and time-of-day heatmaps, seasonality,
+consistency streaks, a records wall, and year-over-year change on every headline
+metric.
+
+Average pace is **distance-weighted** (total distance over total time), not the mean
+of per-activity paces — otherwise a 400 m stride counts as much as a 30 km long run.
+
+### And the rest
+
+Training load (TRIMP → CTL/ATL/TSB with ramp-rate warnings), recovery trends against
+rolling baselines (RHR, HRV, sleep, Body Battery) with anomaly flags, rolling best
+efforts, aerobic decoupling, efficiency factor, VO2max, and a race panel with a
+Riegel projection.
 
 ---
 
-## Commands
+## How data gets in
 
-| Command | What it does |
-|---|---|
-| `login` | One-time Garmin Connect SSO. Prompts for the password on a tty, never stores it. Writes an OAuth token cache to `~/.garminconnect/` at mode 0600. |
-| `sync` | Incremental pull from Connect. Resumes from the per-endpoint watermark minus three days of overlap. Safe to interrupt and re-run. |
-| `renormalize` | Re-parse everything already in `raw_documents`. **No network.** Use after a parser fix. |
-| `import-zip <path>` | Load Garmin's official "Export Your Data" ZIP. No credentials needed. |
-| `import-fit <paths…>` | Load `.fit` files or a directory of them (recursively). |
-| `seed` | Generate synthetic data for demos and tests. `--reset` wipes first. |
-| `serve` | Run the API and dashboard. Binds `127.0.0.1` by default. |
-| `doctor` | Report environment, dependency, database and auth status. |
-| `report` | Print today's readiness, load and race outlook in the terminal. |
+Garmin has **no self-serve API for individuals** — the Connect Developer Program is
+enterprise-only. So there are three routes in, in order of convenience:
 
-Useful flags:
+| Path | What it needs | What you get |
+|---|---|---|
+| `garth` (default) | Your Garmin login, via the web UI | Everything, including sleep, HRV, Body Battery, stress, training readiness |
+| Official data export | Garmin's GDPR export ZIP, no credentials | Most of it, as a one-off |
+| `.fit` / `.gpx` / `.tcx` | The files themselves | Full per-second streams including GPS |
 
-```bash
-sync --days 540 --endpoints sleep,hrv     # subset of endpoints
-sync --no-activities                       # wellness only
-seed --months 6 --end 2026-09-22 --reset
-serve --port 9000 --host 0.0.0.0           # see the warning in "Limits"
-doctor --json | jq .overall
-report --json
-```
+**The backfill pulls everything, back to the start of your account** — not a recent
+window. For a multi-year account that is thousands of requests, so it:
 
-Every command accepts `--json` for machine-readable output.
+* rate-limits politely and backs off exponentially on HTTP 429;
+* **checkpoints after every single activity**, and derives its work queue from the
+  database rather than an in-memory list, so killing it at request 4 000 of 6 000
+  and re-running resumes at 4 001;
+* reports progress, rate and ETA to stdout *and* to `/api/sync/status`, which the
+  Settings tab polls;
+* is safely re-runnable — archived payloads dedupe on content hash.
+
+Raw payloads are archived **verbatim** before anything is normalised, so improving a
+parser never means re-fetching. `garmin-analytics renormalize` rebuilds every table
+from the archive with no network access at all.
 
 ---
 
-## Dashboard
+## Honest limits
 
-Single page, six tabs, dark, readable on a phone.
+Read this part.
 
-- **Overview** — readiness hero with its component breakdown and plain-English reasons,
-  headline stats, out-of-baseline signals, readiness history, weekly volume.
-- **Training Load** — CTL vs ATL, TSB (diverging around zero), daily TRIMP, weekly table.
-- **Sleep & Recovery** — baselines with z-scores, sleep stages, sleep score, HRV,
-  resting HR and Body Battery, each against a 28-day mean; monthly table.
-- **Activities** — sortable, filterable table (type, name, date range) with a per-activity
-  drawer: HR and pace traces, HR-zone breakdown, kilometre splits, best efforts, and a
-  link to the verbatim archived payload.
-- **Performance** — best efforts per distance, aerobic decoupling against the 5 % line,
-  efficiency factor, VO₂max.
-- **Race** — countdown, Riegel projection with its source effort named, CTL trajectory
-  against target, weekly kilometres against target.
-
-Charts are [uPlot](https://github.com/leeoniya/uPlot) 1.6.32 (MIT), vendored into
-`garmin_analytics/web/vendor/`. No CDN, no build step, no framework.
-
-Screenshots of every tab, rendered from the synthetic seed, are in
-[`docs/screenshots/`](docs/screenshots/).
-
-![Overview](docs/screenshots/overview.png)
+* **The Garmin client is unofficial.** [`garth`](https://github.com/matin/garth)
+  logs in as you through the same SSO flow the website uses. It is not a supported
+  API, it is arguably against Garmin's terms of service, and **it can break without
+  notice** when Garmin changes something. Upstream has also announced it is no longer
+  maintained. If ingestion stops working, that is the most likely reason.
+* **Rate limits are real and undocumented.** A first full backfill of a multi-year
+  account issues thousands of requests. Do not run it repeatedly; it is resumable
+  precisely so that you do not have to.
+* **Map tiles are the one external call at runtime.** Every application asset —
+  Leaflet, uPlot, CSS, the lot — is vendored and served from the container. When a
+  map is on screen, raster tiles are fetched from the configured tile server
+  (OpenStreetMap by default). Point `GA_TILE_URL` at your own to remove even that,
+  and respect [the OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
+  if you use theirs.
+* **Single-tenant.** There is no multi-user support and none is planned. Run your own
+  container.
+* **`APP_PASSWORD` is one shared password, not an identity system.** It stops the
+  port being wide open. It is not a substitute for not exposing the port.
+* **This is a POC, freshly built.** It has 645 tests and a verification transcript,
+  but it has not been run against a real Garmin account for months on end.
 
 ---
 
 ## Data model
 
-SQLite, one file, stdlib `sqlite3`. Full DDL in `garmin_analytics/db/schema.sql`.
+SQLite on a Docker volume. Stdlib `sqlite3`, no ORM.
 
-### Raw-first archive
+```
+raw_documents          verbatim payloads, deduped on content hash — the source of truth
+activities             what Garmin said (a sync rewrites this)
+activity_samples       per-sample streams: distance, HR, speed, cadence, altitude, lat/lon
+overrides              what you said, per (activity, field) — a sync never touches it
+v_activities           COALESCE(override, garmin_value) — what everything reads
+v_activities_included  the same, minus anything excluded from stats — what aggregates read
+gear, activity_gear    gear and its many-to-many assignment, with gear_defaults
+routes, route_members  clusters of activities that follow the same path
+route_segment_efforts  per-attempt, per-segment splits, cached
+sleep, daily_wellness, hrv_daily, fitness, body_composition     per-day wellness
+best_efforts           rolling best efforts extracted from sample streams
+sync_status            resumable backfill progress, polled by the UI
+sessions, app_settings session cookies (hashed) and the app password hash (PBKDF2)
+```
 
-| Table | Purpose |
-|---|---|
-| `raw_documents` | Every fetched payload, verbatim, with a content hash. Unique on `(source, endpoint, ref_key, content_hash)`, so re-ingesting an unchanged payload is a no-op and a *changed* one is kept as a new revision. **Nothing Garmin returns is ever discarded**, modelled or not. |
-| `sync_watermark` | Per-endpoint progress, status and note. Drives incremental sync. |
+Full DDL: [`garmin_analytics/db/schema.sql`](garmin_analytics/db/schema.sql).
 
-Every normalised row carries `raw_id` back to the document it came from. That is what
-makes `renormalize` possible: a parser bug is fixed offline, never by re-fetching
-18 months.
+---
 
-### Normalised tables
+## Configuration
 
-| Table | Grain | Notable columns |
+Every setting is documented in [`.env.example`](.env.example). The ones that matter:
+
+| Variable | Default | Notes |
 |---|---|---|
-| `activities` | one activity | distance, elapsed/moving time, avg/max HR, avg/max speed, elevation, calories, cadence, power, aerobic/anaerobic training effect, `trimp` |
-| `activity_hr_zones` | activity × zone | seconds in zones 1–5 |
-| `activity_samples` | activity × 10 s | distance, HR, speed, cadence, power, altitude |
-| `best_efforts` | activity × distance | fastest window for 1 k, 1 mile, 5 k, 10 k, 15 k, HM, M |
-| `sleep` | day | total/deep/light/REM/awake, score, overnight HRV, respiration, SpO₂, bed/wake |
-| `daily_wellness` | day | resting HR, steps, floors, calories, intensity minutes, stress, Body Battery |
-| `hrv_daily` | day | last-night avg, 5-min high, weekly avg, baseline band, status |
-| `fitness` | day | VO₂max run/cycle, training status, training readiness, acute/chronic load |
-| `body_composition` | day | weight, body fat %, BMI |
-| `v_daily` (view) | day | everything above joined — what the trend engine reads |
+| `APP_PASSWORD` | *(empty)* | **Set this.** Empty means no authentication at all. |
+| `GA_COOKIE_SECURE` | `0` | Set to `1` when behind HTTPS. |
+| `GA_SEED_DEMO` | `0` | `1` generates synthetic data on first start. |
+| `GA_TILE_URL` | OSM | Your own tile server goes here. |
+| `GA_HR_REST` / `GA_HR_MAX` | 52 / 187 | Used by TRIMP and zone maths. |
 
-Units are normalised on the way in: seconds, metres, m/s, kilograms. The GDPR export
-uses centimetres, milliseconds and grams; `normalize_export_activity` converts them.
+There is deliberately **no** `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Credentials are
+entered in the web UI, exchanged for a token, and discarded.
 
 ---
 
-## The analytics
+## CLI
 
-### Training load — `analytics/load.py`
+```
+garmin-analytics login          authenticate with Garmin Connect (once)
+garmin-analytics backfill       pull EVERYTHING back to the start of the account
+garmin-analytics backfill --estimate    size the job before starting it
+garmin-analytics sync           incremental pull
+garmin-analytics renormalize    re-parse the raw archive, no network
+garmin-analytics cluster        (re)group GPS activities into routes
+garmin-analytics import-zip     load Garmin's official data-export ZIP
+garmin-analytics import-fit     load .fit files
+garmin-analytics seed --reset   synthetic data for demos and tests
+garmin-analytics serve          run the API and dashboard
+garmin-analytics doctor         environment and data status (no credentials printed)
+garmin-analytics report         today's readiness, load and race outlook
+```
 
-**TRIMP** (Banister): `duration_min × HRr × 0.64 × e^(k·HRr)`, where
-`HRr = (HR − HR_rest) / (HR_max − HR_rest)` and `k` is 1.92 (male) or 1.67 (female).
-
-Where HR-zone dwell times exist, TRIMP is summed *per zone* using the zone midpoint,
-not computed from the session's mean HR. That matters: the formula is exponential in
-intensity, so flattening an interval session to one average under-counts it.
-
-**CTL** is a 42-day EWMA of daily TRIMP, **ATL** a 7-day EWMA, both with
-`α = 1 − e^(−1/τ)`. Rest days are zeros in a dense series — the decay on rest days *is*
-the model, so gaps cannot be skipped.
-
-**TSB = CTL − ATL**, same day. (TrainingPeaks uses yesterday's values; the difference is
-a one-day shift. Stated rather than silently chosen — DECISIONS.md D6.)
-
-**Ramp rate** is the percent change in CTL over seven days; over 10 %/week is flagged.
-The weekly over-training flag is also on the CTL ramp, not on raw weekly load — a
-3-weeks-build/1-week-recover cycle swings raw load ±40 % by design, and flagging that
-would cry wolf every fourth week.
-
-CTL starts from zero, so the first 42 days of any series ramp steeply no matter what the
-athlete did. The API returns `warmup_until` and the chart says so.
-
-### Trends — `analytics/trends.py`
-
-7/28/90-day rolling means, plus a z-score of today against a trailing 60-day baseline
-that **excludes today**. Beyond ±1.5σ is flagged. Each metric knows which direction is
-good (resting HR down, HRV up), so the same +2σ reads as "worse" for RHR and "better"
-for HRV. A zero-variance baseline returns `None` rather than a fake z.
-
-This is the early-illness / overreaching signal: absolute values are useless, deviation
-from your own baseline is not.
-
-### Performance — `analytics/performance.py`
-
-**Best efforts** are the fastest *continuous window* for each distance inside a sample
-stream, found with a two-pointer sweep and linear interpolation at the entry point —
-not whole-activity averages, and not quantised to the sample interval.
-
-**Aerobic decoupling**: speed-per-heartbeat in the first half versus the second, split
-at the elapsed midpoint, for runs over 40 minutes. HR is time-weighted, so irregular
-sampling doesn't bias it. Under 5 % means the aerobic base supports that effort.
-
-**Efficiency factor**: metres per minute per bpm. Rising at the same effort is fitness.
-
-### Readiness — `analytics/readiness.py`
-
-A transparent weighted sum, 0–100: sleep 0.30, HRV z 0.25, TSB 0.25, resting-HR z 0.20.
-Components with no data are dropped and the remaining weights renormalised, so a missing
-HRV night lowers confidence rather than scoring a hard zero. Every component emits its
-own sentence, and the API returns all of them alongside the number.
-
-### Race panel — `analytics/readiness.py`
-
-Days to 2027-01-15, a **Riegel** projection (`T₂ = T₁ · (D₂/D₁)^1.06`) from the *longest*
-qualifying best effort in the last 120 days — projecting a half marathon from a 1 k
-flatters badly — CTL trajectory against a peak target, and 28-day average weekly
-kilometres against target. The projection names the effort it came from, so the number
-is auditable.
-
-### Reports — `analytics/reports.py`
-
-Weekly and monthly rollups (ISO weeks, not SQLite's `%Y-%W`, which disagrees at year
-boundaries), longest and current streaks, weekday consistency, month-over-month deltas.
-Running kilometres are reported separately from all-sport kilometres.
+Inside Docker: `docker compose exec app garmin-analytics doctor`.
 
 ---
 
-## API
+## Security notes
 
-All JSON, all read-only, all on `127.0.0.1`.
-
-| Endpoint | Returns |
-|---|---|
-| `GET /api/health` | status, version, day range, whether the data is synthetic |
-| `GET /api/config` | race details, athlete HR settings, plan targets |
-| `GET /api/doctor` | the same checks as the `doctor` command |
-| `GET /api/summary` | everything the Overview tab needs, in one round trip |
-| `GET /api/load?start=&end=` | daily CTL/ATL/TSB curve, weekly rollup, ramp rate |
-| `GET /api/trends?days=&metrics=` | rolling means and z-scores per metric |
-| `GET /api/readiness?day=` | today's composite with its components and reasons |
-| `GET /api/readiness/history?days=` | the same score back through `days` |
-| `GET /api/performance` | best efforts, decoupling, efficiency factor, VO₂max |
-| `GET /api/race` | countdown, projection, CTL and volume against target |
-| `GET /api/reports` | weekly/monthly rollups, streaks, consistency, totals |
-| `GET /api/daily?days=` | the joined daily frame |
-| `GET /api/activities?…` | filterable, sortable, paged list |
-| `GET /api/activities/{id}` | one activity with zones, splits, best efforts, samples |
-| `GET /api/raw/{endpoint}/{ref_key}` | the verbatim archived payload |
-
-Sort keys are allow-listed rather than interpolated; all filters are parameterised.
-A full curl transcript of every endpoint is in **VERIFICATION.md**.
+* `APP_PASSWORD` is stored **only** as a salted PBKDF2-SHA256 hash (240 000 rounds).
+* Session cookies are 256-bit random tokens; only their SHA-256 hash is stored, so a
+  copy of the database cannot be replayed as a live session. Cookies are `HttpOnly`
+  and `SameSite=Lax`.
+* The Garmin token cache lives on the volume at mode 0600, never in an image layer.
+* The container runs as a non-root user (uid 10001) with `no-new-privileges`.
+* Compose binds the port to `127.0.0.1` by default.
+* `.gitignore` and `.dockerignore` both cover `.env`, token caches, databases and
+  activity files.
 
 ---
 
-## Tests
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Short version:
 
 ```bash
-.venv/bin/python -m pytest -q     # 454 tests, ~30 s
+pip install -r requirements.txt && pip install -e .
+garmin-analytics seed --reset     # no Garmin account needed to develop
+pytest                            # 645 tests
+./scripts/verify.sh               # local end-to-end transcript
+./scripts/verify_docker.sh        # container transcript (destroys the volume)
 ```
 
-The analytics tests derive their expected values on paper in the docstring beside each
-assertion — TRIMP 108.09535934, Riegel 5 520.2392 s, CTL day 3 6.89372203, decoupling
-8.396946565 % — so a failure tells you which step of the formula moved.
+The seeder produces physiologically coupled data — an athlete model run forward day
+by day, with an illness block, a travel block, cardiac drift, and **repeated GPS
+routes with fixed hills** so that clustering and segment analysis have something real
+to work on.
 
-`tests/fitgen.py` writes a real FIT binary (header, definition and data messages, both
-CRCs) that the actual `fitdecode` then parses, so the FIT path is tested end-to-end
-rather than against stub objects.
-
-`tests/test_dashboard.py` asserts that no asset is off-machine, that every element id
-`app.js` reaches for exists, that every `/api` path it calls returns 200 — and, where
-Chromium is installed, renders the page headlessly and checks that the JS bootstrapped
-and uPlot drew canvases.
+[`VERIFICATION.md`](VERIFICATION.md) records what was actually observed, including
+what was *not* verified.
 
 ---
 
-## Limits — read these
+## Licence
 
-- **The Connect API is unofficial.** Garmin publishes no API for individuals. This talks
-  to the endpoints the mobile app uses, via `garth`. Garmin can change or block them
-  without notice, and doing so is arguably against their terms of service. Use your own
-  account, for your own data, at your own risk.
-- **`garth` is deprecated upstream.** `garth==0.8.0` prints
-  `DeprecationWarning: Garth is deprecated and no longer maintained`
-  (matin/garth discussion #222). It works today. The blast radius is contained: all
-  Connect calls go through `ingest/connect.py`, whose endpoint paths are literals in one
-  dict, and every payload is archived raw, so a transport swap costs new fetches, not
-  history. See DECISIONS.md D3.
-- **Rate limits are real.** Requests are paced at ~0.6 s and daily endpoints are fetched
-  one calendar day at a time, with backoff on 429. A first 540-day backfill therefore
-  takes a while (see HANDOVER.md). Hammering this gets accounts throttled.
-- **The live login path is untested.** There were no credentials on the machine this was
-  built on. Everything downstream of the HTTP call is tested; `garth.login` itself is not.
-- **The export-ZIP importer has never seen a real export.** It routes documents by shape
-  rather than by path precisely because the layout changes, but it has only been run
-  against a synthetic archive.
-- **VO₂max, training status and training readiness are Garmin's estimates**, not
-  measurements. The trend is worth something; the absolute number is decoration.
-- **TRIMP, CTL and TSB are models.** They are useful for spotting ramp and fatigue
-  patterns. They are not a training plan and they are not medical advice.
-- **`serve --host 0.0.0.0` exposes personal health data with no authentication.** The
-  default is loopback for a reason. If you must expose it, put it behind something.
-- **Synthetic data is labelled everywhere.** `doctor` warns, `/api/health` returns
-  `synthetic: true`, and the dashboard shows a banner. If you see that banner, you are
-  not looking at your own training.
+MIT — see [LICENSE](LICENSE). Vendored: [uPlot](https://github.com/leeoniya/uPlot)
+(MIT) and [Leaflet](https://leafletjs.com/) (BSD-2-Clause).
 
----
-
-## Layout
-
-```
-garmin_analytics/
-  cli.py              login | sync | renormalize | import-zip | import-fit
-                      | seed | serve | doctor | report
-  config.py           paths, race constants, athlete defaults
-  diagnostics.py      the doctor checks
-  db/
-    schema.sql        DDL
-    store.py          connection, migrate(), idempotent upserts, raw archive
-  ingest/
-    connect.py        garth-backed Connect client (endpoint paths live here)
-    export_zip.py     GDPR export parser, routes by shape not by path
-    fitfile.py        fitdecode → activity + sample stream
-    normalize.py      raw JSON → typed rows
-  analytics/
-    load.py           TRIMP, CTL, ATL, TSB, ramp rate
-    trends.py         rolling baselines, z-scores, flags
-    performance.py    best efforts, Riegel, decoupling, efficiency factor
-    readiness.py      composite readiness + race panel
-    reports.py        weekly/monthly rollups, streaks, consistency
-  api/server.py       FastAPI: JSON endpoints + static mount
-  seed/synthetic.py   18 months of physiologically coherent fake data
-  web/                index.html, app.js, style.css, vendor/uPlot
-scripts/verify.sh     regenerates VERIFICATION.md end to end
-tests/                454 tests, incl. a real FIT writer and a headless render
-```
-
-- **HANDOVER.md** — exactly what to run to connect the real account.
-- **DECISIONS.md** — every judgement call made during the build, with reasons.
-- **VERIFICATION.md** — captured transcript of the full end-to-end run.
+Not affiliated with, endorsed by, or supported by Garmin.

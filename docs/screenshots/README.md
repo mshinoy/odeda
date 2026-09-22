@@ -1,17 +1,23 @@
 # Screenshots
 
-Captured on 2026-09-22 from headless Chromium against the synthetic seed
-(`scripts/verify.sh` builds the same database). Regenerate with:
+Captured from headless Chromium against the **synthetic seed** — no real account, no
+personal data. `scripts/verify.sh` builds the same database. Regenerate with:
 
 ```bash
+garmin-analytics seed --reset
 garmin-analytics serve --port 8817 &
 chromium-browser --headless --disable-gpu --no-sandbox --hide-scrollbars \
-  --virtual-time-budget=9000 --window-size=1280,1400 \
-  --screenshot="$HOME/overview.png" "http://127.0.0.1:8817/#overview"
+  --virtual-time-budget=30000 --window-size=1200,1650 \
+  --screenshot="$HOME/routes.png" "http://127.0.0.1:8817/#routes/4"
 ```
 
-Note: a snap-packaged Chromium cannot write into `/tmp`; point `--screenshot`
-somewhere under `$HOME`.
+Two gotchas:
+
+* A snap-packaged Chromium cannot write into `/tmp`; point `--screenshot` somewhere
+  under `$HOME`.
+* Map tiles come from OpenStreetMap at render time. Taking many screenshots in quick
+  succession gets throttled and you will capture a half-loaded tile grid — wait a
+  minute between runs, or point `GA_TILE_URL` at your own tile server.
 
 | File | Tab |
 |---|---|
@@ -19,9 +25,10 @@ somewhere under `$HOME`.
 | `load.png` | Training Load — CTL/ATL, TSB, daily TRIMP, weekly table |
 | `recovery.png` | Sleep & Recovery — baselines, sleep stages, HRV, RHR, Body Battery |
 | `activities.png` | Activities — sortable, filterable table |
-| `activity-drawer.png` | Activity detail drawer, opened via `#activities/<id>` |
-| `performance.png` | Performance — best efforts, decoupling, efficiency factor, VO₂max |
-| `race.png` | Race — countdown, Riegel projection, CTL and volume vs target |
-
-The orange banner across the top is the synthetic-data warning. It is absent
-once real Garmin data replaces the seed.
+| `activity-drawer.png` | Activity detail — map, edit form, gear dropdowns, linked charts |
+| `routes.png` | Routes & Maps — route list, map, and the speed-up/slow-down profile |
+| `aggregates.png` | Aggregates — lifetime totals, year over year, distributions, patterns |
+| `gear.png` | Gear — mileage, wear against retirement threshold, bulk reassign |
+| `settings.png` | Settings — Garmin connection, backfill progress, edit summary |
+| `performance.png` | Performance — best efforts, decoupling, efficiency factor, VO2max |
+| `race.png` | Race — countdown, projection, CTL trajectory |

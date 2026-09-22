@@ -89,10 +89,10 @@ run "$PY" -m pytest -q --no-header
 close_block
 
 # ---------------------------------------------------------------------------
-say '## 2. Seed 18 months of synthetic data into an empty database'
+say '## 2. Seed 40 months of synthetic data into an empty database'
 say ''
 open_block
-run "$PY" -m garmin_analytics.cli seed --months 18 --end 2026-09-22 --reset
+run "$PY" -m garmin_analytics.cli seed --months 40 --end 2026-09-22 --reset
 close_block
 
 say '### Row counts after seeding'
@@ -251,7 +251,7 @@ from garmin_analytics.config import load_settings
 from garmin_analytics.seed.synthetic import seed_database
 st = Store.open(load_settings())
 before = st.table_counts()
-seed_database(st, end=date(2026, 9, 22), months=18, reset=True)
+seed_database(st, end=date(2026, 9, 22), months=40, reset=True)
 after = st.table_counts()
 same = before == after
 for t in sorted(before):
@@ -289,5 +289,9 @@ say '  and is physiologically plausible by construction, not real training.'
 say '- **The export-ZIP importer has never seen a real Garmin export.** It was tested'
 say '  against a ZIP built in `tests/test_ingest.py` using the layout Garmin documented'
 say '  as of 2026-09.'
+
+# Redact the operator's home directory. This file ships in a public repository and
+# an absolute path is a username; nothing in the transcript needs one.
+sed -i "s|$HOME|~|g" "$OUT"
 
 echo "wrote $OUT"

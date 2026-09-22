@@ -343,9 +343,9 @@ class TestSyncDailyEndpoint:
 
     def test_the_user_and_date_are_substituted_into_the_path(self, store):
         fetcher = fake_fetcher({})
-        connect.sync_daily_endpoint(store, "shinoy", connect.ENDPOINTS["sleep"],
+        connect.sync_daily_endpoint(store, "testathlete", connect.ENDPOINTS["sleep"],
                                     dt.date(2026, 9, 20), dt.date(2026, 9, 20), fetcher=fetcher)
-        assert "shinoy" in fetcher.calls[0] and "2026-09-20" in fetcher.calls[0]
+        assert "testathlete" in fetcher.calls[0] and "2026-09-20" in fetcher.calls[0]
 
     def test_two_fitness_endpoints_merge_rather_than_clobber(self, store):
         """training_readiness and training_status both write `fitness`."""

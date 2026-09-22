@@ -768,6 +768,17 @@ async function openDrawer(activityId) {
     'Raw archived payload: ',
     el('a', { href: `/api/raw/activities/${encodeURIComponent(activityId)}`, target: '_blank' },
       activityId)));
+
+  /* Leaflet caches the container size at creation. The drawer keeps growing after
+     the map is inserted — charts, splits and tables are all appended below it — so
+     without this the map believes it is the size it was mid-render, and both the
+     tile grid and fitBounds come out wrong. */
+  if (drawerState.map && drawerState.data) {
+    requestAnimationFrame(() => {
+      drawerState.map.invalidateSize();
+      GA_MAP.fit(drawerState.map, drawerState.data.latlngs);
+    });
+  }
 }
 
 function closeDrawer() {
@@ -1225,12 +1236,12 @@ function drawRouteList(routes) {
     { key: 'first_day', label: 'First' },
     { key: 'last_day', label: 'Last' },
   ], shown, {
-    onRowClick: (r) => openRoute(r.route_id).catch(showError),
+    onRowClick: (r) => openRoute(r.route_id, { scroll: true }).catch(showError),
     emptyText: 'No routes yet. Routes appear once activities with GPS have been clustered.',
   });
 }
 
-async function openRoute(routeId) {
+async function openRoute(routeId, { scroll = false } = {}) {
   routeState.routeId = routeId;
   const [detail, segments, cfg] = await Promise.all([
     api(`/api/routes/${routeId}`),
@@ -1278,6 +1289,8 @@ async function openRoute(routeId) {
   if (!routeState.map) {
     routeState.map = GA_MAP.create($('#route-map'), cfg);
   }
+  // The card was `hidden` until a moment ago, so Leaflet's cached size is stale.
+  routeState.map.invalidateSize();
   await showAttempt(attemptSel.value);
 
   // --- segment profile ---
@@ -1306,7 +1319,9 @@ async function openRoute(routeId) {
       (row.assigned === 'manual' ? 'manual' : fmt.pct((v || 0) * 100, 0)) },
   ], detail.attempts, { onRowClick: (a) => openDrawer(a.activity_id).catch(showError) });
 
-  $('#route-detail-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Only scroll when the user actually clicked a row. Following a #routes/<id>
+  // link should land at the top of the page, not halfway down it.
+  if (scroll) $('#route-detail-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function showAttempt(activityId) {
@@ -1366,6 +1381,7 @@ async function loadHeatmap() {
   $('#heat-count').textContent = 'loading…';
   const data = await api(`/api/heatmap?precision=4${type ? `&type=${encodeURIComponent(type)}` : ''}`);
   if (!routeState.heatMap) routeState.heatMap = GA_MAP.create($('#heat-map'), cfg);
+  routeState.heatMap.invalidateSize();
   if (routeState.heatLayer) routeState.heatMap.removeLayer(routeState.heatLayer);
   routeState.heatLayer = GA_MAP.heat(routeState.heatMap, data.points, data.max_count);
   $('#heat-count').textContent =
