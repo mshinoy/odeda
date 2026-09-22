@@ -411,8 +411,18 @@ any database larger than the ~200 MB used for the scale test above.
 ## What was re-verified after the fixes
 
 * `pytest` — **669 passed**, 0 failed.
-* `docker compose build` — clean build from the current tree.
+* `docker compose build` — clean build from the final tree, after the entrypoint
+  change as well as the Python changes.
 * `docker compose up -d` — container healthy, serving on 127.0.0.1:8000, redirecting
-  to `/login`, data intact on the existing named volume.
-* The race projection on seeded data: **46:48 → 2:11:05**.
+  to `/login`, data intact on the existing named volume. Left running.
+* The race projection: **46:48 → 2:11:05** on the six-month probe dataset, and
+  **2:09:23 off a 15 k** on the live container's 3.3-year demo volume, where the
+  personal-bests list now reads 4:01/km for 1 k and 5:10/km for a half — human
+  numbers rather than 1:46/km.
+* A `git clone` into a clean directory: `.env.example` present, `.env` absent,
+  `cp .env.example .env` succeeds and `docker compose config` validates.
+* A bind mount now fails with the chown instruction instead of a bare
+  `mkdir: Permission denied`.
+* No image belonging to another project (`greenqatar*`, `portfolio*`, `postgis`,
+  `redis`) was touched.
 * Disk: still ~7 GB free on `/home`; no images belonging to other projects touched.
