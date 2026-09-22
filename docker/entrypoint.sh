@@ -14,7 +14,15 @@ DATA_DIR="${GA_DATA_DIR:-/data}"
 TOKEN_DIR="${GA_TOKEN_DIR:-$DATA_DIR/tokens}"
 DB_PATH="${GA_DB:-$DATA_DIR/garmin.db}"
 
-mkdir -p "$DATA_DIR" "$TOKEN_DIR" "${GA_RAW_DIR:-$DATA_DIR/raw_archive}"
+# The container runs unprivileged (uid 10001) and so cannot chown its own volume.
+# A named volume inherits the right ownership from the image; a bind mount does not,
+# and the failure mode is an unexplained "mkdir: Permission denied". Say what to do.
+if ! mkdir -p "$DATA_DIR" "$TOKEN_DIR" "${GA_RAW_DIR:-$DATA_DIR/raw_archive}" 2>/dev/null; then
+  echo "ERROR: cannot write to $DATA_DIR as uid $(id -u)." >&2
+  echo "       If you replaced the named volume with a bind mount, run:" >&2
+  echo "           sudo chown -R 10001:10001 <host directory>" >&2
+  exit 1
+fi
 
 # Tokens are credentials. Never world-readable, even inside a container.
 chmod 700 "$TOKEN_DIR" 2>/dev/null || true

@@ -232,6 +232,21 @@ class TestBulk:
         assert out["applied"] == 4                       # r1..r4, not r0
         assert G.for_activity(store, "r0")[0]["nickname"] == "first"
 
+    def test_bulk_replaces_an_earlier_manual_choice_by_default(self, history, store):
+        """Characterising the sharp edge, so it is a decision and not an accident.
+
+        Bulk reassign is a user action and its default really does overwrite gear the
+        user assigned by hand earlier — "every run that spring was the Novablasts"
+        usually means exactly that. `only_unassigned=True` is the additive mode, and
+        the UI's Preview (`dry_run`) shows the count before anything is written.
+        """
+        old = G.create(store, kind="shoe", nickname="old")
+        new = G.create(store, kind="shoe", nickname="new")
+        G.assign(store, "r0", old["gear_id"], source="manual")
+
+        G.bulk_assign(store, new["gear_id"], activity_type="running")
+        assert [g["nickname"] for g in G.for_activity(store, "r0")] == ["new"]
+
     def test_bulk_on_missing_gear_is_an_error(self, store):
         with pytest.raises(LookupError):
             G.bulk_assign(store, 9999)

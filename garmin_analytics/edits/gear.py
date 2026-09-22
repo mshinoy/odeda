@@ -1,9 +1,21 @@
 """Gear: shoes, bikes, straps — CRUD, assignment and mileage.
 
-Gear is a user-owned table. A sync may *offer* gear (Garmin exposes it for some
-accounts) but it is imported by `garmin_uuid` and never overwrites a manual
-assignment: `activity_gear.source` records who decided, and only rows with
-source='garmin' or 'default_rule' are ever replaced automatically.
+Gear is a user-owned table. Nothing automatic ever replaces an assignment:
+
+* `import_from_garmin()` writes to `gear` only, keyed on `garmin_uuid`, and only
+  fills in fields that are currently empty. It never touches `activity_gear`.
+* `apply_defaults()` skips any activity that already has gear of that kind, so a
+  default rule can only ever add, never displace.
+
+`bulk_assign()` is the deliberate exception, and it is worth being clear about
+because the word "bulk" hides it: it is a *user* action, and by default it replaces
+whatever gear of the same kind is already on each matched activity — including
+assignments the user made by hand earlier. That is usually what "every run that
+spring was the Novablasts" means. Pass `only_unassigned=True` to add gear only where
+there is none, and use `dry_run=True` (the UI's Preview) to see the count first.
+
+`activity_gear.source` records who decided — 'manual', 'garmin' or 'default_rule' —
+so the provenance is always recoverable even though nothing branches on it today.
 
 Mileage counts activities through `v_activities_included`, so an activity the user
 excluded from stats ("watch left running in the car") does not put phantom
@@ -23,9 +35,6 @@ GEAR_KINDS = ("shoe", "bike", "strap", "other")
 
 #: Fraction of the retirement threshold at which the dashboard starts warning.
 WARN_FRACTION = 0.85
-
-#: Assignments a sync or rule is allowed to overwrite. A 'manual' row is sacred.
-REPLACEABLE_SOURCES = ("garmin", "default_rule")
 
 _EDITABLE = (
     "kind",

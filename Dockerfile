@@ -38,8 +38,12 @@ ENV PYTHONUNBUFFERED=1 \
     GA_HOST=0.0.0.0 \
     GA_PORT=8000
 
-# Non-root from here on. The volume is chowned to this uid in the entrypoint,
-# which is what makes a bind mount work as well as a named volume.
+# Non-root from here on. A named volume inherits /data's ownership from the image,
+# so the default compose setup just works. A *bind* mount keeps the host directory's
+# ownership instead, and nothing here can chown it — the process is already
+# unprivileged by the time the entrypoint runs, which is the point. If you swap the
+# named volume for a bind mount, chown it to 10001:10001 on the host first; the
+# entrypoint says so explicitly rather than failing with "Permission denied".
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin garmin
 
 COPY --from=builder /wheels /wheels
