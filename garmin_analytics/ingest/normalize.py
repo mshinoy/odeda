@@ -23,17 +23,21 @@ from typing import Any, Iterable, Mapping, Sequence
 TYPE_MAP = {
     "running": "running",
     "street_running": "running",
-    "treadmill_running": "running",
     "trail_running": "running",
     "track_running": "running",
-    "indoor_running": "running",
-    "virtual_run": "running",
+    # Indoor variants keep their own bucket rather than collapsing into the outdoor
+    # one: they have no GPS, no elevation and usually a different pace profile, so
+    # folding them together quietly distorts every per-type average — and the user
+    # can no longer filter them out. They are still runs; they are not the same runs.
+    "treadmill_running": "treadmill_running",
+    "indoor_running": "treadmill_running",
+    "virtual_run": "treadmill_running",
     "cycling": "cycling",
     "road_biking": "cycling",
     "mountain_biking": "cycling",
-    "indoor_cycling": "cycling",
-    "virtual_ride": "cycling",
     "gravel_cycling": "cycling",
+    "indoor_cycling": "indoor_cycling",
+    "virtual_ride": "indoor_cycling",
     "lap_swimming": "swimming",
     "open_water_swimming": "swimming",
     "swimming": "swimming",

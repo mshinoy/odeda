@@ -7,6 +7,7 @@
 <title>Garmin Analytics</title>
 <!-- Everything is local. No CDN, no external font, no analytics beacon. -->
 <link rel="stylesheet" href="/static/vendor/uPlot.min.css">
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -26,8 +27,12 @@
     <button role="tab" data-panel="load"        aria-selected="false">Training Load</button>
     <button role="tab" data-panel="recovery"    aria-selected="false">Sleep &amp; Recovery</button>
     <button role="tab" data-panel="activities"  aria-selected="false">Activities</button>
+    <button role="tab" data-panel="routes"      aria-selected="false">Routes &amp; Maps</button>
     <button role="tab" data-panel="performance" aria-selected="false">Performance</button>
+    <button role="tab" data-panel="aggregate"   aria-selected="false">Aggregates</button>
+    <button role="tab" data-panel="gear"        aria-selected="false">Gear</button>
     <button role="tab" data-panel="race"        aria-selected="false">Race</button>
+    <button role="tab" data-panel="settings"    aria-selected="false">Settings</button>
   </nav>
 </header>
 
@@ -263,6 +268,307 @@
     </div>
   </section>
 
+  <!-- ================= ROUTES & MAPS ================= -->
+  <section class="panel" id="panel-routes" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Routes</h2>
+        <p class="hint">
+          Activities that follow substantially the same path are grouped into one route.
+          Clustering is a heuristic and will get some wrong — rename, merge or split them
+          and your decision sticks: a route you have touched is never re-filed automatically.
+        </p>
+        <div class="filters">
+          <select id="route-type"><option value="">All types</option></select>
+          <button class="ghost" id="route-recluster" title="Pinned routes are left alone">
+            Re-cluster
+          </button>
+          <span class="count" id="routes-count"></span>
+        </div>
+        <div class="table-wrap"><table id="table-routes"></table></div>
+      </div>
+
+      <div class="card wide" id="route-detail-card" hidden>
+        <div class="route-head">
+          <h2 id="route-title">Route</h2>
+          <div class="route-actions">
+            <button class="ghost" id="route-rename">Rename</button>
+            <button class="ghost" id="route-merge">Merge into…</button>
+            <button class="ghost" id="route-back">← All routes</button>
+          </div>
+        </div>
+        <div class="stats" id="route-stats"></div>
+
+        <div class="map-toolbar">
+          <label for="route-metric">Colour by</label>
+          <select id="route-metric">
+            <option value="speed_mps">Pace</option>
+            <option value="hr">Heart rate</option>
+            <option value="altitude_m">Elevation</option>
+            <option value="gradient">Gradient</option>
+          </select>
+          <label for="route-attempt">Attempt</label>
+          <select id="route-attempt"></select>
+          <label for="route-compare">Compare with</label>
+          <select id="route-compare"><option value="">— none —</option></select>
+        </div>
+        <div class="map" id="route-map"></div>
+        <div id="route-legend"></div>
+
+        <h2 style="margin-top:22px">Where you speed up and slow down</h2>
+        <p class="hint">
+          Each attempt's segment speed is divided by that attempt's own average before
+          aggregating, so this shows where <em>the route</em> is fast or slow rather than
+          which days were. Below 100 % means consistently slower than your own average there.
+        </p>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Speed vs your average (%)</span>
+          <span style="color: var(--series-4)"><i></i>Gradient (%)</span>
+        </div>
+        <div class="chart" id="chart-segments"></div>
+        <div class="chart-legend">
+          <span style="color: var(--critical)"><i></i>Median HR (bpm)</span>
+          <span style="color: var(--series-3)"><i></i>Median cadence (spm)</span>
+        </div>
+        <div class="chart" id="chart-segments-hr"></div>
+        <div class="split-two">
+          <div>
+            <h3>Slowest stretches</h3>
+            <div class="table-wrap"><table id="table-slowest"></table></div>
+          </div>
+          <div>
+            <h3>Fastest stretches</h3>
+            <div class="table-wrap"><table id="table-fastest"></table></div>
+          </div>
+        </div>
+
+        <h2 style="margin-top:22px">Every attempt</h2>
+        <div class="table-wrap"><table id="table-attempts"></table></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Lifetime heatmap</h2>
+        <p class="hint">
+          Every GPS point ever recorded, aggregated server-side onto a grid. Brighter means
+          more often. Map tiles are the one thing fetched from off this machine.
+        </p>
+        <div class="filters">
+          <select id="heat-type"><option value="">All types</option></select>
+          <button class="ghost" id="heat-load">Draw heatmap</button>
+          <span class="count" id="heat-count"></span>
+        </div>
+        <div class="map tall" id="heat-map"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= AGGREGATES ================= -->
+  <section class="panel" id="panel-aggregate" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Everything, added up</h2>
+        <div class="filters">
+          <select id="agg-type"><option value="">All types</option></select>
+          <select id="agg-gear"><option value="">All gear</option></select>
+          <input type="date" id="agg-from" title="From">
+          <input type="date" id="agg-to" title="To">
+          <button class="ghost" id="agg-clear">Clear</button>
+        </div>
+        <div class="stats" id="agg-headline"></div>
+        <p class="hint" id="agg-sentence"></p>
+      </div>
+
+      <div class="card wide">
+        <h2>By activity type</h2>
+        <div class="table-wrap"><table id="table-agg-type"></table></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Year over year</h2>
+        <p class="hint">Change is against the previous year. Green is an improvement.</p>
+        <div class="table-wrap"><table id="table-yoy"></table></div>
+      </div>
+
+      <div class="card">
+        <h2>Distance per month</h2>
+        <div class="chart" id="chart-agg-month"></div>
+      </div>
+
+      <div class="card">
+        <h2>Pace distribution</h2>
+        <div class="chart" id="chart-pace-hist"></div>
+      </div>
+
+      <div class="card">
+        <h2>Distance distribution</h2>
+        <div class="chart" id="chart-dist-hist"></div>
+      </div>
+
+      <div class="card">
+        <h2>Time in heart-rate zones</h2>
+        <div class="zone-bars" id="agg-zones"></div>
+      </div>
+
+      <div class="card">
+        <h2>Day of week</h2>
+        <div class="chart" id="chart-dow"></div>
+      </div>
+
+      <div class="card">
+        <h2>Time of day</h2>
+        <div class="chart" id="chart-hod"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>When you train</h2>
+        <p class="hint">Day of week against hour of day. Darker is more sessions.</p>
+        <div id="dow-hour-heatmap"></div>
+      </div>
+
+      <div class="card">
+        <h2>Seasonality</h2>
+        <div class="chart" id="chart-season"></div>
+      </div>
+
+      <div class="card">
+        <h2>Consistency</h2>
+        <div class="stats" id="agg-streaks"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Records</h2>
+        <div class="split-two">
+          <div>
+            <h3>Best efforts</h3>
+            <div class="table-wrap"><table id="table-records"></table></div>
+          </div>
+          <div>
+            <h3>Extremes</h3>
+            <div class="table-wrap"><table id="table-extremes"></table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GEAR ================= -->
+  <section class="panel" id="panel-gear" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Gear</h2>
+        <p class="hint">
+          Assign gear to any activity retroactively from the activity drawer. Mileage counts
+          activities you have not excluded from stats, and includes each item's initial offset.
+        </p>
+        <div class="filters">
+          <label><input type="checkbox" id="gear-show-retired" checked> Show retired</label>
+          <button class="primary" id="gear-add">Add gear</button>
+        </div>
+        <div id="gear-cards"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Bulk reassign</h2>
+        <p class="hint">
+          Apply one item across a filtered date range — the only sane way to add gear to years
+          of imported history. Preview first; it tells you how many activities it would touch.
+        </p>
+        <div class="filters">
+          <select id="bulk-gear"></select>
+          <select id="bulk-type"><option value="">All types</option></select>
+          <input type="date" id="bulk-from" title="From">
+          <input type="date" id="bulk-to" title="To">
+          <label><input type="checkbox" id="bulk-unassigned"> Only activities with no gear of that kind</label>
+          <button class="ghost" id="bulk-preview">Preview</button>
+          <button class="primary" id="bulk-apply">Apply</button>
+        </div>
+        <p class="hint" id="bulk-result"></p>
+      </div>
+
+      <div class="card wide">
+        <h2>Default gear for new activities</h2>
+        <p class="hint">
+          Applied to activities arriving from a future sync only — never retrospectively,
+          because backfilling years of history with today's shoes would simply be wrong.
+        </p>
+        <div class="filters">
+          <select id="default-type"></select>
+          <select id="default-gear"></select>
+          <button class="ghost" id="default-add">Set default</button>
+        </div>
+        <div class="table-wrap"><table id="table-defaults"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="panel" id="panel-settings" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Garmin account</h2>
+        <p class="hint">
+          Your Garmin password is used once to obtain a token, then discarded. Only the token
+          cache is stored, on the Docker volume, mode 0600. It is never written to the image
+          or to this page.
+        </p>
+        <div id="garmin-state" class="stats"></div>
+        <form id="garmin-form" class="stack" autocomplete="off">
+          <label for="garmin-email">Garmin email</label>
+          <input type="email" id="garmin-email" autocomplete="username">
+          <label for="garmin-password">Garmin password</label>
+          <input type="password" id="garmin-password" autocomplete="current-password">
+          <div id="mfa-row" hidden>
+            <label for="garmin-mfa">Multi-factor code</label>
+            <input type="text" id="garmin-mfa" inputmode="numeric" autocomplete="one-time-code">
+          </div>
+          <div class="filters">
+            <button type="submit" class="primary" id="garmin-connect">Connect</button>
+            <button type="button" class="ghost" id="garmin-disconnect">Disconnect</button>
+          </div>
+          <p class="hint" id="garmin-result"></p>
+        </form>
+      </div>
+
+      <div class="card wide">
+        <h2>Sync</h2>
+        <p class="hint">
+          A full backfill pulls every activity and every wellness day back to the start of your
+          account. It checkpoints after every activity, so stopping and restarting resumes
+          rather than starting over.
+        </p>
+        <div class="stats" id="sync-estimate"></div>
+        <div class="filters">
+          <button class="primary" id="sync-start">Start full backfill</button>
+          <button class="ghost" id="sync-stop">Stop</button>
+          <button class="ghost" id="sync-refresh">Refresh</button>
+        </div>
+        <div class="progress-wrap" id="sync-progress-wrap" hidden>
+          <div class="progress"><div class="progress-fill" id="sync-progress-fill"></div></div>
+          <p class="hint" id="sync-progress-text"></p>
+        </div>
+        <div class="table-wrap"><table id="table-watermarks"></table></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Your edits</h2>
+        <p class="hint">
+          Edits live in a separate table keyed on activity and field. A sync rewrites Garmin's
+          values; it has no code path that touches yours.
+        </p>
+        <div class="stats" id="override-stats"></div>
+        <div class="table-wrap"><table id="table-override-fields"></table></div>
+      </div>
+
+      <div class="card wide">
+        <h2>This deployment</h2>
+        <div class="table-wrap"><table id="table-about"></table></div>
+        <div class="filters" style="margin-top:12px">
+          <button class="ghost" id="logout">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
@@ -272,12 +578,17 @@
 </aside>
 
 <footer>
-  Local-only. Data never leaves this machine. Garmin Connect has no public API for
-  individuals — ingestion uses an unofficial client and can break without notice.
-  Charts by <a href="/static/vendor/uPlot.iife.min.js">uPlot</a> (MIT), vendored, no CDN.
+  Self-hosted and single-tenant. Garmin Connect has no public API for individuals —
+  ingestion uses an unofficial client and can break without notice.
+  Charts by <a href="/static/vendor/uPlot.iife.min.js">uPlot</a> (MIT) and maps by
+  <a href="/static/vendor/leaflet.js">Leaflet</a> (BSD-2-Clause), both vendored, no CDN.
+  Map <em>tiles</em> are fetched from the configured tile server when a map is on screen —
+  the one documented external call.
 </footer>
 
 <script src="/static/vendor/uPlot.iife.min.js"></script>
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/map.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

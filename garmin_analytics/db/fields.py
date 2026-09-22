@@ -21,22 +21,21 @@ import sqlite3
 from dataclasses import dataclass, field as dc_field
 from typing import Any, Sequence
 
-#: Activity types offered in the type dropdown. Not a hard constraint — Garmin
-#: invents new ones — but it keeps the common case a pick-list rather than free text.
+#: Activity types offered in the type dropdown. These are the values
+#: `ingest/normalize.TYPE_MAP` actually produces, so the dropdown shows what the
+#: data really contains rather than a plausible-looking list that matches nothing.
+#:
+#: Deliberately *not* a hard constraint: Garmin's vocabulary is open and it adds
+#: sports every year. `EditableField.strict_choices` is False for this field, so an
+#: unrecognised type round-trips instead of being rejected.
 ACTIVITY_TYPES = (
     "running",
-    "trail_running",
     "treadmill_running",
     "cycling",
     "indoor_cycling",
     "swimming",
-    "pool_swimming",
     "walking",
-    "hiking",
-    "strength",
-    "yoga",
-    "rowing",
-    "elliptical",
+    "strength_training",
     "other",
 )
 
@@ -55,6 +54,9 @@ class EditableField:
     #: UI hint. text | textarea | select | number | bool
     editor: str = "text"
     choices: Sequence[str] | None = None
+    #: When False, `choices` is a UI suggestion list rather than a validation rule.
+    #: Needed wherever the upstream vocabulary is open-ended.
+    strict_choices: bool = True
     minimum: float | None = None
     maximum: float | None = None
     help: str = ""
@@ -106,7 +108,7 @@ class EditableField:
             raise ValueError(f"{self.name}: must be >= {self.minimum}")
         if self.maximum is not None and out > self.maximum:
             raise ValueError(f"{self.name}: must be <= {self.maximum}")
-        if self.choices and str(out) not in self.choices:
+        if self.strict_choices and self.choices and str(out) not in self.choices:
             raise ValueError(f"{self.name}: must be one of {', '.join(self.choices)}")
         return out
 
@@ -141,6 +143,7 @@ FIELDS: tuple[EditableField, ...] = (
         label="Activity type",
         editor="select",
         choices=ACTIVITY_TYPES,
+        strict_choices=False,
         help="Fix a run the watch recorded as a walk.",
     ),
     EditableField(

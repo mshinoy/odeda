@@ -425,3 +425,240 @@ footer {
   .hero .figure { font-size: 46px; }
   h1 { font-size: 15px; }
 }
+
+/* ===========================================================================
+   v2: maps, routes, gear, aggregates, editing, settings
+   =========================================================================== */
+
+/* --- buttons ------------------------------------------------------------- */
+
+button.primary {
+  border: 1px solid transparent;
+  background: var(--series-1);
+  color: #fff;
+  font: 500 13px var(--font);
+  padding: 7px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+button.primary:hover { filter: brightness(1.12); }
+button.primary:disabled { opacity: 0.45; cursor: default; }
+button.ghost.small, button.primary.small { padding: 4px 9px; font-size: 12px; }
+button.ghost.tiny {
+  padding: 1px 6px; font-size: 11px; margin-left: 8px; vertical-align: middle;
+}
+button.ghost.danger { color: var(--critical); }
+button.ghost.danger:hover { background: rgba(208, 59, 59, 0.14); }
+
+.pill.warn { background: rgba(250, 178, 25, 0.16); color: var(--warning); }
+.pill.bad  { background: rgba(208, 59, 59, 0.16); color: var(--critical); }
+
+.delta { font-variant-numeric: tabular-nums; }
+.delta.good { color: var(--good); }
+.delta.bad  { color: var(--serious); }
+
+.split-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--gap);
+}
+.split-two h3, .edit-head {
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  margin: 4px 0 8px; letter-spacing: 0.01em;
+}
+
+/* --- maps ---------------------------------------------------------------- */
+
+.map {
+  height: 380px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.map.tall { height: 560px; }
+
+/* Leaflet ships a light theme; these keep its chrome on-palette. */
+.leaflet-container { background: #10100f; font: 12px var(--font); }
+.leaflet-control-zoom a {
+  background: var(--surface-2); color: var(--text-primary);
+  border-color: var(--border);
+}
+.leaflet-control-zoom a:hover { background: var(--surface-3); }
+.leaflet-control-attribution {
+  background: rgba(13, 13, 13, 0.78) !important;
+  color: var(--text-muted) !important;
+}
+.leaflet-control-attribution a { color: var(--text-secondary) !important; }
+
+.map-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 12px 0 6px; font-size: 12.5px; color: var(--text-secondary);
+}
+.map-toolbar select {
+  background: var(--surface-2); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px;
+  font: 13px var(--font);
+}
+.map-toolbar label { color: var(--text-muted); }
+
+.map-legend {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; font-size: 12px; color: var(--text-muted);
+}
+.map-legend .ramp {
+  flex: 1; height: 8px; border-radius: 4px; min-width: 90px;
+  border: 1px solid var(--border);
+}
+.map-legend .t { color: var(--text-secondary); font-weight: 500; }
+
+.route-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.route-actions { display: flex; gap: 6px; }
+
+/* --- gear ---------------------------------------------------------------- */
+
+#gear-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: var(--gap);
+}
+.gear-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--series-3);
+  border-radius: var(--radius);
+  padding: 13px 15px;
+}
+.gear-card.warn { border-left-color: var(--warning); }
+.gear-card.over { border-left-color: var(--critical); }
+.gear-card.retired { border-left-color: var(--baseline); opacity: 0.72; }
+
+.gear-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.gear-head strong { font-size: 14.5px; margin-right: 8px; }
+.gear-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.gear-sub { font-size: 12px; color: var(--text-muted); margin: 3px 0 10px; }
+
+.stats.compact { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.stats.compact .stat { padding: 7px 9px; }
+.stats.compact .stat .value { font-size: 16px; }
+
+.wear {
+  height: 7px; background: var(--surface-3); border-radius: 4px;
+  overflow: hidden; margin-top: 11px;
+}
+.wear-fill { height: 100%; background: var(--series-3); border-radius: 4px; }
+.wear-fill.warn { background: var(--warning); }
+.wear-fill.over { background: var(--critical); }
+.wear-fill.retired { background: var(--baseline); }
+
+/* --- the editor ---------------------------------------------------------- */
+
+.editor {
+  margin: 18px 0 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px 14px;
+}
+.editor > summary {
+  cursor: pointer; font-weight: 600; font-size: 13.5px;
+  color: var(--text-secondary); padding: 3px 0;
+}
+.editor > summary .pill { margin-left: 8px; }
+
+.edit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.edit-row { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.edit-row.edited .edit-label { color: var(--series-4); }
+.edit-label { color: var(--text-muted); display: flex; align-items: center; }
+.edit-help { font-size: 11px; color: var(--text-muted); line-height: 1.35; }
+.edit-row input[type="text"], .edit-row input[type="number"],
+.edit-row textarea, .edit-row select {
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 6px 8px; font: 13px var(--font); width: 100%;
+}
+.edit-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--series-1); }
+.edit-row textarea { resize: vertical; }
+.edit-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.edit-status { font-size: 12px; color: var(--text-muted); }
+.hint.no-gps { margin-top: 14px; }
+
+/* --- day/hour heatmap ---------------------------------------------------- */
+
+.dh-grid {
+  display: grid;
+  grid-template-columns: 34px repeat(24, 1fr);
+  gap: 2px;
+  margin-top: 6px;
+}
+.dh-cell { aspect-ratio: 1 / 1; border-radius: 2px; min-height: 12px; }
+.dh-head, .dh-row-label {
+  font-size: 10.5px; color: var(--text-muted); text-align: center;
+  align-self: center;
+}
+.dh-row-label { text-align: right; padding-right: 6px; }
+
+/* --- sync progress ------------------------------------------------------- */
+
+.progress-wrap { margin: 12px 0; }
+.progress {
+  height: 9px; background: var(--surface-3);
+  border-radius: 5px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--series-1);
+  border-radius: 5px; transition: width 0.4s ease;
+}
+
+.stack { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+.stack label { font-size: 12px; color: var(--text-muted); }
+.stack input {
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 7px 9px; font: 13px var(--font);
+}
+.stack .filters { margin-top: 8px; }
+
+/* --- login --------------------------------------------------------------- */
+
+.login-body {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 20px;
+}
+.login-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 30px 32px;
+  width: 100%; max-width: 380px;
+}
+.login-card h1 { font-size: 20px; margin: 0 0 4px; }
+.login-card .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 22px; }
+.login-card label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+.login-card input {
+  width: 100%; background: var(--surface-2); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 11px; font: 14px var(--font);
+}
+.login-card input:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+.login-card button {
+  width: 100%; margin-top: 16px;
+  background: var(--series-1); color: #fff; border: 0;
+  border-radius: 8px; padding: 10px; font: 500 14px var(--font); cursor: pointer;
+}
+.login-card button:disabled { opacity: 0.5; cursor: default; }
+.login-card .error {
+  margin: 12px 0 0; font-size: 12.5px; color: var(--critical);
+}
+.login-card .foot {
+  margin: 22px 0 0; font-size: 11.5px; color: var(--text-muted); line-height: 1.5;
+}
