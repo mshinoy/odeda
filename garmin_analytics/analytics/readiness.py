@@ -296,22 +296,38 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
     ctl_gap = config.TARGET_PEAK_CTL - ctl
     ctl_per_week_needed = round(ctl_gap / weeks_left, 2) if weeks_left >= 1 else None
 
-    notes: list[str] = []
+    # Each note carries its own severity. Guessing severity from the wording in the
+    # frontend gets it backwards — "already above target" contains the word "above".
+    notes: list[dict[str, str]] = []
+
+    def note(level: str, text: str) -> None:
+        notes.append({"level": level, "text": text})
+
     if days_to_go < 0:
-        notes.append("Race date has passed.")
+        note("warning", "Race date has passed.")
     if ctl >= config.TARGET_PEAK_CTL:
-        notes.append(f"CTL {ctl:.0f} is already at or above the {config.TARGET_PEAK_CTL:.0f} target.")
+        note("good", f"CTL {ctl:.0f} is at or above the {config.TARGET_PEAK_CTL:.0f} target.")
     elif ctl_per_week_needed is not None:
-        notes.append(
+        note(
+            "warning" if ctl_per_week_needed > 5 else "good",
             f"Needs +{ctl_per_week_needed:.1f} CTL/week to reach {config.TARGET_PEAK_CTL:.0f} "
-            f"by race day — sustainable is roughly +3 to +5."
+            f"by race day — sustainable is roughly +3 to +5.",
         )
     if load.get("ramp_flag"):
-        notes.append(f"Ramp rate {load.get('ramp_pct')}%/wk is above the 10% flag — back off.")
-    if avg_km and avg_km < config.TARGET_PEAK_WEEKLY_KM * 0.6:
-        notes.append(
-            f"4-week average {avg_km:.0f} km/wk vs a {config.TARGET_PEAK_WEEKLY_KM:.0f} km target peak."
-        )
+        note("warning", f"Ramp rate {load.get('ramp_pct')}%/wk is above the 10% flag — back off.")
+    if avg_km:
+        if avg_km < config.TARGET_PEAK_WEEKLY_KM * 0.6:
+            note(
+                "warning",
+                f"28-day average {avg_km:.0f} km/wk against a "
+                f"{config.TARGET_PEAK_WEEKLY_KM:.0f} km target peak — a long way short.",
+            )
+        elif avg_km < config.TARGET_PEAK_WEEKLY_KM * 0.9:
+            note(
+                "good",
+                f"28-day average {avg_km:.0f} km/wk, building toward the "
+                f"{config.TARGET_PEAK_WEEKLY_KM:.0f} km target peak.",
+            )
 
     return {
         "race": {

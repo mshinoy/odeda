@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Garmin Analytics</title>
+<!-- Everything is local. No CDN, no external font, no analytics beacon. -->
+<link rel="stylesheet" href="/static/vendor/uPlot.min.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="title-row">
+    <h1>Garmin Analytics</h1>
+    <span class="subtitle" id="subtitle">loading…</span>
+  </div>
+  <div class="banner synthetic" id="synthetic-banner">
+    Showing <strong>synthetic</strong> data from the seeder — plausible, but not your training.
+    Run <code>garmin-analytics login &amp;&amp; garmin-analytics sync</code> to replace it.
+  </div>
+  <div class="banner error" id="error-banner"></div>
+  <nav role="tablist" id="tabs">
+    <button role="tab" data-panel="overview"    aria-selected="true">Overview</button>
+    <button role="tab" data-panel="load"        aria-selected="false">Training Load</button>
+    <button role="tab" data-panel="recovery"    aria-selected="false">Sleep &amp; Recovery</button>
+    <button role="tab" data-panel="activities"  aria-selected="false">Activities</button>
+    <button role="tab" data-panel="performance" aria-selected="false">Performance</button>
+    <button role="tab" data-panel="race"        aria-selected="false">Race</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="panel" id="panel-overview" role="tabpanel">
+    <div class="grid">
+      <div class="card wide">
+        <h2>Readiness today</h2>
+        <div class="hero" id="readiness-hero"><div class="loading">loading…</div></div>
+        <div class="recommendation" id="readiness-rec"></div>
+        <div class="meters" id="readiness-meters"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>At a glance</h2>
+        <div class="stats" id="overview-stats"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Signals outside baseline</h2>
+        <p class="hint">Metrics more than 1.5 standard deviations from their own 60-day baseline.</p>
+        <div class="flags" id="overview-flags"></div>
+      </div>
+
+      <div class="card">
+        <h2>Readiness, last 90 days</h2>
+        <p class="hint">Composite of sleep, HRV, form and resting HR.</p>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Daily</span>
+          <span style="color: var(--series-2)"><i></i>7-day mean</span>
+        </div>
+        <div class="chart" id="chart-readiness"></div>
+      </div>
+
+      <div class="card">
+        <h2>Weekly running volume</h2>
+        <p class="hint">Kilometres run per ISO week. Table view on the Training Load tab.</p>
+        <div class="chart" id="chart-weekly-km"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TRAINING LOAD ================= -->
+  <section class="panel" id="panel-load" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Fitness and fatigue</h2>
+        <p class="hint" id="load-warmup"></p>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>CTL — fitness, 42-day average</span>
+          <span style="color: var(--series-2)"><i></i>ATL — fatigue, 7-day average</span>
+        </div>
+        <div class="chart" id="chart-ctl"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Form (TSB = CTL − ATL)</h2>
+        <p class="hint">Above zero is fresh, below is loaded. Deep negatives are where fitness is
+          built and where injuries happen.</p>
+        <div class="chart" id="chart-tsb"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Daily training impulse</h2>
+        <p class="hint">Banister TRIMP, summed over heart-rate zones.</p>
+        <div class="chart" id="chart-trimp"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Weekly rollup</h2>
+        <p class="hint">The table behind the charts above.</p>
+        <div class="table-wrap"><table id="table-weekly"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SLEEP & RECOVERY ================= -->
+  <section class="panel" id="panel-recovery" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Baselines</h2>
+        <p class="hint">Current value against its own 60-day baseline. Direction of "good" differs
+          per metric, so each verdict is spelled out.</p>
+        <div class="stats" id="recovery-stats"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Sleep stages</h2>
+        <p class="hint">Last 120 nights. Hover for the per-stage hours; the bar height is the
+          night's total.</p>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Deep</span>
+          <span style="color: var(--series-3)"><i></i>REM</span>
+          <span style="color: var(--series-4)"><i></i>Light</span>
+        </div>
+        <div class="chart" id="chart-sleep-stages"></div>
+      </div>
+
+      <div class="card">
+        <h2>Sleep score</h2>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Nightly</span>
+          <span style="color: var(--series-2)"><i></i>28-day mean</span>
+        </div>
+        <div class="chart" id="chart-sleep-score"></div>
+      </div>
+
+      <div class="card">
+        <h2>Overnight HRV</h2>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Nightly</span>
+          <span style="color: var(--series-2)"><i></i>28-day mean</span>
+        </div>
+        <div class="chart" id="chart-hrv"></div>
+      </div>
+
+      <div class="card">
+        <h2>Resting heart rate</h2>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Daily</span>
+          <span style="color: var(--series-2)"><i></i>28-day mean</span>
+        </div>
+        <div class="chart" id="chart-rhr"></div>
+      </div>
+
+      <div class="card">
+        <h2>Body Battery</h2>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Daily high</span>
+          <span style="color: var(--series-2)"><i></i>Daily low</span>
+        </div>
+        <div class="chart" id="chart-bb"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Monthly rollup</h2>
+        <div class="table-wrap"><table id="table-monthly"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ACTIVITIES ================= -->
+  <section class="panel" id="panel-activities" role="tabpanel" hidden>
+    <div class="card wide">
+      <h2>Activities</h2>
+      <div class="filters">
+        <select id="filter-type"><option value="">All types</option></select>
+        <input type="search" id="filter-q" placeholder="Search name…" autocomplete="off">
+        <input type="date" id="filter-from" title="From">
+        <input type="date" id="filter-to" title="To">
+        <button class="ghost" id="filter-clear">Clear</button>
+        <span class="count" id="activities-count"></span>
+      </div>
+      <div class="table-wrap"><table id="table-activities"></table></div>
+      <div class="filters" style="margin-top:12px">
+        <button class="ghost" id="page-prev">← Newer</button>
+        <button class="ghost" id="page-next">Older →</button>
+        <span class="count" id="page-info"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PERFORMANCE ================= -->
+  <section class="panel" id="panel-performance" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2>Best efforts</h2>
+        <p class="hint">Fastest continuous window for each distance, extracted from activity sample
+          streams — not just whole-activity averages.</p>
+        <div class="table-wrap"><table id="table-pbs"></table></div>
+      </div>
+
+      <div class="card">
+        <h2>Aerobic decoupling</h2>
+        <p class="hint">Speed-per-heartbeat drift, first half vs second half, on runs over 40 min.
+          Under 5 % (the dashed line) means the aerobic base supports the effort.</p>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Session</span>
+          <span style="color: var(--series-2)"><i></i>10-session mean</span>
+          <span style="color: var(--warning)"><i></i>5 % threshold</span>
+        </div>
+        <div class="chart" id="chart-decoupling"></div>
+      </div>
+
+      <div class="card">
+        <h2>Efficiency factor</h2>
+        <p class="hint">Metres per minute per heartbeat. Rising at the same effort means fitness.</p>
+        <div class="chart" id="chart-ef"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>VO₂max</h2>
+        <p class="hint">As estimated by the watch. Treat the trend as signal and the absolute value
+          as decoration.</p>
+        <div class="chart" id="chart-vo2"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RACE ================= -->
+  <section class="panel" id="panel-race" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="card wide">
+        <h2 id="race-title">Race</h2>
+        <div class="hero" id="race-hero"><div class="loading">loading…</div></div>
+        <div class="flags" id="race-notes" style="margin-top:14px"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>CTL trajectory vs target</h2>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>CTL</span>
+          <span style="color: var(--series-2)"><i></i>Peak target</span>
+        </div>
+        <div class="chart" id="chart-race-ctl"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Weekly kilometres vs target</h2>
+        <div class="chart-legend">
+          <span style="color: var(--series-1)"><i></i>Run km</span>
+          <span style="color: var(--series-2)"><i></i>Peak target</span>
+        </div>
+        <div class="chart" id="chart-race-km"></div>
+      </div>
+
+      <div class="card wide">
+        <h2>Recent best efforts feeding the projection</h2>
+        <div class="table-wrap"><table id="table-race-bests"></table></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Activity detail">
+  <button class="close" id="drawer-close" aria-label="Close">×</button>
+  <div id="drawer-body"></div>
+</aside>
+
+<footer>
+  Local-only. Data never leaves this machine. Garmin Connect has no public API for
+  individuals — ingestion uses an unofficial client and can break without notice.
+  Charts by <a href="/static/vendor/uPlot.iife.min.js">uPlot</a> (MIT), vendored, no CDN.
+</footer>
+
+<script src="/static/vendor/uPlot.iife.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
