@@ -1,0 +1,39 @@
+# Credentials / tokens — never commit
+.garminconnect/
+*.token
+*.tokens
+tokens.json
+oauth1_token.json
+oauth2_token.json
+.env
+.env.*
+
+# Virtualenv
+.venv/
+venv/
+
+# Data
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+raw_archive/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "garmin-analytics"
+version = "0.1.0"
+description = "Personal analytics over Garmin Connect data: training load, recovery trends, performance and race readiness."
+requires-python = ">=3.11"
+dependencies = [
+    "garth==0.8.0",
+    "fitdecode==0.11.0",
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.53.0",
+]
+
+[project.scripts]
+garmin-analytics = "garmin_analytics.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["garmin_analytics*"]
+
+[tool.setuptools.package-data]
+garmin_analytics = ["db/*.sql", "web/*", "web/vendor/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:garth",
+]

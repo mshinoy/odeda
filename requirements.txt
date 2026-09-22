@@ -1,0 +1,10 @@
+# Pinned to what was installed and tested on 2026-09-22 (Python 3.12.3).
+# Direct dependencies
+garth==0.8.0
+fitdecode==0.11.0
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+
+# Test-only (kept here so one install covers dev too; the app does not import them)
+pytest==9.1.1
+httpx==0.28.1
