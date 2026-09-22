@@ -152,6 +152,58 @@ def login(
     secure_token_dir(token_dir)
 
 
+def begin_login(email: str, password: str, token_dir: Path) -> tuple[str, Any]:
+    """Start an SSO login without a terminal prompt, for the web setup screen.
+
+    Returns either ``("ok", display_name)`` — tokens are saved and the user is in —
+    or ``("mfa", client_state)``, where `client_state` must be handed back to
+    `finish_login` along with the code from the user's authenticator.
+
+    The password is used for this one call and is never stored, logged or echoed.
+    `client_state` is an in-flight auth context: it is held in memory by the caller
+    for a few minutes and must never be written to disk.
+    """
+    garth = _garth()
+    token_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(token_dir, 0o700)
+    result = garth.login(email, password, return_on_mfa=True)
+    if isinstance(result, tuple) and len(result) == 2 and result[0] == "needs_mfa":
+        return "mfa", result[1]
+    garth.save(str(token_dir))
+    secure_token_dir(token_dir)
+    return "ok", _display_name()
+
+
+def finish_login(client_state: Any, code: str, token_dir: Path) -> str:
+    """Complete an MFA challenge started by `begin_login`. Returns the display name."""
+    garth = _garth()
+    from garth import sso
+
+    oauth1, oauth2 = sso.resume_login(client_state, str(code).strip())
+    garth.client.configure(oauth1_token=oauth1, oauth2_token=oauth2)
+    token_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(token_dir, 0o700)
+    garth.save(str(token_dir))
+    secure_token_dir(token_dir)
+    return _display_name()
+
+
+def _display_name() -> str:
+    garth = _garth()
+    profile = getattr(garth.client, "profile", None) or {}
+    return str(profile.get("displayName") or profile.get("userName") or "")
+
+
+def logout(token_dir: Path) -> int:
+    """Delete the token cache. The only way to disconnect the Garmin account."""
+    removed = 0
+    if token_dir.is_dir():
+        for child in token_dir.glob("oauth*token*.json"):
+            child.unlink()
+            removed += 1
+    return removed
+
+
 def resume(token_dir: Path) -> str:
     """Restore a saved session. Returns the Connect display name (the API's user key)."""
     garth = _garth()
