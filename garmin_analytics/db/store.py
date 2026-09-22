@@ -14,8 +14,16 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping, Sequence
 
 from ..config import Settings, load_settings
+from . import fields as fields_mod
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+
+#: Columns added to existing tables after v1 shipped. Applied with ALTER TABLE only
+#: when missing, so upgrading a v1 database in place keeps its data.
+ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("activity_samples", "lat", "REAL"),
+    ("activity_samples", "lon", "REAL"),
+)
 
 
 def utcnow() -> str:
@@ -35,23 +43,74 @@ def connect(db_path: Path | str) -> sqlite3.Connection:
     return conn
 
 
+def _add_missing_columns(conn: sqlite3.Connection) -> list[str]:
+    """ALTER TABLE ADD COLUMN for anything in ADDED_COLUMNS not already present."""
+    added: list[str] = []
+    for table, column, decl in ADDED_COLUMNS:
+        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue  # table does not exist yet; schema.sql will have created it
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            added.append(f"{table}.{column}")
+    return added
+
+
+def schema_fingerprint() -> int:
+    """A small integer identifying "the schema this build expects".
+
+    It mixes `SCHEMA_VERSION` with a digest of the editable-field registry, so that
+    adding a field to `fields.FIELDS` automatically invalidates the stored schema and
+    triggers a view rebuild. That is what keeps "add another editable field" a
+    one-line change with no migration bookkeeping to remember.
+
+    Stored in `PRAGMA user_version`, which is a single integer read with no table
+    lookup — cheap enough to check on every connection open.
+    """
+    registry = ";".join(
+        f"{f.name}:{f.type}:{f.base_column or ''}" for f in fields_mod.FIELDS
+    )
+    digest = int(hashlib.sha256(registry.encode()).hexdigest()[:6], 16) % 100_000
+    return SCHEMA_VERSION * 100_000 + digest
+
+
 def migrate(conn: sqlite3.Connection, schema_path: Path | None = None) -> int:
-    """Apply the schema. Idempotent — every statement is CREATE ... IF NOT EXISTS.
+    """Apply the schema. Idempotent, and safe to run against a v1 database.
+
+    Three steps, in order:
+      1. `schema.sql` — every statement is CREATE ... IF NOT EXISTS, so this both
+         builds a fresh database and adds v2's new tables to an existing one.
+      2. ALTER TABLE for columns added to tables that already existed (GPS on
+         `activity_samples`) — CREATE IF NOT EXISTS cannot do that.
+      3. Rebuild the edit-resolved views from the `fields` registry, so they always
+         match the code rather than whatever shape they were first created in.
+
+    A database already stamped with the current fingerprint is left completely
+    alone: the API opens a connection per request, and re-running the DDL script
+    (and re-creating the views) on each one is both wasted work and a write-lock
+    race between concurrent requests.
 
     Returns the schema version now in force.
     """
+    want = schema_fingerprint()
+    if int(conn.execute("PRAGMA user_version").fetchone()[0] or 0) == want:
+        return SCHEMA_VERSION
+
     schema_path = schema_path or (Path(__file__).resolve().parent / "schema.sql")
     conn.executescript(schema_path.read_text())
+    _add_missing_columns(conn)
+    fields_mod.rebuild_views(conn)
     row = conn.execute("SELECT MAX(version) AS v FROM schema_migrations").fetchone()
-    if row is None or row["v"] is None:
+    current = None if row is None else row["v"]
+    if current is None or int(current) < SCHEMA_VERSION:
         conn.execute(
-            "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
-            (SCHEMA_VERSION, "initial", utcnow()),
+            "INSERT OR REPLACE INTO schema_migrations (version, name, applied_at) "
+            "VALUES (?, ?, ?)",
+            (SCHEMA_VERSION, "v2: gps, overrides, gear, routes, app state", utcnow()),
         )
-        conn.commit()
-        return SCHEMA_VERSION
+    conn.execute(f"PRAGMA user_version = {want}")
     conn.commit()
-    return int(row["v"])
+    return SCHEMA_VERSION
 
 
 def content_hash(payload: Any) -> str:
@@ -193,6 +252,30 @@ class Store:
 
     def watermarks(self) -> list[dict[str, Any]]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM sync_watermark ORDER BY endpoint")]
+
+    # -- key/value settings ------------------------------------------------------
+
+    def get_setting(self, key: str, default: str | None = None) -> str | None:
+        row = self.conn.execute(
+            "SELECT value FROM app_settings WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row else default
+
+    def set_setting(self, key: str, value: str | None) -> None:
+        self.upsert("app_settings", ["key"], {"key": key, "value": value, "updated_at": utcnow()})
+        self.conn.commit()
+
+    # -- sync progress -----------------------------------------------------------
+
+    def sync_status(self, job: str = "backfill") -> dict[str, Any] | None:
+        row = self.conn.execute("SELECT * FROM sync_status WHERE job = ?", (job,)).fetchone()
+        return dict(row) if row else None
+
+    def set_sync_status(self, job: str, **cols: Any) -> None:
+        """Checkpoint a job's progress. Called after every activity during a backfill."""
+        cols.setdefault("updated_at", utcnow())
+        self.upsert("sync_status", ["job"], {"job": job, **cols})
+        self.conn.commit()
 
     # -- reads -------------------------------------------------------------------
 

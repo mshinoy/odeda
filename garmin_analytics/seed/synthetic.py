@@ -29,11 +29,24 @@ from typing import Iterable, Sequence
 
 from ..analytics import load as load_mod
 from ..analytics import performance as perf
+from ..analytics import routes as routes_mod
 from ..config import Settings
+from ..edits import gear as gear_mod
+from . import geo
+
+#: Three and a bit years. Long enough for year-over-year trends, seasonality and
+#: routes with 40+ attempts; short enough to seed in a couple of minutes.
+DEFAULT_MONTHS = 40
 
 SEED = 20260922
 SAMPLE_INTERVAL_S = 10  # see DECISIONS.md D14
 SEED_MARKER_ENDPOINT = "seed:synthetic"
+
+# Share of sessions that happen indoors and therefore produce **no GPS at all**.
+# Deliberately non-zero: "indoor activities must degrade gracefully, not crash" is a
+# requirement, and a seed without a single treadmill run would never exercise it.
+TREADMILL_RATE = 0.09
+INDOOR_BIKE_RATE = 0.22
 
 # Athlete model -------------------------------------------------------------------
 HR_REST_START = 56.0
@@ -180,8 +193,13 @@ def build_plan(start: date, end: date, rng: random.Random) -> list[DayPlan]:
                 sessions.append({"kind": "long", "km": round(wk_km * 0.30, 2), "sport": "running"})
             else:            # Sunday — easy, or a bike
                 if rng.random() < 0.45:
+                    # Mostly a club-length spin, occasionally a proper long ride —
+                    # which is what puts activities on the longer cycling routes.
+                    minutes = rng.choices(
+                        [50, 60, 75, 90, 140, 200], weights=[3, 4, 4, 3, 2, 1]
+                    )[0]
                     sessions.append({"kind": "cross", "sport": "cycling",
-                                     "minutes": rng.choice([50, 60, 75, 90])})
+                                     "minutes": minutes})
                 else:
                     sessions.append({"kind": "easy", "km": round(wk_km * 0.11, 2), "sport": "running"})
 
@@ -222,12 +240,20 @@ def synth_run(
     hr_rest: float,
     fatigue: float,
     intensity: float | None = None,
+    route: "geo.Route | None" = None,
 ) -> dict:
     """Generate a run's sample stream and its aggregates.
 
     Interval sessions alternate work and float blocks; long runs carry cardiac drift;
     races go out slightly hot and hang on. The shape matters because best-effort
     extraction and decoupling both read the stream, not the summary.
+
+    When a `route` is supplied the run is laid onto it: altitude comes from the
+    route's fixed profile, and **speed is modulated by the gradient at that point**
+    while heart rate is computed from the flat-equivalent speed. That is what a
+    runner holding effort actually does — slow on the climb, HR steady — and it is
+    what makes the segment profile show a real, repeatable slow-down at the hill
+    instead of noise.
     """
     tmpl = RUN_KINDS[kind]
     base_intensity = (intensity or tmpl["intensity"]) * rng.uniform(0.985, 1.015)
@@ -270,16 +296,30 @@ def synth_run(
         speed *= rng.gauss(1.0, 0.025)
         speed = max(speed, 1.6)
 
-        target_hr = hr_for_speed(speed, v_thr, hr_rest, HR_MAX)
+        # HR reflects the effort being held, so it is taken from the flat-equivalent
+        # speed *before* the hill slows the runner down.
+        flat_speed = speed
+        gradient = 0.0
+        if route is not None:
+            gradient = route.gradient_at(route.total_m * min(d / distance_target, 1.0))
+            # ~3.5 % slower per 1 % of climb; descents give back about half that.
+            cost = 0.035 * gradient if gradient > 0 else 0.018 * gradient
+            speed = max(1.4, speed * max(0.72, min(1.18, 1.0 - cost)))
+
+        target_hr = hr_for_speed(flat_speed, v_thr, hr_rest, HR_MAX)
         target_hr *= 1.0 + drift_total * frac          # cardiac drift
+        target_hr *= 1.0 + 0.012 * max(0.0, gradient)  # climbing still costs a little
         target_hr += rng.gauss(0.0, 1.4)
         # First-order lag: HR does not step, it chases.
         hr = hr_prev + (target_hr - hr_prev) * 0.35
         hr = max(hr_rest + 10.0, min(hr, HR_MAX))
         hr_prev = hr
 
-        alt += rng.gauss(0.0, 0.55)
-        alt = max(2.0, min(alt, 60.0))
+        if route is None:
+            alt += rng.gauss(0.0, 0.55)
+            alt = max(2.0, min(alt, 60.0))
+        else:
+            alt = route.position_at(route.total_m * min(d / distance_target, 1.0))[2]
 
         d += speed * SAMPLE_INTERVAL_S
         t += SAMPLE_INTERVAL_S
@@ -307,7 +347,21 @@ def synth_run(
     avg_hr = sum(hrs[1:]) / len(hrs[1:])
     duration = elapsed[-1]
 
+    # Lay the run onto the route's geometry. Indoor sessions get no track at all,
+    # and every consumer has to cope with that.
+    if route is None:
+        track: list[tuple[float, float, float] | None] = [None] * len(elapsed)
+    else:
+        traced = geo.trace(route, dist, rng)
+        track = list(traced)
+        # The traced altitude is the route's, with noise; prefer it over the
+        # bookkeeping copy so map and elevation profile agree exactly.
+        alts = [p[2] for p in traced]
+
     return {
+        "route_key": route.template.key if route else None,
+        "route_name": route.name if route else None,
+        "track": track,
         "distance_m": dist[-1],
         "duration_s": duration * rng.uniform(1.0, 1.03),  # elapsed >= moving
         "moving_time_s": duration,
@@ -319,33 +373,111 @@ def synth_run(
         "avg_cadence_spm": sum(cadences) / len(cadences),
         "calories": duration / 60.0 * (0.85 * WEIGHT_START / 70.0) * 11.0,
         "zone_seconds": zone_seconds,
-        "samples": list(zip(elapsed, dist, hrs, speeds, cadences, alts)),
+        "samples": list(zip(elapsed, dist, hrs, speeds, cadences, alts, track)),
+    }
+
+
+def synth_ride(
+    rng: random.Random,
+    minutes: float,
+    hr_rest: float,
+    route: "geo.Route | None" = None,
+) -> dict:
+    """A bike ride with a GPS track, so bikes get routes and real mileage.
+
+    Coarser sampling than a run (rides are long, and nobody analyses a 3-hour ride
+    at 5-second resolution in a browser).
+    """
+    if route is None:
+        return synth_other(rng, "cycling", minutes, hr_rest)
+
+    duration = minutes * 60.0
+    distance = route.total_m * rng.uniform(0.995, 1.005)
+    base_speed = distance / duration
+    step = 20.0
+
+    elapsed, dist, hrs, cadences, alts = [0.0], [0.0], [], [], []
+    t, d = 0.0, 0.0
+    hr_prev = hr_rest + 30.0
+    hrr = rng.uniform(0.60, 0.74)
+    while d < distance and t < duration * 1.6:
+        gradient = route.gradient_at(route.total_m * min(d / distance, 1.0))
+        speed = base_speed * max(0.45, min(1.45, 1.0 - 0.055 * gradient)) * rng.gauss(1.0, 0.03)
+        speed = max(2.0, speed)
+        target_hr = hr_rest + hrr * (HR_MAX - hr_rest) * (1.0 + 0.02 * max(0.0, gradient))
+        hr_prev += (target_hr + rng.gauss(0, 2.0) - hr_prev) * 0.3
+        hr = max(hr_rest + 10.0, min(hr_prev, HR_MAX))
+
+        d += speed * step
+        t += step
+        elapsed.append(t)
+        dist.append(d)
+        hrs.append(hr)
+        cadences.append(rng.gauss(84, 4))
+        alts.append(route.position_at(route.total_m * min(d / distance, 1.0))[2])
+
+    hrs.insert(0, hrs[0])
+    cadences.insert(0, cadences[0])
+    alts.insert(0, alts[0])
+    speeds = [0.0] + [(dist[i] - dist[i - 1]) / step for i in range(1, len(dist))]
+    traced = geo.trace(route, dist, rng, noise_m=6.0)
+    alts = [p[2] for p in traced]
+
+    zone_seconds: dict[int, float] = {}
+    for hr in hrs[1:]:
+        z = hr_zone(hr, hr_rest, HR_MAX)
+        zone_seconds[z] = zone_seconds.get(z, 0.0) + step
+
+    gain = sum(max(0.0, alts[i] - alts[i - 1]) for i in range(1, len(alts)))
+    moving = elapsed[-1]
+    return {
+        "route_key": route.template.key,
+        "route_name": route.name,
+        "distance_m": dist[-1],
+        "duration_s": moving * rng.uniform(1.02, 1.09),  # coffee stops
+        "moving_time_s": moving,
+        "avg_hr": sum(hrs[1:]) / len(hrs[1:]),
+        "max_hr": max(hrs),
+        "avg_speed_mps": dist[-1] / moving,
+        "max_speed_mps": max(speeds),
+        "elevation_gain_m": gain,
+        "avg_cadence_spm": sum(cadences) / len(cadences),
+        "avg_power_w": rng.uniform(150, 215),
+        "calories": minutes * 7.6,
+        "zone_seconds": zone_seconds,
+        "track": list(traced),
+        "samples": list(zip(elapsed, dist, hrs, speeds, cadences, alts, traced)),
     }
 
 
 def synth_other(rng: random.Random, sport: str, minutes: float, hr_rest: float) -> dict:
-    """Bike / swim / strength: aggregates only, no sample stream."""
+    """Swim / strength / indoor: aggregates only, no sample stream and no GPS."""
     profile = {
         "cycling": (0.62, 0.72, 7.6),
+        "indoor_cycling": (0.64, 0.75, 7.8),
         "swimming": (0.58, 0.66, 8.5),
         "strength_training": (0.42, 0.55, 5.5),
-    }[sport]
+    }.get(sport, (0.50, 0.62, 6.0))
     lo, hi, kcal_min = profile
     hrr = rng.uniform(lo, hi)
     avg_hr = hr_rest + hrr * (HR_MAX - hr_rest)
     duration = minutes * 60.0
     zone = hr_zone(avg_hr, hr_rest, HR_MAX)
     out = {
-        "distance_m": duration * rng.uniform(6.8, 8.2) if sport == "cycling" else (
+        "route_key": None,
+        "route_name": None,
+        "track": [],
+        "distance_m": duration * rng.uniform(6.8, 8.2) if "cycling" in sport else (
             duration * 0.62 if sport == "swimming" else None
         ),
         "duration_s": duration,
         "moving_time_s": duration * rng.uniform(0.93, 1.0),
         "avg_hr": avg_hr,
         "max_hr": avg_hr * rng.uniform(1.08, 1.16),
+        # An indoor trainer records no climbing however hard the ERG file is.
         "elevation_gain_m": duration / 60.0 * rng.uniform(2, 9) if sport == "cycling" else 0.0,
-        "avg_cadence_spm": rng.uniform(78, 92) if sport == "cycling" else None,
-        "avg_power_w": rng.uniform(150, 215) if sport == "cycling" else None,
+        "avg_cadence_spm": rng.uniform(78, 92) if "cycling" in sport else None,
+        "avg_power_w": rng.uniform(150, 215) if "cycling" in sport else None,
         "calories": minutes * kcal_min,
         "zone_seconds": {zone: duration * 0.6, max(1, zone - 1): duration * 0.4},
         "samples": [],
@@ -525,12 +657,20 @@ def synth_wellness(
 def seed_database(
     store,
     end: date | None = None,
-    months: int = 18,
+    months: int = DEFAULT_MONTHS,
     reset: bool = False,
     rng_seed: int = SEED,
     progress=None,
+    cluster: bool = True,
+    gear_data: bool = True,
 ) -> dict[str, int]:
-    """Generate and load `months` of synthetic data ending on `end` (default today)."""
+    """Generate and load `months` of synthetic data ending on `end` (default today).
+
+    Defaults to more than three years so that routes have dozens of attempts each,
+    year-over-year comparisons have years to compare, and the aggregate views are
+    answering the question the user actually asked ("if I've run 300 times over the
+    past five years, what's my average pace").
+    """
     settings: Settings = store.settings
     rng = random.Random(rng_seed)
     end = end or date.today()
@@ -539,6 +679,9 @@ def seed_database(
     if reset:
         with store.tx() as conn:
             for table in (
+                # Order matters: children before parents, so foreign keys stay happy.
+                "route_segment_efforts", "route_members", "routes",
+                "gear_defaults", "activity_gear", "gear", "overrides",
                 "best_efforts", "activity_samples", "activity_hr_zones", "activities",
                 "sleep", "daily_wellness", "hrv_daily", "fitness", "body_composition",
                 "raw_documents", "sync_watermark",
@@ -552,6 +695,9 @@ def seed_database(
     counts = {"activities": 0, "samples": 0, "days": 0, "raw": 0}
     yesterday_trimp = 0.0
     activity_seq = 0
+    #: activity_id -> the route template it was generated from. Ground truth the
+    #: clusterer never sees; used only to name the resulting routes afterwards.
+    route_keys: dict[str, str] = {}
 
     with store.tx():
         for i, plan in enumerate(plans):
@@ -571,15 +717,36 @@ def seed_database(
                 activity_seq += 1
                 sport = session["sport"]
                 if sport == "running":
+                    # Runners run known loops. Snapping the session's distance to a
+                    # real route is both more realistic than a fresh random walk and
+                    # the only way repeated routes exist to be clustered at all.
+                    route = geo.pick("running", session["km"] * 1000.0)
+                    indoor = rng.random() < TREADMILL_RATE
+                    if indoor:
+                        route = None
                     detail = synth_run(
                         rng, session["kind"], session["km"], v_thr, state.hr_rest,
-                        state.fatigue, session.get("intensity"),
+                        state.fatigue, session.get("intensity"), route=route,
                     )
+                    if indoor:
+                        detail["_sport"] = "treadmill_running"
                     ran_today = True
+                elif sport == "cycling":
+                    if rng.random() < INDOOR_BIKE_RATE:
+                        detail = synth_other(rng, "indoor_cycling", session["minutes"],
+                                             state.hr_rest)
+                        detail["_sport"] = "indoor_cycling"
+                    else:
+                        minutes = session["minutes"]
+                        route = geo.pick("cycling", minutes * 60.0 * 7.5)
+                        detail = synth_ride(rng, minutes, state.hr_rest, route=route)
                 else:
                     detail = synth_other(rng, sport, session["minutes"], state.hr_rest)
 
                 aid = f"seed-{activity_seq:06d}"
+                sport = detail.get("_sport", sport)
+                if detail.get("route_key"):
+                    route_keys[aid] = detail["route_key"]
                 start_hour = 6 if plan.day.weekday() < 5 else 7
                 start_local = datetime.combine(
                     plan.day, time(hour=start_hour + s_i * 8 % 12)
@@ -650,22 +817,32 @@ def seed_database(
                         {"activity_id": aid, "zone": int(zone), "seconds": round(secs, 1)},
                     )
 
-                for (el, di, hr, sp, cad, alt) in detail["samples"]:
-                    store.upsert(
-                        "activity_samples",
-                        ["activity_id", "elapsed_s"],
-                        {
-                            "activity_id": aid,
-                            "elapsed_s": el,
-                            "distance_m": round(di, 2),
-                            "hr": round(hr, 1),
-                            "speed_mps": round(sp, 3),
-                            "cadence_spm": round(cad, 1),
-                            "power_w": None,
-                            "altitude_m": round(alt, 1),
-                        },
+                # executemany rather than per-row upsert: a three-year seed writes
+                # well over a million samples and the round-trips dominate.
+                sample_rows = [
+                    (
+                        aid,
+                        el,
+                        round(di, 2),
+                        round(hr, 1),
+                        round(sp, 3),
+                        round(cad, 1),
+                        None,
+                        round(alt, 1),
+                        None if pos is None else round(pos[0], 6),
+                        None if pos is None else round(pos[1], 6),
                     )
-                    counts["samples"] += 1
+                    for (el, di, hr, sp, cad, alt, pos) in detail["samples"]
+                ]
+                if sample_rows:
+                    store.conn.executemany(
+                        "INSERT INTO activity_samples (activity_id, elapsed_s, distance_m, "
+                        "hr, speed_mps, cadence_spm, power_w, altitude_m, lat, lon) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                        "ON CONFLICT (activity_id, elapsed_s) DO NOTHING",
+                        sample_rows,
+                    )
+                    counts["samples"] += len(sample_rows)
 
             # Fatigue decays, and today's work adds to it.
             state.fatigue = state.fatigue * 0.82 + today_trimp / FATIGUE_DIVISOR
@@ -726,7 +903,148 @@ def seed_database(
         )
 
     counts["best_efforts"] = perf.rebuild_best_efforts(store)
+
+    if gear_data:
+        counts["gear"] = seed_gear(store, start, end)
+    if cluster:
+        if progress:
+            progress(total_days, total_days)
+        result = routes_mod.cluster_all(store)
+        counts["routes"] = result["routes"]
+        counts["route_members"] = result.get("created", 0) + result.get("joined", 0)
+        counts["named_routes"] = _name_seeded_routes(store, route_keys)
     return counts
+
+
+def _name_seeded_routes(store, route_keys: dict[str, str]) -> int:
+    """Give each clustered route the name of the template that generated it.
+
+    Purely cosmetic, and only possible because the seeder knows the ground truth.
+    A real deployment gets generated names ("8.4 km loop #2") until the user renames
+    them — this just stops the demo reading like a spreadsheet. Crucially it does
+    **not** set `pinned`, so clustering behaviour is identical either way.
+    """
+    if not route_keys:
+        return 0
+    named = 0
+    for row in store.query("SELECT route_id FROM routes"):
+        rid = int(row["route_id"])
+        members = store.query(
+            "SELECT activity_id FROM route_members WHERE route_id = ?", (rid,)
+        )
+        keys = [route_keys[m["activity_id"]] for m in members if m["activity_id"] in route_keys]
+        if not keys:
+            continue
+        winner = max(set(keys), key=keys.count)
+        template = geo.TEMPLATES_BY_KEY.get(winner)
+        if template is None:
+            continue
+        store.conn.execute(
+            "UPDATE routes SET name = ? WHERE route_id = ?", (template.name, rid)
+        )
+        named += 1
+    store.conn.commit()
+    return named
+
+
+# ---------------------------------------------------------------------------
+# Gear
+# ---------------------------------------------------------------------------
+
+#: Shoes wear out and get replaced; bikes do not. Each shoe covers a date window,
+#: which is also the most realistic way to assign gear across imported history — and
+#: it exercises exactly the bulk-reassign path the user will need for their own data.
+def seed_gear(store, start: date, end: date) -> int:
+    """Create a plausible gear cupboard and assign it across the whole history."""
+    span = (end - start).days
+    made = 0
+
+    # Shoes are consumable, so the rotation is derived from how far the athlete
+    # actually ran rather than hardcoded: enough pairs that each retires at roughly
+    # its threshold, which is what makes the gear dashboard's percentages mean
+    # something. The newest pair is part-worn and still in use.
+    threshold_m = 800_000.0
+    run_types = ("running", "treadmill_running")  # treadmill miles wear shoes too
+    total_run_m = float(
+        store.scalar(
+            "SELECT COALESCE(SUM(distance_m), 0) FROM activities "
+            f"WHERE activity_type IN ({', '.join('?' * len(run_types))})",
+            run_types,
+        )
+        or 0.0
+    )
+    pairs = max(2, math.ceil(total_run_m / (threshold_m * 0.92)))
+    catalogue = [
+        ("Asics", "Gel-Nimbus 26", "Nimbus 26"),
+        ("Asics", "Novablast 4", "Novablasts"),
+        ("Nike", "Pegasus 41", "Pegs"),
+        ("Saucony", "Ride 17", "Rides"),
+        ("Asics", "Gel-Nimbus 27", "Nimbus 27"),
+        ("New Balance", "1080v14", "1080s"),
+        ("Hoka", "Clifton 9", "Cliftons"),
+        ("Nike", "Vomero 17", "Vomeros"),
+    ]
+    for i in range(pairs):
+        brand, model, nickname = catalogue[i % len(catalogue)]
+        if i >= len(catalogue):
+            nickname = f"{nickname} ({i // len(catalogue) + 1})"
+        lo_day = start + timedelta(days=int(span * i / pairs))
+        hi_day = (
+            end
+            if i == pairs - 1
+            else start + timedelta(days=int(span * (i + 1) / pairs) - 1)
+        )
+        item = gear_mod.create(
+            store,
+            kind="shoe",
+            brand=brand,
+            model=model,
+            nickname=nickname,
+            purchase_date=lo_day.isoformat(),
+            retirement_distance_m=threshold_m,
+            retired=i < pairs - 1,
+        )
+        made += 1
+        for run_type in run_types:
+            gear_mod.bulk_assign(
+                store,
+                item["gear_id"],
+                start=lo_day.isoformat(),
+                end=hi_day.isoformat(),
+                activity_type=run_type,
+            )
+
+    road = gear_mod.create(
+        store, kind="bike", brand="Canyon", model="Endurace", nickname="Road bike",
+        purchase_date=start.isoformat(), retirement_distance_m=None,
+    )
+    trainer = gear_mod.create(
+        store, kind="bike", brand="Wahoo", model="Kickr Core", nickname="Turbo",
+        purchase_date=start.isoformat(),
+    )
+    made += 2
+    gear_mod.bulk_assign(store, road["gear_id"], activity_type="cycling")
+    gear_mod.bulk_assign(store, trainer["gear_id"], activity_type="indoor_cycling")
+
+    strap = gear_mod.create(
+        store, kind="strap", brand="Garmin", model="HRM-Pro", nickname="Chest strap",
+        purchase_date=start.isoformat(), retirement_distance_m=None,
+    )
+    made += 1
+    # The strap only came out for hard sessions, so it does not get every run.
+    gear_mod.bulk_assign(
+        store, strap["gear_id"], activity_type="running",
+        start=(start + timedelta(days=int(span * 0.45))).isoformat(),
+    )
+
+    # Default rules: new runs get the current shoes, new rides the road bike.
+    current_shoe = store.query(
+        "SELECT gear_id FROM gear WHERE kind = 'shoe' AND retired = 0 ORDER BY gear_id DESC LIMIT 1"
+    )
+    if current_shoe:
+        gear_mod.set_default(store, "running", int(current_shoe[0]["gear_id"]))
+    gear_mod.set_default(store, "cycling", road["gear_id"])
+    return made
 
 
 def is_synthetic(store) -> bool:
@@ -738,8 +1056,11 @@ def _r(v, nd: int = 1):
 
 
 def _activity_name(kind: str | None, sport: str) -> str:
+    if sport == "treadmill_running":
+        return "Treadmill run"
     if sport != "running":
-        return {"cycling": "Ride", "swimming": "Pool swim",
+        return {"cycling": "Ride", "indoor_cycling": "Turbo session",
+                "swimming": "Pool swim",
                 "strength_training": "Strength"}.get(sport, sport.title())
     return {
         "easy": "Easy run",
