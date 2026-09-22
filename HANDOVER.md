@@ -232,3 +232,43 @@ This means you can rename an activity, fix its type, add an RPE and assign shoes
 there is no code path where it would even look. It is proven end to end in
 `VERIFICATION.md` Part B, section 7, by re-ingesting all 1 147 activities and
 checking the edits are still there.
+
+---
+
+## 10. Added after a review pass — read this before step 1
+
+A second session went over the finished build looking for defects. It found and fixed
+five, and wrote up everything in **[`REVIEW.md`](REVIEW.md)**. Three of them change
+what you should do this morning:
+
+**Set `TZ=Asia/Qatar` in `.env`.** This is new; `.env.example` documents it. The
+container's clock is UTC, and the race countdown, the current streak and the 28-day
+rolling volume are all computed for "today" in local time — without it they read the
+previous day for the three hours after Doha midnight. One line, then
+`docker compose up -d`.
+
+**The password is no longer written in this file.** It was, which was a mistake in a
+file heading for GitHub. It is unchanged and still in `.env`:
+`grep APP_PASSWORD .env`. Change it in step 1 as before.
+
+**The race panel was lying, and now is not.** Personal bests were being taken from
+*any* activity with a distance stream, including bike rides, so every "PB" on the
+Performance tab was a ride and the Riegel projection promised a **46:48 half
+marathon**. It now reads foot sports only. On the demo data the projection went from
+46:48 to about **2:09**. If you looked at the race tab last night, that is why the
+number has moved — the new one is the real one. Filter the Aggregates tab to cycling
+if you want your cycling records; they are still there.
+
+Two smaller things worth knowing: `exclude-from-stats` now genuinely removes an
+activity from *everything* (it used to reach the Aggregates tab and gear mileage
+only, so an excluded junk activity still distorted CTL for six weeks), and the same
+applies to fixing an activity's type. Both are the features you will use most in
+step 5.
+
+Nothing in the ingestion path changed, and nothing about steps 1–5 below is
+different. The container is rebuilt, running and healthy on the same volume, so your
+demo data is where you left it.
+
+`REVIEW.md` also lists seven things found and deliberately **not** fixed, including
+one — the login endpoint has no brute-force lockout — that matters if you ever move
+this off localhost.
