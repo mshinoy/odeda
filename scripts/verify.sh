@@ -211,10 +211,10 @@ if [ -n "$CHROME" ]; then
   say "downloaded to produce this section."
   say ''
   open_block
-  for tab in overview load recovery activities performance race; do
+  for tab in overview load recovery activities performance race "activities/$AID"; do
     DOM="$(timeout 150 "$CHROME" --headless --disable-gpu --no-sandbox \
             --virtual-time-budget=9000 --dump-dom "$BASE/#$tab" 2>/dev/null)"
-    say "\$ chromium --headless --dump-dom $BASE/#$tab"
+    say "\$ chromium --headless --dump-dom '$BASE/#$tab'"
     printf '%s' "$DOM" | "$PY" -c "
 import re, sys
 dom = sys.stdin.read()
@@ -226,6 +226,8 @@ err = 'banner error show' in dom
 print(f'  error banner      {\"PRESENT\" if err else \"none\"}')
 m = re.search(r'class=\"figure\">([^<]+)<', dom)
 print(f'  hero figure       {m.group(1) if m else chr(45)}')
+if 'Kilometre splits' in dom:
+    print('  drawer sections   zones, HR, pace, splits, best efforts')
 " >> "$OUT" 2>&1
     say ''
   done

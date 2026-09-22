@@ -615,12 +615,15 @@ async function renderActivities() { await loadActivities(); }
 
 const ZONE_COLOURS = [C['series-3'], C['series-1'], C['series-4'], C['series-2'], C.critical];
 
+/* The drawer is addressable: #activities/<id> opens it directly. That makes a
+   specific session linkable, and makes the drawer verifiable without a click. */
 async function openDrawer(activityId) {
   const body = $('#drawer-body');
   clear(body);
   body.append(el('div', { class: 'loading' }, 'loading…'));
   $('#drawer').hidden = false;
   $('#drawer-backdrop').hidden = false;
+  history.replaceState(null, '', `#activities/${activityId}`);
 
   const d = await api(`/api/activities/${encodeURIComponent(activityId)}`);
   const a = d.activity;
@@ -734,6 +737,7 @@ async function openDrawer(activityId) {
 function closeDrawer() {
   $('#drawer').hidden = true;
   $('#drawer-backdrop').hidden = true;
+  if (location.hash.startsWith('#activities/')) history.replaceState(null, '', '#activities');
 }
 
 // --- Performance ------------------------------------------------------------
@@ -921,8 +925,11 @@ async function boot() {
     showError(err);
   }
 
-  const initial = location.hash.slice(1);
+  const [initial, deepLinked] = location.hash.slice(1).split('/');
   await showPanel(RENDERERS[initial] ? initial : 'overview');
+  if (initial === 'activities' && deepLinked) {
+    await openDrawer(decodeURIComponent(deepLinked)).catch(showError);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', boot);

@@ -280,3 +280,22 @@ class TestHeadlessRender:
         dom = self._dump_dom(live_server + "/#race")
         assert "days to go" in dom
         assert "Doha Marathon" in dom
+
+    def test_activity_drawer_opens_from_a_deep_link(self, live_server):
+        """`#activities/<id>` opens the detail drawer — which also makes it testable."""
+        import json
+        import urllib.request
+
+        with urllib.request.urlopen(
+            live_server + "/api/activities?limit=1&type=running"
+        ) as fh:
+            aid = json.load(fh)["rows"][0]["activity_id"]
+
+        dom = self._dump_dom(f"{live_server}/#activities/{aid}")
+        assert 'id="drawer"' in dom
+        assert "drawer" in dom and 'hidden=""' not in dom.split('id="drawer"')[1][:60]
+        assert "Time in heart-rate zones" in dom
+        assert "Kilometre splits" in dom
+        assert "Best efforts in this activity" in dom
+        # two per-activity charts (HR and pace), on their own scales, never dual-axis
+        assert dom.count("<canvas") >= 2
