@@ -5,24 +5,34 @@ your credentials.
 
 ---
 
-## 1. Start it (2 minutes)
+## 0. It is already running
+
+I left the container up so you can look at it straight away:
+
+**<http://127.0.0.1:8000>** — password `verify-me-2026`
+
+It is showing **synthetic demo data** (orange banner at the top). Change that
+password, and read step 3 before you connect your real account.
+
+---
+
+## 1. Make it yours (2 minutes)
+
+A `.env` already exists — I created it to run the verification, with a placeholder
+password and `GA_SEED_DEMO=1`. Edit it:
 
 ```bash
 cd ~/.openclaw/workspace/projects/garmin-analytics
-cp .env.example .env
-$EDITOR .env
+$EDITOR .env                 # set APP_PASSWORD to something real
+docker compose up -d         # picks up the change
 ```
 
-Set **`APP_PASSWORD`** to something real. Leave `GA_SEED_DEMO=1` for now — it fills
-the dashboard with synthetic data so you can look around before connecting your
-account. Then:
+Changing `APP_PASSWORD` rotates it and signs out every existing session, by design.
+If you would rather start clean: `cp .env.example .env`.
 
-```bash
-docker compose up -d
-```
-
-First start takes about a minute: it builds nothing (the image is already built) but
-does generate ~3.3 years of demo data. Watch it with `docker compose logs -f`.
+A cold first start takes about a minute — it builds nothing (the image is already
+built) but does generate ~3.3 years of demo data. Watch it with
+`docker compose logs -f`.
 
 Open **<http://127.0.0.1:8000>** and sign in with your `APP_PASSWORD`.
 

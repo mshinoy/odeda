@@ -704,7 +704,7 @@ the gear/override round trip, and a restart.
 
 ```
 Garmin Analytics — container verification
-date: 2026-09-22T21:50:32Z
+date: 2026-09-22T22:08:52Z
 host: Linux 6.8.0-139-generic x86_64
 docker: Docker version 29.8.0, build 88096ef
 compose: 5.5.1
@@ -714,26 +714,26 @@ compose: 5.5.1
    Container garmin-analytics Stopped 
    Container garmin-analytics Removing 
    Container garmin-analytics Removed 
-   Volume garmin-analytics-data Removing 
    Network garmin-analytics_default Removing 
+   Volume garmin-analytics-data Removing 
    Volume garmin-analytics-data Removed 
    Network garmin-analytics_default Removed 
   PASS  no garmin-analytics-data volume exists
-  disk before: 7.3G free (80% used)
+  disk before: 7.2G free (80% used)
 
 === 2. Build ===
   #23 resolving provenance for metadata file
   #23 DONE 0.0s
    Image garmin-analytics:latest Built 
   PASS  image built
-  build took 3s
+  build took 30s
   image size: 320MB
 
 === 3. Start from cold ===
    Network garmin-analytics_default Creating 
-   Volume garmin-analytics-data Creating 
-   Volume garmin-analytics-data Creating 
    Network garmin-analytics_default Creating 
+   Volume garmin-analytics-data Creating 
+   Volume garmin-analytics-data Creating 
    Volume garmin-analytics-data Created 
    Volume garmin-analytics-data Created 
    Network garmin-analytics_default Created 
@@ -743,7 +743,7 @@ compose: 5.5.1
    Container garmin-analytics Starting 
    Container garmin-analytics Started 
   waiting for /api/health ...
-  PASS  reachable after 57s (includes first-run demo seeding)
+  PASS  reachable after 59s (includes first-run demo seeding)
   first-run log:
     garmin-analytics  | Seeding 40 months of synthetic data ending 2026-09-22 into /data/garmin.db ...
     garmin-analytics  |   days=1218  activities=1147  samples=224807  raw_documents=6738  best_efforts=2875  routes=15  gear=12
@@ -853,8 +853,8 @@ compose: 5.5.1
   redis:7-alpine  61.2MB
   hello-world:latest  25.9kB
   postgis/postgis:16-3.4  853MB
-  build cache: Build Cache 1.788GB
-  disk after: 7.2G free (80% used)
+  build cache: Build Cache 1.925GB
+  disk after: 7.1G free (81% used)
 
 === Result ===
   63 passed, 0 failed
