@@ -26,5 +26,6 @@ garmin_analytics = ["db/*.sql", "web/*", "web/vendor/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = [
-    "ignore::DeprecationWarning:garth",
+    # garth announces its own deprecation on import; we know (DECISIONS.md D3).
+    "ignore:Garth is deprecated.*:DeprecationWarning",
 ]
