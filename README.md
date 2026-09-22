@@ -118,6 +118,11 @@ Single page, six tabs, dark, readable on a phone.
 Charts are [uPlot](https://github.com/leeoniya/uPlot) 1.6.32 (MIT), vendored into
 `garmin_analytics/web/vendor/`. No CDN, no build step, no framework.
 
+Screenshots of every tab, rendered from the synthetic seed, are in
+[`docs/screenshots/`](docs/screenshots/).
+
+![Overview](docs/screenshots/overview.png)
+
 ---
 
 ## Data model
