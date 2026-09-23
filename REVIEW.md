@@ -1,5 +1,11 @@
 # Adversarial review
 
+> **Historical record — 2026-09-22.** Kept as written. The Garmin client has since been
+> replaced (`garth` → `python-garminconnect`, DECISIONS.md D3), so everything below
+> about `garth`, the login transport and the OAuth token cache describes the build that
+> was reviewed, not the one that ships now. The findings on analytics, overrides,
+> security and packaging still stand. For the current ingestion path, see HANDOVER.md.
+
 A second pass over the finished build, by a session that did not write it, with a
 brief to find defects rather than features: security, the analytics maths, the
 override/sync interaction, real-data edge cases, and whether a stranger can actually

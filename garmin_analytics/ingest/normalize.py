@@ -311,7 +311,7 @@ def normalize_hrv(payload: Mapping[str, Any], day: str | None = None) -> dict[st
     cal = pick(summary, "calendarDate") or day
     if not cal:
         return None
-    return {
+    row = {
         "day": str(cal)[:10],
         "last_night_avg": as_float(pick(summary, "lastNightAvg", "weeklyAvg")),
         "last_night_5min_high": as_float(pick(summary, "lastNight5MinHigh")),
@@ -324,6 +324,13 @@ def normalize_hrv(payload: Mapping[str, Any], day: str | None = None) -> dict[st
         ),
         "status": pick(summary, "status"),
     }
+    # Garmin answers `{}` for a day with no HRV — the feature needs a compatible watch
+    # and enough nights behind it. Keeping the date alone would file a row recording no
+    # measurement: it counts as HRV coverage in `doctor` and in any per-day join, and
+    # reads as "we looked and it was blank" rather than "there is nothing here".
+    if all(v is None for k, v in row.items() if k != "day"):
+        return None
+    return row
 
 
 def normalize_training_readiness(payload: Any, day: str | None = None) -> dict[str, Any] | None:

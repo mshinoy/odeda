@@ -1,5 +1,14 @@
 # Verification transcript
 
+> **Historical record — 2026-09-22.** Captured output from that day, kept verbatim; a
+> transcript that gets edited afterwards is worth nothing. It predates two changes that
+> matter. The Garmin client is now `python-garminconnect`, not `garth` 0.8.0
+> (DECISIONS.md D3), so the dependency and token-cache blocks below no longer describe
+> what runs. And its closing "not proven" list is led by *live Garmin ingestion* — that
+> part **is** now proven: on 2026-09-23 a real account pulled 487 activities back to
+> December 2022, with the activity, sleep and GPS-stream parsers checked against their
+> own payloads. Re-run `scripts/verify.sh` to replace this file.
+
 Two parts: **Part A** runs everything locally against a scratch database, **Part B**
 runs it against the real Docker container from a cold start. Every block is captured
 output, not prose written afterwards. The honest list of what is *not* proven is at

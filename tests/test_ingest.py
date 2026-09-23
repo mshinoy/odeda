@@ -213,6 +213,19 @@ class TestNormalizeHrv:
     def test_missing_summary(self):
         assert N.normalize_hrv({"hrvSummary": None}) is None
 
+    def test_an_empty_payload_is_no_row_at_all(self):
+        """Garmin answers `{}` for every day when the watch does not record HRV —
+        observed on a real account, 2026-09-23. A date-only row would count as HRV
+        coverage in `doctor` and in any per-day join, turning "there is nothing here"
+        into "we measured a blank"."""
+        assert N.normalize_hrv({}, "2026-09-20") is None
+
+    def test_a_single_real_value_is_still_worth_keeping(self):
+        """The guard must key on "no measurements", not on "some field is missing" —
+        a partial night is real data."""
+        row = N.normalize_hrv({"hrvSummary": {"calendarDate": "2026-09-20", "status": "LOW"}})
+        assert row is not None and row["status"] == "LOW"
+
 
 class TestNormalizeFitness:
     def test_training_readiness_unwraps_the_list(self):
