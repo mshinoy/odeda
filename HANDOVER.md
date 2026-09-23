@@ -67,6 +67,40 @@ You can also do this from the terminal if you prefer:
 docker compose exec app garmin-analytics login
 ```
 
+### If login returns 429 Too Many Requests
+
+Observed on a real VPS, 2026-09-23. **Garmin's SSO login route refuses datacenter and
+VPS address ranges** — `sso.garmin.com/mobile/api/login` answers 429 for a nonexistent
+account with no `Retry-After`, so it is address reputation, not your credentials and not
+how often you tried. Waiting does not help.
+
+What is *not* blocked from the same host: `connectapi.garmin.com` (401 to a junk bearer
+token, i.e. it is reading auth normally) and `connect.garmin.com`. Only the login
+handshake is refused — so do the handshake somewhere else and carry the tokens over.
+
+On a laptop or phone-tethered machine at home:
+
+```bash
+python3 -m pip install --user 'garth==0.8.0'
+python3 scripts/garmin-login-local.py          # prompts for email, password, MFA
+scp -r ~/garmin-tokens you@server:/tmp/garmin-tokens
+```
+
+Then on the server:
+
+```bash
+./scripts/install-tokens.sh /tmp/garmin-tokens
+rm -rf /tmp/garmin-tokens                      # they are credentials
+```
+
+The OAuth1 token is good for about a year and refreshes the short-lived OAuth2 token
+against `connectapi`, which is reachable — so this is a one-time detour, not a recurring
+chore. When the year is up, run it again.
+
+Failing that, **Garmin's official data export** needs no login at all: request it at
+garmin.com account settings, and `garmin-analytics import-zip` the archive when the
+email arrives. That gets history but not ongoing sync.
+
 ---
 
 ## 3. Wipe the demo data before the real backfill
