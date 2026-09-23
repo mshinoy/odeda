@@ -215,7 +215,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         except Exception as exc:
+            # Garmin retired the endpoint this path posts to; it answers 429 for every
+            # account, valid or invented. Say so, instead of leaving the user retyping
+            # a password that was never the problem (matin/garth#222).
+            if "429" in str(exc):
+                raise HTTPException(
+                    503,
+                    "Garmin has retired the password login this uses — it now returns "
+                    "429 for everyone, so your password is not the problem. Use the "
+                    "browser sign-in instead: open the URL from GET /api/garmin/"
+                    "signin-url, sign in, then post the ticket to /api/garmin/ticket.",
+                ) from exc
             raise HTTPException(502, f"Garmin login failed: {exc}") from exc
+
+    @app.get("/api/garmin/signin-url")
+    def garmin_signin_url() -> dict[str, Any]:
+        """The Garmin sign-in page to open in a real browser."""
+        from ..ingest import connect as connect_mod
+
+        return {"url": connect_mod.SIGNIN_URL}
+
+    @app.post("/api/garmin/ticket")
+    def garmin_ticket(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Finish a browser sign-in: exchange its CAS ticket for the token cache."""
+        try:
+            return auth_mod.garmin_ticket(settings, str(payload.get("ticket") or ""))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(502, f"Ticket exchange failed: {exc}") from exc
 
     @app.post("/api/garmin/mfa")
     def garmin_mfa(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:

@@ -51,6 +51,22 @@ def cmd_login(args: argparse.Namespace) -> int:
     from .ingest import connect
 
     settings = load_settings()
+
+    if args.signin_url:
+        print(connect.SIGNIN_URL)
+        return 0
+
+    if args.ticket is not None:
+        ticket = args.ticket or input("Paste the redirect URL or the ST-… ticket: ")
+        try:
+            user = connect.login_with_ticket(ticket, settings.token_dir)
+        except connect.ConnectError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"Logged in as {user}. Token cache written to {settings.token_dir} (mode 0600).")
+        print("Next: garmin-analytics backfill --detail-limit 50")
+        return 0
+
     email = args.email or input("Garmin Connect email: ").strip()
     if not sys.stdin.isatty() and not args.allow_non_tty:
         print(
@@ -375,6 +391,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--email")
     sp.add_argument("--allow-non-tty", action="store_true",
                     help="permit a piped password (you probably do not want this)")
+    sp.add_argument("--ticket", nargs="?", const="", default=None, metavar="ST-…",
+                    help="exchange a sign-in ticket from your browser instead of a "
+                         "password; pass the redirect URL or the ticket, or omit the "
+                         "value to be prompted")
+    sp.add_argument("--signin-url", action="store_true",
+                    help="print the Garmin sign-in URL to open in your browser")
 
     sp = add("sync", cmd_sync, "incremental pull from Garmin Connect")
     sp.add_argument("--days", type=int, default=540,

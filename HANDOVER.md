@@ -67,39 +67,56 @@ You can also do this from the terminal if you prefer:
 docker compose exec app garmin-analytics login
 ```
 
-### If login returns 429 Too Many Requests
+### Password login is dead — use the browser sign-in
 
-Observed on a real VPS, 2026-09-23. **Garmin's SSO login route refuses datacenter and
-VPS address ranges** — `sso.garmin.com/mobile/api/login` answers 429 for a nonexistent
-account with no `Retry-After`, so it is address reputation, not your credentials and not
-how often you tried. Waiting does not help.
+**The email-and-password form above no longer works, for anyone.** Garmin retired the
+mobile login endpoint garth posts to; `sso.garmin.com/mobile/api/login` now answers
+**429** to every caller. Their web sign-in sets cookies from JavaScript that no plain
+HTTP client reproduces, which is why garth was deprecated on 2026-09-22
+([matin/garth#222](https://github.com/matin/garth/discussions/222)).
 
-What is *not* blocked from the same host: `connectapi.garmin.com` (401 to a junk bearer
-token, i.e. it is reading auth normally) and `connect.garmin.com`. Only the login
-handshake is refused — so do the handshake somewhere else and carry the tokens over.
+> An earlier version of this file blamed datacenter IP reputation. That was wrong. The
+> giveaway looked conclusive — an invented account got the same 429 — but that evidence
+> fits "this endpoint refuses everyone" just as well, and that is what it turned out to
+> be. The distinguishing test is whether the *other* Garmin endpoints answer normally
+> from the same host. They do.
 
-On a laptop or phone-tethered machine at home:
+Only the handshake needs a browser. The service ticket it hands back exchanges for OAuth
+tokens over an ordinary API call, which works fine from a server — verified 2026-09-23:
+an invalid ticket is answered `401`, not `429`.
 
-```bash
-python3 -m pip install --user 'garth==0.8.0'
-python3 scripts/garmin-login-local.py          # prompts for email, password, MFA
-scp -r ~/garmin-tokens you@server:/tmp/garmin-tokens
-```
+**Three steps, about a minute:**
 
-Then on the server:
+1. Get the sign-in URL and open it in any browser:
 
-```bash
-./scripts/install-tokens.sh /tmp/garmin-tokens
-rm -rf /tmp/garmin-tokens                      # they are credentials
-```
+   ```bash
+   docker compose exec app garmin-analytics login --signin-url
+   ```
 
-The OAuth1 token is good for about a year and refreshes the short-lived OAuth2 token
-against `connectapi`, which is reachable — so this is a one-time detour, not a recurring
-chore. When the year is up, run it again.
+2. Sign in normally, including MFA. The page goes blank — that is expected. The address
+   bar now ends with `?ticket=ST-…`.
 
-Failing that, **Garmin's official data export** needs no login at all: request it at
-garmin.com account settings, and `garmin-analytics import-zip` the archive when the
-email arrives. That gets history but not ongoing sync.
+3. Paste that URL back:
+
+   ```bash
+   docker compose exec -it app garmin-analytics login --ticket
+   ```
+
+Tickets are single-use and expire in minutes, so do step 3 promptly. If it fails, sign
+in again for a fresh one — a rejected ticket is almost never a configuration problem.
+
+The resulting OAuth1 token lasts about a year and silently refreshes the short-lived
+OAuth2 token, so this is a once-a-year chore.
+
+The same flow over HTTP: `GET /api/garmin/signin-url`, then `POST /api/garmin/ticket`
+with `{"ticket": "…"}`.
+
+If you already hold a garth token cache from elsewhere, `scripts/install-tokens.sh
+<dir>` drops it into the volume with the right ownership and modes.
+
+**Needing no login at all:** Garmin's official data export. Request it in your Garmin
+account settings and `garmin-analytics import-zip` the archive when the email arrives.
+That gets history, but not ongoing sync.
 
 ---
 

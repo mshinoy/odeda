@@ -242,6 +242,22 @@ def garmin_login(settings, email: str, password: str) -> dict[str, Any]:
     }
 
 
+def garmin_ticket(settings, ticket: str) -> dict[str, Any]:
+    """Finish a browser sign-in by exchanging its CAS service ticket.
+
+    This is the path that still works: Garmin's web sign-in sets cookies from
+    JavaScript, so only a real browser can complete it, but the ticket it hands back
+    exchanges for OAuth tokens over an ordinary API call. No password is involved.
+    """
+    from ..ingest import connect as connect_mod
+
+    if not ticket or not ticket.strip():
+        raise ValueError("a sign-in ticket is required")
+
+    name = connect_mod.login_with_ticket(ticket, Path(settings.token_dir))
+    return {"status": "ok", "display_name": name, **garmin_status(settings)}
+
+
 def garmin_mfa(settings, challenge_id: str, code: str) -> dict[str, Any]:
     """Finish a login that asked for a multi-factor code."""
     from ..ingest import connect as connect_mod

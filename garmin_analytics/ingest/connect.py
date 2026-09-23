@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -192,6 +193,80 @@ def _display_name() -> str:
     garth = _garth()
     profile = getattr(garth.client, "profile", None) or {}
     return str(profile.get("displayName") or profile.get("userName") or "")
+
+
+# ---------------------------------------------------------------------------
+# Browser-ticket login
+# ---------------------------------------------------------------------------
+#
+# Garmin retired the mobile login endpoint garth posts to (`sso.garmin.com/mobile/api/
+# login`); it answers 429 to everyone, for any account, real or invented. Their web
+# sign-in now sets cookies from JavaScript that no plain HTTP client reproduces, which
+# is what garth's author cited when deprecating the library (matin/garth#222).
+#
+# The half of the handshake that still works is the half after the browser: Garmin's CAS
+# hands out a service ticket (`ST-…`) on successful sign-in, and exchanging that ticket
+# for OAuth tokens is an ordinary API call that garth still implements correctly.
+#
+# So the browser does the part only a browser can do, and we do the rest. The user signs
+# in wherever they already have a session, copies the ticket out of the redirect URL, and
+# we exchange it here. No password ever reaches this process.
+
+SIGNIN_URL = (
+    "https://sso.garmin.com/sso/signin"
+    "?id=gauth-widget"
+    "&embedWidget=true"
+    "&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso"
+    "&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
+    "&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
+    "&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
+    "&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
+)
+
+_TICKET_RE = re.compile(r"(ST-[A-Za-z0-9._-]+)")
+
+
+def extract_ticket(pasted: str) -> str:
+    """Pull the service ticket out of whatever the user pasted.
+
+    They may paste the bare ticket or the whole redirect URL; both are common and
+    telling someone their URL is the wrong shape helps nobody.
+    """
+    match = _TICKET_RE.search((pasted or "").strip())
+    if not match:
+        raise ConnectError(
+            "No Garmin ticket found in that text. After signing in, the address bar "
+            "ends with `?ticket=ST-…` — paste that URL, or just the ST-… part."
+        )
+    return match.group(1)
+
+
+def login_with_ticket(ticket: str, token_dir: Path) -> str:
+    """Exchange a CAS service ticket for the OAuth token cache. Returns display name.
+
+    Tickets are single-use and expire in minutes, so a failure here usually means the
+    ticket was already spent or went stale, not that anything is misconfigured.
+    """
+    garth = _garth()
+    from garth.sso import exchange, get_oauth1_token
+
+    ticket = extract_ticket(ticket)
+    client = garth.client
+    try:
+        oauth1 = get_oauth1_token(ticket, client)
+        oauth2 = exchange(oauth1, client)
+    except Exception as exc:
+        raise ConnectError(
+            f"Garmin rejected the ticket ({exc}). Tickets are single-use and short-lived "
+            "— sign in again to get a fresh one and exchange it straight away."
+        ) from exc
+
+    client.configure(oauth1_token=oauth1, oauth2_token=oauth2)
+    token_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(token_dir, 0o700)
+    garth.save(str(token_dir))
+    secure_token_dir(token_dir)
+    return _display_name()
 
 
 def logout(token_dir: Path) -> int:
