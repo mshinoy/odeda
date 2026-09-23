@@ -96,10 +96,18 @@ def test_treadmill_runs_still_count_as_running_bests(store):
 
 
 def test_excluded_activity_leaves_personal_bests_alone(store):
-    """A 5 k 'PB' set by a car journey must not survive being excluded."""
+    """A 5 k 'PB' the user disowns must not survive being excluded.
+
+    The fast activity runs at 0.18 s/m — 3:00/km: quicker than the honest one, and
+    deliberately still under `MAX_PLAUSIBLE_SPEED_MPS`. It used to be 0.05 s/m
+    (20 m/s, motorway speed), which `plausible_segments` now discards outright. That
+    is a better outcome but a *different* defence; this test exists for the override
+    mechanism, which has to keep working for efforts that are merely wrong rather than
+    physically impossible.
+    """
     _add(store, "honest", day="2026-09-01")
     _add(store, "car", day="2026-09-02")
-    for aid, pace_s_per_m in (("honest", 0.30), ("car", 0.05)):
+    for aid, pace_s_per_m in (("honest", 0.30), ("car", 0.18)):
         store.upsert_many(
             "activity_samples",
             ["activity_id", "elapsed_s"],

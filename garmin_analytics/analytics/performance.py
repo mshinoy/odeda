@@ -46,6 +46,43 @@ def riegel(known_time_s: float, known_distance_m: float, target_distance_m: floa
     return known_time_s * (target_distance_m / known_distance_m) ** exponent
 
 
+#: Nothing on foot covers ground faster than this. Bolt's peak is about 12.4 m/s and
+#: only for a couple of seconds; anything above it in a distance stream is the watch
+#: re-acquiring GPS and teleporting, not a sprint.
+MAX_PLAUSIBLE_SPEED_MPS = 12.5
+
+
+def plausible_segments(
+    cum_distance_m: Sequence[float],
+    elapsed_s: Sequence[float],
+    max_speed_mps: float = MAX_PLAUSIBLE_SPEED_MPS,
+) -> list[tuple[int, int]]:
+    """Split a stream wherever its distance series does something impossible.
+
+    Observed on real data: an easy run carrying one sample that adds 840 m in 8 s —
+    105 m/s. A sweep over the raw series treats that as ground genuinely covered and
+    reports a 1 km best of 79 s, which then feeds the race projection. Distance that
+    goes backwards is the same class of fault.
+
+    Splitting rather than dropping or repairing is deliberate: the run either side of
+    a glitch is real and should still be searched, but no window may span the join,
+    because the distance across it was never run.
+    """
+    n = len(cum_distance_m)
+    segments: list[tuple[int, int]] = []
+    start = 0
+    for i in range(1, n):
+        dd = cum_distance_m[i] - cum_distance_m[i - 1]
+        dt = elapsed_s[i] - elapsed_s[i - 1]
+        if dd < 0 or dt <= 0 or dd / dt > max_speed_mps:
+            if i - start >= 2:
+                segments.append((start, i))
+            start = i
+    if n - start >= 2:
+        segments.append((start, n))
+    return segments
+
+
 def best_effort_for_distance(
     cum_distance_m: Sequence[float],
     elapsed_s: Sequence[float],
@@ -181,9 +218,16 @@ def extract_best_efforts(store, activity_id: str) -> list[dict[str, float]]:
     elapsed = [float(r["elapsed_s"]) for r in rows]
     dist = [float(r["distance_m"]) for r in rows]
     day = store.scalar("SELECT day FROM activities WHERE activity_id = ?", (activity_id,))
+    # Search each stretch of credible data separately: a GPS teleport in the middle of
+    # an otherwise ordinary run would otherwise hand out a record nobody ran.
+    segments = plausible_segments(dist, elapsed)
     out = []
     for target in STANDARD_DISTANCES:
-        t = best_effort_for_distance(dist, elapsed, target)
+        t: float | None = None
+        for lo, hi in segments:
+            candidate = best_effort_for_distance(dist[lo:hi], elapsed[lo:hi], target)
+            if candidate is not None and (t is None or candidate < t):
+                t = candidate
         if t is not None:
             out.append(
                 {"activity_id": activity_id, "distance_m": target, "seconds": t, "day": day}

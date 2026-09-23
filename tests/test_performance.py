@@ -225,3 +225,48 @@ class TestAgainstSeededStore:
         assert set(out) >= {"personal_bests", "recent_bests_90d", "decoupling", "vo2max",
                             "efficiency_trend"}
         assert out["vo2max"], "seeded fitness rows should carry VO2max"
+
+
+class TestPlausibleSegments:
+    """A GPS teleport must not become a personal best.
+
+    Observed on real data 2026-09-23: an easy run (5.78 km in 43 min) carried one
+    sample adding 840 m in 8 s — 105 m/s. Swept raw, that produced a 1 km best of 79 s,
+    a 1 mile of 3:02 and a 5 km of 12:28, all of which then fed the race projection.
+    """
+
+    def test_a_clean_stream_is_one_segment(self):
+        dist = [0, 100, 200, 300, 400]
+        elapsed = [0, 30, 60, 90, 120]
+        assert P.plausible_segments(dist, elapsed) == [(0, 5)]
+
+    def test_a_teleport_splits_the_stream(self):
+        dist = [0, 100, 940, 1040, 1140]      # +840 m between samples 1 and 2
+        elapsed = [0, 30, 38, 68, 98]
+        assert P.plausible_segments(dist, elapsed) == [(0, 2), (2, 5)]
+
+    def test_distance_going_backwards_also_splits(self):
+        dist = [0, 100, 200, 150, 250, 350]
+        elapsed = [0, 30, 60, 90, 120, 150]
+        assert P.plausible_segments(dist, elapsed) == [(0, 3), (3, 6)]
+
+    def test_a_real_sprint_is_not_split(self):
+        """The ceiling has to clear genuine running. 10 m/s is a 1:40/km sprint."""
+        dist = [0, 100, 200, 300]
+        elapsed = [0, 10, 20, 30]
+        assert P.plausible_segments(dist, elapsed) == [(0, 4)]
+
+    def test_the_fast_window_across_a_teleport_is_not_reported(self):
+        """The end-to-end guard: 1 km 'covered' in 38 s only because of the jump."""
+        dist = [0, 100, 940, 1040]
+        elapsed = [0, 30, 38, 68]
+        segments = P.plausible_segments(dist, elapsed)
+        best = None
+        for lo, hi in segments:
+            t = P.best_effort_for_distance(dist[lo:hi], elapsed[lo:hi], 1000)
+            if t is not None and (best is None or t < best):
+                best = t
+        assert best is None, "no segment legitimately covers 1 km"
+        assert P.best_effort_for_distance(dist, elapsed, 1000) is not None, (
+            "the unfiltered sweep does report it — which is the bug"
+        )
