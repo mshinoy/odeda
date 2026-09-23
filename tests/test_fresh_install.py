@@ -92,3 +92,42 @@ class TestCliOnAFreshInstall:
 
         Store.open(settings).close()
         assert main(["doctor"]) in (0, 1)          # may warn, must not raise
+
+
+class TestServeWithNoDatabaseFile:
+    """`GA_SEED_DEMO=0` on a clean volume means serve starts before any database exists.
+
+    It used to exit 1 with "Run `garmin-analytics seed` or `sync` first", which in Docker
+    is a crash loop: the container restarts forever and the user cannot reach Settings →
+    Garmin account, the one page that would give it data. Serving empty is the only
+    behaviour that lets a real install bootstrap.
+    """
+
+    def test_serve_creates_the_schema_instead_of_exiting(self, settings, monkeypatch, capsys):
+        from garmin_analytics import cli
+
+        started: dict[str, object] = {}
+        monkeypatch.setattr(
+            "uvicorn.run", lambda app, **kw: started.update(app=app, **kw)
+        )
+
+        assert not settings.db_path.exists()
+        assert cli.main(["serve"]) == 0
+
+        assert settings.db_path.exists(), "serve must leave a usable database behind"
+        assert started, "serve must actually start the server on a fresh install"
+        assert "Connect a Garmin account" in capsys.readouterr().out
+
+    def test_the_database_serve_creates_is_migrated_not_just_touched(
+        self, settings, monkeypatch
+    ):
+        from garmin_analytics import cli
+
+        monkeypatch.setattr("uvicorn.run", lambda app, **kw: None)
+        cli.main(["serve"])
+
+        with Store.open(settings) as st:
+            version = st.conn.execute(
+                "SELECT MAX(version) FROM schema_migrations"
+            ).fetchone()[0]
+        assert version and version > 0

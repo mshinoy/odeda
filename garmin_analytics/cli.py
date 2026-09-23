@@ -253,11 +253,13 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     settings = load_settings()
     if not settings.db_path.exists():
-        print(
-            f"No database at {settings.db_path}. Run `garmin-analytics seed` or `sync` first.",
-            file=sys.stderr,
-        )
-        return 1
+        # A fresh install with demo seeding off has no database yet, and that is the
+        # documented path to real data (HANDOVER step 3). Refusing to start here left
+        # the container crash-looping with no way to reach Settings → Garmin account,
+        # which is the one page that can fix it. Create the schema and serve empty.
+        _store().close()
+        print(f"No database yet — created an empty one at {settings.db_path}.")
+        print("Connect a Garmin account on the Settings tab, then run a backfill.")
     print(f"Dashboard: http://{args.host}:{args.port}/   (db: {settings.db_path})")
     uvicorn.run(
         "garmin_analytics.api.server:create_app",
