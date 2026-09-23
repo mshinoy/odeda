@@ -8,11 +8,12 @@ re-fetch work it has already done.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
 from garmin_analytics.ingest import backfill as B
+from garmin_analytics.ingest import connect
 from garmin_analytics.ingest import details as D
 
 
@@ -334,3 +335,42 @@ class TestStatusAndEstimate:
     def test_account_start_falls_back_to_ten_years(self, store):
         start = B.account_start(store, end=date(2026, 1, 1))
         assert start.year == 2016
+
+
+class TestFullResync:
+    """The way back from a watermark that ran ahead of the data actually collected.
+
+    A watermark records how far a sync *reached*, not how much history exists. One
+    `sync --days 3` sets it to today; from then on every later run, including a full
+    backfill, resumes from today and silently declines to fetch the years behind it.
+    Before `--full` there was no way out of that state short of editing the database.
+    """
+
+    def test_a_watermark_normally_wins_over_the_lookback(self, store):
+        store.set_watermark("sleep", "2026-09-20", "ok")
+        start = connect.default_start(store, "sleep", 540, date(2026, 9, 23))
+        assert start == date(2026, 9, 17), "resume from the watermark, minus overlap"
+
+    def test_ignore_watermark_goes_back_the_full_window(self, store):
+        store.set_watermark("sleep", "2026-09-20", "ok")
+        start = connect.default_start(
+            store, "sleep", 540, date(2026, 9, 23), ignore_watermark=True
+        )
+        assert start == date(2026, 9, 23) - timedelta(days=540)
+
+    def test_it_reaches_the_daily_endpoints_not_just_activities(self, store, settings):
+        """The endpoints that were actually stranded were the per-day ones, so the flag
+        has to travel all the way through sync(), not stop at the activity list."""
+        seen: list[str] = []
+
+        def fetcher(path, *a, **kw):
+            seen.append(path)
+            return None
+
+        connect.sync(
+            store, settings, days=400, end=date(2026, 9, 23), endpoints=["sleep"],
+            include_activities=False, fetcher=fetcher, user="athlete",
+            ignore_watermark=True,
+        )
+        days = {p.split("date=")[1][:10] for p in seen if "date=" in p}
+        assert min(days) == (date(2026, 9, 23) - timedelta(days=400)).isoformat()

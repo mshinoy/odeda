@@ -642,13 +642,26 @@ def sync_activities(
     return {"endpoint": "activities", "written": written, "zones": zones_written}
 
 
-def default_start(store, endpoint: str, lookback_days: int, end: date, overlap_days: int = 3) -> date:
+def default_start(
+    store,
+    endpoint: str,
+    lookback_days: int,
+    end: date,
+    overlap_days: int = 3,
+    ignore_watermark: bool = False,
+) -> date:
     """Resume from the watermark minus a few days of overlap.
 
     The overlap is deliberate: Garmin backfills sleep and HRV for a day or two after
     the fact, and re-ingesting an unchanged payload is free (content-hash dedupe).
+
+    `ignore_watermark` goes back `lookback_days` regardless. Needed because the
+    watermark records *how far a sync reached*, not *how much history exists*: one
+    short sync sets it to today, and from then on every later run — including a full
+    backfill — resumes from today and silently declines to fetch the years behind it.
+    There was no way out of that state short of editing the database.
     """
-    mark = store.get_watermark(endpoint)
+    mark = None if ignore_watermark else store.get_watermark(endpoint)
     if mark:
         return max(date.fromisoformat(mark) - timedelta(days=overlap_days), end - timedelta(days=3650))
     return end - timedelta(days=lookback_days)
@@ -664,15 +677,20 @@ def sync(
     fetcher: Callable[[str], Any] = fetch,
     user: str | None = None,
     on_progress: Callable[[str, str], None] | None = None,
+    ignore_watermark: bool = False,
 ) -> list[dict[str, Any]]:
-    """Incremental sync. Safe to re-run: every write is an upsert keyed on day or id."""
+    """Incremental sync. Safe to re-run: every write is an upsert keyed on day or id.
+
+    `ignore_watermark` re-walks the whole `days` window instead of resuming — the way
+    back from a watermark that has run ahead of the data actually collected.
+    """
     end = end or date.today()
     user = user or resume(settings.token_dir)
     names = list(endpoints) if endpoints else list(ENDPOINTS)
     results: list[dict[str, Any]] = []
 
     if include_activities:
-        start = default_start(store, "activities", days, end)
+        start = default_start(store, "activities", days, end, ignore_watermark=ignore_watermark)
         if on_progress:
             on_progress("activities", f"{start} .. {end}")
         with store.tx():
@@ -680,7 +698,7 @@ def sync(
 
     for name in names:
         ep = ENDPOINTS[name]
-        start = default_start(store, name, days, end)
+        start = default_start(store, name, days, end, ignore_watermark=ignore_watermark)
         if on_progress:
             on_progress(name, f"{start} .. {end}")
         with store.tx():

@@ -111,6 +111,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
             include_activities=not args.no_activities,
             user=user,
             on_progress=progress if not args.quiet else None,
+            ignore_watermark=args.full,
         )
         print()
         for r in results:
@@ -401,6 +402,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("sync", cmd_sync, "incremental pull from Garmin Connect")
     sp.add_argument("--days", type=int, default=540,
                     help="how far back to go on a first sync (default 540)")
+    sp.add_argument("--full", action="store_true",
+                    help="re-walk the whole --days window instead of resuming from the "
+                         "last sync. Use this when a short sync has moved the resume "
+                         "point past history you never actually fetched")
     sp.add_argument("--end", help="last day to sync, ISO date (default today)")
     sp.add_argument("--endpoints", help="comma-separated subset, e.g. sleep,hrv")
     sp.add_argument("--no-activities", action="store_true")
