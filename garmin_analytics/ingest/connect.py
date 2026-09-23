@@ -295,15 +295,21 @@ def _display_name(client: Any) -> str:
 # session, copies the ticket out of the redirect URL, and we exchange it here. No
 # password ever reaches this process.
 
+#: A CAS ticket is issued **for one service URL** and is worthless against any other —
+#: the exchange sends this value back and Garmin checks it matches. So the sign-in URL is
+#: built from this constant rather than repeating the literal, and `login_with_ticket`
+#: passes the same constant. They cannot drift apart without a test failing.
+SIGNIN_SERVICE_URL = "https://sso.garmin.com/sso/embed"
+
 SIGNIN_URL = (
     "https://sso.garmin.com/sso/signin"
     "?id=gauth-widget"
     "&embedWidget=true"
-    "&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso"
-    "&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
-    "&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
-    "&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
-    "&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed"
+    "&gauthHost=" + quote("https://sso.garmin.com/sso", safe="") +
+    "&service=" + quote(SIGNIN_SERVICE_URL, safe="") +
+    "&source=" + quote(SIGNIN_SERVICE_URL, safe="") +
+    "&redirectAfterAccountLoginUrl=" + quote(SIGNIN_SERVICE_URL, safe="") +
+    "&redirectAfterAccountCreationUrl=" + quote(SIGNIN_SERVICE_URL, safe="")
 )
 
 _TICKET_RE = re.compile(r"(ST-[A-Za-z0-9._-]+)")
@@ -324,32 +330,71 @@ def extract_ticket(pasted: str) -> str:
     return match.group(1)
 
 
+def _ticket_error(exc: Exception) -> str:
+    """A one-line cause, not a nested connection-pool dump.
+
+    urllib3 wraps failures several layers deep and stringifies to a paragraph that
+    buries the actual reason; the raw text went straight into a user-facing error and
+    made a wrong service URL look like a network outage.
+    """
+    text = " ".join(str(exc).split())
+    if "NameResolutionError" in text or "Failed to resolve" in text:
+        return "could not reach the host Garmin redirected the exchange to"
+    return text[:200] + ("…" if len(text) > 200 else "")
+
+
 def login_with_ticket(ticket: str, token_dir: Path) -> str:
     """Exchange a CAS service ticket for the token cache. Returns display name.
 
     Tickets are single-use and expire in minutes, so a failure here usually means the
     ticket was already spent or went stale, not that anything is misconfigured.
 
-    This reaches for the library's session-establishment internals: consuming a ticket
-    handed over by a human is not something its public surface offers, and the
-    alternative is reimplementing the DI token exchange here and owning that forever.
-    If an upgrade moves it, this raises and the password login is unaffected.
+    Two things here are deliberate and were both learned the hard way.
+
+    **The DI exchange specifically, not the library's `_establish_session` wrapper.**
+    That wrapper tries the DI token exchange and then falls back to a JWT_WEB cookie
+    session. A cookie session works for the current process and then evaporates: the
+    token cache serialises `di_token` / `di_refresh_token` / `di_client_id` and nothing
+    else, so falling back would write a file of nulls, report a successful sign-in, and
+    fail on every run afterwards. A sign-in that cannot be resumed is not a sign-in.
+    (In garminconnect 0.3.16 that fallback also crashes outright on a `requests`
+    session — `RequestsCookieJar` has no `.jar` — so it buys nothing anyway.)
+
+    **`service_url` is not optional.** A CAS ticket is bound to the service it was
+    issued for and the exchange sends that value back for Garmin to check. Omitting it
+    defaults to the library's mobile service URL, which the SIGNIN_URL ticket is not
+    valid for — and whose host (`mobile.integration.garmin.com`) does not resolve at
+    all, so the mismatch arrived as a DNS error and read like a broken network.
+
+    Both reach for library internals: consuming a ticket handed over by a human is not
+    something its public surface offers, and the alternative is reimplementing the DI
+    exchange here and owning it forever. If an upgrade moves them, this raises a clear
+    error and the password login is unaffected.
     """
     ticket = extract_ticket(ticket)
     client = _new_client()
-    establish = getattr(client.client, "_establish_session", None)
-    if establish is None:  # pragma: no cover - only reachable on a library change
+    exchange = getattr(client.client, "_exchange_service_ticket", None)
+    if exchange is None:  # pragma: no cover - only reachable on a library change
         raise ConnectError(
             "This garminconnect release no longer exposes ticket-based sign-in. "
             "Use the email-and-password login instead."
         )
     try:
-        establish(ticket)
+        exchange(ticket, service_url=SIGNIN_SERVICE_URL)
     except Exception as exc:
         raise ConnectError(
-            f"Garmin rejected the ticket ({exc}). Tickets are single-use and short-lived "
-            "— sign in again to get a fresh one and exchange it straight away."
+            f"Garmin rejected the ticket ({_ticket_error(exc)}). Tickets are single-use "
+            "and short-lived — sign in again to get a fresh one and exchange it straight "
+            "away."
         ) from exc
+
+    if not getattr(client.client, "di_token", None):
+        # Belt and braces: the exchange returned without raising but left nothing to
+        # save. Better to say so now than to write an empty cache and call it connected.
+        raise ConnectError(
+            "The ticket was accepted but Garmin returned no usable token. "
+            "Sign in again for a fresh ticket."
+        )
 
     _prepare_token_dir(token_dir)
     _save(client, token_dir)

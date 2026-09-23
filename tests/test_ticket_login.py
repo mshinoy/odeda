@@ -50,15 +50,20 @@ class FakeInner:
     """Stands in for `garminconnect`'s Client: the ticket exchange needs a live
     single-use ticket, so the network half is the part that gets faked."""
 
+    di_token = None
+
     def __init__(self, on_ticket=None):
         self.on_ticket = on_ticket
         self.tickets: list[str] = []
+        self.service_urls: list[str | None] = []
         self.dumped: list[str] = []
 
-    def _establish_session(self, ticket, sess=None, service_url=None):
+    def _exchange_service_ticket(self, ticket, service_url=None):
         self.tickets.append(ticket)
+        self.service_urls.append(service_url)
         if self.on_ticket:
             self.on_ticket(ticket)
+        self.di_token = "di-token-from-exchange"
 
     def dump(self, path):
         self.dumped.append(path)
@@ -124,7 +129,7 @@ class TestLoginWithTicket:
         assert "401" in message, "keep Garmin's own words; guessing hides the real cause"
 
     def test_a_library_that_drops_ticket_support_says_so(self, tmp_path, monkeypatch):
-        """`_establish_session` is the one internal this module reaches for. If an
+        """`_exchange_service_ticket` is the internal this module reaches for. If an
         upgrade moves it, the error has to name the way out, not raise AttributeError."""
 
         class NoTickets:
@@ -135,6 +140,63 @@ class TestLoginWithTicket:
         with pytest.raises(connect.ConnectError) as exc:
             connect.login_with_ticket("ST-5-abc-cas", tmp_path / "tokens")
         assert "password" in str(exc.value)
+
+    def test_an_exchange_that_yields_no_token_is_not_called_a_sign_in(
+        self, tmp_path, monkeypatch
+    ):
+        """Only `di_token` and its refresh token are persisted. An exchange that returns
+        quietly without one would write a cache of nulls — reporting success now and
+        failing on every run afterwards, which is the worst way for this to break."""
+        inner = FakeInner()
+        inner._exchange_service_ticket = lambda ticket, service_url=None: None
+        token_dir = tmp_path / "tokens"
+        monkeypatch.setattr(connect, "_new_client", lambda **kw: FakeGarmin(inner))
+
+        with pytest.raises(connect.ConnectError) as exc:
+            connect.login_with_ticket("ST-5-abc-cas", token_dir)
+        assert "no usable token" in str(exc.value)
+        assert not (token_dir / connect.TOKEN_FILENAME).exists(), (
+            "an empty cache must not be left behind"
+        )
+
+
+class TestServiceUrlBinding:
+    """A CAS ticket is issued for one service URL and is worthless against any other.
+
+    Getting this wrong cost a live sign-in: with no `service_url` the library falls back
+    to its own mobile service, whose host (`mobile.integration.garmin.com`) does not
+    even resolve — so a mismatched ticket surfaced as a DNS error and read like a broken
+    network rather than the wrong URL.
+    """
+
+    def test_the_exchange_uses_the_service_the_ticket_was_issued_for(
+        self, tmp_path, monkeypatch
+    ):
+        inner = FakeInner()
+        monkeypatch.setattr(connect, "_new_client", lambda **kw: FakeGarmin(inner))
+
+        connect.login_with_ticket("ST-5-abc-cas", tmp_path / "tokens")
+
+        assert inner.service_urls == [connect.SIGNIN_SERVICE_URL]
+        assert inner.service_urls != [None], "the library default is not our service"
+
+    def test_the_signin_url_asks_for_that_same_service(self):
+        """The URL the user signs in on and the URL the exchange claims must agree.
+        This is the one assertion that would have caught the failure."""
+        from urllib.parse import parse_qs, urlparse
+
+        params = parse_qs(urlparse(connect.SIGNIN_URL).query)
+        assert params["service"] == [connect.SIGNIN_SERVICE_URL]
+
+    def test_a_dns_failure_is_not_shown_as_a_wall_of_connection_pool_text(self):
+        exc = RuntimeError(
+            "HTTPSConnectionPool(host='mobile.integration.garmin.com', port=443): Max "
+            "retries exceeded with url: /gcm/ios?ticket=ST-1-x-cas (Caused by "
+            "NameResolutionError(\"...Failed to resolve...\"))"
+        )
+        message = connect._ticket_error(exc)
+        assert "HTTPSConnectionPool" not in message
+        assert len(message) < 120
 
 
 class TestSigninUrl:
