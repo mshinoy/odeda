@@ -8,6 +8,11 @@ and gets their own analytics. Built starting 2026-09-22.
 not a personal script. Deployment, historical depth, route/map analytics and user-editable gear
 are first-class requirements.
 
+**Revised 2026-09-23.** The vanilla-JS dashboard (vendored uPlot + Leaflet, OSM tiles) was replaced
+by a React SPA in `frontend/`, being rebuilt view by view (DECISIONS.md D45–D49). The sections on
+architecture, maps, the dashboard, offline assets and the definition of done are updated to match;
+lines marked *Dropped* were requirements given up on purpose. The rest is the original brief.
+
 ## Context that shapes this
 
 - **Garmin has no self-serve API for individuals.** The Connect Developer Program (Health/Activity/
@@ -18,7 +23,8 @@ are first-class requirements.
   3. Raw `.fit` / `.gpx` / `.tcx` files — full per-second streams including GPS.
 - **Strava is not sufficient**: sleep, HRV, Body Battery, stress and training readiness never reach it.
 - **Credentials are not available during the build** (user asleep). Everything must be provably working
-  against realistic synthetic data, with real ingestion one command away.
+  against realistic synthetic data, with real ingestion one command away. (Since met: a real account
+  was synced on 2026-09-23.)
 - User is training for the **half marathon at the Doha Marathon by Ooredoo, Friday 15 January 2027, 07:35**.
 - Disk was at 88%; npm cache and dangling Docker build cache were pruned → **~8.3 GB free**.
   Still finite. Do not leave stray images or multi-GB build caches behind.
@@ -39,12 +45,13 @@ Requirements:
   It must not be wide open to anyone who finds the port.
 - Garmin login happens **through the web UI**, not by baking credentials into the image. First run shows
   a setup screen: enter Garmin email + password, handle MFA, token cache is written to the volume.
-  Credentials are used once for token exchange and never persisted in plaintext.
+  Credentials are used once for token exchange and never persisted in plaintext. (The API endpoints
+  for this exist; until the Settings view is rebuilt, `garmin-analytics login` is the way in.)
 - Works on ARM and x86 if that is free; do not burn hours on cross-build if it is not.
 
 ## Open-source hygiene
 
-MIT `LICENSE`, `README.md` with a real screenshot and a 60-second quickstart, `CONTRIBUTING.md`,
+MIT `LICENSE`, `README.md` with a 60-second quickstart, `CONTRIBUTING.md`,
 `.env.example`, `.dockerignore`, `.gitignore` covering DB files, token caches, exports and `.env`.
 **Zero personal data in the repo** — no real activity files, no real names, no real GPS traces.
 A prominent, honest section on the unofficial-API caveat, ToS-grey status, and rate limits.
@@ -74,10 +81,12 @@ garmin_analytics/
     routes.py         # route clustering, per-route leaderboards, segment splits
     aggregate.py      # lifetime/yearly/monthly rollups, distributions, patterns
     reports.py
-  api/server.py       # FastAPI: JSON + auth + static mount
-  web/                # dashboard, vendored JS (uPlot + Leaflet), no CDN for app assets
+  api/server.py       # FastAPI: JSON + auth + serves the built SPA (SPA fallback)
+  api/schemas.py      # Pydantic response models, so /openapi.json describes real shapes
+  ui/                 # frontend build output (gitignored)
 seed/synthetic.py     # 3+ years of plausible fake data INCLUDING GPS tracks on repeated routes
 tests/
+frontend/             # React 19 + TypeScript (strict) + Vite; API types generated from OpenAPI
 ```
 
 ## Historical depth
@@ -109,8 +118,8 @@ This is the headline feature. From GPS streams:
 - **Segment analysis along a route**: split each track into fixed segments (e.g. 200 m or 1 km), then
   show **where the user speeds up and slows down** — median pace per segment across all attempts,
   variance, and correlated HR, elevation gradient and cadence. Surface the hills and the fade points.
-- **Maps** (Leaflet, vendored; OSM raster tiles fetched at runtime — the one unavoidable external call,
-  documented in the README):
+- **Maps** (MapLibre via react-map-gl, deck.gl layers; basemap style from a configurable URL — free
+  CARTO styles by default, Mapbox when a token is set — documented in the README):
   - Route polyline coloured by pace, HR, elevation or gradient — user-switchable.
   - Per-attempt track overlay to compare two runs of the same route.
   - Lifetime **heatmap** of all GPS points.
@@ -157,10 +166,12 @@ Lifetime and per-period, filterable by activity type, date range and gear:
 
 ## Dashboard
 
-Single-page app, tabbed: **Overview · Activities · Routes & Maps · Performance · Recovery · Gear · Race · Settings**.
-Dark theme, responsive down to a phone. Activities tab: sortable/filterable table with a detail view
+Single-page app: **Today · Activities · Map · Health · Trends**, with Settings and Gear behind a corner
+icon. Dark theme, responsive down to a phone. Activities: sortable/filterable table with a detail view
 containing the map, the linked streams chart, splits, and the edit/gear controls.
-Charts via vendored uPlot; maps via vendored Leaflet. No CDN for application assets.
+React 19 + TypeScript (strict) + Vite, Tailwind + shadcn/ui, TanStack Query, Zustand, ECharts,
+react-map-gl + deck.gl. Built into the Python package and served by FastAPI from the same origin.
+Being rebuilt view by view; as of 2026-09-23 no view exists yet.
 
 ## Non-negotiables
 
@@ -169,7 +180,10 @@ Charts via vendored uPlot; maps via vendored Leaflet. No CDN for application ass
 2. **Raw-first ingestion** — archive before normalising.
 3. **Idempotent + incremental + resumable** sync. Re-running must never duplicate or clobber.
 4. **User edits always win over synced values.**
-5. **Offline app assets.** OSM map tiles are the sole documented runtime exception.
+5. **App code served from the container.** The basemap (style and tiles) is the documented runtime
+   exception, and its URL is configurable so a self-hoster can point it at their own server.
+   (Replaces "offline app assets, OSM tiles the sole exception": the maps now use vector basemap
+   styles from CARTO or Mapbox, and the npm-built bundle replaced hand-vendored files. See D48.)
 6. Pin every dependency. Keep the image lean; check `df -h /home` before and after heavy installs.
 
 ## Definition of done — demonstrated, not asserted
@@ -179,20 +193,21 @@ Charts via vendored uPlot; maps via vendored Leaflet. No CDN for application ass
 2. `seed` loads 3+ years of synthetic data including **repeated GPS routes**, so clustering, segment
    analysis and maps have something real to chew on.
 3. `docker compose up -d` builds and runs **from a clean state**; the app is reachable, login works,
-   and the container survives a restart with data intact. Transcript in `VERIFICATION.md`.
+   and the container survives a restart with data intact. `scripts/verify_docker.sh` records it.
 4. Every API endpoint exercised with curl against the running container; responses non-empty and
-   well-shaped; transcript saved.
-5. The dashboard genuinely renders — map tiles, polylines, charts, gear dropdowns. Prove it. A headless
-   screenshot is ideal *if* the browser stack is cheap; otherwise state plainly that verification was
-   DOM/endpoint-level and that visual rendering is unconfirmed. Do not claim what was not checked.
+   well-shaped; `scripts/verify.sh` records it.
+5. *Dropped:* the headless-browser proof that the dashboard renders. The UI it proved was deleted, and
+   the replacement has no views yet; the frontend is held to `npm run typecheck`, `lint`, `test` and
+   `build` instead. Do not claim a view renders unless someone looked at it.
 6. Gear edit round-trip proven end to end: create shoe → assign to activity → re-run sync → **override
    survives** → mileage updates. This is the feature most likely to be silently broken; test it hardest.
-7. `README.md` (what it is, quickstart, screenshot, data model, honest limits), `HANDOVER.md`
-   (exactly what the user runs in the morning), `DECISIONS.md` (choices made without asking).
+7. `README.md` (what it is, quickstart, data model, honest limits, Garmin sign-in) and `DECISIONS.md`
+   (choices made without asking). *Dropped:* the screenshot (of a UI that no longer exists) and
+   `HANDOVER.md`, whose operational content now lives in the README.
 8. Clean git history, small meaningful commits, clean working tree, no secrets, no personal data.
 
 ## Morning handover
 
-`HANDOVER.md`: the exact commands to connect the real account, expected first-backfill duration for a
-multi-year history, MFA behaviour, what is stubbed, and — bluntly — anything that could not be tested
-without credentials or without a browser.
+*Dropped* as a separate file once the morning had happened: connecting the real account, first-backfill
+duration, MFA behaviour and the known limits are in the README (quickstart, "Signing in to Garmin",
+"Honest limits").

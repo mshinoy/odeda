@@ -1,7 +1,8 @@
 # Decisions
 
 Calls made during the overnight build of 2026-09-22, with reasons. The user was asleep
-and explicitly authorised deciding without asking.
+and explicitly authorised deciding without asking. Later calls are appended with their
+date; an entry that no longer holds keeps its text and says what superseded it.
 
 ---
 
@@ -50,7 +51,7 @@ there.
 **What it did not fix.** Verified from this host on 2026-09-23 with invented
 credentials: all five strategies failed — 429 on both mobile routes, 403 Cloudflare on
 both portal routes. That is Garmin blocking this IP, not the library. The browser-ticket
-login (D-ticket, below) is still the way in from this box. The migration bought a login
+login (D44, below) is still the way in from this box. The migration bought a login
 that recovers on its own when the block lifts, not a way through the block.
 
 ### D4 — raw-first via `connectapi()`, not the client's typed models
@@ -91,10 +92,15 @@ version 1 there is nothing to migrate from; adding a framework now would be cere
 LICENSE. No CDN, no `node_modules`, works offline. Chosen over Chart.js/ECharts purely
 on size.
 
+**Superseded by D45** — uPlot went with `web/`; charts are ECharts, installed from npm.
+
 ### D11 — synthetic data is generated, not fetched, and is clearly labelled
 `seed/synthetic.py` writes `source='seed'` on every raw document and tags the DB.
 `doctor` and the dashboard both report when the database is synthetic, so nobody
 mistakes a demo chart for their own training.
+
+The dashboard half went with `web/` (D45); `synthetic` is still in `/api/health` and
+`/api/summary` for the rebuilt UI to show.
 
 ### D12 — no browser stack downloaded
 Playwright and friends are ~400 MB and the disk was tight. Decided not to install one:
@@ -102,7 +108,7 @@ dashboard verification would be the page plus every endpoint it calls, asserted 
 the served HTML and JSON. **Superseded by D22** — Chromium turned out to be already
 installed, so the dashboard is verified in a real browser after all, at zero download
 cost. The contract-level checks were kept as well, and still run where Chromium is
-absent.
+absent. **Both superseded by D45**, which deleted the dashboard they checked.
 
 ### D13 — ingestion is tested against handcrafted inputs, and the live SSO path is not
 tested at all
@@ -114,6 +120,13 @@ messages, both CRCs) which the real `fitdecode` then parses — fitdecode cannot
 and there was no real file to borrow. A real Garmin login is **not** exercised — the
 closest thing to it is the strategy-exhaustion probe recorded in D3, which reached
 Garmin's edge and was refused by it. Flagged in HANDOVER as the main unknown.
+
+**Since 2026-09-23** a real account has been synced: 487 activities back to December
+2022, with the activity, sleep and GPS-stream parsers checked against the real
+payloads. It turned up two bugs no fixture had: an HRV day Garmin returns as `{}` was
+filed as a row with no measurement, and a short test sync moved every watermark to
+today, stranding the history behind it (hence `sync --full`). The handcrafted fixtures
+are still the test suite; the live path is not part of `pytest`.
 
 ### D14 — activity sample streams are stored, downsampled to 10 s
 Full 1 Hz streams for 400 activities would be ~5 M rows. 10 s samples keep best-effort
@@ -149,6 +162,9 @@ word "above". Each note is now `{level, text}` and the frontend renders what it 
 not as composition. The long series is still available as numbers in the monthly table
 and through `/api/daily`.
 
+**Superseded by D45** — that chart went with `web/`; the rebuilt Health view makes its
+own call.
+
 ### D20 — weekly volume is anchored on a trailing 28 days, not four calendar weeks
 "Last four weeks" includes the current, incomplete week, so on a Tuesday the race panel
 reported a 25 % volume collapse that was really just a Tuesday. `trailing_weekly_km`
@@ -166,6 +182,9 @@ checks therefore assert on a genuinely rendered DOM — JS bootstrapped, uPlot c
 drawn, no error banner — across all six tabs. Where Chromium is absent the tests skip
 rather than fail, and the contract layer (every id exists, every endpoint returns 200)
 still runs. Note: the snap cannot write screenshots into `/tmp`; they go under `$HOME`.
+
+**Superseded by D45** — the headless tests and the screenshots were deleted with the
+dashboard. There is no browser-level check of the new UI yet.
 
 ### D23 — three real bugs found by the tests, listed here rather than quietly fixed
 1. `normalize_weight` took `(payload)` while the sync loop calls every normaliser as
@@ -259,10 +278,17 @@ into an accumulation buffer, then map the buffer through the same colour ramp th
 polylines use. Aggregation happens server-side onto a grid, so the browser receives
 tens of thousands of counted cells rather than millions of raw points.
 
+**Superseded by D45** — the canvas went with `web/`, and deck.gl's aggregation layers
+are the frontend's dependency for this now. The server-side grid (`/api/heatmap`) is
+unchanged.
+
 ### D33 — chart↔map hover is matched on elapsed time, not array index
 The chart plots every sample; the track only the samples that carried a position.
 Indexing one array with the other's index is the obvious implementation and it
 silently mis-aligns wherever GPS dropped out. Binary search on elapsed time instead.
+
+**Superseded by D47** — `/streams` gives the map and the charts the same arrays, with
+null lat/lon where GPS dropped out, so the index is the match.
 
 ### D34 — indoor activities keep their own activity type
 v1's `TYPE_MAP` folded `treadmill_running` into `running` and `indoor_cycling` into
@@ -297,6 +323,9 @@ not a preference. (One consequence: the two halves of an MFA login must reach th
 worker process. Single-tenant, one uvicorn worker, so they do.) The password is used once and discarded;
 `.env.example` deliberately has no `GARMIN_PASSWORD` line to copy.
 
+The setup screen went with `web/` (D45); the endpoints are unchanged, and until the
+Settings view is rebuilt `garmin-analytics login` does the same job.
+
 ### D38 — backfill state lives in the database, not in the process
 The work queue is a query ("which activities have no stream yet"), and progress is
 checkpointed after every activity. That makes resume exact and free: there is nothing
@@ -310,12 +339,15 @@ deployment silently filling with fabricated activities is much worse. Off by def
 on in `.env.example`'s commentary, only ever runs when no database exists, and the UI
 carries a banner while synthetic data is present.
 
+The banner went with `web/` (D45); see D11 for where the flag still is.
+
 ### D40 — `renormalize` now rebuilds `activities` too
 It previously covered only the per-day endpoints, which meant the offline re-parse
 could not rebuild the largest table — and, more to the point, there was no honest way
 to *prove* the override-survival claim without network access. It now re-normalises
 every archived activity payload, which is the same write path a sync takes. That is
-what section 7 of `VERIFICATION.md` exercises.
+what section 7 of `VERIFICATION.md` exercises. (That transcript was removed on
+2026-09-23 with the dashboard it described; git history keeps it.)
 
 ### D41 — average pace is distance-weighted
 Total distance over total time, not the mean of per-activity paces. The two differ,
@@ -338,7 +370,115 @@ Listed rather than quietly fixed, because they are the argument for looking:
 4. Leaflet caches the container size at creation, and the drawer keeps growing after
    the map is inserted. `invalidateSize()` after the drawer finishes.
 
+The code these were in was deleted with `web/` (D45); the list stays as the argument.
+
 And one found by writing the verification script carefully: the gear-mileage
 comparison passed while both sides were empty strings, because the embedded Python had
 a quoting error. `check()` now fails on an empty value rather than comparing `""` with
 `""` and reporting success.
+
+### D43 — review findings left unfixed on purpose
+From the adversarial review of 2026-09-22 (`REVIEW.md`, removed on 2026-09-23 with the
+build it described; git history keeps it). Its fixes are in the code with regression
+tests (`tests/test_review_*.py`). Of the seven things it found and left alone, three
+are in the README's honest limits (no brute-force lockout, `TZ`, synchronous
+re-cluster). The other four, still true:
+
+1. **Garmin's login error is returned verbatim** (`Garmin login failed: {exc}`). It is
+   how a user tells a wrong password from an unapproved device. Upstream puts the URL
+   and status in it, not the request body — upstream's behaviour, not something this
+   code enforces. Logging the detail and returning a fixed string is the hardening to
+   consider if anything here changes.
+2. **Deleting an activity cascades its overrides away** (`ON DELETE CASCADE`).
+   Unreachable: nothing deletes from `activities`, so an activity removed on Garmin's
+   side persists locally. Orphaned override rows would be worse; a soft delete is a
+   schema change.
+3. **`bulk_assign` replaces an earlier assignment of the same kind by default.** "Every
+   run that spring was the Novablasts" usually means replace; `only_unassigned=True` is
+   the additive mode and the dry run shows the count first. Pinned by
+   `test_bulk_replaces_an_earlier_manual_choice_by_default`.
+4. **`performance.personal_bests` and `aggregate.records` are two implementations** of
+   the best effort at each distance. They agree on sport and exclusion filtering and
+   each has a test, but they will drift if one is changed alone.
+
+---
+
+# 2026-09-23 decisions
+
+A real Garmin account, then a new frontend. The old dashboard (`garmin_analytics/web/`)
+was deleted and is being replaced view by view.
+
+### D44 — the browser-ticket sign-in, for when Garmin refuses every scripted login
+Garmin's web sign-in sets its cookies from JavaScript, so a browser has to do that half.
+But the CAS service ticket it hands back (`?ticket=ST-…` in the address bar) exchanges
+for OAuth tokens over an ordinary API call, and that works from a server. So
+`login --signin-url` prints the URL, the user signs in wherever they like, and
+`login --ticket` (or `POST /api/garmin/ticket`) finishes it. Nothing about it depends on
+Garmin accepting this host's sign-in, which D3 showed it may not.
+
+A ticket is valid only for the service URL it was issued for, so the sign-in URL and
+the exchange are built from one constant (`SIGNIN_SERVICE_URL`) and a test asserts they
+agree. The library's fallback to a cookie session is not used: the token cache
+serialises only the DI tokens, so that path would have saved a file of nulls and
+reported success. No DI token after the exchange is an error, not a saved cache.
+
+### D45 — a React SPA replaces the vanilla-JS dashboard
+The UI is map- and analytics-heavy and is going to keep changing; untyped ES2020 over
+hand-vendored uPlot and Leaflet was the wrong base for that. The new one is in
+`frontend/`: React 19, TypeScript 5.9 with `strict` and `noUncheckedIndexedAccess`
+(ESLint forbids `any` and non-null `!`), Vite, Tailwind v4 and shadcn/ui, TanStack
+Query for server state, Zustand for UI state, ECharts through echarts-for-react, and
+react-map-gl with deck.gl and turf for maps.
+
+React 19 rather than 18 because it is the newest React every map and chart dependency
+declares support for. TypeScript 5.9, not 6, because openapi-typescript peers on `^5`.
+
+This drops the "vendored, no CDN, no `node_modules`" rule: the frontend is built from
+npm against a lockfile, in a Node stage of the Docker build, and nothing is fetched at
+runtime except the basemap (D48). The headless-Chromium dashboard tests and the
+screenshots went with `web/`. The frontend is checked by `tsc`, ESLint and vitest; no
+view is checked in a browser, because no view exists yet.
+
+### D46 — API types are generated from OpenAPI, so the API declares response models
+`npm run gen:api` writes `frontend/src/api/schema.ts` from `/openapi.json`, and it is
+committed so a build never needs a running backend. That is only worth having if the
+schema describes real shapes, so `api/schemas.py` declares Pydantic response models —
+for the activity endpoints first, more with each view. Operation IDs are the handler
+names, so the generated types read `api_activities`.
+
+The models sit at the response boundary and nowhere else. A field the model does not
+declare is not serialised, which is the point: the API changes only on purpose.
+Values keep the units they are stored in. Ingestion and analytics are untouched. The
+preformatted `time`/`pace` strings on best efforts and km splits were dropped — the
+numbers they came from are still there — and formatting lives in
+`frontend/src/lib/format.ts`, the only place a number becomes a string.
+
+### D47 — per-sample streams are columnar, at their own endpoint
+`GET /api/activities/{id}/streams` returns one array per channel, one entry per stored
+sample, with lat/lon `null` where there was no GPS. The map and the charts index the
+same arrays, so a hover on either is an index into both, and D33's elapsed-time search
+is no longer needed. The detail endpoint no longer carries `samples`, so a page that
+wants the summary does not pay for the stream.
+
+### D48 — basemap: MapLibre with configurable styles, Mapbox when a token is set
+Replaces the "offline assets, OSM raster tiles the one exception" rule. Maps render
+with MapLibre from the style URLs in `VITE_MAP_STYLE_LIGHT` / `VITE_MAP_STYLE_DARK` —
+by default CARTO's free positron and dark-matter styles, which need no key. With
+`VITE_MAPBOX_TOKEN` set, Mapbox styles are used instead. Pointing the style URLs at
+your own server keeps the basemap local. `GA_TILE_URL` and `GA_TILE_ATTRIBUTION` are
+gone, and so is `map` from `/api/config`. The settings are baked in at build time, so
+the Dockerfile's UI stage takes them as build args, forwarded by compose from the root
+`.env`; an empty one is unset rather than passed as `""`, so the default style holds.
+
+A Mapbox `pk.` token is public by design and ends up in the JavaScript bundle. Restrict
+it by URL in the Mapbox account; that is the only protection it has.
+
+### D49 — FastAPI serves the SPA from the package, same origin, no CORS
+`npm run build` writes to `garmin_analytics/ui/` (gitignored). FastAPI serves
+`/assets/*` as static files and answers any other non-`/api` GET with `index.html`, so
+client-side routes such as `/login` and `/activities/123` work; a mistyped `/api/...`
+stays a JSON 404. Without a build those pages answer 503 with the command to run, and
+the API is unaffected. In development Vite proxies `/api` to `VITE_API_URL`.
+
+Either way the browser sees one origin: the `ga_session` cookie keeps working as
+`SameSite=Lax`, and there is still no CORS middleware to get wrong.

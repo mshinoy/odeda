@@ -8,10 +8,13 @@ recovery trends, and lifetime aggregates over every activity you have ever recor
 Single-tenant by design: one deployment is one person's data. There is no user
 account system, no shared database, and nobody else's Garmin password anywhere.
 
-![Routes and maps](docs/screenshots/routes.png)
-
-> Every screenshot in this repository is of **synthetic data** from the built-in
-> seeder. No real training, no real GPS traces, no real names.
+> **The web UI is being rebuilt.** The old dashboard is gone; its replacement, a
+> React app in [`frontend/`](frontend/), is being built view by view and has **no
+> views yet** — it renders a placeholder. Planned: Today · Activities · Map · Health ·
+> Trends, with Settings and Gear behind a corner icon. Ingestion, analytics, the
+> database and the JSON API all work today; until the views land, use the CLI and the
+> API. FastAPI's interactive docs are at `/docs`, behind the same session gate as the
+> rest of the API.
 
 ---
 
@@ -25,14 +28,27 @@ $EDITOR .env                 # set APP_PASSWORD, and GA_SEED_DEMO=1 to look arou
 docker compose up -d
 ```
 
-Open <http://127.0.0.1:8000>, sign in with `APP_PASSWORD`, then go to **Settings →
-Garmin account** and connect your account. Your Garmin password is used once to
-obtain a token and is never stored.
+The image builds the frontend in a Node stage and serves it from the same container
+at <http://127.0.0.1:8000>.
 
-Then **Settings → Sync → Start full backfill**. It tells you how many requests it
-expects and roughly how long they will take before you commit to it.
+If you seeded demo data, **wipe it before connecting a real account**, or your history
+will sit alongside the fabricated activities: set `GA_SEED_DEMO=0` in `.env`, then
+`docker compose down && docker volume rm garmin-analytics-data && docker compose up -d`.
+That also drops the stored sessions and Garmin token.
 
-That is the whole install. No Python on the host, no database to provision.
+Then connect Garmin and pull your history:
+
+```bash
+docker compose exec -it app garmin-analytics login
+docker compose exec app garmin-analytics backfill --estimate   # size it first
+docker compose exec app garmin-analytics backfill --detail-limit 50   # a trial run
+docker compose exec app garmin-analytics backfill
+```
+
+Your Garmin password is used once to obtain a token and is never stored. If Garmin
+refuses the login, see [Signing in to Garmin](#signing-in-to-garmin).
+
+No Python or Node on the host, no database to provision.
 
 <details>
 <summary>Running without Docker</summary>
@@ -42,8 +58,13 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt && pip install -e .
 
 garmin-analytics seed --reset      # ~3 years of synthetic data, no account needed
-garmin-analytics serve             # http://127.0.0.1:8808
+garmin-analytics serve             # API on http://127.0.0.1:8808
 ```
+
+`serve` also serves the built UI from `garmin_analytics/ui/`. That directory is a
+build artifact, not source: build it with `cd frontend && npm ci && npm run build`.
+Without it, every non-API page answers 503 with that hint, and the API works as
+normal. For frontend development see [Development](#development).
 
 For a real account: `garmin-analytics login`, then `garmin-analytics backfill`.
 </details>
@@ -51,6 +72,9 @@ For a real account: `garmin-analytics login`, then `garmin-analytics backfill`.
 ---
 
 ## What it does
+
+Everything below is computed by the backend and served by the API. Which of it has a
+screen yet: see the note at the top.
 
 ### Routes and maps
 
@@ -69,14 +93,13 @@ activities; what you actually have is **one route you have run 163 times**.
   (200 m / 500 m / 1 km depending on route length), and each segment's speed is
   divided by *that attempt's own average* before aggregating. So the profile shows
   where **the route** is fast or slow rather than which days were, with median HR,
-  gradient and cadence alongside. The hills and the fade points show up as exactly
-  what they are.
-* **Maps.** Polyline coloured by pace, heart rate, elevation or gradient; a second
-  attempt overlaid for comparison; a lifetime heatmap of every GPS point; and hover
-  linking that works **both ways** — move along the chart and a marker tracks the
-  route, move over the map and the chart's crosshair follows.
-* **Indoor activities degrade gracefully.** A treadmill run has no route and no map,
-  and everything else on the page still works.
+  gradient and cadence alongside.
+* **Map data.** Per-activity tracks, a two-attempt comparison, a lifetime heatmap
+  aggregated server-side onto a grid, and per-activity streams (`/streams`) as one
+  column per channel with one entry per sample — lat/lon are null where there was no
+  GPS, so a map and a chart index the same arrays.
+* **Indoor activities degrade gracefully.** A treadmill run has no route and no
+  track, and everything else still works.
 
 ### Your edits survive every sync
 
@@ -99,28 +122,27 @@ weekly running volume and your shoes' mileage. Retyping a walk as a run moves it
 between the per-sport totals everywhere for the same reason — everything reads the
 same edit-resolved view.
 
-Adding another editable field is [one entry in a registry](garmin_analytics/db/fields.py);
-the view DDL, the API schema, validation and the UI editor are all generated from it.
+Adding another editable field is an entry in [a registry](garmin_analytics/db/fields.py)
+plus the matching attribute on the API's response model; the view DDL, validation and
+the `/api/fields` description an editor is built from are generated from the registry.
+See [CONTRIBUTING.md](CONTRIBUTING.md#adding-an-editable-field).
 
 ### Gear
-
-![Gear](docs/screenshots/gear.png)
 
 Shoes, bikes, straps — brand, model, nickname, purchase date, an initial distance
 offset for mileage they already had, and a retirement threshold with a warning state.
 
-* Assign gear to **any** activity from a dropdown, retroactively, at any time.
+* Assign gear to **any** activity, retroactively, at any time.
 * **Bulk reassign** across a date range and activity type — the only sane way to add
-  gear to years of imported history that has none. Preview tells you how many
-  activities it would touch before you commit.
+  gear to years of imported history that has none. A dry run tells you how many
+  activities it would touch before you commit. By default it replaces an earlier
+  assignment of the same kind; `only_unassigned` makes it additive.
 * Default gear per activity type, applied to **new** activities only — backfilling
   four years of history with today's shoes would simply be a lie.
 * Mileage counts activities you have not excluded from stats, so a bad GPS fix does
   not retire your shoes early.
 
 ### Aggregates
-
-![Aggregates](docs/screenshots/aggregates.png)
 
 Lifetime and per-period, filterable by type, date range and gear: totals, "you have
 run 833 times over 3.3 years at an average of 5:42/km", pace / distance / duration
@@ -141,7 +163,7 @@ Riegel projection.
 Best efforts are extracted from every activity that has a distance stream, but the
 records wall and the race projection only read the foot-borne ones. A bike covers
 5 km in nine minutes; letting that count as a "5 k PB" makes the wall meaningless
-and the Riegel projection — a running formula — absurd. Filter the Aggregates tab to
+and the Riegel projection — a running formula — absurd. Ask the aggregates for
 cycling and you get the cycling records, which is the case where you meant it.
 
 ---
@@ -153,7 +175,7 @@ enterprise-only. So there are three routes in, in order of convenience:
 
 | Path | What it needs | What you get |
 |---|---|---|
-| Garmin Connect (default) | Your Garmin login, via the web UI | Everything, including sleep, HRV, Body Battery, stress, training readiness |
+| Garmin Connect (default) | Your Garmin login | Everything, including sleep, HRV, Body Battery, stress, training readiness |
 | Official data export | Garmin's GDPR export ZIP, no credentials | Most of it, as a one-off |
 | `.fit` / `.gpx` / `.tcx` | The files themselves | Full per-second streams including GPS |
 
@@ -164,13 +186,51 @@ window. For a multi-year account that is thousands of requests, so it:
 * **checkpoints after every single activity**, and derives its work queue from the
   database rather than an in-memory list, so killing it at request 4 000 of 6 000
   and re-running resumes at 4 001;
-* reports progress, rate and ETA to stdout *and* to `/api/sync/status`, which the
-  Settings tab polls;
+* reports progress, rate and ETA to stdout *and* to `/api/sync/status`;
 * is safely re-runnable — archived payloads dedupe on content hash.
+
+`backfill --estimate` gives the request count and a time range before you commit. On
+the synthetic 3.3-year seed that was about 7 500 requests and 1¼–3 hours; the range
+is derived from the configured per-request delay, and Garmin's real throttling is
+undocumented. `backfill --detail-limit 50` fetches fifty activity streams and stops,
+which tells you within minutes whether ingestion works at all.
+
+`sync` walks a window of days and records a per-endpoint watermark. If a short test
+sync has moved the watermarks to today, a later run resumes from today and skips the
+years behind it; `sync --full` re-walks the whole `--days` window instead.
 
 Raw payloads are archived **verbatim** before anything is normalised, so improving a
 parser never means re-fetching. `garmin-analytics renormalize` rebuilds every table
 from the archive with no network access at all.
+
+### Signing in to Garmin
+
+`garmin-analytics login` (or `POST /api/garmin/login`) takes your email and password,
+handles MFA, and writes a token cache to `garmin_tokens.json` in the token directory
+(`/data/tokens` in the container), mode 0600. The password is used for the token
+exchange and discarded. The refresh token is long-lived, so this is a rare chore.
+
+Garmin decides whether a sign-in looks like a browser before it looks at your
+password. The client tries five sign-in routes and falls through on a rate limit or a
+bot challenge; a 503 from the API (429 on the CLI) means all five were refused. That
+is Garmin refusing the *address*, not the password — from one datacenter host on
+2026-09-23 both mobile routes got 429 and both portal routes a 403 Cloudflare
+challenge. The 429 lifts on its own. Meanwhile, use the **browser sign-in**, which
+depends on no scripted login:
+
+1. `garmin-analytics login --signin-url` prints a Garmin sign-in URL. Open it in any
+   browser and sign in, including MFA. The page goes blank and the address bar ends
+   with `?ticket=ST-…`.
+2. `garmin-analytics login --ticket` and paste that URL. Tickets are single-use and
+   expire in minutes; if one is rejected, sign in again for a fresh one.
+
+Over HTTP: `GET /api/garmin/signin-url`, then `POST /api/garmin/ticket` with
+`{"ticket": "…"}`. If you already hold a `garmin_tokens.json` from another machine,
+`scripts/install-tokens.sh <dir>` copies it into the running container's volume. A
+token cache from the old `garth` client is a different format and will not work.
+
+Needing no login at all: request Garmin's official data export in your account
+settings and `garmin-analytics import-zip` it. That gets history, not ongoing sync.
 
 ---
 
@@ -183,23 +243,20 @@ Read this part.
   as you through the same SSO flow the website uses. It is not a supported API, it is
   arguably against Garmin's terms of service, and **it can break without notice** when
   Garmin changes something. If ingestion stops working, that is the most likely reason;
-  upgrading the pin is the first thing to try.
-* **Garmin may refuse to log you in from a server.** It decides whether a sign-in
-  looks like a browser before it looks at your password, and datacenter addresses get
-  429s and Cloudflare challenges. The client tries five different sign-in routes, so
-  this is rarer than it was, but it still happens — verified from one host on
-  2026-09-23, where all five were refused. When it does, use the browser sign-in
-  (Settings → Garmin account → *Garmin refused the login?*): it hands the app a ticket
-  your own browser earned, and does not depend on any scripted login working.
+  upgrading the pin in `requirements.txt` is the first thing to try.
+* **Garmin may refuse to log you in from a server.** See
+  [Signing in to Garmin](#signing-in-to-garmin); the browser sign-in is the reliable
+  route from a datacenter address.
 * **Rate limits are real and undocumented.** A first full backfill of a multi-year
   account issues thousands of requests. Do not run it repeatedly; it is resumable
   precisely so that you do not have to.
-* **Map tiles are the one external call at runtime.** Every application asset —
-  Leaflet, uPlot, CSS, the lot — is vendored and served from the container. When a
-  map is on screen, raster tiles are fetched from the configured tile server
-  (OpenStreetMap by default). Point `GA_TILE_URL` at your own to remove even that,
-  and respect [the OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
-  if you use theirs.
+* **The basemap is fetched from a third party.** Application code is served from the
+  container, but map style and tiles come from CARTO's free basemaps by default, or
+  from Mapbox when `VITE_MAPBOX_TOKEN` is set. Point `VITE_MAP_STYLE_LIGHT` /
+  `VITE_MAP_STYLE_DARK` at your own style to keep even that local. These are read at
+  build time, so rebuild after changing them: `npm run build` locally, or
+  `docker compose build` for the image, which takes them as build args from the root
+  `.env`.
 * **Single-tenant.** There is no multi-user support and none is planned. Run your own
   container.
 * **`APP_PASSWORD` is one shared password, not an identity system.** It stops the
@@ -208,17 +265,49 @@ Read this part.
   one second and costs you one worker thread; there is no attempt counter and no
   ban. That is adequate behind localhost or a VPN and is *not* adequate on a public
   port. Use a long random password and put a reverse proxy in front if you expose it.
+* **Garmin's login errors are passed through verbatim.** They distinguish a wrong
+  password from an unapproved device, which is why; upstream puts the URL and status
+  in them, not the request body, but that is upstream's behaviour, not something this
+  code enforces.
 * **Set `TZ`.** The container is UTC unless you say otherwise, and the race
   countdown, the current streak and the 28-day rolling volume are all computed for
   "today" in local time.
-* **Re-clustering is synchronous.** `Re-cluster` on the Routes tab compares every
-  GPS activity against every candidate route in the request thread — about thirteen
-  seconds for five hundred tracks here, and it grows faster than linearly. On a
-  large history, start it and leave the tab alone.
-* **This is a POC, freshly built.** It has 669 tests and a verification transcript,
-  but it has not been run against a real Garmin account for months on end. It has
-  had one adversarial review pass over the security and the maths — see
-  [`REVIEW.md`](REVIEW.md) for what that found and what it did not.
+* **Re-clustering is synchronous.** `POST /api/routes/recluster` compares every GPS
+  activity against every candidate route in the request thread — about thirteen
+  seconds for five hundred tracks, and it grows faster than linearly.
+* **This is a POC.** Ingestion has run against one real account: on 2026-09-23 it
+  pulled 487 activities back to December 2022, with the activity, sleep and GPS-stream
+  parsers checked against the real payloads. It has not been run for months on end,
+  and long-running stability, concurrent browsers, ARM builds and databases past a few
+  hundred megabytes are untested.
+
+---
+
+## Architecture
+
+```
+garmin_analytics/          Python package (FastAPI, stdlib sqlite3, no ORM)
+  ingest/                  Garmin Connect client, backfill, export-ZIP and FIT parsers
+  analytics/               load, trends, performance, readiness, routes, aggregates
+  edits/                   overrides and gear
+  db/                      schema.sql and the editable-field registry
+  api/server.py            JSON API, session gate, and the built SPA
+  api/schemas.py           Pydantic response models → /openapi.json
+  ui/                      frontend build output (gitignored)
+frontend/                  React 19 + TypeScript 5.9 (strict) + Vite
+```
+
+The frontend uses Tailwind v4 and shadcn/ui, TanStack Query for server state,
+Zustand for UI state, ECharts for charts, and react-map-gl with deck.gl and turf for
+maps, over MapLibre (or Mapbox with a token). Its API types are generated from
+`/openapi.json` into `frontend/src/api/schema.ts`, which is committed so a build never
+needs a running backend. Numbers become strings only in `frontend/src/lib/format.ts`;
+the API returns values in the units they are stored in.
+
+In production FastAPI serves the build from `garmin_analytics/ui/`: `/assets/*` as
+static files, and any other non-`/api` GET as `index.html` so client-side routes such
+as `/login` work. One origin, so the `ga_session` cookie just works and there is no
+CORS.
 
 ---
 
@@ -238,7 +327,7 @@ routes, route_members  clusters of activities that follow the same path
 route_segment_efforts  per-attempt, per-segment splits, cached
 sleep, daily_wellness, hrv_daily, fitness, body_composition     per-day wellness
 best_efforts           rolling best efforts extracted from sample streams
-sync_status            resumable backfill progress, polled by the UI
+sync_status            resumable backfill progress
 sessions, app_settings session cookies (hashed) and the app password hash (PBKDF2)
 ```
 
@@ -248,19 +337,28 @@ Full DDL: [`garmin_analytics/db/schema.sql`](garmin_analytics/db/schema.sql).
 
 ## Configuration
 
-Every setting is documented in [`.env.example`](.env.example). The ones that matter:
+Backend settings are documented in [`.env.example`](.env.example). The ones that matter:
 
 | Variable | Default | Notes |
 |---|---|---|
 | `APP_PASSWORD` | *(empty)* | **Set this.** Empty means no authentication at all. |
 | `GA_COOKIE_SECURE` | `0` | Set to `1` when behind HTTPS. |
 | `GA_SEED_DEMO` | `0` | `1` generates synthetic data on first start. |
-| `GA_TILE_URL` | OSM | Your own tile server goes here. |
 | `GA_HR_REST` / `GA_HR_MAX` | 52 / 187 | Used by TRIMP and zone maths. |
 | `TZ` | `Etc/UTC` | Your IANA zone. Anything anchored on "today" needs it. |
 
 There is deliberately **no** `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Credentials are
-entered in the web UI, exchanged for a token, and discarded.
+exchanged for a token and discarded.
+
+Frontend settings are read by Vite at dev or build time. Locally they live in
+[`frontend/.env`](frontend/.env.example); for the Docker image, put the three map
+settings in the root `.env`, where `docker-compose.yml` forwards them as build args:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VITE_API_URL` | `http://127.0.0.1:8000` | Where the dev server proxies `/api`. |
+| `VITE_MAPBOX_TOKEN` | *(empty)* | Set to use Mapbox styles. It is a public token and ends up in the bundle — restrict it by URL in your Mapbox account. |
+| `VITE_MAP_STYLE_LIGHT` / `VITE_MAP_STYLE_DARK` | CARTO positron / dark-matter | MapLibre style URLs. |
 
 ---
 
@@ -268,29 +366,39 @@ entered in the web UI, exchanged for a token, and discarded.
 
 ```
 garmin-analytics login          authenticate with Garmin Connect (once)
+garmin-analytics login --signin-url / --ticket    browser sign-in, when Garmin refuses the above
 garmin-analytics backfill       pull EVERYTHING back to the start of the account
 garmin-analytics backfill --estimate    size the job before starting it
-garmin-analytics sync           incremental pull
+garmin-analytics sync           incremental pull (--full to re-walk the window)
 garmin-analytics renormalize    re-parse the raw archive, no network
 garmin-analytics cluster        (re)group GPS activities into routes
 garmin-analytics import-zip     load Garmin's official data-export ZIP
 garmin-analytics import-fit     load .fit files
 garmin-analytics seed --reset   synthetic data for demos and tests
-garmin-analytics serve          run the API and dashboard
+garmin-analytics serve          run the API and the built UI
 garmin-analytics doctor         environment and data status (no credentials printed)
 garmin-analytics report         today's readiness, load and race outlook
 ```
 
 Inside Docker: `docker compose exec app garmin-analytics doctor`.
 
+To back up everything — database, raw archive and token cache:
+
+```bash
+docker run --rm -v garmin-analytics-data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/garmin-backup.tar.gz -C /data .
+```
+
 ---
 
 ## Security notes
 
 * `APP_PASSWORD` is stored **only** as a salted PBKDF2-SHA256 hash (240 000 rounds).
+  Changing it rotates the hash and signs out every session.
 * Session cookies are 256-bit random tokens; only their SHA-256 hash is stored, so a
   copy of the database cannot be replayed as a live session. Cookies are `HttpOnly`
   and `SameSite=Lax`.
+* No CORS middleware: the UI is same-origin in production and proxied in development.
 * The Garmin token cache lives on the volume at mode 0600, never in an image layer.
 * The container runs as a non-root user (uid 10001) with `no-new-privileges`.
 * Compose binds the port to `127.0.0.1` by default.
@@ -306,10 +414,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Short version:
 
 ```bash
 pip install -r requirements.txt && pip install -e .
-garmin-analytics seed --reset     # no Garmin account needed to develop
-pytest                            # 669 tests
-./scripts/verify.sh               # local end-to-end transcript
-./scripts/verify_docker.sh        # container transcript (destroys the volume)
+garmin-analytics seed --reset       # no Garmin account needed to develop
+garmin-analytics serve --port 8000  # the port the Vite proxy expects
+pytest
+
+cd frontend && npm ci
+npm run dev                         # http://localhost:5173, /api proxied to VITE_API_URL
 ```
 
 The seeder produces physiologically coupled data — an athlete model run forward day
@@ -317,14 +427,12 @@ by day, with an illness block, a travel block, cardiac drift, and **repeated GPS
 routes with fixed hills** so that clustering and segment analysis have something real
 to work on.
 
-[`VERIFICATION.md`](VERIFICATION.md) records what was actually observed, including
-what was *not* verified.
-
 ---
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE). Vendored: [uPlot](https://github.com/leeoniya/uPlot)
-(MIT) and [Leaflet](https://leafletjs.com/) (BSD-2-Clause).
+MIT — see [LICENSE](LICENSE). Frontend dependencies are installed from npm under
+their own licences (see `frontend/package.json`). The default basemap styles are
+CARTO's, with OpenStreetMap data; their attribution terms apply.
 
 Not affiliated with, endorsed by, or supported by Garmin.
