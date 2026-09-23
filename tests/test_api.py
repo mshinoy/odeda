@@ -259,24 +259,82 @@ class TestActivityDetail:
         body = client.get(f"/api/activities/{run_id}").json()
         assert body["activity"]["activity_id"] == run_id
         assert body["hr_zones"]
-        assert body["samples"]
+        assert body["has_gps"] is True
+        assert body["decoupling_pct"] is not None
+        # The stream moved to /streams; the detail no longer carries it.
+        assert "samples" not in body
 
     def test_splits_are_sequential(self, client, run_id):
         splits = client.get(f"/api/activities/{run_id}").json()["km_splits"]
+        assert splits
         assert [s["km"] for s in splits] == list(range(1, len(splits) + 1))
         for s in splits:
-            assert s["seconds"] > 0 and s["pace"]
+            assert s["seconds"] > 0
+            assert set(s) == {"km", "seconds", "avg_hr"}     # no preformatted pace
 
     def test_best_efforts_are_labelled(self, client, run_id):
-        for b in client.get(f"/api/activities/{run_id}").json()["best_efforts"]:
-            assert b["label"] and b["time"] and b["pace"]
+        efforts = client.get(f"/api/activities/{run_id}").json()["best_efforts"]
+        assert efforts
+        for b in efforts:
+            assert b["label"] and b["seconds"] > 0
+            assert set(b) == {"distance_m", "seconds", "label"}   # no time/pace strings
 
-    def test_samples_can_be_suppressed(self, client, run_id):
-        body = client.get(f"/api/activities/{run_id}?samples=false").json()
-        assert body["samples"] == []
+    def test_samples_param_is_gone(self, client, run_id):
+        plain = client.get(f"/api/activities/{run_id}").json()
+        # An unknown query parameter is ignored, so old callers still get a 200.
+        assert client.get(f"/api/activities/{run_id}?samples=false").json() == plain
 
     def test_unknown_activity_is_404(self, client):
         res = client.get("/api/activities/does-not-exist")
+        assert res.status_code == 404
+        assert "does-not-exist" in res.json()["detail"]
+
+
+class TestActivityStreams:
+    COLUMNS = ("elapsed_s", "distance_m", "hr", "speed_mps", "cadence_spm",
+               "altitude_m", "lat", "lon")
+
+    def _ids(self, client, type_):
+        return [r["activity_id"] for r in
+                client.get(f"/api/activities?type={type_}&limit=3").json()["rows"]]
+
+    def _db_count(self, seeded_store, aid):
+        return seeded_store.scalar(
+            "SELECT COUNT(*) FROM activity_samples WHERE activity_id = ?", (aid,))
+
+    def test_columns_are_equal_length_and_match_the_sample_count(
+        self, client, seeded_store
+    ):
+        for aid in self._ids(client, "running"):
+            body = client.get(f"/api/activities/{aid}/streams").json()
+            assert body["activity_id"] == aid
+            n = self._db_count(seeded_store, aid)
+            assert n > 0 and body["sample_count"] == n
+            assert set(body) == {"activity_id", "sample_count", *self.COLUMNS}
+            for col in self.COLUMNS:
+                assert len(body[col]) == n, col
+            assert body["elapsed_s"] == sorted(body["elapsed_s"])
+            assert any(v is not None for v in body["lat"])
+
+    def test_indoor_activity_has_samples_but_no_position(self, client, seeded_store):
+        aid = self._ids(client, "treadmill_running")[0]
+        body = client.get(f"/api/activities/{aid}/streams").json()
+        assert body["sample_count"] == self._db_count(seeded_store, aid) > 0
+        assert all(v is None for v in body["lat"])
+        assert all(v is None for v in body["lon"])
+        assert any(v is not None for v in body["hr"])
+
+    def test_values_are_as_stored(self, client, seeded_store):
+        aid = self._ids(client, "running")[0]
+        body = client.get(f"/api/activities/{aid}/streams").json()
+        rows = seeded_store.query(
+            f"SELECT {', '.join(self.COLUMNS)} FROM activity_samples "
+            "WHERE activity_id = ? ORDER BY elapsed_s", (aid,))
+        for col in self.COLUMNS:
+            assert body[col] == [r[col] for r in rows], col
+
+    def test_unknown_activity_is_404(self, client):
+        res = client.get("/api/activities/does-not-exist/streams")
         assert res.status_code == 404
         assert "does-not-exist" in res.json()["detail"]
 

@@ -9,7 +9,7 @@ export interface paths {
             cookie?: never;
         };
         /** Auth Status */
-        get: operations["auth_status_api_auth_status_get"];
+        get: operations["auth_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -28,7 +28,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Auth Login */
-        post: operations["auth_login_api_auth_login_post"];
+        post: operations["auth_login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -45,7 +45,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Auth Logout */
-        post: operations["auth_logout_api_auth_logout_post"];
+        post: operations["auth_logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -60,7 +60,7 @@ export interface paths {
             cookie?: never;
         };
         /** Garmin Status */
-        get: operations["garmin_status_api_garmin_status_get"];
+        get: operations["garmin_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -82,7 +82,7 @@ export interface paths {
          * Garmin Login
          * @description Exchange Garmin credentials for a token cache. Credentials are not stored.
          */
-        post: operations["garmin_login_api_garmin_login_post"];
+        post: operations["garmin_login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -100,7 +100,7 @@ export interface paths {
          * Garmin Signin Url
          * @description The Garmin sign-in page to open in a real browser.
          */
-        get: operations["garmin_signin_url_api_garmin_signin_url_get"];
+        get: operations["garmin_signin_url"];
         put?: never;
         post?: never;
         delete?: never;
@@ -122,7 +122,7 @@ export interface paths {
          * Garmin Ticket
          * @description Finish a browser sign-in: exchange its CAS ticket for the token cache.
          */
-        post: operations["garmin_ticket_api_garmin_ticket_post"];
+        post: operations["garmin_ticket"];
         delete?: never;
         options?: never;
         head?: never;
@@ -139,7 +139,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Garmin Mfa */
-        post: operations["garmin_mfa_api_garmin_mfa_post"];
+        post: operations["garmin_mfa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -156,7 +156,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Garmin Disconnect */
-        post: operations["garmin_disconnect_api_garmin_disconnect_post"];
+        post: operations["garmin_disconnect"];
         delete?: never;
         options?: never;
         head?: never;
@@ -171,7 +171,7 @@ export interface paths {
             cookie?: never;
         };
         /** Health */
-        get: operations["health_api_health_get"];
+        get: operations["health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -188,7 +188,7 @@ export interface paths {
             cookie?: never;
         };
         /** Doctor */
-        get: operations["doctor_api_doctor_get"];
+        get: operations["doctor"];
         put?: never;
         post?: never;
         delete?: never;
@@ -208,7 +208,7 @@ export interface paths {
          * Summary
          * @description Everything the Overview tab needs, in one round trip.
          */
-        get: operations["summary_api_summary_get"];
+        get: operations["summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -225,7 +225,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Load */
-        get: operations["api_load_api_load_get"];
+        get: operations["api_load"];
         put?: never;
         post?: never;
         delete?: never;
@@ -242,7 +242,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Trends */
-        get: operations["api_trends_api_trends_get"];
+        get: operations["api_trends"];
         put?: never;
         post?: never;
         delete?: never;
@@ -259,7 +259,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Readiness */
-        get: operations["api_readiness_api_readiness_get"];
+        get: operations["api_readiness"];
         put?: never;
         post?: never;
         delete?: never;
@@ -276,7 +276,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Readiness History */
-        get: operations["api_readiness_history_api_readiness_history_get"];
+        get: operations["api_readiness_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -293,7 +293,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Performance */
-        get: operations["api_performance_api_performance_get"];
+        get: operations["api_performance"];
         put?: never;
         post?: never;
         delete?: never;
@@ -310,7 +310,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Race */
-        get: operations["api_race_api_race_get"];
+        get: operations["api_race"];
         put?: never;
         post?: never;
         delete?: never;
@@ -327,7 +327,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Reports */
-        get: operations["api_reports_api_reports_get"];
+        get: operations["api_reports"];
         put?: never;
         post?: never;
         delete?: never;
@@ -344,7 +344,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Daily */
-        get: operations["api_daily_api_daily_get"];
+        get: operations["api_daily"];
         put?: never;
         post?: never;
         delete?: never;
@@ -364,7 +364,7 @@ export interface paths {
          * Api Aggregate
          * @description Lifetime and per-period stats, distributions, patterns, streaks, records.
          */
-        get: operations["api_aggregate_api_aggregate_get"];
+        get: operations["api_aggregate"];
         put?: never;
         post?: never;
         delete?: never;
@@ -381,7 +381,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Aggregate Filters */
-        get: operations["api_aggregate_filters_api_aggregate_filters_get"];
+        get: operations["api_aggregate_filters"];
         put?: never;
         post?: never;
         delete?: never;
@@ -398,7 +398,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Aggregate Periods */
-        get: operations["api_aggregate_periods_api_aggregate_periods_get"];
+        get: operations["api_aggregate_periods"];
         put?: never;
         post?: never;
         delete?: never;
@@ -415,7 +415,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Activities */
-        get: operations["api_activities_api_activities_get"];
+        get: operations["api_activities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -431,8 +431,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Api Activity */
-        get: operations["api_activity_api_activities__activity_id__get"];
+        /**
+         * Api Activity
+         * @description One activity with everything derived from it. The stream is `/streams`.
+         */
+        get: operations["api_activity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -442,7 +445,29 @@ export interface paths {
          * Api Edit Activity
          * @description Apply user edits. Writes only to `overrides`; a sync can never undo them.
          */
-        patch: operations["api_edit_activity_api_activities__activity_id__patch"];
+        patch: operations["api_edit_activity"];
+        trace?: never;
+    };
+    "/api/activities/{activity_id}/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Activity Streams
+         * @description Every sample of the activity, columnar, ordered by elapsed time.
+         *
+         *     Indoor activities are included; their `lat`/`lon` are all null.
+         */
+        get: operations["api_activity_streams"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/activities/{activity_id}/track": {
@@ -456,7 +481,7 @@ export interface paths {
          * Api Activity Track
          * @description The GPS stream for the map. `has_gps: false` for indoor activities.
          */
-        get: operations["api_activity_track_api_activities__activity_id__track_get"];
+        get: operations["api_activity_track"];
         put?: never;
         post?: never;
         delete?: never;
@@ -476,7 +501,7 @@ export interface paths {
          * Api Fields
          * @description The editable-field registry. The UI builds its editors from this.
          */
-        get: operations["api_fields_api_fields_get"];
+        get: operations["api_fields"];
         put?: never;
         post?: never;
         delete?: never;
@@ -499,7 +524,7 @@ export interface paths {
          * Api Revert Field
          * @description Reset one field to whatever Garmin says.
          */
-        delete: operations["api_revert_field_api_activities__activity_id__overrides__field__delete"];
+        delete: operations["api_revert_field"];
         options?: never;
         head?: never;
         patch?: never;
@@ -516,7 +541,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Api Revert All */
-        delete: operations["api_revert_all_api_activities__activity_id__overrides_delete"];
+        delete: operations["api_revert_all"];
         options?: never;
         head?: never;
         patch?: never;
@@ -532,7 +557,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Api Bulk Override */
-        post: operations["api_bulk_override_api_overrides_bulk_post"];
+        post: operations["api_bulk_override"];
         delete?: never;
         options?: never;
         head?: never;
@@ -547,7 +572,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Overrides Summary */
-        get: operations["api_overrides_summary_api_overrides_get"];
+        get: operations["api_overrides_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -564,10 +589,10 @@ export interface paths {
             cookie?: never;
         };
         /** Api Gear */
-        get: operations["api_gear_api_gear_get"];
+        get: operations["api_gear"];
         put?: never;
         /** Api Gear Create */
-        post: operations["api_gear_create_api_gear_post"];
+        post: operations["api_gear_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -582,15 +607,15 @@ export interface paths {
             cookie?: never;
         };
         /** Api Gear Get */
-        get: operations["api_gear_get_api_gear__gear_id__get"];
+        get: operations["api_gear_get"];
         put?: never;
         post?: never;
         /** Api Gear Delete */
-        delete: operations["api_gear_delete_api_gear__gear_id__delete"];
+        delete: operations["api_gear_delete"];
         options?: never;
         head?: never;
         /** Api Gear Update */
-        patch: operations["api_gear_update_api_gear__gear_id__patch"];
+        patch: operations["api_gear_update"];
         trace?: never;
     };
     "/api/activities/{activity_id}/gear": {
@@ -605,7 +630,7 @@ export interface paths {
          * Api Set Activity Gear
          * @description Replace an activity's gear set — the drawer's dropdown, retroactively.
          */
-        put: operations["api_set_activity_gear_api_activities__activity_id__gear_put"];
+        put: operations["api_set_activity_gear"];
         post?: never;
         delete?: never;
         options?: never;
@@ -624,7 +649,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Api Unassign Gear */
-        delete: operations["api_unassign_gear_api_activities__activity_id__gear__gear_id__delete"];
+        delete: operations["api_unassign_gear"];
         options?: never;
         head?: never;
         patch?: never;
@@ -643,7 +668,7 @@ export interface paths {
          * Api Gear Bulk
          * @description Apply gear across a filtered date range — for importing gear-less history.
          */
-        post: operations["api_gear_bulk_api_gear__gear_id__bulk_assign_post"];
+        post: operations["api_gear_bulk"];
         delete?: never;
         options?: never;
         head?: never;
@@ -660,7 +685,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Api Gear Default */
-        post: operations["api_gear_default_api_gear_defaults_post"];
+        post: operations["api_gear_default"];
         delete?: never;
         options?: never;
         head?: never;
@@ -678,7 +703,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Api Gear Default Clear */
-        delete: operations["api_gear_default_clear_api_gear_defaults__activity_type___gear_id__delete"];
+        delete: operations["api_gear_default_clear"];
         options?: never;
         head?: never;
         patch?: never;
@@ -692,7 +717,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Routes */
-        get: operations["api_routes_api_routes_get"];
+        get: operations["api_routes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -709,15 +734,15 @@ export interface paths {
             cookie?: never;
         };
         /** Api Route */
-        get: operations["api_route_api_routes__route_id__get"];
+        get: operations["api_route"];
         put?: never;
         post?: never;
         /** Api Route Delete */
-        delete: operations["api_route_delete_api_routes__route_id__delete"];
+        delete: operations["api_route_delete"];
         options?: never;
         head?: never;
         /** Api Route Rename */
-        patch: operations["api_route_rename_api_routes__route_id__patch"];
+        patch: operations["api_route_rename"];
         trace?: never;
     };
     "/api/routes/{route_id}/segments": {
@@ -731,7 +756,7 @@ export interface paths {
          * Api Route Segments
          * @description Where you speed up and slow down, across every attempt at this route.
          */
-        get: operations["api_route_segments_api_routes__route_id__segments_get"];
+        get: operations["api_route_segments"];
         put?: never;
         post?: never;
         delete?: never;
@@ -750,7 +775,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Api Route Merge */
-        post: operations["api_route_merge_api_routes__route_id__merge_post"];
+        post: operations["api_route_merge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -767,7 +792,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Api Route Split */
-        post: operations["api_route_split_api_routes__route_id__split_post"];
+        post: operations["api_route_split"];
         delete?: never;
         options?: never;
         head?: never;
@@ -783,7 +808,7 @@ export interface paths {
         };
         get?: never;
         /** Api Move Activity */
-        put: operations["api_move_activity_api_activities__activity_id__route_put"];
+        put: operations["api_move_activity"];
         post?: never;
         delete?: never;
         options?: never;
@@ -802,7 +827,7 @@ export interface paths {
          * Api Route Compare
          * @description Two (or more) attempts overlaid, for the comparison view.
          */
-        get: operations["api_route_compare_api_routes_compare_tracks_get"];
+        get: operations["api_route_compare"];
         put?: never;
         post?: never;
         delete?: never;
@@ -822,7 +847,7 @@ export interface paths {
          * Api Heatmap
          * @description Every GPS point ever recorded, snapped to a grid and counted.
          */
-        get: operations["api_heatmap_api_heatmap_get"];
+        get: operations["api_heatmap"];
         put?: never;
         post?: never;
         delete?: never;
@@ -844,7 +869,7 @@ export interface paths {
          * Api Recluster
          * @description Re-run clustering. Routes the user has pinned are left alone.
          */
-        post: operations["api_recluster_api_routes_recluster_post"];
+        post: operations["api_recluster"];
         delete?: never;
         options?: never;
         head?: never;
@@ -859,7 +884,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Sync Status */
-        get: operations["api_sync_status_api_sync_status_get"];
+        get: operations["api_sync_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -876,7 +901,7 @@ export interface paths {
             cookie?: never;
         };
         /** Api Sync Estimate */
-        get: operations["api_sync_estimate_api_sync_estimate_get"];
+        get: operations["api_sync_estimate"];
         put?: never;
         post?: never;
         delete?: never;
@@ -898,7 +923,7 @@ export interface paths {
          * Api Sync Start
          * @description Kick off a full backfill in the background. Safe to call after a crash.
          */
-        post: operations["api_sync_start_api_sync_start_post"];
+        post: operations["api_sync_start"];
         delete?: never;
         options?: never;
         head?: never;
@@ -915,7 +940,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Api Sync Stop */
-        post: operations["api_sync_stop_api_sync_stop_post"];
+        post: operations["api_sync_stop"];
         delete?: never;
         options?: never;
         head?: never;
@@ -933,7 +958,7 @@ export interface paths {
          * Api Config
          * @description Non-secret configuration, so the dashboard can label its own assumptions.
          */
-        get: operations["api_config_api_config_get"];
+        get: operations["api_config"];
         put?: never;
         post?: never;
         delete?: never;
@@ -953,7 +978,7 @@ export interface paths {
          * Api Raw
          * @description The verbatim archived payload. Proves raw-first ingestion actually kept it.
          */
-        get: operations["api_raw_api_raw__endpoint___ref_key__get"];
+        get: operations["api_raw"];
         put?: never;
         post?: never;
         delete?: never;
@@ -970,7 +995,7 @@ export interface paths {
             cookie?: never;
         };
         /** Login Page */
-        get: operations["login_page_login_get"];
+        get: operations["login_page"];
         put?: never;
         post?: never;
         delete?: never;
@@ -987,7 +1012,7 @@ export interface paths {
             cookie?: never;
         };
         /** Index */
-        get: operations["index__get"];
+        get: operations["index"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1000,10 +1025,446 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActivityDetail */
+        ActivityDetail: {
+            activity: components["schemas"]["ActivityRow"];
+            /** Hr Zones */
+            hr_zones: components["schemas"]["HrZone"][];
+            /** Best Efforts */
+            best_efforts: components["schemas"]["BestEffort"][];
+            /**
+             * Decoupling Pct
+             * @description Percent speed:HR drift, second half vs first (positive = decoupled); null
+             *     without samples carrying usable HR and distance.
+             */
+            decoupling_pct: number | null;
+            /**
+             * Efficiency Factor
+             * @description Metres per minute per bpm, from the activity averages; null when the
+             *     activity has no samples, no moving time or no average HR.
+             */
+            efficiency_factor: number | null;
+            /** Km Splits */
+            km_splits: components["schemas"]["KmSplit"][];
+            /** Gear */
+            gear: components["schemas"]["ActivityGear"][];
+            /** Overrides */
+            overrides: components["schemas"]["Override"][];
+            route: components["schemas"]["RouteAssignment"] | null;
+            /**
+             * Has Gps
+             * @description True when any sample carries a latitude.
+             */
+            has_gps: boolean;
+        };
+        /** ActivityEditResult */
+        ActivityEditResult: {
+            /** @description Null only when the body was empty and the activity does not exist. */
+            activity: components["schemas"]["ActivityRow"] | null;
+            /** Applied */
+            applied: (components["schemas"]["AppliedEdit"] | components["schemas"]["RevertedEdit"])[];
+            /** Overrides */
+            overrides: components["schemas"]["Override"][];
+        };
+        /**
+         * ActivityGear
+         * @description A `gear` row as attached to one activity, plus how it came to be attached.
+         */
+        ActivityGear: {
+            /** Gear Id */
+            gear_id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "shoe" | "bike" | "strap" | "other";
+            /** Brand */
+            brand: string | null;
+            /** Model */
+            model: string | null;
+            /** Nickname */
+            nickname: string | null;
+            /**
+             * Purchase Date
+             * @description ISO date.
+             */
+            purchase_date: string | null;
+            /**
+             * Initial Distance M
+             * @description Mileage already on the item before it was tracked here.
+             */
+            initial_distance_m: number;
+            /**
+             * Retirement Distance M
+             * @description Warn/retire threshold; null means no limit.
+             */
+            retirement_distance_m: number | null;
+            /**
+             * Retired
+             * @description 0/1 flag.
+             */
+            retired: number;
+            /** Notes */
+            notes: string | null;
+            /** Photo Path */
+            photo_path: string | null;
+            /**
+             * Source
+             * @description Where the gear record came from: 'manual' or 'garmin'.
+             */
+            source: string;
+            /** Garmin Uuid */
+            garmin_uuid: string | null;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            /**
+             * Assign Source
+             * @description Who attached it to this activity: 'manual', 'garmin' or 'default_rule'.
+             */
+            assign_source: string;
+            /** Assigned At */
+            assigned_at: string;
+            /**
+             * Display Name
+             * @description Nickname if set, else brand + model.
+             */
+            display_name: string;
+        };
+        /**
+         * ActivityList
+         * @description A page of activities, plus every activity type present (most common first).
+         */
+        ActivityList: {
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Types */
+            types: string[];
+            /** Rows */
+            rows: components["schemas"]["ActivityRow"][];
+        };
+        /**
+         * ActivityRow
+         * @description One row of `v_activities`: Garmin's values with the user's edits applied.
+         *
+         *     Columns in view order: every column of `activities`, then the user-only edit
+         *     fields, then the convenience columns the view derives.
+         */
+        ActivityRow: {
+            /** Activity Id */
+            activity_id: string;
+            /**
+             * Day
+             * @description Local date of the start, YYYY-MM-DD.
+             */
+            day: string;
+            /** Start Time Local */
+            start_time_local: string;
+            /**
+             * Start Time Utc
+             * @description ISO-8601 UTC with a trailing Z, when the source supplied it.
+             */
+            start_time_utc: string | null;
+            /**
+             * Activity Type
+             * @description Open vocabulary; see `fields.ACTIVITY_TYPES` for the common values.
+             */
+            activity_type: string;
+            /** Activity Name */
+            activity_name: string | null;
+            /** Distance M */
+            distance_m: number | null;
+            /**
+             * Duration S
+             * @description Elapsed time.
+             */
+            duration_s: number | null;
+            /** Moving Time S */
+            moving_time_s: number | null;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Max Hr */
+            max_hr: number | null;
+            /** Avg Speed Mps */
+            avg_speed_mps: number | null;
+            /** Max Speed Mps */
+            max_speed_mps: number | null;
+            /** Elevation Gain M */
+            elevation_gain_m: number | null;
+            /** Calories */
+            calories: number | null;
+            /**
+             * Avg Cadence Spm
+             * @description Steps/min for runs, rpm for rides.
+             */
+            avg_cadence_spm: number | null;
+            /** Avg Power W */
+            avg_power_w: number | null;
+            /** Training Effect Aerobic */
+            training_effect_aerobic: number | null;
+            /** Training Effect Anaerobic */
+            training_effect_anaerobic: number | null;
+            /**
+             * Trimp
+             * @description Banister TRIMP, computed at normalise time.
+             */
+            trimp: number | null;
+            /**
+             * Raw Id
+             * @description `raw_documents.id` of the payload this row was normalised from.
+             */
+            raw_id: number | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Rpe
+             * @description Perceived effort, 1..10.
+             */
+            rpe: number | null;
+            /**
+             * Private
+             * @description 0/1 flag, or null when never set.
+             */
+            private: number | null;
+            /**
+             * Excluded From Stats
+             * @description 0/1 flag, or null when never set. Excluded activities leave every aggregate.
+             */
+            excluded_from_stats: number | null;
+            /**
+             * Override Count
+             * @description How many fields on this activity carry a user edit.
+             */
+            override_count: number;
+            /**
+             * Gear Ids
+             * @description Comma-separated `gear_id`s on this activity (SQLite `group_concat`), or null
+             *     when none. Order is not guaranteed.
+             */
+            gear_ids: string | null;
+            /** Route Id */
+            route_id: number | null;
+        };
+        /**
+         * ActivityStreams
+         * @description The full sample stream, columnar: index i of every list is the same sample.
+         *
+         *     Ordered by `elapsed_s`. Every list has `sample_count` entries. `lat`/`lon` are
+         *     null wherever there is no position (indoor activities have none at all).
+         */
+        ActivityStreams: {
+            /** Activity Id */
+            activity_id: string;
+            /** Sample Count */
+            sample_count: number;
+            /** Elapsed S */
+            elapsed_s: number[];
+            /** Distance M */
+            distance_m: (number | null)[];
+            /** Hr */
+            hr: (number | null)[];
+            /** Speed Mps */
+            speed_mps: (number | null)[];
+            /** Cadence Spm */
+            cadence_spm: (number | null)[];
+            /** Altitude M */
+            altitude_m: (number | null)[];
+            /** Lat */
+            lat: (number | null)[];
+            /** Lon */
+            lon: (number | null)[];
+        };
+        /**
+         * AppliedEdit
+         * @description An edit that was stored.
+         */
+        AppliedEdit: {
+            /** Activity Id */
+            activity_id: string;
+            /** Field */
+            field: string;
+            /**
+             * Value
+             * @description The coerced value (bool fields come back as 0/1).
+             */
+            value: string | number;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "text" | "real" | "int" | "bool";
+            /**
+             * Garmin Value
+             * @description Garmin's current value for the field; null for user-only fields.
+             */
+            garmin_value: string | number | null;
+            /** Updated At */
+            updated_at: string;
+            /**
+             * Reverted
+             * @constant
+             */
+            reverted: false;
+        };
+        /**
+         * BestEffort
+         * @description Fastest window for a standard distance within this activity.
+         */
+        BestEffort: {
+            /** Distance M */
+            distance_m: number;
+            /** Seconds */
+            seconds: number;
+            /**
+             * Label
+             * @description Standard label ("1 k", "5 k", "HM", ...), or null for any other distance.
+             */
+            label: string | null;
+        };
+        /**
+         * EditableFieldInfo
+         * @description One entry of the editable-field registry (`db/fields.py`).
+         */
+        EditableFieldInfo: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "text" | "real" | "int" | "bool";
+            /** Label */
+            label: string;
+            /**
+             * Editor
+             * @enum {string}
+             */
+            editor: "text" | "textarea" | "select" | "number" | "bool";
+            /**
+             * Choices
+             * @description For `select`: the offered values. Not always a closed set (activity_type).
+             */
+            choices: string[] | null;
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /**
+             * User Only
+             * @description True for fields Garmin never supplies (they live only in `overrides`).
+             */
+            user_only: boolean;
+            /** Help */
+            help: string;
+        };
+        /** FieldsResponse */
+        FieldsResponse: {
+            /** Fields */
+            fields: components["schemas"]["EditableFieldInfo"][];
+            /** Activity Types */
+            activity_types: string[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HrZone */
+        HrZone: {
+            /** Zone */
+            zone: number;
+            /** Seconds */
+            seconds: number;
+        };
+        /** KmSplit */
+        KmSplit: {
+            /**
+             * Km
+             * @description 1-based kilometre number.
+             */
+            km: number;
+            /** Seconds */
+            seconds: number;
+            /** Avg Hr */
+            avg_hr: number | null;
+        };
+        /**
+         * Override
+         * @description One user edit on an activity, with the Garmin value it is masking.
+         */
+        Override: {
+            /** Field */
+            field: string;
+            /**
+             * Value
+             * @description Stored as TEXT; cast per `value_type`.
+             */
+            value: string | null;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "text" | "real" | "int" | "bool";
+            /**
+             * Garmin Value At Edit
+             * @description What Garmin said when the edit was first made (TEXT); null for user-only.
+             */
+            garmin_value_at_edit: string | null;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            /** Label */
+            label: string;
+            /**
+             * Current Garmin Value
+             * @description What Garmin says now, null for user-only fields.
+             */
+            current_garmin_value: string | number | null;
+            /** Revertible */
+            revertible: boolean;
+        };
+        /**
+         * RevertedEdit
+         * @description An edit whose value was null/empty, which reverts the field instead.
+         */
+        RevertedEdit: {
+            /** Activity Id */
+            activity_id: string;
+            /** Field */
+            field: string;
+            /** Value */
+            value: null;
+            /**
+             * Reverted
+             * @constant
+             */
+            reverted: true;
+        };
+        /**
+         * RouteAssignment
+         * @description The route an activity has been filed under.
+         */
+        RouteAssignment: {
+            /** Route Id */
+            route_id: number;
+            /**
+             * Match Score
+             * @description 0..1 path overlap at assignment time; null for a manual move.
+             */
+            match_score: number | null;
+            /**
+             * Assigned
+             * @enum {string}
+             */
+            assigned: "auto" | "manual";
+            /** Name */
+            name: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1027,7 +1488,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    auth_status_api_auth_status_get: {
+    auth_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -1049,7 +1510,7 @@ export interface operations {
             };
         };
     };
-    auth_login_api_auth_login_post: {
+    auth_login: {
         parameters: {
             query?: never;
             header?: never;
@@ -1086,7 +1547,7 @@ export interface operations {
             };
         };
     };
-    auth_logout_api_auth_logout_post: {
+    auth_logout: {
         parameters: {
             query?: never;
             header?: never;
@@ -1108,7 +1569,7 @@ export interface operations {
             };
         };
     };
-    garmin_status_api_garmin_status_get: {
+    garmin_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -1130,7 +1591,7 @@ export interface operations {
             };
         };
     };
-    garmin_login_api_garmin_login_post: {
+    garmin_login: {
         parameters: {
             query?: never;
             header?: never;
@@ -1167,7 +1628,7 @@ export interface operations {
             };
         };
     };
-    garmin_signin_url_api_garmin_signin_url_get: {
+    garmin_signin_url: {
         parameters: {
             query?: never;
             header?: never;
@@ -1189,7 +1650,7 @@ export interface operations {
             };
         };
     };
-    garmin_ticket_api_garmin_ticket_post: {
+    garmin_ticket: {
         parameters: {
             query?: never;
             header?: never;
@@ -1226,7 +1687,7 @@ export interface operations {
             };
         };
     };
-    garmin_mfa_api_garmin_mfa_post: {
+    garmin_mfa: {
         parameters: {
             query?: never;
             header?: never;
@@ -1263,7 +1724,7 @@ export interface operations {
             };
         };
     };
-    garmin_disconnect_api_garmin_disconnect_post: {
+    garmin_disconnect: {
         parameters: {
             query?: never;
             header?: never;
@@ -1285,7 +1746,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_get: {
+    health: {
         parameters: {
             query?: never;
             header?: never;
@@ -1307,7 +1768,7 @@ export interface operations {
             };
         };
     };
-    doctor_api_doctor_get: {
+    doctor: {
         parameters: {
             query?: never;
             header?: never;
@@ -1329,7 +1790,7 @@ export interface operations {
             };
         };
     };
-    summary_api_summary_get: {
+    summary: {
         parameters: {
             query?: never;
             header?: never;
@@ -1351,7 +1812,7 @@ export interface operations {
             };
         };
     };
-    api_load_api_load_get: {
+    api_load: {
         parameters: {
             query?: {
                 /** @description ISO date */
@@ -1387,7 +1848,7 @@ export interface operations {
             };
         };
     };
-    api_trends_api_trends_get: {
+    api_trends: {
         parameters: {
             query?: {
                 days?: number;
@@ -1422,7 +1883,7 @@ export interface operations {
             };
         };
     };
-    api_readiness_api_readiness_get: {
+    api_readiness: {
         parameters: {
             query?: {
                 day?: string | null;
@@ -1455,7 +1916,7 @@ export interface operations {
             };
         };
     };
-    api_readiness_history_api_readiness_history_get: {
+    api_readiness_history: {
         parameters: {
             query?: {
                 days?: number;
@@ -1488,7 +1949,7 @@ export interface operations {
             };
         };
     };
-    api_performance_api_performance_get: {
+    api_performance: {
         parameters: {
             query?: never;
             header?: never;
@@ -1510,7 +1971,7 @@ export interface operations {
             };
         };
     };
-    api_race_api_race_get: {
+    api_race: {
         parameters: {
             query?: never;
             header?: never;
@@ -1532,7 +1993,7 @@ export interface operations {
             };
         };
     };
-    api_reports_api_reports_get: {
+    api_reports: {
         parameters: {
             query?: never;
             header?: never;
@@ -1554,7 +2015,7 @@ export interface operations {
             };
         };
     };
-    api_daily_api_daily_get: {
+    api_daily: {
         parameters: {
             query?: {
                 days?: number;
@@ -1587,7 +2048,7 @@ export interface operations {
             };
         };
     };
-    api_aggregate_api_aggregate_get: {
+    api_aggregate: {
         parameters: {
             query?: {
                 type?: string | null;
@@ -1623,7 +2084,7 @@ export interface operations {
             };
         };
     };
-    api_aggregate_filters_api_aggregate_filters_get: {
+    api_aggregate_filters: {
         parameters: {
             query?: never;
             header?: never;
@@ -1645,7 +2106,7 @@ export interface operations {
             };
         };
     };
-    api_aggregate_periods_api_aggregate_periods_get: {
+    api_aggregate_periods: {
         parameters: {
             query?: {
                 period?: string;
@@ -1682,7 +2143,7 @@ export interface operations {
             };
         };
     };
-    api_activities_api_activities_get: {
+    api_activities: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1710,9 +2171,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ActivityList"];
                 };
             };
             /** @description Validation Error */
@@ -1726,11 +2185,9 @@ export interface operations {
             };
         };
     };
-    api_activity_api_activities__activity_id__get: {
+    api_activity: {
         parameters: {
-            query?: {
-                samples?: boolean;
-            };
+            query?: never;
             header?: never;
             path: {
                 activity_id: string;
@@ -1745,9 +2202,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ActivityDetail"];
                 };
             };
             /** @description Validation Error */
@@ -1761,7 +2216,7 @@ export interface operations {
             };
         };
     };
-    api_edit_activity_api_activities__activity_id__patch: {
+    api_edit_activity: {
         parameters: {
             query?: never;
             header?: never;
@@ -1773,7 +2228,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    [key: string]: unknown;
+                    [key: string]: string | number | boolean | null;
                 };
             };
         };
@@ -1784,9 +2239,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ActivityEditResult"];
                 };
             };
             /** @description Validation Error */
@@ -1800,7 +2253,38 @@ export interface operations {
             };
         };
     };
-    api_activity_track_api_activities__activity_id__track_get: {
+    api_activity_streams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityStreams"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_activity_track: {
         parameters: {
             query?: never;
             header?: never;
@@ -1833,7 +2317,7 @@ export interface operations {
             };
         };
     };
-    api_fields_api_fields_get: {
+    api_fields: {
         parameters: {
             query?: never;
             header?: never;
@@ -1848,14 +2332,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FieldsResponse"];
                 };
             };
         };
     };
-    api_revert_field_api_activities__activity_id__overrides__field__delete: {
+    api_revert_field: {
         parameters: {
             query?: never;
             header?: never;
@@ -1889,7 +2371,7 @@ export interface operations {
             };
         };
     };
-    api_revert_all_api_activities__activity_id__overrides_delete: {
+    api_revert_all: {
         parameters: {
             query?: never;
             header?: never;
@@ -1922,7 +2404,7 @@ export interface operations {
             };
         };
     };
-    api_bulk_override_api_overrides_bulk_post: {
+    api_bulk_override: {
         parameters: {
             query?: never;
             header?: never;
@@ -1959,7 +2441,7 @@ export interface operations {
             };
         };
     };
-    api_overrides_summary_api_overrides_get: {
+    api_overrides_summary: {
         parameters: {
             query?: never;
             header?: never;
@@ -1981,7 +2463,7 @@ export interface operations {
             };
         };
     };
-    api_gear_api_gear_get: {
+    api_gear: {
         parameters: {
             query?: {
                 include_retired?: boolean;
@@ -2015,7 +2497,7 @@ export interface operations {
             };
         };
     };
-    api_gear_create_api_gear_post: {
+    api_gear_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -2052,7 +2534,7 @@ export interface operations {
             };
         };
     };
-    api_gear_get_api_gear__gear_id__get: {
+    api_gear_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2085,7 +2567,7 @@ export interface operations {
             };
         };
     };
-    api_gear_delete_api_gear__gear_id__delete: {
+    api_gear_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -2118,7 +2600,7 @@ export interface operations {
             };
         };
     };
-    api_gear_update_api_gear__gear_id__patch: {
+    api_gear_update: {
         parameters: {
             query?: never;
             header?: never;
@@ -2157,7 +2639,7 @@ export interface operations {
             };
         };
     };
-    api_set_activity_gear_api_activities__activity_id__gear_put: {
+    api_set_activity_gear: {
         parameters: {
             query?: never;
             header?: never;
@@ -2196,7 +2678,7 @@ export interface operations {
             };
         };
     };
-    api_unassign_gear_api_activities__activity_id__gear__gear_id__delete: {
+    api_unassign_gear: {
         parameters: {
             query?: never;
             header?: never;
@@ -2230,7 +2712,7 @@ export interface operations {
             };
         };
     };
-    api_gear_bulk_api_gear__gear_id__bulk_assign_post: {
+    api_gear_bulk: {
         parameters: {
             query?: never;
             header?: never;
@@ -2269,7 +2751,7 @@ export interface operations {
             };
         };
     };
-    api_gear_default_api_gear_defaults_post: {
+    api_gear_default: {
         parameters: {
             query?: never;
             header?: never;
@@ -2306,7 +2788,7 @@ export interface operations {
             };
         };
     };
-    api_gear_default_clear_api_gear_defaults__activity_type___gear_id__delete: {
+    api_gear_default_clear: {
         parameters: {
             query?: never;
             header?: never;
@@ -2340,7 +2822,7 @@ export interface operations {
             };
         };
     };
-    api_routes_api_routes_get: {
+    api_routes: {
         parameters: {
             query?: {
                 type?: string | null;
@@ -2373,7 +2855,7 @@ export interface operations {
             };
         };
     };
-    api_route_api_routes__route_id__get: {
+    api_route: {
         parameters: {
             query?: never;
             header?: never;
@@ -2406,7 +2888,7 @@ export interface operations {
             };
         };
     };
-    api_route_delete_api_routes__route_id__delete: {
+    api_route_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -2439,7 +2921,7 @@ export interface operations {
             };
         };
     };
-    api_route_rename_api_routes__route_id__patch: {
+    api_route_rename: {
         parameters: {
             query?: never;
             header?: never;
@@ -2478,7 +2960,7 @@ export interface operations {
             };
         };
     };
-    api_route_segments_api_routes__route_id__segments_get: {
+    api_route_segments: {
         parameters: {
             query?: never;
             header?: never;
@@ -2511,7 +2993,7 @@ export interface operations {
             };
         };
     };
-    api_route_merge_api_routes__route_id__merge_post: {
+    api_route_merge: {
         parameters: {
             query?: never;
             header?: never;
@@ -2550,7 +3032,7 @@ export interface operations {
             };
         };
     };
-    api_route_split_api_routes__route_id__split_post: {
+    api_route_split: {
         parameters: {
             query?: never;
             header?: never;
@@ -2589,7 +3071,7 @@ export interface operations {
             };
         };
     };
-    api_move_activity_api_activities__activity_id__route_put: {
+    api_move_activity: {
         parameters: {
             query?: never;
             header?: never;
@@ -2628,7 +3110,7 @@ export interface operations {
             };
         };
     };
-    api_route_compare_api_routes_compare_tracks_get: {
+    api_route_compare: {
         parameters: {
             query: {
                 /** @description comma-separated activity ids */
@@ -2660,7 +3142,7 @@ export interface operations {
             };
         };
     };
-    api_heatmap_api_heatmap_get: {
+    api_heatmap: {
         parameters: {
             query?: {
                 type?: string | null;
@@ -2696,7 +3178,7 @@ export interface operations {
             };
         };
     };
-    api_recluster_api_routes_recluster_post: {
+    api_recluster: {
         parameters: {
             query?: never;
             header?: never;
@@ -2733,7 +3215,7 @@ export interface operations {
             };
         };
     };
-    api_sync_status_api_sync_status_get: {
+    api_sync_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -2755,7 +3237,7 @@ export interface operations {
             };
         };
     };
-    api_sync_estimate_api_sync_estimate_get: {
+    api_sync_estimate: {
         parameters: {
             query?: never;
             header?: never;
@@ -2777,7 +3259,7 @@ export interface operations {
             };
         };
     };
-    api_sync_start_api_sync_start_post: {
+    api_sync_start: {
         parameters: {
             query?: never;
             header?: never;
@@ -2814,7 +3296,7 @@ export interface operations {
             };
         };
     };
-    api_sync_stop_api_sync_stop_post: {
+    api_sync_stop: {
         parameters: {
             query?: never;
             header?: never;
@@ -2836,7 +3318,7 @@ export interface operations {
             };
         };
     };
-    api_config_api_config_get: {
+    api_config: {
         parameters: {
             query?: never;
             header?: never;
@@ -2858,7 +3340,7 @@ export interface operations {
             };
         };
     };
-    api_raw_api_raw__endpoint___ref_key__get: {
+    api_raw: {
         parameters: {
             query?: never;
             header?: never;
@@ -2890,7 +3372,7 @@ export interface operations {
             };
         };
     };
-    login_page_login_get: {
+    login_page: {
         parameters: {
             query?: never;
             header?: never;
@@ -2910,7 +3392,7 @@ export interface operations {
             };
         };
     };
-    index__get: {
+    index: {
         parameters: {
             query?: never;
             header?: never;

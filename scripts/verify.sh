@@ -169,7 +169,7 @@ AID="$(curl -s "$BASE/api/activities?limit=1&type=running" | "$PY" -c 'import sy
 say "### Activity detail and the raw archive behind it"
 say ''
 open_block
-hit "/api/activities/$AID?samples=false" 40
+hit "/api/activities/$AID" 40
 hit "/api/raw/activities/$AID" 20
 close_block
 

@@ -42,6 +42,14 @@ from ..edits import overrides as ov_mod
 from ..ingest import backfill as backfill_mod
 from ..seed import synthetic
 from . import auth as auth_mod
+from .schemas import (
+    ActivityDetail,
+    ActivityEditPayload,
+    ActivityEditResult,
+    ActivityList,
+    ActivityStreams,
+    FieldsResponse,
+)
 
 CACHE_TTL_S = 30.0
 _cache: dict[str, tuple[float, float, Any]] = {}
@@ -117,6 +125,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="Garmin Analytics",
         version=__version__,
         description="Self-hosted analytics over your own Garmin Connect history.",
+        # operationId = handler name (unique within create_app), so generated client
+        # types read `api_activities` rather than `api_activities_api_activities_get`.
+        generate_unique_id_function=lambda route: route.name,
     )
     job = BackgroundJob()
     app.state.job = job
@@ -431,7 +442,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         "rpe",
     }
 
-    @app.get("/api/activities")
+    @app.get("/api/activities", response_model=ActivityList)
     def api_activities(
         limit: int = Query(50, ge=1, le=1000),
         offset: int = Query(0, ge=0),
@@ -496,8 +507,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return {"total": total, "limit": limit, "offset": offset, "types": types,
                     "rows": rows}
 
-    @app.get("/api/activities/{activity_id}")
-    def api_activity(activity_id: str, samples: bool = True) -> dict[str, Any]:
+    @app.get("/api/activities/{activity_id}", response_model=ActivityDetail)
+    def api_activity(activity_id: str) -> dict[str, Any]:
+        """One activity with everything derived from it. The stream is `/streams`."""
         with store() as st:
             act = ov_mod.effective(st, activity_id)
             if act is None:
@@ -511,15 +523,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "ORDER BY distance_m",
                 (activity_id,),
             )
-            sample_rows = (
-                st.query(
-                    "SELECT elapsed_s, distance_m, hr, speed_mps, cadence_spm, "
-                    "altitude_m, lat, lon "
-                    "FROM activity_samples WHERE activity_id = ? ORDER BY elapsed_s",
-                    (activity_id,),
-                )
-                if samples
-                else []
+            # Only what the derived numbers below need; the stream itself is /streams.
+            sample_rows = st.query(
+                "SELECT elapsed_s, distance_m, hr, lat "
+                "FROM activity_samples WHERE activity_id = ? ORDER BY elapsed_s",
+                (activity_id,),
             )
             dec = None
             ef = None
@@ -534,29 +542,47 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     float(act["moving_time_s"] or 0),
                     float(act["avg_hr"] or 0),
                 )
+            route = st.query(
+                "SELECT m.route_id, m.match_score, m.assigned, r.name FROM route_members m "
+                "JOIN routes r ON r.route_id = m.route_id WHERE m.activity_id = ?",
+                (activity_id,),
+            )
             return {
                 "activity": act,
                 "hr_zones": zones,
                 "best_efforts": [
-                    {
-                        **b,
-                        "label": perf.DISTANCE_LABELS.get(b["distance_m"]),
-                        "time": perf.hms(float(b["seconds"])),
-                        "pace": perf.pace_str(
-                            float(b["seconds"]) / (float(b["distance_m"]) / 1000.0)
-                        ),
-                    }
+                    {**b, "label": perf.DISTANCE_LABELS.get(b["distance_m"])}
                     for b in bests
                 ],
                 "decoupling_pct": None if dec is None else round(dec, 2),
                 "efficiency_factor": None if ef is None else round(ef, 3),
                 "km_splits": _splits(sample_rows),
-                "samples": sample_rows,
                 "gear": gear_mod.for_activity(st, activity_id),
                 "overrides": ov_mod.list_overrides(st, activity_id),
-                "route": routes_mod.activity_track(st, activity_id)["route"],
+                "route": route[0] if route else None,
                 "has_gps": any(r.get("lat") is not None for r in sample_rows),
             }
+
+    @app.get("/api/activities/{activity_id}/streams", response_model=ActivityStreams)
+    def api_activity_streams(activity_id: str) -> dict[str, Any]:
+        """Every sample of the activity, columnar, ordered by elapsed time.
+
+        Indoor activities are included; their `lat`/`lon` are all null.
+        """
+        cols = ("elapsed_s", "distance_m", "hr", "speed_mps", "cadence_spm",
+                "altitude_m", "lat", "lon")
+        with store() as st:
+            if not ov_mod.activity_exists(st, activity_id):
+                raise HTTPException(404, f"no activity {activity_id!r}")
+            rows = st.conn.execute(
+                f"SELECT {', '.join(cols)} FROM activity_samples "
+                "WHERE activity_id = ? ORDER BY elapsed_s",
+                (activity_id,),
+            ).fetchall()
+        out: dict[str, Any] = {"activity_id": activity_id, "sample_count": len(rows)}
+        for i, col in enumerate(cols):
+            out[col] = [r[i] for r in rows]
+        return out
 
     @app.get("/api/activities/{activity_id}/track")
     def api_activity_track(activity_id: str) -> dict[str, Any]:
@@ -568,15 +594,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- editing -------------------------------------------------------------
 
-    @app.get("/api/fields")
+    @app.get("/api/fields", response_model=FieldsResponse)
     def api_fields() -> dict[str, Any]:
         """The editable-field registry. The UI builds its editors from this."""
         return {"fields": fields_mod.fields_json(),
                 "activity_types": list(fields_mod.ACTIVITY_TYPES)}
 
-    @app.patch("/api/activities/{activity_id}")
+    @app.patch("/api/activities/{activity_id}", response_model=ActivityEditResult)
     def api_edit_activity(
-        activity_id: str, payload: dict[str, Any] = Body(...)
+        activity_id: str, payload: ActivityEditPayload = Body(...)
     ) -> dict[str, Any]:
         """Apply user edits. Writes only to `overrides`; a sync can never undo them."""
         with store() as st:

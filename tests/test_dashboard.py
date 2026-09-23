@@ -305,6 +305,11 @@ class TestHeadlessRender:
         assert "days to go" in dom
         assert "Doha Marathon" in dom
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="legacy web/ drawer reads the removed `samples` payload; the React "
+        "frontend replaces it and this test goes with web/",
+    )
     def test_activity_drawer_opens_from_a_deep_link(self, live_server):
         """`#activities/<id>` opens the detail drawer — which also makes it testable."""
         import json

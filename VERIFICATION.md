@@ -447,7 +447,7 @@ HTTP 200   1363 bytes
 ### Activity detail and the raw archive behind it
 
 ```
-$ curl -s 'http://127.0.0.1:8813/api/activities/seed-001147?samples=false'
+$ curl -s 'http://127.0.0.1:8813/api/activities/seed-001147'
 HTTP 200   2128 bytes
 {
   "activity": {
@@ -586,7 +586,7 @@ HTTP 200  1857 bytes  text/css; charset=utf-8
 | `/api/reports` | 200 | 12473 |
 | `/api/daily?days=7` | 200 | 2303 |
 | `/api/activities?limit=2&sort=trimp&order=desc` | 200 | 1363 |
-| `/api/activities/seed-001147?samples=false` | 200 | 2128 |
+| `/api/activities/seed-001147` | 200 | 2128 |
 | `/api/raw/activities/seed-001147` | 200 | 534 |
 | `/api/activities/does-not-exist` | 404 | 41 |
 | `/api/activities?sort=day;DROP+TABLE+activities` | 400 | 220 |

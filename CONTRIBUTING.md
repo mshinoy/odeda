@@ -50,8 +50,8 @@ derivation in a comment, not against whatever the code currently returns.
 
 ## Adding an editable field
 
-This is deliberately a one-line change. Add an entry to `FIELDS` in
-`garmin_analytics/db/fields.py`:
+Two lines: an entry in `FIELDS` in `garmin_analytics/db/fields.py`, and the matching
+attribute on `ActivityRow` in `garmin_analytics/api/schemas.py`:
 
 ```python
 EditableField(
@@ -63,8 +63,14 @@ EditableField(
 ),
 ```
 
-The `v_activities` view, the API schema, validation and the UI editor are all generated
-from that registry. `PRAGMA user_version` carries a fingerprint of it, so the view
+```python
+shoes_felt_flat: int | None = None
+```
+
+The `v_activities` view, validation and the UI editor are all generated from the
+registry. The response model is declared explicitly so the API only changes on purpose;
+`test_activity_row_declares_every_view_column` fails with the missing name if you forget
+it. Then run `npm run gen:api` in `frontend/` to pick it up in the TypeScript types. `PRAGMA user_version` carries a fingerprint of it, so the view
 rebuilds itself on next start. If you find yourself editing the view DDL by hand,
 something has gone wrong.
 
