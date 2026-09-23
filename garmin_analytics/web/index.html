@@ -527,6 +527,31 @@
           </div>
           <p class="hint" id="garmin-result"></p>
         </form>
+
+        <details id="garmin-browser">
+          <summary>Garmin refused the login? Sign in with your browser instead</summary>
+          <p class="hint">
+            Garmin decides whether a sign-in looks like a browser before it looks at your
+            password, and it often refuses servers outright. This route sidesteps that: your
+            own browser does the sign-in, and hands back a one-time ticket. No password
+            reaches this app.
+          </p>
+          <ol class="hint">
+            <li>Open the sign-in page and log in as usual, including any MFA.</li>
+            <li>The page goes blank — that is expected. The address bar now ends with
+              <code>?ticket=ST-…</code>.</li>
+            <li>Paste that whole address below. Tickets expire in minutes, so do it promptly.</li>
+          </ol>
+          <div class="filters">
+            <button type="button" class="ghost" id="garmin-signin-url">Open Garmin sign-in</button>
+          </div>
+          <label for="garmin-ticket">Address bar contents (or just the ST-… part)</label>
+          <input type="text" id="garmin-ticket" autocomplete="off" spellcheck="false">
+          <div class="filters">
+            <button type="button" class="primary" id="garmin-ticket-submit">Finish sign-in</button>
+          </div>
+          <p class="hint" id="garmin-ticket-result"></p>
+        </details>
       </div>
 
       <div class="card wide">

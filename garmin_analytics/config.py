@@ -95,7 +95,8 @@ def load_settings() -> Settings:
         data_dir=data_dir,
         db_path=db_path,
         raw_archive_dir=_env_path("GA_RAW_DIR", data_dir / "raw_archive"),
-        # garth's own default location; it writes token files here with 0600.
+        # garminconnect's own default; it writes garmin_tokens.json here, 0600
+        # inside a 0700 directory.
         token_dir=_env_path("GA_TOKEN_DIR", Path.home() / ".garminconnect"),
         hr_rest=int(os.environ.get("GA_HR_REST", DEFAULT_HR_REST)),
         hr_max=int(os.environ.get("GA_HR_MAX", DEFAULT_HR_MAX)),

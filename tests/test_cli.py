@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from garmin_analytics import cli, diagnostics
+from garmin_analytics.ingest import connect
 
 
 class TestParser:
@@ -177,7 +178,7 @@ class TestDoctor:
 
     def test_auth_check_reports_presence_and_mode_but_never_contents(self, settings):
         settings.token_dir.mkdir(parents=True, exist_ok=True)
-        token = settings.token_dir / "oauth2_token.json"
+        token = settings.token_dir / connect.TOKEN_FILENAME
         token.write_text('{"access_token": "SUPERSECRETVALUE"}')
         token.chmod(0o600)
         auth = [c for c in diagnostics.run_doctor(settings)["checks"]
@@ -188,7 +189,7 @@ class TestDoctor:
 
     def test_loose_token_permissions_are_flagged(self, settings):
         settings.token_dir.mkdir(parents=True, exist_ok=True)
-        token = settings.token_dir / "oauth1_token.json"
+        token = settings.token_dir / connect.TOKEN_FILENAME
         token.write_text("{}")
         token.chmod(0o644)
         auth = [c for c in diagnostics.run_doctor(settings)["checks"]
@@ -198,7 +199,7 @@ class TestDoctor:
 
     def test_no_token_value_appears_anywhere_in_the_report(self, settings):
         settings.token_dir.mkdir(parents=True, exist_ok=True)
-        (settings.token_dir / "oauth2_token.json").write_text('{"refresh_token": "LEAKME"}')
+        (settings.token_dir / connect.TOKEN_FILENAME).write_text('{"refresh_token": "LEAKME"}')
         assert "LEAKME" not in json.dumps(diagnostics.run_doctor(settings))
 
     def test_dashboard_assets_are_found(self, settings):
@@ -207,10 +208,17 @@ class TestDoctor:
         assert web["status"] == "ok"
         assert "no CDN" in web["detail"]
 
-    def test_garth_deprecation_is_surfaced(self, settings):
+    def test_the_garmin_client_reports_a_real_version(self, settings):
+        """garminconnect exposes no __version__ attribute, so doctor has to ask the
+        installer. A bare "?" here means a version pin nobody can check."""
         dep = [c for c in diagnostics.run_doctor(settings)["checks"]
-               if c["check"] == "dep:garth"][0]
-        assert "deprecated" in dep["detail"]
+               if c["check"] == "dep:garminconnect"][0]
+        assert dep["status"] == "ok"
+        assert dep["detail"][0].isdigit(), dep["detail"]
+
+    def test_garth_is_gone(self, settings):
+        checks = {c["check"] for c in diagnostics.run_doctor(settings)["checks"]}
+        assert "dep:garth" not in checks
 
 
 class TestMain:

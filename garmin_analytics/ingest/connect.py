@@ -1,9 +1,9 @@
-"""Garmin Connect ingestion, via `garth`.
+"""Garmin Connect ingestion, via `python-garminconnect`.
 
 Garmin has no self-serve API for individuals — the Connect Developer Program is
 enterprise-only — so this talks to the same private endpoints the mobile app uses,
-authenticated by `garth`'s SSO flow. That is unofficial and can break without notice.
-Consequences, honestly:
+authenticated by `garminconnect`'s SSO flow. That is unofficial and can break without
+notice. Consequences, honestly:
 
   * Endpoint paths are hard-coded literals in `ENDPOINTS` below. When Garmin moves one,
     exactly one dict entry changes.
@@ -12,7 +12,15 @@ Consequences, honestly:
   * Requests are paced (`REQUEST_DELAY_S`) and daily endpoints are fetched one calendar
     day at a time. Hammering this API gets accounts rate-limited.
 
-Credentials are never stored by this module. `garth` writes an OAuth token cache to the
+Why this library and not `garth`: Garmin fingerprints the client on the login route and
+answers anything script-shaped with 429/503, which is what got garth deprecated
+(matin/garth#222). Pinning one impersonation profile only moved the goalposts — the
+profile went stale and the 503 came back. `garminconnect` carries a cascading chain of
+five login strategies (iOS mobile over curl_cffi, mobile over requests, the sign-in
+widget, and two portal flows) and falls through to the next one on a rate-limit or a bot
+challenge, so a single edge change no longer takes the login down. See DECISIONS.md D3.
+
+Credentials are never stored by this module. The library writes a token cache to the
 token directory; this module chmods it to 0700/0600 and never logs its contents.
 """
 
@@ -22,11 +30,11 @@ import logging
 import os
 import re
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
+from urllib.parse import parse_qsl, quote
 
 from . import normalize as norm
 
@@ -43,6 +51,12 @@ class ConnectError(RuntimeError):
 
 class NotAuthenticated(ConnectError):
     pass
+
+
+class InvalidTicket(ConnectError, ValueError):
+    """Pasted text with no ticket in it. A `ValueError` as well as a `ConnectError`
+    so the API answers 400 — the user mispasted — instead of blaming Garmin with a
+    502, while `except ConnectError` in the CLI keeps working."""
 
 
 @dataclass(frozen=True)
@@ -109,74 +123,85 @@ FITNESS_ENDPOINTS = {"training_readiness", "training_status"}
 # Auth
 # ---------------------------------------------------------------------------
 
-# Chrome's TLS/HTTP2 fingerprint. Garmin's login edge answers 429 to anything that looks
-# like a script; see impersonating_transport().
-IMPERSONATE_PROFILE = "chrome"
+#: The library writes exactly this file inside the token directory. Named here rather
+#: than globbed so `logout` cannot be talked into deleting anything else on the volume.
+TOKEN_FILENAME = "garmin_tokens.json"
+
+#: The one authenticated client for this process. Every call goes through
+#: `_client()`, so a resumed session is reused instead of re-authenticating per request.
+_CLIENT: Any = None
 
 
-def _garth():
+def _garminconnect():
     try:
-        import garth  # imported lazily so the rest of the app works without it
+        import garminconnect  # imported lazily so the rest of the app works without it
     except ImportError as exc:  # pragma: no cover - environment problem, not logic
-        raise ConnectError("garth is not installed; run pip install -r requirements.txt") from exc
-    return garth
-
-
-@contextmanager
-def impersonating_transport() -> Iterator[None]:
-    """Give garth a browser-shaped TLS fingerprint for the duration of a login.
-
-    Garmin's edge fingerprints the client and answers the login route with 429 for
-    python-`requests` and plain curl alike — for any account, real or invented, which
-    is what makes it look like a dead endpoint or a blocked address. It is neither.
-    Measured from this host on 2026-09-23, one request after the other:
-
-        requests / curl   -> 429 Too Many Requests
-        curl_cffi(chrome) -> 401 INVALID_USERNAME_PASSWORD
-
-    Same URL, same body, same second. So the login works; it just has to look like a
-    browser. `curl_cffi` replays Chrome's TLS and HTTP/2 fingerprint, which is the same
-    approach python-garminconnect took when it dropped garth.
-
-    Scoped to login on purpose: the data endpoints are not fingerprinted, that path is
-    the one with years of verification behind it, and swapping its transport would put
-    all of it back in question to fix a problem it does not have.
-    """
-    garth = _garth()
-    try:
-        from curl_cffi import requests as curl_requests
-    except ImportError:  # pragma: no cover - dependency is pinned in requirements
         raise ConnectError(
-            "curl_cffi is not installed, and Garmin's login rejects plain HTTP clients "
-            "with 429. Run: pip install -r requirements.txt"
-        ) from None
+            "garminconnect is not installed; run pip install -r requirements.txt"
+        ) from exc
+    return garminconnect
 
-    original = garth.client.sess
-    session = curl_requests.Session(impersonate=IMPERSONATE_PROFILE)
-    session.headers.update(dict(original.headers))
-    garth.client.sess = session
-    try:
-        yield
-    finally:
-        garth.client.sess = original
-        try:
-            session.close()
-        except Exception:  # pragma: no cover - closing is best effort
-            pass
+
+def _client() -> Any:
+    """The authenticated client, or a clear error saying how to get one."""
+    if _CLIENT is None:
+        raise NotAuthenticated(
+            "No Garmin session in this process. Call resume() (or log in) first."
+        )
+    return _CLIENT
+
+
+def _new_client(**kwargs: Any) -> Any:
+    """A fresh client. `verify_login` stays on: a token the API tier rejects is no
+    token, and finding that out at login time beats finding out mid-backfill."""
+    return _garminconnect().Garmin(**kwargs)
+
+
+def _set_client(client: Any) -> None:
+    global _CLIENT
+    _CLIENT = client
+
+
+def token_file(token_dir: Path) -> Path:
+    return token_dir / TOKEN_FILENAME
 
 
 def token_dir_is_populated(token_dir: Path) -> bool:
-    return token_dir.is_dir() and any(token_dir.glob("oauth*token*.json"))
+    return token_file(token_dir).is_file()
 
 
 def secure_token_dir(token_dir: Path) -> None:
-    """0700 on the directory, 0600 on every file inside. Never log the contents."""
+    """0700 on the directory, 0600 on every file inside. Never log the contents.
+
+    The library already writes with those modes; this re-asserts them, which is what
+    makes a cache written by an older release (or restored from a backup) safe to keep.
+    """
     if not token_dir.exists():
         return
     os.chmod(token_dir, 0o700)
     for child in token_dir.iterdir():
         if child.is_file():
             os.chmod(child, 0o600)
+
+
+def _prepare_token_dir(token_dir: Path) -> None:
+    token_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(token_dir, 0o700)
+
+
+def _clear_token_file(token_dir: Path) -> None:
+    """Drop any cached tokens so a credential login really runs.
+
+    `Garmin.login(tokenstore=...)` resumes from the cache when one is there and only
+    falls back to the password. Someone re-running `login` is telling us the cache is
+    not good enough, so it goes first.
+    """
+    token_file(token_dir).unlink(missing_ok=True)
+
+
+def _save(client: Any, token_dir: Path) -> None:
+    client.client.dump(str(token_dir))
+    secure_token_dir(token_dir)
 
 
 def login(
@@ -187,19 +212,15 @@ def login(
 ) -> None:
     """Interactive SSO login. The password is used once and never stored or logged.
 
-    On success garth writes its OAuth1/OAuth2 token cache into `token_dir`; that cache
-    is what every later run resumes from, so `login` is a once-per-year operation.
+    On success the library writes its token cache into `token_dir`; that cache is what
+    every later run resumes from, so `login` is a once-per-year operation.
     """
-    garth = _garth()
-    token_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(token_dir, 0o700)
-    kwargs: dict[str, Any] = {}
-    if prompt_mfa is not None:
-        kwargs["prompt_mfa"] = prompt_mfa
-    with impersonating_transport():
-        garth.login(email, password, **kwargs)
-    garth.save(str(token_dir))
+    _prepare_token_dir(token_dir)
+    _clear_token_file(token_dir)
+    client = _new_client(email=email, password=password, prompt_mfa=prompt_mfa)
+    client.login(tokenstore=str(token_dir))
     secure_token_dir(token_dir)
+    _set_client(client)
 
 
 def begin_login(email: str, password: str, token_dir: Path) -> tuple[str, Any]:
@@ -210,58 +231,69 @@ def begin_login(email: str, password: str, token_dir: Path) -> tuple[str, Any]:
     `finish_login` along with the code from the user's authenticator.
 
     The password is used for this one call and is never stored, logged or echoed.
-    `client_state` is an in-flight auth context: it is held in memory by the caller
-    for a few minutes and must never be written to disk.
+    `client_state` is the in-flight client itself: the MFA challenge lives inside it,
+    so it is held in memory by the caller for a few minutes and must never be written
+    to disk.
     """
-    garth = _garth()
-    token_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(token_dir, 0o700)
-    with impersonating_transport():
-        result = garth.login(email, password, return_on_mfa=True)
-    if isinstance(result, tuple) and len(result) == 2 and result[0] == "needs_mfa":
-        return "mfa", result[1]
-    garth.save(str(token_dir))
-    secure_token_dir(token_dir)
-    return "ok", _display_name()
+    _prepare_token_dir(token_dir)
+    _clear_token_file(token_dir)
+    client = _new_client(email=email, password=password, return_on_mfa=True)
+    status, _ = client.login(tokenstore=str(token_dir))
+    if status == "needs_mfa":
+        return "mfa", client
+    _save(client, token_dir)
+    _set_client(client)
+    return "ok", _display_name(client)
 
 
 def finish_login(client_state: Any, code: str, token_dir: Path) -> str:
-    """Complete an MFA challenge started by `begin_login`. Returns the display name."""
-    garth = _garth()
-    from garth import sso
+    """Complete an MFA challenge started by `begin_login`. Returns the display name.
 
-    with impersonating_transport():
-        oauth1, oauth2 = sso.resume_login(client_state, str(code).strip())
-    garth.client.configure(oauth1_token=oauth1, oauth2_token=oauth2)
-    token_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(token_dir, 0o700)
-    garth.save(str(token_dir))
-    secure_token_dir(token_dir)
-    return _display_name()
+    `client_state` is the client `begin_login` returned — the pending challenge is held
+    on that instance, so finishing on a different one would just start over.
+    """
+    client = client_state
+    client.resume_login(None, str(code).strip())
+    _prepare_token_dir(token_dir)
+    _save(client, token_dir)
+    _set_client(client)
+    return _display_name(client)
 
 
-def _display_name() -> str:
-    garth = _garth()
-    profile = getattr(garth.client, "profile", None) or {}
-    return str(profile.get("displayName") or profile.get("userName") or "")
+#: The profile document that carries the display name. That name is the user key in
+#: half the endpoint paths, so nothing can sync until it is known.
+SOCIAL_PROFILE_PATH = "/userprofile-service/socialProfile"
+
+
+def _display_name(client: Any) -> str:
+    """The Connect display name, fetching the profile if the login left it unset.
+
+    A login that returns early on MFA skips the library's profile load, so the
+    attribute is empty on exactly the path the web setup screen takes.
+    """
+    name = getattr(client, "display_name", None)
+    if not name:
+        profile = client.connectapi(SOCIAL_PROFILE_PATH) or {}
+        name = profile.get("displayName") or profile.get("userName") if isinstance(profile, dict) else None
+        if name:
+            client.display_name = name
+    return str(name or "")
 
 
 # ---------------------------------------------------------------------------
 # Browser-ticket login
 # ---------------------------------------------------------------------------
 #
-# Garmin retired the mobile login endpoint garth posts to (`sso.garmin.com/mobile/api/
-# login`); it answers 429 to everyone, for any account, real or invented. Their web
-# sign-in now sets cookies from JavaScript that no plain HTTP client reproduces, which
-# is what garth's author cited when deprecating the library (matin/garth#222).
+# The password login is expected to work again now that the library cascades through
+# five strategies, so this is a fallback rather than the main road. It is kept because
+# it is the one path that does not depend on any of them: Garmin's edge can decide every
+# scripted login looks wrong, and a real browser still signs in.
 #
-# The half of the handshake that still works is the half after the browser: Garmin's CAS
-# hands out a service ticket (`ST-…`) on successful sign-in, and exchanging that ticket
-# for OAuth tokens is an ordinary API call that garth still implements correctly.
-#
-# So the browser does the part only a browser can do, and we do the rest. The user signs
-# in wherever they already have a session, copies the ticket out of the redirect URL, and
-# we exchange it here. No password ever reaches this process.
+# Garmin's CAS hands out a service ticket (`ST-…`) on successful sign-in, and exchanging
+# that ticket for tokens is an ordinary API call. So the browser does the part only a
+# browser can do, and we do the rest. The user signs in wherever they already have a
+# session, copies the ticket out of the redirect URL, and we exchange it here. No
+# password ever reaches this process.
 
 SIGNIN_URL = (
     "https://sso.garmin.com/sso/signin"
@@ -285,7 +317,7 @@ def extract_ticket(pasted: str) -> str:
     """
     match = _TICKET_RE.search((pasted or "").strip())
     if not match:
-        raise ConnectError(
+        raise InvalidTicket(
             "No Garmin ticket found in that text. After signing in, the address bar "
             "ends with `?ticket=ST-…` — paste that URL, or just the ST-… part."
         )
@@ -293,61 +325,106 @@ def extract_ticket(pasted: str) -> str:
 
 
 def login_with_ticket(ticket: str, token_dir: Path) -> str:
-    """Exchange a CAS service ticket for the OAuth token cache. Returns display name.
+    """Exchange a CAS service ticket for the token cache. Returns display name.
 
     Tickets are single-use and expire in minutes, so a failure here usually means the
     ticket was already spent or went stale, not that anything is misconfigured.
-    """
-    garth = _garth()
-    from garth.sso import exchange, get_oauth1_token
 
+    This reaches for the library's session-establishment internals: consuming a ticket
+    handed over by a human is not something its public surface offers, and the
+    alternative is reimplementing the DI token exchange here and owning that forever.
+    If an upgrade moves it, this raises and the password login is unaffected.
+    """
     ticket = extract_ticket(ticket)
-    client = garth.client
+    client = _new_client()
+    establish = getattr(client.client, "_establish_session", None)
+    if establish is None:  # pragma: no cover - only reachable on a library change
+        raise ConnectError(
+            "This garminconnect release no longer exposes ticket-based sign-in. "
+            "Use the email-and-password login instead."
+        )
     try:
-        oauth1 = get_oauth1_token(ticket, client)
-        oauth2 = exchange(oauth1, client)
+        establish(ticket)
     except Exception as exc:
         raise ConnectError(
             f"Garmin rejected the ticket ({exc}). Tickets are single-use and short-lived "
             "— sign in again to get a fresh one and exchange it straight away."
         ) from exc
 
-    client.configure(oauth1_token=oauth1, oauth2_token=oauth2)
-    token_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(token_dir, 0o700)
-    garth.save(str(token_dir))
-    secure_token_dir(token_dir)
-    return _display_name()
+    _prepare_token_dir(token_dir)
+    _save(client, token_dir)
+    _set_client(client)
+    return _display_name(client)
 
 
 def logout(token_dir: Path) -> int:
     """Delete the token cache. The only way to disconnect the Garmin account."""
-    removed = 0
-    if token_dir.is_dir():
-        for child in token_dir.glob("oauth*token*.json"):
-            child.unlink()
-            removed += 1
-    return removed
+    _set_client(None)
+    path = token_file(token_dir)
+    if not path.is_file():
+        return 0
+    path.unlink()
+    return 1
 
 
 def resume(token_dir: Path) -> str:
     """Restore a saved session. Returns the Connect display name (the API's user key)."""
-    garth = _garth()
     if not token_dir_is_populated(token_dir):
         raise NotAuthenticated(
             f"No Garmin token cache in {token_dir}. Run `garmin-analytics login` first."
         )
-    garth.resume(str(token_dir))
-    profile = getattr(garth.client, "profile", None) or {}
-    name = profile.get("displayName") or profile.get("userName")
+    client = _new_client()
+    try:
+        client.login(tokenstore=str(token_dir))
+    except Exception as exc:
+        raise NotAuthenticated(
+            f"The saved Garmin session in {token_dir} is no longer good ({exc}). "
+            "Run `garmin-analytics login` again."
+        ) from exc
+    # A refreshed token is worth keeping: the library rotates it on resume.
+    try:
+        _save(client, token_dir)
+    except Exception:  # pragma: no cover - a stale cache still works for this run
+        log.debug("could not rewrite the token cache; continuing with the live session")
+    _set_client(client)
+    name = _display_name(client)
     if not name:
         raise NotAuthenticated("Resumed a session but Garmin returned no display name.")
-    return str(name)
+    return name
 
 
 # ---------------------------------------------------------------------------
 # Transport
 # ---------------------------------------------------------------------------
+
+
+def split_query(path: str) -> tuple[str, dict[str, str] | None]:
+    """Separate `a/b?x=1` into `("a/b", {"x": "1"})`.
+
+    The library refuses a `?` inside an API path — query strings belong in `params`, and
+    it validates that to keep a crafted path from escaping the API host. `ENDPOINTS`
+    stores whole URLs because that is how they read in Garmin's own responses, so the
+    split happens here, once, instead of in every endpoint definition.
+    """
+    base, sep, query = path.partition("?")
+    if not sep:
+        return base, None
+    return base, dict(parse_qsl(query, keep_blank_values=True))
+
+
+def _status_of(exc: Exception) -> int | None:
+    """The HTTP status behind a library exception, whichever way it carries one."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status is not None:
+        return int(status)
+    gc = _garminconnect()
+    if isinstance(exc, gc.GarminConnectNotFoundError):
+        return 404
+    if isinstance(exc, gc.GarminConnectTooManyRequestsError):
+        return 429
+    if isinstance(exc, gc.GarminConnectAuthenticationError):
+        return 401
+    return None
 
 
 def fetch(path: str, retries: int = MAX_RETRIES, delay: float = REQUEST_DELAY_S) -> Any:
@@ -356,14 +433,15 @@ def fetch(path: str, retries: int = MAX_RETRIES, delay: float = REQUEST_DELAY_S)
     A 404 (no data for that day) is not an error: it returns None. That happens all the
     time — the watch was off the wrist, or the metric did not exist on that firmware.
     """
-    garth = _garth()
+    client = _client()
+    base, params = split_query(path)
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
             time.sleep(delay)
-            return garth.connectapi(path)
-        except Exception as exc:  # garth raises requests' HTTPError subclasses
-            status = getattr(getattr(exc, "response", None), "status_code", None)
+            return client.connectapi(base, params=params)
+        except Exception as exc:
+            status = _status_of(exc)
             if status in (404, 204):
                 return None
             if status == 429:
@@ -406,9 +484,13 @@ def sync_daily_endpoint(
     pending_fitness: list[dict[str, Any]] = []
     last_ok: str | None = None
 
+    # The display name goes into the URL path, so it is encoded rather than trusted:
+    # Garmin allows characters in it that would otherwise change which endpoint is hit.
+    user_key = quote(user, safe="")
+
     for d in daterange(start, end):
         day = d.isoformat()
-        path = endpoint.path.format(user=user, date=day)
+        path = endpoint.path.format(user=user_key, date=day)
         payload = fetcher(path)
         if on_day:
             on_day(day)

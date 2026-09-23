@@ -1,20 +1,33 @@
 #!/bin/sh
-# Install a garth token cache produced elsewhere (see garmin-login-local.py) into the
-# running container's data volume, then prove it works against the live API.
+# Install a garminconnect token cache produced elsewhere into the running container's
+# data volume, then prove it landed.
 #
 #   ./scripts/install-tokens.sh /tmp/garmin-tokens
 #
-# Needed because Garmin's SSO login route 429s datacenter IPs, so the login has to
-# happen on a residential connection. The data endpoints are not blocked, which is why
-# carrying the tokens over is enough.
+# Needed because Garmin refuses the login route from datacenter IPs — 429 on the mobile
+# routes, 403 Cloudflare on the portal ones — so the login has to happen somewhere with
+# a residential connection. The data endpoints are not blocked, which is why carrying
+# the token file over is enough.
+#
+# Produce the source directory on the other machine with:
+#   pip install garminconnect
+#   python -c 'from garminconnect import Garmin; import getpass; \
+#     g=Garmin(input("email: "), getpass.getpass()); g.login(); \
+#     g.client.dump("/tmp/garmin-tokens")'
 set -e
 
 SRC="${1:-/tmp/garmin-tokens}"
 CONTAINER="${GA_CONTAINER:-garmin-analytics}"
+TOKEN_FILE=garmin_tokens.json
 
-if [ ! -f "$SRC/oauth1_token.json" ]; then
-  echo "ERROR: $SRC/oauth1_token.json not found." >&2
-  echo "       Point this at the directory garmin-login-local.py wrote." >&2
+if [ ! -f "$SRC/$TOKEN_FILE" ]; then
+  echo "ERROR: $SRC/$TOKEN_FILE not found." >&2
+  if [ -f "$SRC/oauth1_token.json" ]; then
+    echo "       That directory holds a garth-era cache (oauth1/oauth2 tokens)." >&2
+    echo "       Those are a different format and no longer work — sign in again." >&2
+  else
+    echo "       Point this at the directory the login above wrote." >&2
+  fi
   exit 1
 fi
 
@@ -24,9 +37,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
 fi
 
 echo "Installing tokens into $CONTAINER:/data/tokens"
-for f in oauth1_token.json oauth2_token.json; do
-  [ -f "$SRC/$f" ] && docker cp "$SRC/$f" "$CONTAINER:/data/tokens/$f"
-done
+docker cp "$SRC/$TOKEN_FILE" "$CONTAINER:/data/tokens/$TOKEN_FILE"
 
 # The app runs unprivileged as uid 10001; docker cp lands files as root.
 docker exec -u 0 "$CONTAINER" sh -c \

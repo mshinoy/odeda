@@ -77,7 +77,7 @@ say ''
 open_block
 run uname -srmo
 run "$PY" --version
-run "$PY" -c "import garth, fitdecode, fastapi, uvicorn, sys; print('garth', garth.__version__); print('fitdecode', fitdecode.__version__); print('fastapi', fastapi.__version__); print('uvicorn', uvicorn.__version__)"
+run "$PY" -c "import garminconnect, fitdecode, fastapi, uvicorn; from importlib import metadata; print('garminconnect', metadata.version('garminconnect')); print('fitdecode', fitdecode.__version__); print('fastapi', fastapi.__version__); print('uvicorn', uvicorn.__version__)"
 run df -h /home
 close_block
 

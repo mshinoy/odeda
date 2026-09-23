@@ -6,11 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "garmin-analytics"
 version = "0.1.0"
 description = "Personal analytics over Garmin Connect data: training load, recovery trends, performance and race readiness."
-requires-python = ">=3.11"
+# 3.12 is garminconnect's floor; the image was already on 3.12.
+requires-python = ">=3.12"
 dependencies = [
-    "garth==0.8.0",
-    # Login only: Garmin's edge 429s python-requests on TLS fingerprint alone.
-    "curl_cffi==0.16.3",
+    # Garmin fingerprints the login route, so this cascades through five login
+    # strategies rather than betting on one profile. Pulls curl_cffi in itself.
+    "garminconnect==0.3.16",
     "fitdecode==0.11.0",
     "fastapi==0.141.1",
     "uvicorn[standard]==0.53.0",
@@ -27,7 +28,3 @@ garmin_analytics = ["db/*.sql", "web/*", "web/vendor/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-filterwarnings = [
-    # garth announces its own deprecation on import; we know (DECISIONS.md D3).
-    "ignore:Garth is deprecated.*:DeprecationWarning",
-]

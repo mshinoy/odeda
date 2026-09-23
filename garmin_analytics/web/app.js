@@ -121,7 +121,11 @@ async function send(method, path, body) {
   if (!res.ok) {
     let detail = res.statusText;
     try { detail = (await res.json()).detail || detail; } catch (_) { /* not JSON */ }
-    throw new Error(`${path} → ${res.status} ${detail}`);
+    const err = new Error(`${path} → ${res.status} ${detail}`);
+    // Carried so a caller can tell "you got it wrong" from "the server could not":
+    // the Garmin login shows a different way forward for each.
+    err.status = res.status;
+    throw err;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -1888,9 +1892,52 @@ async function connectGarmin(e) {
     }
   } catch (err) {
     result.textContent = String(err.message || err);
+    // A 503 is Garmin refusing this host, not a wrong password. Open the alternative
+    // rather than leaving them to retype a password that was never the problem.
+    if (err && err.status === 503) $('#garmin-browser').open = true;
   } finally {
     // The password is never kept around after the exchange, not even in the DOM.
     $('#garmin-password').value = '';
+    btn.disabled = false;
+    await refreshGarmin();
+  }
+}
+
+// --- browser sign-in ---------------------------------------------------------
+//
+// Garmin's own page does the part only a browser can do. What comes back is a
+// single-use CAS ticket, which the server exchanges for tokens. No password here.
+
+async function openGarminSignin() {
+  const { url } = await api('/api/garmin/signin-url');
+  const result = $('#garmin-ticket-result');
+  // Popup blockers are common and silent; say so rather than appearing to do nothing.
+  if (!window.open(url, '_blank', 'noopener')) {
+    result.textContent = 'Your browser blocked the popup. Open this address manually: ' + url;
+    return;
+  }
+  result.textContent = 'Sign in on the new tab, then paste the resulting address below.';
+}
+
+async function submitGarminTicket() {
+  const field = $('#garmin-ticket');
+  const result = $('#garmin-ticket-result');
+  const btn = $('#garmin-ticket-submit');
+  const ticket = field.value.trim();
+  if (!ticket) {
+    result.textContent = 'Paste the address bar contents first.';
+    return;
+  }
+  btn.disabled = true;
+  result.textContent = 'Exchanging the ticket…';
+  try {
+    const res = await send('POST', '/api/garmin/ticket', { ticket });
+    result.textContent = `Connected as ${res.display_name}.`;
+  } catch (err) {
+    result.textContent = String(err.message || err);
+  } finally {
+    // The ticket is a credential for as long as it lives. Do not leave it in the DOM.
+    field.value = '';
     btn.disabled = false;
     await refreshGarmin();
   }
@@ -2096,6 +2143,8 @@ async function boot() {
       await refreshGarmin();
     } catch (err) { showError(err); }
   });
+  $('#garmin-signin-url').addEventListener('click', () => openGarminSignin().catch(showError));
+  $('#garmin-ticket-submit').addEventListener('click', () => submitGarminTicket().catch(showError));
   $('#sync-start').addEventListener('click', async () => {
     try {
       await send('POST', '/api/sync/start', {});

@@ -13,8 +13,8 @@ What is protected, and how:
 * Sessions live in the database rather than in memory, so restarting the container
   (or `docker compose up -d` after an image change) does not log the user out.
 * The Garmin password is used for exactly one call — the token exchange — and is
-  never stored, logged or written anywhere. What persists is garth's OAuth token
-  cache, on the volume, mode 0600.
+  never stored, logged or written anywhere. What persists is the garminconnect
+  token cache, on the volume, mode 0600.
 """
 
 from __future__ import annotations
@@ -199,11 +199,10 @@ def garmin_status(settings) -> dict[str, Any]:
     connected = connect_mod.token_dir_is_populated(token_dir)
     newest = None
     if connected:
-        stamps = [p.stat().st_mtime for p in token_dir.glob("oauth*token*.json")]
-        if stamps:
-            newest = datetime.fromtimestamp(max(stamps), timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
+        stamp = connect_mod.token_file(token_dir).stat().st_mtime
+        newest = datetime.fromtimestamp(stamp, timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
     return {
         "connected": connected,
         "token_dir": str(token_dir),

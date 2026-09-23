@@ -1,7 +1,7 @@
 """Garmin's official "Export Your Data" ZIP (the GDPR export).
 
 This path needs no credentials and no unofficial API, which makes it the durable
-fallback if `garth` stops working. The trade-off is that the export takes Garmin a few
+fallback if the Connect login stops working. The trade-off is that the export takes Garmin a few
 days to produce and its internal layout changes.
 
 Because the layout changes, this parser does **not** hard-code file paths. It walks

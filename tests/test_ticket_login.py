@@ -1,11 +1,11 @@
-"""Browser-ticket login: the path that still works after Garmin retired mobile SSO.
+"""Browser-ticket login: the sign-in route that depends on no scripted login at all.
 
-Garmin's password endpoint (`sso.garmin.com/mobile/api/login`) now answers 429 to
-every caller, for accounts that do not exist as readily as for accounts that do —
-which is why garth was deprecated (matin/garth#222). Their web sign-in sets cookies
-from JavaScript, so a browser has to do that part; what it hands back is a CAS service
-ticket, and exchanging a ticket for OAuth tokens is a plain API call that still works,
-verified against Garmin on 2026-09-23 (an invalid ticket is answered 401, not 429).
+The password login is expected to work — `garminconnect` cascades through five
+strategies — but every one of them is Garmin's edge deciding a script looks acceptable,
+and that decision has changed twice already. A real browser signing in does not depend
+on it. What the browser hands back is a CAS service ticket, and exchanging a ticket for
+tokens is a plain API call (verified against Garmin on 2026-09-23: an invalid ticket is
+answered 401, not 429).
 
 These tests pin the half we own: getting the ticket out of whatever the user pasted,
 saving the cache with the right modes, and failing in a way that says what to do next.
@@ -39,54 +39,102 @@ class TestExtractTicket:
             connect.extract_ticket(junk)
         assert "ticket=ST-" in str(exc.value), "the error must show the shape to look for"
 
+    def test_a_mispaste_is_a_bad_request_not_an_upstream_failure(self):
+        """It reaches the API as 400. Answering 502 would tell someone who pasted the
+        wrong thing that Garmin is broken, and send them to wait it out."""
+        with pytest.raises(ValueError):
+            connect.extract_ticket("no ticket here")
+
+
+class FakeInner:
+    """Stands in for `garminconnect`'s Client: the ticket exchange needs a live
+    single-use ticket, so the network half is the part that gets faked."""
+
+    def __init__(self, on_ticket=None):
+        self.on_ticket = on_ticket
+        self.tickets: list[str] = []
+        self.dumped: list[str] = []
+
+    def _establish_session(self, ticket, sess=None, service_url=None):
+        self.tickets.append(ticket)
+        if self.on_ticket:
+            self.on_ticket(ticket)
+
+    def dump(self, path):
+        self.dumped.append(path)
+        target = Path(path) / connect.TOKEN_FILENAME
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps({"di_token": "x"}))
+
+
+class FakeGarmin:
+    def __init__(self, inner, display_name="shinoy"):
+        self.client = inner
+        self.display_name = display_name
+
+
+@pytest.fixture(autouse=True)
+def no_leaked_client():
+    """Every test starts and ends without a live session on the module."""
+    connect._set_client(None)
+    yield
+    connect._set_client(None)
+
 
 class TestLoginWithTicket:
-    """The exchange itself is stubbed — the real one needs a live single-use ticket."""
-
     def test_saves_the_token_cache_with_private_modes(self, tmp_path, monkeypatch):
         token_dir = tmp_path / "tokens"
-        saved: dict[str, str] = {}
-
-        class FakeClient:
-            profile = {"displayName": "shinoy"}
-
-            def configure(self, **kw):
-                saved["configured"] = sorted(kw)
-
-            def dump(self, path, /, oauth2_only=False):
-                pass
-
-        fake_garth = type("G", (), {
-            "client": FakeClient(),
-            "save": staticmethod(
-                lambda p: (Path(p) / "oauth1_token.json").write_text(json.dumps({"t": 1}))
-            ),
-        })()
-        monkeypatch.setattr(connect, "_garth", lambda: fake_garth)
-        monkeypatch.setattr("garth.sso.get_oauth1_token", lambda ticket, client: "oauth1")
-        monkeypatch.setattr("garth.sso.exchange", lambda oauth1, client: "oauth2")
+        inner = FakeInner()
+        monkeypatch.setattr(connect, "_new_client", lambda **kw: FakeGarmin(inner))
 
         name = connect.login_with_ticket("ST-5-abc-cas", token_dir)
 
         assert name == "shinoy"
-        assert saved["configured"] == ["oauth1_token", "oauth2_token"]
+        assert inner.tickets == ["ST-5-abc-cas"]
         assert (token_dir.stat().st_mode & 0o777) == 0o700
-        assert (token_dir / "oauth1_token.json").stat().st_mode & 0o777 == 0o600
+        assert (token_dir / connect.TOKEN_FILENAME).stat().st_mode & 0o777 == 0o600
+
+    def test_the_session_is_left_usable_for_the_sync_that_follows(
+        self, tmp_path, monkeypatch
+    ):
+        """Signing in and then being told to sign in again is the whole failure this
+        flow exists to avoid."""
+        inner = FakeInner()
+        client = FakeGarmin(inner)
+        monkeypatch.setattr(connect, "_new_client", lambda **kw: client)
+
+        connect.login_with_ticket("ST-5-abc-cas", tmp_path / "tokens")
+
+        assert connect._client() is client
 
     def test_a_rejected_ticket_explains_that_tickets_are_single_use(
         self, tmp_path, monkeypatch
     ):
-        def boom(ticket, client):
+        def boom(ticket):
             raise RuntimeError("401 Client Error: Unauthorized")
 
-        monkeypatch.setattr(connect, "_garth", lambda: type("G", (), {"client": object()})())
-        monkeypatch.setattr("garth.sso.get_oauth1_token", boom)
+        monkeypatch.setattr(
+            connect, "_new_client", lambda **kw: FakeGarmin(FakeInner(on_ticket=boom))
+        )
 
         with pytest.raises(connect.ConnectError) as exc:
             connect.login_with_ticket("ST-5-abc-cas", tmp_path / "tokens")
         message = str(exc.value)
         assert "single-use" in message and "sign in again" in message
         assert "401" in message, "keep Garmin's own words; guessing hides the real cause"
+
+    def test_a_library_that_drops_ticket_support_says_so(self, tmp_path, monkeypatch):
+        """`_establish_session` is the one internal this module reaches for. If an
+        upgrade moves it, the error has to name the way out, not raise AttributeError."""
+
+        class NoTickets:
+            pass
+
+        monkeypatch.setattr(connect, "_new_client", lambda **kw: FakeGarmin(NoTickets()))
+
+        with pytest.raises(connect.ConnectError) as exc:
+            connect.login_with_ticket("ST-5-abc-cas", tmp_path / "tokens")
+        assert "password" in str(exc.value)
 
 
 class TestSigninUrl:

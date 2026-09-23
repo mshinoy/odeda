@@ -18,19 +18,47 @@ is faster to load, easier to unit-test, and keeps the venv at ~100 MB on a disk 
 4.5 GB free. Every statistic (mean, sample stdev, EWMA, z-score) is written out
 explicitly in `analytics/`, which also makes the test fixtures hand-checkable.
 
-### D3 — `garth` is deprecated upstream; used anyway
-`garth==0.8.0` emits `DeprecationWarning: Garth is deprecated and no longer maintained`
-(matin/garth discussion #222). It still works and is what the spec names. Mitigations:
-all Connect calls go through one thin adapter (`ingest/connect.py`) that uses
-`garth.connectapi()` with literal endpoint paths, so swapping the transport means
-rewriting one file; and every payload is archived raw, so a future breakage costs new
-fetches, not historical data. Called out in README and HANDOVER.
+### D3 — `python-garminconnect`, after `garth` was deprecated and then failed
+Superseded twice, which is the point of writing it down.
 
-### D4 — raw-first via `garth.connectapi()`, not garth's typed models
-garth exposes typed dataclasses (`SleepData`, `DailyHRV`, …) that drop fields Garmin
-returns but garth doesn't model. The spec's non-negotiable #2 says never discard.
-So ingestion calls `connectapi()` and archives the verbatim JSON into `raw_documents`,
-then normalises out of that. Re-parsing never needs re-fetching.
+**First:** the spec named `garth==0.8.0`, which emits `DeprecationWarning: Garth is
+deprecated and no longer maintained` (matin/garth#222). Used anyway — it worked, and
+all Connect calls already went through one thin adapter.
+
+**Then (2026-09-23):** the login stopped working. Garmin fingerprints the client on the
+login route; measured from this host, same URL and body one second apart, `requests`
+and curl got 429 while `curl_cffi(chrome)` got a clean 401. So logins were sent over a
+Chrome-impersonating transport, scoped to the auth calls.
+
+**Then, the same day:** that came back as a 503. Pinning one impersonation profile is a
+bet that Garmin's edge keeps accepting that exact shape, and it is a bet that has to be
+re-won every time they change anything. So the bet is off. `garminconnect==0.3.16`
+carries five login strategies — iOS mobile over curl_cffi, mobile over requests, the
+sign-in widget, and two portal flows — and falls through to the next one on a rate
+limit or a bot challenge. Failing needs all five to fail; recovering needs an upstream
+release rather than a local guess. It also has no garth dependency at all, and is
+maintained.
+
+What the swap cost: the new client refuses a `?` inside an API path (query strings go
+in `params`, validated so a crafted path cannot escape the API host), so `fetch()`
+splits the two — see `connect.split_query`. Endpoint literals are unchanged. The token
+cache changed format and filename (`garmin_tokens.json`); an old garth cache does not
+read as connected, by design, so the failure lands on the setup screen rather than
+mid-sync. Python floor moved to 3.12, which is garminconnect's; the image was already
+there.
+
+**What it did not fix.** Verified from this host on 2026-09-23 with invented
+credentials: all five strategies failed — 429 on both mobile routes, 403 Cloudflare on
+both portal routes. That is Garmin blocking this IP, not the library. The browser-ticket
+login (D-ticket, below) is still the way in from this box. The migration bought a login
+that recovers on its own when the block lifts, not a way through the block.
+
+### D4 — raw-first via `connectapi()`, not the client's typed models
+Both garth and garminconnect expose typed models (`SleepData`, `DailyHRV`, …) that drop
+fields Garmin returns but the library does not model. The spec's non-negotiable #2 says
+never discard. So ingestion calls `connectapi()` and archives the verbatim JSON into
+`raw_documents`, then normalises out of that. Re-parsing never needs re-fetching — and
+it is why the library swap above did not touch a single stored row.
 
 ### D5 — TRIMP from HR-zone dwell times, falling back to average HR
 Banister TRIMP is exponential in heart-rate reserve, so applying it to a session's
@@ -83,8 +111,9 @@ to the documented and commonly-observed Connect shapes; the sync loop runs again
 injected fetcher rather than the network. The FIT path is the exception and is genuinely
 end-to-end: `tests/fitgen.py` *writes* a real FIT binary (header, definition and data
 messages, both CRCs) which the real `fitdecode` then parses — fitdecode cannot write,
-and there was no real file to borrow. `garth.login` is **not** exercised. Flagged in
-HANDOVER as the main unknown.
+and there was no real file to borrow. A real Garmin login is **not** exercised — the
+closest thing to it is the strategy-exhaustion probe recorded in D3, which reached
+Garmin's edge and was refused by it. Flagged in HANDOVER as the main unknown.
 
 ### D14 — activity sample streams are stored, downsampled to 10 s
 Full 1 Hz streams for 400 activities would be ~5 M rows. 10 s samples keep best-effort
@@ -260,10 +289,12 @@ and on the Settings tab. Forcing a password on someone running it on a laptop wo
 just make them set `APP_PASSWORD=x`.
 
 ### D37 — Garmin credentials go through the web UI, never through env or the image
-`garth 0.8.0` supports `login(..., return_on_mfa=True)`, which returns a client state
-instead of prompting on a TTY. That makes a real MFA pause possible in a browser. The
-in-flight state is held in memory with a 10-minute expiry and never written to disk —
-it is an auth context, not a preference. The password is used once and discarded;
+`garminconnect` supports `Garmin(..., return_on_mfa=True)`, which returns instead of
+prompting on a TTY. That makes a real MFA pause possible in a browser. The pending
+challenge lives on the client instance, so that instance *is* the in-flight state: it
+is held in memory with a 10-minute expiry and never written to disk — an auth context,
+not a preference. (One consequence: the two halves of an MFA login must reach the same
+worker process. Single-tenant, one uvicorn worker, so they do.) The password is used once and discarded;
 `.env.example` deliberately has no `GARMIN_PASSWORD` line to copy.
 
 ### D38 — backfill state lives in the database, not in the process

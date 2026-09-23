@@ -215,9 +215,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         except Exception as exc:
-            # Garmin retired the endpoint this path posts to; it answers 429 for every
-            # account, valid or invented. Say so, instead of leaving the user retyping
-            # a password that was never the problem (matin/garth#222).
+            # Tell the user which of the two failures this is: a credential Garmin
+            # looked at and rejected, or an edge that never looked. Retyping a
+            # password fixes only the first.
             if "401" in str(exc):
                 raise HTTPException(
                     401,
@@ -225,16 +225,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "for an unrecognised-device email from Garmin waiting for approval.",
                 ) from exc
             if "429" in str(exc):
-                # Garmin's edge fingerprints HTTP clients and 429s anything script-shaped.
-                # curl_cffi normally handles this (connect.impersonating_transport); seeing
-                # a 429 anyway means the profile has stopped being convincing.
+                # All five login strategies were rate-limited or bot-challenged. That
+                # is an edge decision about this host, not about the credentials, and
+                # it usually clears on its own within the hour.
                 raise HTTPException(
                     503,
-                    "Garmin refused the login without looking at the credentials — it "
-                    "does that to clients it does not think are a browser. The "
-                    "impersonation profile likely needs updating. The browser sign-in "
-                    "still works: GET /api/garmin/signin-url, then POST the ticket to "
-                    "/api/garmin/ticket.",
+                    "Garmin refused the login without looking at the credentials — every "
+                    "sign-in route it offers answered with a rate limit. That usually "
+                    "clears within the hour; if it does not, the browser sign-in avoids "
+                    "the blocked routes entirely: GET /api/garmin/signin-url, then POST "
+                    "the ticket to /api/garmin/ticket.",
                 ) from exc
             raise HTTPException(502, f"Garmin login failed: {exc}") from exc
 

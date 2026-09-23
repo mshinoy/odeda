@@ -469,13 +469,22 @@ class TestAuthHelpers:
         assert not connect.token_dir_is_populated(d)
         d.mkdir()
         assert not connect.token_dir_is_populated(d)
-        (d / "oauth2_token.json").write_text("{}")
+        (d / connect.TOKEN_FILENAME).write_text("{}")
         assert connect.token_dir_is_populated(d)
+
+    def test_a_leftover_garth_cache_does_not_read_as_connected(self, tmp_path):
+        """Those files are a different token format. Treating them as a session
+        would put the failure at the first sync instead of at the setup screen."""
+        d = tmp_path / "tokens"
+        d.mkdir()
+        (d / "oauth1_token.json").write_text("{}")
+        (d / "oauth2_token.json").write_text("{}")
+        assert not connect.token_dir_is_populated(d)
 
     def test_secure_token_dir_tightens_permissions(self, tmp_path):
         d = tmp_path / "tokens"
         d.mkdir(mode=0o755)
-        f = d / "oauth1_token.json"
+        f = d / connect.TOKEN_FILENAME
         f.write_text("{}")
         f.chmod(0o644)
         connect.secure_token_dir(d)

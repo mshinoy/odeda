@@ -11,13 +11,14 @@ import os
 import shutil
 import sqlite3
 import sys
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
 from . import __version__
 from .config import Settings, load_settings
 
-REQUIRED_MODULES = ["garth", "fitdecode", "fastapi", "uvicorn"]
+REQUIRED_MODULES = ["garminconnect", "fitdecode", "fastapi", "uvicorn"]
 OPTIONAL_MODULES = ["pytest", "httpx"]
 
 
@@ -27,7 +28,7 @@ def _check(name: str, status: str, detail: str, **extra: Any) -> dict[str, Any]:
 
 def check_python() -> dict[str, Any]:
     v = sys.version_info
-    ok = (v.major, v.minor) >= (3, 11)
+    ok = (v.major, v.minor) >= (3, 12)  # garminconnect's floor
     return _check(
         "python",
         "ok" if ok else "fail",
@@ -52,12 +53,15 @@ def check_dependencies() -> list[dict[str, Any]]:
         try:
             m = importlib.import_module(mod)
             version = getattr(m, "__version__", None) or getattr(
-                getattr(m, "version", None), "__version__", "?"
+                getattr(m, "version", None), "__version__", None
             )
-            note = ""
-            if mod == "garth":
-                note = " (deprecated upstream; see DECISIONS.md D3)"
-            out.append(_check(f"dep:{mod}", "ok", f"{version}{note}"))
+            if not version:
+                # garminconnect does not carry a module attribute; ask the installer.
+                try:
+                    version = metadata.version(mod)
+                except metadata.PackageNotFoundError:
+                    version = "?"
+            out.append(_check(f"dep:{mod}", "ok", f"{version}"))
         except ImportError:
             out.append(
                 _check(
@@ -156,11 +160,12 @@ def check_tokens(settings: Settings) -> dict[str, Any]:
             "(synthetic data works without it)",
             authenticated=False,
         )
-    files = sorted(p.name for p in d.glob("*token*.json"))
+    tokens = sorted(p for p in d.glob("*token*.json") if p.is_file())
+    files = [p.name for p in tokens]
     if not files:
         return _check("garmin auth", "warn", f"{d} exists but holds no token files",
                       authenticated=False)
-    modes = {p.name: oct(p.stat().st_mode & 0o777) for p in d.glob("*token*.json")}
+    modes = {p.name: oct(p.stat().st_mode & 0o777) for p in tokens}
     loose = [n for n, m in modes.items() if m not in ("0o600", "0o400")]
     return _check(
         "garmin auth",

@@ -99,6 +99,14 @@ class TestPageStructure:
         assert "no public API" in html
         assert "unofficial" in html
 
+    def test_the_browser_signin_fallback_is_reachable_from_settings(self, client):
+        """Garmin refuses the scripted login from some hosts outright, and on those
+        this is the only way in. An error message pointing at an API endpoint is not a
+        way in for someone using the web UI."""
+        html = client.get("/").text
+        for element in ("garmin-signin-url", "garmin-ticket", "garmin-ticket-submit"):
+            assert f'id="{element}"' in html
+
 
 class TestJsContract:
     """Every id app.js reaches for must exist, and every endpoint it calls must work."""

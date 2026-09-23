@@ -153,7 +153,7 @@ enterprise-only. So there are three routes in, in order of convenience:
 
 | Path | What it needs | What you get |
 |---|---|---|
-| `garth` (default) | Your Garmin login, via the web UI | Everything, including sleep, HRV, Body Battery, stress, training readiness |
+| Garmin Connect (default) | Your Garmin login, via the web UI | Everything, including sleep, HRV, Body Battery, stress, training readiness |
 | Official data export | Garmin's GDPR export ZIP, no credentials | Most of it, as a one-off |
 | `.fit` / `.gpx` / `.tcx` | The files themselves | Full per-second streams including GPS |
 
@@ -178,11 +178,19 @@ from the archive with no network access at all.
 
 Read this part.
 
-* **The Garmin client is unofficial.** [`garth`](https://github.com/matin/garth)
-  logs in as you through the same SSO flow the website uses. It is not a supported
-  API, it is arguably against Garmin's terms of service, and **it can break without
-  notice** when Garmin changes something. Upstream has also announced it is no longer
-  maintained. If ingestion stops working, that is the most likely reason.
+* **The Garmin client is unofficial.**
+  [`python-garminconnect`](https://github.com/cyberjunky/python-garminconnect) logs in
+  as you through the same SSO flow the website uses. It is not a supported API, it is
+  arguably against Garmin's terms of service, and **it can break without notice** when
+  Garmin changes something. If ingestion stops working, that is the most likely reason;
+  upgrading the pin is the first thing to try.
+* **Garmin may refuse to log you in from a server.** It decides whether a sign-in
+  looks like a browser before it looks at your password, and datacenter addresses get
+  429s and Cloudflare challenges. The client tries five different sign-in routes, so
+  this is rarer than it was, but it still happens — verified from one host on
+  2026-09-23, where all five were refused. When it does, use the browser sign-in
+  (Settings → Garmin account → *Garmin refused the login?*): it hands the app a ticket
+  your own browser earned, and does not depend on any scripted login working.
 * **Rate limits are real and undocumented.** A first full backfill of a multi-year
   account issues thousands of requests. Do not run it repeatedly; it is resumable
   precisely so that you do not have to.

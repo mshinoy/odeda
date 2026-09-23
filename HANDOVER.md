@@ -55,11 +55,12 @@ replaces it.
   press Connect again. The challenge expires after 10 minutes; if you miss it, just
   start over.
 * Your password is used for exactly one call — the token exchange — and is then
-  discarded. What gets stored is garth's OAuth token cache, on the Docker volume at
-  `/data/tokens`, mode 0600. It is never written into the image and never logged.
+  discarded. What gets stored is the garminconnect token cache, on the Docker volume at
+  `/data/tokens/garmin_tokens.json`, mode 0600. It is never written into the image and
+  never logged.
 * If it fails, the error from Garmin is shown verbatim. The most likely causes are a
   wrong password, an unrecognised-device email you need to approve first, or Garmin
-  having changed their SSO flow (see "What could not be tested" below).
+  refusing this host outright (below).
 
 You can also do this from the terminal if you prefer:
 
@@ -67,33 +68,44 @@ You can also do this from the terminal if you prefer:
 docker compose exec app garmin-analytics login
 ```
 
-### If login returns 429 Too Many Requests
+### If login returns 503 — or 429 on the CLI
 
-**Garmin fingerprints the HTTP client.** The login route answers 429 to python-`requests`
-and plain curl for any account, real or invented — which is why garth broke and was
-deprecated ([matin/garth#222](https://github.com/matin/garth/discussions/222)). Measured
-from one host on 2026-09-23, back to back, same URL and body:
+**Garmin decides whether a sign-in looks like a browser before it looks at the
+password.** The app uses `python-garminconnect`, which tries five different sign-in
+routes (iOS mobile twice, the sign-in widget, and two portal flows) and moves to the
+next one whenever Garmin rate-limits or bot-challenges it. A 503 from
+`/api/garmin/login` means **all five** were refused.
 
-| client | response |
+Measured from this host on 2026-09-23, with a deliberately invented account, so the
+credentials were never the variable:
+
+| strategy | response |
 | --- | --- |
-| `requests` / curl | `429 Too Many Requests` |
-| `curl_cffi` (chrome) | `401 INVALID_USERNAME_PASSWORD` |
+| mobile + curl_cffi | `429` IP rate limited |
+| mobile + requests | `429` IP rate limited |
+| widget + curl_cffi | sign-in page, unexpected title |
+| portal + curl_cffi | `403` Cloudflare bot challenge |
+| portal + requests | `403` Cloudflare bot challenge |
 
-So the login works; it has to look like a browser. This app sends the login over
-`curl_cffi`, which replays Chrome's TLS and HTTP/2 fingerprint — the same approach
-python-garminconnect took when it dropped garth. **Nothing extra to do: the password form
-works.** Data endpoints are not fingerprinted and keep the ordinary transport.
+Garmin is refusing this *address*, not this password. Two things actually help:
 
-A 429 today therefore means the impersonation profile has stopped convincing Garmin.
-Bump `IMPERSONATE_PROFILE` in `garmin_analytics/ingest/connect.py` to a newer browser, or
-use the browser sign-in below.
+1. **Wait.** The 429 is a rate limit and it lifts. Unlike the old single-profile
+   approach, nothing needs changing here for it to start working again — the next
+   attempt re-tries all five routes.
+2. **Use the browser sign-in below.** It does not depend on any scripted login
+   succeeding, which makes it the reliable route from a server.
 
-> Two earlier versions of this file got this wrong: first blaming datacenter IP
-> reputation, then a retired endpoint. Both fit the evidence that an invented account got
-> the same 429 — and neither was right. What separated them was changing *one variable at
-> a time*: same host, same body, same second, different HTTP library.
+Upgrading `garminconnect` is the other lever: new strategies land there, and the pin in
+`requirements.txt` is the only thing to change.
 
-### Browser sign-in (fallback, and for MFA-heavy setups)
+> Three earlier versions of this file got the cause wrong: datacenter IP reputation,
+> then a retired endpoint, then a stale TLS fingerprint. Each fit the evidence and each
+> was incomplete. What holds up is narrower: Garmin gates the login route on signals
+> that have nothing to do with the account, and the ones it uses change. A design that
+> has to guess which one is in force will keep breaking; one that tries several and
+> falls through does not.
+
+### Browser sign-in (fallback, and the reliable route from a server)
 
 Garmin's web sign-in hands back a service ticket that exchanges for OAuth tokens over an
 ordinary API call — verified from a server on 2026-09-23.
@@ -118,14 +130,15 @@ ordinary API call — verified from a server on 2026-09-23.
 Tickets are single-use and expire in minutes, so do step 3 promptly. If it fails, sign
 in again for a fresh one — a rejected ticket is almost never a configuration problem.
 
-The resulting OAuth1 token lasts about a year and silently refreshes the short-lived
-OAuth2 token, so this is a once-a-year chore.
+The resulting refresh token is long-lived and renews the short-lived access token by
+itself, so this is a rare chore rather than a routine one.
 
 The same flow over HTTP: `GET /api/garmin/signin-url`, then `POST /api/garmin/ticket`
 with `{"ticket": "…"}`.
 
-If you already hold a garth token cache from elsewhere, `scripts/install-tokens.sh
-<dir>` drops it into the volume with the right ownership and modes.
+If you already hold a `garmin_tokens.json` from elsewhere, `scripts/install-tokens.sh
+<dir>` drops it into the volume with the right ownership and modes. A token cache from
+the garth era is a different format and will not work — delete it and sign in again.
 
 **Needing no login at all:** Garmin's official data export. Request it in your Garmin
 account settings and `garmin-analytics import-zip` the archive when the email arrives.
@@ -252,10 +265,10 @@ docker compose logs --tail=100
 `doctor` reports versions, paths, row counts and endpoint health. It is the right
 thing to paste into an issue.
 
-**Most likely failure:** Garmin changed something and `garth` can no longer log in.
-`garth` is an unofficial client and upstream has announced it is no longer
-maintained. If that happens, the fallback with no credentials at all is Garmin's
-official data export:
+**Most likely failure:** Garmin changed something and `garminconnect` can no longer log
+in. It is an unofficial client talking to private endpoints; that is the deal. Upgrade
+the pin in `requirements.txt` first — this is exactly what upstream releases fix. If
+that does not help, the fallback with no login at all is Garmin's official data export:
 
 1. Request it at <https://www.garmin.com/en-US/account/datamanagement/exportdata/>
 2. `docker compose cp export.zip app:/data/export.zip`

@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from garmin_analytics.api import auth
 from garmin_analytics.api.server import create_app
+from garmin_analytics.ingest import connect
 
 
 class TestPassword:
@@ -193,7 +194,7 @@ class TestGarminConnection:
     def test_status_sees_a_token_cache(self, settings):
         token_dir = settings.token_dir
         token_dir.mkdir(parents=True, exist_ok=True)
-        (token_dir / "oauth1_token.json").write_text("{}")
+        (token_dir / connect.TOKEN_FILENAME).write_text("{}")
         s = auth.garmin_status(settings)
         assert s["connected"] is True
         assert s["tokens_updated_at"] is not None
@@ -219,7 +220,16 @@ class TestGarminConnection:
 
     def test_disconnect_removes_the_token_cache(self, settings):
         settings.token_dir.mkdir(parents=True, exist_ok=True)
-        (settings.token_dir / "oauth2_token.json").write_text("{}")
+        (settings.token_dir / connect.TOKEN_FILENAME).write_text("{}")
         out = auth.garmin_disconnect(settings)
         assert out["removed_files"] == 1
         assert out["connected"] is False
+
+    def test_disconnect_leaves_everything_else_on_the_volume_alone(self, settings):
+        """The token directory is a bind mount in the Docker deployment; disconnecting
+        an account is not a licence to delete whatever else is in it."""
+        settings.token_dir.mkdir(parents=True, exist_ok=True)
+        bystander = settings.token_dir / "notes.json"
+        bystander.write_text("{}")
+        auth.garmin_disconnect(settings)
+        assert bystander.exists()

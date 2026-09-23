@@ -1,7 +1,7 @@
 """Command line: login | sync | import-zip | import-fit | seed | serve | doctor | report.
 
 Credential handling rule, enforced here: the password is read with `getpass` from a tty
-and passed straight to `garth`. It is never an argument, never an environment variable
+and passed straight to the Garmin client. It is never an argument, never an environment variable
 read by this program, never echoed, and never written anywhere.
 """
 

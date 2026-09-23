@@ -12,7 +12,8 @@ are first-class requirements.
 
 - **Garmin has no self-serve API for individuals.** The Connect Developer Program (Health/Activity/
   Training API) is enterprise-only — confirmed 2026-09-17. Ingestion therefore uses:
-  1. `garth` (maintained Garmin Connect SSO client, MIT) — primary path, logs in as the user.
+  1. `python-garminconnect` (maintained Garmin Connect SSO client, MIT) — primary path, logs in
+     as the user. Originally specified as `garth`; see DECISIONS.md D3 for why that changed.
   2. Garmin's official "Export Your Data" ZIP (GDPR export) — offline path, no credentials.
   3. Raw `.fit` / `.gpx` / `.tcx` files — full per-second streams including GPS.
 - **Strava is not sufficient**: sleep, HRV, Body Battery, stress and training readiness never reach it.
@@ -58,7 +59,7 @@ garmin_analytics/
     schema.sql        # SQLite DDL + migrations table
     store.py
   ingest/
-    connect.py        # garth client: activities, sleep, HRV, RHR, body battery, stress,
+    connect.py        # Connect client: activities, sleep, HRV, RHR, body battery, stress,
                       #   steps, VO2max, training readiness/status, weight, gear
     details.py        # per-activity detail + GPS/HR/cadence/altitude streams
     export_zip.py     # Garmin official data-export ZIP parser
