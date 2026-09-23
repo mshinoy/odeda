@@ -36,15 +36,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-type ApiResult<T> =
-  | { data: T; error?: never; response: Response }
-  | { data?: never; error: unknown; response: Response };
+/** The shape every openapi-fetch call resolves to, success or not. */
+interface ApiResult {
+  data?: unknown;
+  error?: unknown;
+  response: Response;
+}
 
 /** Returns the response data, or throws ApiError for any non-2xx response. */
-export function unwrap<T>(result: ApiResult<T>): T {
+export function unwrap<R extends ApiResult>(result: R): Exclude<R["data"], undefined> {
   if (!result.response.ok) throw new ApiError(result.response.status, result.error);
-  // openapi-fetch fills `data` whenever the response is ok (undefined only for empty bodies).
-  return result.data as T;
+  // openapi-fetch fills `data` whenever the response is ok (undefined only for empty
+  // bodies, which none of our JSON endpoints return); TypeScript can't narrow on `ok`.
+  return result.data as Exclude<R["data"], undefined>;
 }
 
 /** A 401 outside /api/auth/* means the session expired: send the user to log in again. */

@@ -14,6 +14,11 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { "@": path.resolve(import.meta.dirname, "src") },
     },
+    // The build is served by FastAPI from the Python package (garmin_analytics/ui/).
+    build: {
+      outDir: path.resolve(import.meta.dirname, "../garmin_analytics/ui"),
+      emptyOutDir: true,
+    },
     server: {
       proxy: {
         "/api": { target: apiUrl, changeOrigin: true },
