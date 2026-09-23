@@ -2,8 +2,8 @@
 # Container-level verification, from a genuinely clean state.
 #
 # Everything here runs against the real image over HTTP — nothing is stubbed and
-# nothing is asserted that was not actually observed. The output is pasted verbatim
-# into VERIFICATION.md.
+# nothing is asserted that was not actually observed. Everything goes to stdout;
+# redirect it to keep a transcript.
 #
 #   ./scripts/verify_docker.sh            # full run, destroys and rebuilds the volume
 #
@@ -127,6 +127,14 @@ check "/api/summary without cookie"  "401" "$(code /api/summary)"
 check "/api/gear without cookie"     "401" "$(code /api/gear)"
 check "/ redirects to login"         "302" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")"
 check "/login is public"             "200" "$(code /login)"
+# The image builds the React UI itself, so an unbuilt UI here is a broken image.
+if curl -s "$BASE/login" | grep -q '<div id="root"'; then
+  ok "/login serves the SPA's index.html"
+else
+  bad "/login does not serve the SPA (UI missing from the image?)"
+fi
+UI_ASSET=$(curl -s "$BASE/login" | grep -o '/assets/[^"]*\.js' | head -1)
+check "SPA bundle is public"         "200" "$(code "$UI_ASSET")"
 
 WRONG=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
   -d '{"password":"definitely-not-it"}' "$BASE/api/auth/login")
@@ -139,6 +147,8 @@ RIGHT=$(curl -s -o /dev/null -w '%{http_code}' -c "$COOKIE_JAR" -X POST \
 check "correct password accepted"    "200" "$RIGHT"
 if grep -q 'ga_session' "$COOKIE_JAR"; then ok "session cookie issued"; else bad "no cookie"; fi
 check "/api/summary with cookie"     "200" "$(code /api/summary)"
+check "client route serves the SPA"  "200" "$(code /activities)"
+check "unknown API path is still 404" "404" "$(code /api/does-not-exist)"
 
 # ---------------------------------------------------------------------------
 hr "6. Every endpoint, against the running container"

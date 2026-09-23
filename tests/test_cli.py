@@ -150,7 +150,7 @@ class TestDoctor:
         payload = json.loads(capsys.readouterr().out)
         assert payload["overall"] in {"ok", "warn", "fail"}
         assert {c["check"] for c in payload["checks"]} >= {
-            "python", "venv", "disk", "garmin auth", "dashboard assets"}
+            "python", "venv", "disk", "garmin auth", "web ui"}
 
     def test_warns_about_a_missing_database(self, settings):
         result = diagnostics.run_doctor(settings)
@@ -202,11 +202,21 @@ class TestDoctor:
         (settings.token_dir / connect.TOKEN_FILENAME).write_text('{"refresh_token": "LEAKME"}')
         assert "LEAKME" not in json.dumps(diagnostics.run_doctor(settings))
 
-    def test_dashboard_assets_are_found(self, settings):
-        web = [c for c in diagnostics.run_doctor(settings)["checks"]
-               if c["check"] == "dashboard assets"][0]
-        assert web["status"] == "ok"
-        assert "no CDN" in web["detail"]
+    def test_a_built_ui_is_reported(self, settings, fake_ui):
+        from dataclasses import replace
+
+        ui = [c for c in diagnostics.run_doctor(replace(settings, ui_dir=fake_ui))["checks"]
+              if c["check"] == "web ui"][0]
+        assert ui["status"] == "ok" and ui["built"] is True
+
+    def test_a_missing_ui_build_is_a_warning_not_a_failure(self, settings, tmp_path):
+        """The API works without the SPA; an unbuilt frontend must not read as broken."""
+        from dataclasses import replace
+
+        ui = [c for c in diagnostics.run_doctor(replace(settings, ui_dir=tmp_path / "nope"))
+              ["checks"] if c["check"] == "web ui"][0]
+        assert ui["status"] == "warn" and ui["built"] is False
+        assert "npm run build" in ui["detail"]
 
     def test_the_garmin_client_reports_a_real_version(self, settings):
         """garminconnect exposes no __version__ attribute, so doctor has to ask the

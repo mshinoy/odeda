@@ -12,7 +12,7 @@ by running a full re-ingest over an edited activity and asserting the edit survi
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 from ..db.fields import FIELDS, FIELDS_BY_NAME, EditableField
 from ..db.store import Store, utcnow
@@ -178,18 +178,6 @@ def bulk_set(
     return {"field": name, "applied": applied, "missing": missing}
 
 
-def overridden_activity_ids(store: Store, name: str | None = None) -> list[str]:
-    """Which activities carry edits — used by the verification transcript."""
-    if name:
-        rows = store.query(
-            "SELECT DISTINCT activity_id FROM overrides WHERE field = ? ORDER BY activity_id",
-            (name,),
-        )
-    else:
-        rows = store.query("SELECT DISTINCT activity_id FROM overrides ORDER BY activity_id")
-    return [r["activity_id"] for r in rows]
-
-
 def stats(store: Store) -> dict[str, Any]:
     """Summary for the settings screen: how much of the data the user has corrected."""
     by_field = store.query(
@@ -203,7 +191,3 @@ def stats(store: Store) -> dict[str, Any]:
         "by_field": by_field,
         "fields": [f.to_json() for f in FIELDS],
     }
-
-
-def iter_fields() -> Iterable[EditableField]:
-    return FIELDS

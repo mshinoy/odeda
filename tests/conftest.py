@@ -31,6 +31,21 @@ def settings(tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def fake_ui(tmp_path):
+    """A stand-in for the React build (`npm run build` in frontend/), so tests never
+    depend on whether the real one has been built on this machine."""
+    ui = tmp_path / "ui"
+    (ui / "assets").mkdir(parents=True)
+    (ui / "index.html").write_text(
+        '<!doctype html><html><head><title>Garmin Analytics</title></head>'
+        '<body><div id="root" data-spa-index></div></body></html>'
+    )
+    (ui / "assets" / "index-abc123.js").write_text("console.log('spa');")
+    (ui / "favicon.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
+    return ui
+
+
+@pytest.fixture
 def store(settings):
     from garmin_analytics.db.store import Store
 

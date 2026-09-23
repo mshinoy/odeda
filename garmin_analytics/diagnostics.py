@@ -7,7 +7,6 @@ a token, a cookie or a credential — token checks report presence and file mode
 from __future__ import annotations
 
 import importlib
-import os
 import shutil
 import sqlite3
 import sys
@@ -176,14 +175,17 @@ def check_tokens(settings: Settings) -> dict[str, Any]:
     )
 
 
-def check_web(settings: Settings) -> dict[str, Any]:
-    web = settings.web_dir
-    needed = ["index.html", "app.js", "style.css", "vendor/uPlot.iife.min.js", "vendor/uPlot.min.css"]
-    missing = [n for n in needed if not (web / n).exists()]
+def check_ui(settings: Settings) -> dict[str, Any]:
+    """The React build. A warning when absent, never a failure: the API works without it."""
+    ui = settings.ui_dir
+    if (ui / "index.html").is_file():
+        return _check("web ui", "ok", f"{ui} (built)", built=True)
     return _check(
-        "dashboard assets",
-        "ok" if not missing else "fail",
-        f"{web}" + (f" — missing: {', '.join(missing)}" if missing else " (all present, no CDN)"),
+        "web ui",
+        "warn",
+        f"not built at {ui} — run `npm run build` in frontend/ "
+        "(the API serves without it)",
+        built=False,
     )
 
 
@@ -202,7 +204,7 @@ def run_doctor(settings: Settings | None = None) -> dict[str, Any]:
     checks.append(check_disk(settings))
     checks += check_database(settings)
     checks.append(check_tokens(settings))
-    checks.append(check_web(settings))
+    checks.append(check_ui(settings))
 
     worst = "ok"
     for c in checks:
@@ -219,6 +221,6 @@ def run_doctor(settings: Settings | None = None) -> dict[str, Any]:
             "data_dir": str(settings.data_dir),
             "db": str(settings.db_path),
             "token_dir": str(settings.token_dir),
-            "web": str(settings.web_dir),
+            "ui": str(settings.ui_dir),
         },
     }

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, timedelta
-from typing import Iterable, Mapping, Sequence
+from typing import Mapping, Sequence
 
 CTL_TAU_DAYS = 42
 ATL_TAU_DAYS = 7

@@ -8,7 +8,7 @@ Absolute values are useless here — everything is relative to the athlete's own
 from __future__ import annotations
 
 import math
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Sequence
 
 BASELINE_DAYS = 60
 Z_FLAG = 1.5  # |z| beyond this is surfaced as a deviation

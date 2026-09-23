@@ -36,7 +36,8 @@ fi
 # wants synthetic data appearing in a deployment they meant for real data.
 if [ "${GA_SEED_DEMO:-0}" = "1" ] && [ ! -f "$DB_PATH" ]; then
   echo "GA_SEED_DEMO=1 and no database yet — generating synthetic demo data."
-  echo "This is NOT your training. Connect a Garmin account on the Settings tab,"
+  echo "This is NOT your training. Connect a Garmin account with"
+  echo "  docker compose exec app garmin-analytics login"
   echo "then run a backfill to replace it."
   garmin-analytics seed --reset --months "${GA_SEED_MONTHS:-40}" || {
     echo "demo seeding failed; starting empty" >&2

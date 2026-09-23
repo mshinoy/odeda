@@ -6,7 +6,7 @@ tests/ can be hand-checked without a database or a FIT file.
 
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from typing import Sequence
 
 # Distances the best-effort extractor looks for, in metres.
 STANDARD_DISTANCES = [1000, 1609.34, 5000, 10000, 15000, 21097.5, 42195]

@@ -25,6 +25,12 @@ data/
 *.sqlite3
 raw_archive/
 
+# The React build, written by `npm run build` in frontend/ (served by FastAPI)
+garmin_analytics/ui/
+
+# scripts/verify.sh transcript
+verification.out
+
 # Python
 __pycache__/
 *.py[cod]

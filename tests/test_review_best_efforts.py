@@ -1,7 +1,8 @@
 """A bike ride is not a 5 k personal best.
 
-Found by the adversarial review pass; see REVIEW.md. Every test here failed against
-the code as first written.
+Found by the adversarial review pass of 2026-09-22 (DECISIONS.md D43; the review
+itself is in git history: `git show 0a9d297:REVIEW.md`). Every test here failed
+against the code as first written.
 """
 
 from __future__ import annotations

@@ -1,11 +1,38 @@
 # syntax=docker/dockerfile:1
 #
-# Two stages so the runtime image carries no compiler and no build cache.
-# Everything is pinned: the base by digest-friendly tag, the Python dependencies by
-# exact version in requirements.txt.
+# Three stages so the runtime image carries no compiler, no Node and no build cache.
+# Everything is pinned: the bases by digest-friendly tag, the Python dependencies by
+# exact version in requirements.txt, the JavaScript ones by package-lock.json.
 
 # ---------------------------------------------------------------------------
-# Stage 1 — build wheels
+# Stage 1 — build the React UI
+# ---------------------------------------------------------------------------
+FROM node:24-bookworm-slim AS ui
+
+# Mirrors the repo layout: vite.config.ts writes to ../garmin_analytics/ui, so from
+# /build/frontend the bundle lands in /build/garmin_analytics/ui.
+WORKDIR /build/frontend
+
+# Lockfile first, so a source change does not invalidate the npm ci layer.
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY frontend/ ./
+
+# Vite inlines VITE_* at build time; frontend/.env never enters the context, so these
+# arrive as build args (docker-compose.yml forwards them from the root .env). Compose
+# passes an unset variable as an empty string, so empty ones are unset rather than
+# handed to Vite, where "" would override the frontend's own default styles.
+ARG VITE_MAPBOX_TOKEN=
+ARG VITE_MAP_STYLE_LIGHT
+ARG VITE_MAP_STYLE_DARK
+RUN for v in VITE_MAPBOX_TOKEN VITE_MAP_STYLE_LIGHT VITE_MAP_STYLE_DARK; do \
+      eval "[ -n \"\${$v:-}\" ]" || unset "$v"; \
+    done \
+ && npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2 — build wheels
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS builder
 
@@ -20,10 +47,13 @@ RUN pip wheel --wheel-dir /wheels -r requirements.txt
 
 COPY pyproject.toml README.md ./
 COPY garmin_analytics ./garmin_analytics
-RUN pip wheel --wheel-dir /wheels --no-deps .
+# The built SPA goes inside the package, where package-data puts it into the wheel.
+COPY --from=ui /build/garmin_analytics/ui ./garmin_analytics/ui
+RUN test -f garmin_analytics/ui/index.html \
+ && pip wheel --wheel-dir /wheels --no-deps .
 
 # ---------------------------------------------------------------------------
-# Stage 2 — runtime
+# Stage 3 — runtime
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS runtime
 

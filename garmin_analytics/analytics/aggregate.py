@@ -17,9 +17,8 @@ whole tab can be driven by one filter bar.
 from __future__ import annotations
 
 import math
-import statistics
-from datetime import date, datetime, timedelta
-from typing import Any, Sequence
+from datetime import date, datetime
+from typing import Any
 
 from ..db.store import Store
 from . import performance as perf

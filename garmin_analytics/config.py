@@ -40,15 +40,6 @@ def _xdg_data_home() -> Path:
     return _env_path("XDG_DATA_HOME", Path.home() / ".local" / "share")
 
 
-# --- Map tiles -----------------------------------------------------------------------
-# The one documented runtime call off this machine. Application assets (Leaflet, uPlot,
-# CSS, fonts) are all vendored; only the raster map tiles are fetched, and only when a
-# map is actually on screen. Point GA_TILE_URL at your own tile server to remove even
-# that, or leave the map tab unopened and the app makes no external request at all.
-DEFAULT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-DEFAULT_TILE_ATTRIBUTION = "© OpenStreetMap contributors"
-
-
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.environ.get(name)
     if raw is None:
@@ -71,12 +62,9 @@ class Settings:
     #: Set GA_COOKIE_SECURE=1 when serving over HTTPS (behind a reverse proxy).
     cookie_secure: bool = False
     session_ttl_days: int = 30
-    tile_url: str = DEFAULT_TILE_URL
-    tile_attribution: str = DEFAULT_TILE_ATTRIBUTION
-
-    @property
-    def web_dir(self) -> Path:
-        return Path(__file__).resolve().parent / "web"
+    #: Where the React SPA's production build lands (`npm run build` in frontend/).
+    #: A build artifact, not source: absent in a fresh clone, and the API runs without it.
+    ui_dir: Path = Path(__file__).resolve().parent / "ui"
 
     @property
     def schema_path(self) -> Path:
@@ -104,6 +92,4 @@ def load_settings() -> Settings:
         app_password=os.environ.get("APP_PASSWORD", "").strip(),
         cookie_secure=_env_bool("GA_COOKIE_SECURE", False),
         session_ttl_days=int(os.environ.get("GA_SESSION_DAYS", 30)),
-        tile_url=os.environ.get("GA_TILE_URL", DEFAULT_TILE_URL),
-        tile_attribution=os.environ.get("GA_TILE_ATTRIBUTION", DEFAULT_TILE_ATTRIBUTION),
     )

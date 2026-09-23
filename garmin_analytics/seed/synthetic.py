@@ -25,7 +25,6 @@ import math
 import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from typing import Iterable, Sequence
 
 from ..analytics import load as load_mod
 from ..analytics import performance as perf

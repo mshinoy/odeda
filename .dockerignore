@@ -36,6 +36,15 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 
+# Frontend: the image runs its own `npm ci` and `npm run build`, so no host
+# node_modules, stale build output or local Vite env reaches the context.
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+garmin_analytics/ui/
+
 # Not needed at runtime
 tests/
 docs/

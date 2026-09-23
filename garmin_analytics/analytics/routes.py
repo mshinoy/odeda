@@ -198,10 +198,6 @@ def track_rows(store: Store, activity_id: str) -> list[dict[str, Any]]:
     )
 
 
-def track_points(store: Store, activity_id: str) -> list[tuple[float, float]]:
-    return [(float(r["lat"]), float(r["lon"])) for r in track_rows(store, activity_id)]
-
-
 def gps_activity_ids(store: Store, activity_type: str | None = None) -> list[str]:
     """Activities that actually have a usable track, oldest first."""
     sql = (

@@ -108,11 +108,11 @@ class TestSessions:
 
 class TestGate:
     @pytest.fixture
-    def protected(self, seeded_db, monkeypatch):
+    def protected(self, seeded_db, fake_ui):
         """An app with a password set, and a fresh client."""
         from dataclasses import replace
 
-        settings = replace(seeded_db, app_password="test-gate-password")
+        settings = replace(seeded_db, app_password="test-gate-password", ui_dir=fake_ui)
         app = create_app(settings)
         client = TestClient(app, follow_redirects=False)
         yield client
@@ -139,7 +139,7 @@ class TestGate:
         assert protected.get("/api/health").status_code == 200
         assert protected.get("/api/auth/status").status_code == 200
         assert protected.get("/login").status_code == 200
-        assert protected.get("/static/style.css").status_code == 200
+        assert protected.get("/assets/index-abc123.js").status_code == 200
 
     def test_wrong_password_is_rejected(self, protected):
         assert protected.post("/api/auth/login", json={"password": "nope"}).status_code == 401

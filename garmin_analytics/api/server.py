@@ -1,4 +1,4 @@
-"""FastAPI app: JSON endpoints, the session gate, and the static dashboard.
+"""FastAPI app: JSON endpoints, the session gate, and the built React SPA.
 
 A fresh `Store` (and therefore a fresh sqlite3 connection) is opened per request.
 sqlite3 connections are not safe to share across threads, and opening one is
@@ -15,16 +15,22 @@ up everywhere at once.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import threading
 import time
 from datetime import date, datetime
 from typing import Any, Callable
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .. import __version__, config
 from ..analytics import aggregate as agg_mod
@@ -55,7 +61,12 @@ CACHE_TTL_S = 30.0
 _cache: dict[str, tuple[float, float, Any]] = {}
 
 #: Paths reachable without a session. Everything else is gated when a password is set.
-PUBLIC_PREFIXES = ("/static/", "/api/health", "/api/auth/", "/login", "/favicon")
+#: `/login` is an SPA route: the fallback serves index.html and React draws the form.
+PUBLIC_PREFIXES = ("/assets/", "/api/health", "/api/auth/", "/login", "/favicon")
+
+UI_NOT_BUILT = (
+    "UI not built. Run `npm run build` in frontend/ (or `npm run dev` for development).\n"
+)
 
 
 def _db_mtime(settings: Settings) -> float:
@@ -900,7 +911,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Kick off a full backfill in the background. Safe to call after a crash."""
         if not auth_mod.garmin_status(settings)["connected"]:
             raise HTTPException(
-                409, "no Garmin account connected; sign in on the Settings tab first"
+                409, "no Garmin account connected; run `garmin-analytics login` first"
             )
         if job.running:
             raise HTTPException(409, "a sync is already running")
@@ -942,8 +953,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "peak_ctl": config.TARGET_PEAK_CTL,
                 "peak_weekly_km": config.TARGET_PEAK_WEEKLY_KM,
             },
-            "map": {"tile_url": settings.tile_url,
-                    "attribution": settings.tile_attribution},
             "auth_required": app.state.auth_required,
             "version": __version__,
         }
@@ -970,21 +979,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 }
             )
 
-    # -- static dashboard ----------------------------------------------------
-
-    web = settings.web_dir
-    if web.is_dir():
-        app.mount("/static", StaticFiles(directory=str(web)), name="static")
-
-        @app.get("/login")
-        def login_page() -> FileResponse:
-            return FileResponse(str(web / "login.html"))
-
-        @app.get("/")
-        def index() -> FileResponse:
-            return FileResponse(str(web / "index.html"))
+    # -- the SPA -------------------------------------------------------------
+    # Last, and only for what no route matched: /api, /openapi.json and /docs win.
+    _mount_ui(app, settings)
 
     return app
+
+
+def _mount_ui(app: FastAPI, settings: Settings) -> None:
+    """Serve the React build: hashed bundles under /assets, index.html for the rest.
+
+    Client-side routing means `/activities/123` is a page the server has never heard
+    of, so a GET that matched no route, is not under /api/ or /assets/, and is not a
+    real top-level file of the build gets index.html and the router takes it from
+    there. It is a 404 handler rather than a catch-all route on purpose: a route
+    would match every path, turning a POST to a mistyped endpoint into a 405 and a
+    GET on a POST-only endpoint into a 404. As a handler, the API's own status codes
+    are untouched, and a mistyped `/api/...` stays a JSON 404 rather than a 200 of
+    HTML. A missing `/assets/...` chunk stays a 404 too, not HTML under a .js name.
+    """
+    ui = settings.ui_dir.resolve()
+    index = ui / "index.html"
+    built = index.is_file()
+    if built and (ui / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=str(ui / "assets")), name="assets")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def spa_fallback(request: Request, exc: StarletteHTTPException) -> Response:
+        path = request.url.path
+        if (
+            exc.status_code != 404
+            or request.method not in ("GET", "HEAD")
+            or path == "/api"
+            or path.startswith(("/api/", "/assets/"))
+        ):
+            return await http_exception_handler(request, exc)
+        if not built:
+            return PlainTextResponse(UI_NOT_BUILT, status_code=503)
+        name = path.lstrip("/")
+        if name and "/" not in name:
+            candidate = (ui / name).resolve()
+            # resolve() folds away any `..` or symlink; the parent check is what
+            # actually keeps a crafted path inside the build directory.
+            if candidate.parent == ui and candidate.is_file():
+                return FileResponse(str(candidate))
+        # index.html names the hashed bundles, so it must be revalidated after a
+        # rebuild; the bundles themselves are immutable by name.
+        return FileResponse(str(index), headers={"Cache-Control": "no-cache"})
 
 
 def _splits(samples: list[dict[str, Any]], split_m: float = 1000.0) -> list[dict[str, Any]]:

@@ -12,7 +12,7 @@ import getpass
 import json
 import logging
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -205,7 +205,7 @@ def cmd_seed(args: argparse.Namespace) -> int:
         f"best_efforts={counts['best_efforts']}  routes={counts.get('routes', 0)}  "
         f"gear={counts.get('gear', 0)}"
     )
-    print("  This data is SYNTHETIC. `doctor` and the dashboard both say so.")
+    print("  This data is SYNTHETIC. `doctor` and /api/health both say so.")
     _emit(counts, args.json)
     return 0
 
@@ -271,12 +271,12 @@ def cmd_serve(args: argparse.Namespace) -> int:
     settings = load_settings()
     if not settings.db_path.exists():
         # A fresh install with demo seeding off has no database yet, and that is the
-        # documented path to real data (HANDOVER step 3). Refusing to start here left
-        # the container crash-looping with no way to reach Settings → Garmin account,
-        # which is the one page that can fix it. Create the schema and serve empty.
+        # documented path to real data. Refusing to start here left the container
+        # crash-looping before anyone could run `login` and a backfill, the only way to
+        # give it data. Create the schema and serve empty.
         _store().close()
         print(f"No database yet — created an empty one at {settings.db_path}.")
-        print("Connect a Garmin account on the Settings tab, then run a backfill.")
+        print("Connect a Garmin account with `garmin-analytics login`, then run a backfill.")
     print(f"Dashboard: http://{args.host}:{args.port}/   (db: {settings.db_path})")
     uvicorn.run(
         "garmin_analytics.api.server:create_app",
@@ -443,7 +443,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--end", help="last day, ISO date (default today)")
     sp.add_argument("--reset", action="store_true", help="wipe existing rows first")
 
-    sp = add("serve", cmd_serve, "run the API and dashboard")
+    sp = add("serve", cmd_serve, "run the API and the web UI")
     sp.add_argument("--host", default="127.0.0.1")
     sp.add_argument("--port", type=int, default=8808)
     sp.add_argument("--reload", action="store_true")

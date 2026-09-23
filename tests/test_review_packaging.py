@@ -1,7 +1,8 @@
 """Open-source hygiene: a clean clone contains what the README tells you to use.
 
-Found by the adversarial review pass; see REVIEW.md. Every test here failed against
-the code as first written.
+Found by the adversarial review pass of 2026-09-22 (DECISIONS.md D43; the review
+itself is in git history: `git show 0a9d297:REVIEW.md`). Every test here failed
+against the code as first written.
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ def test_real_env_is_still_ignored_and_uncommitted():
 
 def test_env_example_documents_every_setting_the_readme_promises():
     text = (REPO / ".env.example").read_text()
-    for key in ("APP_PASSWORD", "GA_COOKIE_SECURE", "GA_SEED_DEMO", "GA_TILE_URL",
+    for key in ("APP_PASSWORD", "GA_COOKIE_SECURE", "GA_SEED_DEMO",
                 "GA_HR_REST", "GA_HR_MAX", "TZ"):
         assert key in text, f"{key} is undocumented in .env.example"
 

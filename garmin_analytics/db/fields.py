@@ -18,7 +18,7 @@ needs to change.
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass, field as dc_field
+from dataclasses import dataclass
 from typing import Any, Sequence
 
 #: Activity types offered in the type dropdown. These are the values

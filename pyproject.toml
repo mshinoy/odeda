@@ -24,7 +24,9 @@ garmin-analytics = "garmin_analytics.cli:main"
 include = ["garmin_analytics*"]
 
 [tool.setuptools.package-data]
-garmin_analytics = ["db/*.sql", "web/*", "web/vendor/*"]
+# ui/ is the React build (`npm run build` in frontend/), gitignored; a wheel built
+# without it still installs and serves the API, and says how to build the UI.
+garmin_analytics = ["db/*.sql", "ui/*", "ui/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

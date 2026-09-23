@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
+from typing import Any, Callable, Iterator, Sequence
 from urllib.parse import parse_qsl, quote
 
 from . import normalize as norm

@@ -1,7 +1,7 @@
 """Every API endpoint, through FastAPI's TestClient.
 
-The curl transcript in VERIFICATION.md exercises the same routes against a live
-uvicorn; this file is the version that runs in CI and asserts on shapes.
+`scripts/verify.sh` curls the same routes against a live uvicorn; this file is the
+version that runs in CI and asserts on shapes.
 """
 
 from __future__ import annotations
@@ -18,11 +18,13 @@ def client(seeded_db):
 
 
 @pytest.fixture
-def empty_client(settings):
+def empty_client(settings, fake_ui):
+    from dataclasses import replace
+
     from garmin_analytics.db.store import Store
 
     Store.open(settings).close()      # create the schema, leave it empty
-    return TestClient(create_app(settings))
+    return TestClient(create_app(replace(settings, ui_dir=fake_ui)))
 
 
 class TestHealthAndMeta:
@@ -350,21 +352,6 @@ class TestRawArchive:
 
     def test_unknown_reference_is_404(self, client):
         assert client.get("/api/raw/activities/nope").status_code == 404
-
-
-class TestStaticAssets:
-    def test_index_is_served(self, client):
-        res = client.get("/")
-        assert res.status_code == 200
-        assert "Garmin Analytics" in res.text
-
-    @pytest.mark.parametrize("path", [
-        "/static/app.js", "/static/style.css",
-        "/static/vendor/uPlot.iife.min.js", "/static/vendor/uPlot.min.css",
-    ])
-    def test_assets_are_served_locally(self, client, path):
-        res = client.get(path)
-        assert res.status_code == 200 and len(res.content) > 100
 
 
 class TestEmptyDatabase:

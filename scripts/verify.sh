@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Full end-to-end verification, from an empty database to a rendered dashboard.
-# Writes VERIFICATION.md at the repo root. Everything in that file is captured
-# output — nothing is written by hand.
+# Full end-to-end verification, from an empty database to a served web UI.
+# Writes a Markdown transcript to verification.out at the repo root (gitignored;
+# override with GA_VERIFY_OUT). Everything in it is captured output — nothing is
+# written by hand.
 #
 #   ./scripts/verify.sh
 #
@@ -10,7 +11,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT/VERIFICATION.md"
+OUT="${GA_VERIFY_OUT:-$ROOT/verification.out}"
 PY="$ROOT/.venv/bin/python"
 PORT="${GA_VERIFY_PORT:-8813}"
 BASE="http://127.0.0.1:$PORT"
@@ -184,13 +185,27 @@ say "# still serving after the injection attempt:"
 hit "/api/health" 3
 close_block
 
-say '### Static assets (all local — no CDN)'
+say '### The web UI (the React build, served by FastAPI)'
 say ''
 open_block
-for p in / /static/app.js /static/style.css /static/vendor/uPlot.iife.min.js /static/vendor/uPlot.min.css; do
-  say "\$ curl -sI $BASE$p"
-  curl -s -o /dev/null -w 'HTTP %{http_code}  %{size_download} bytes  %{content_type}\n' "$BASE$p" >> "$OUT"
-done
+if [ -f "$ROOT/garmin_analytics/ui/index.html" ]; then
+  # A client-side route the server has never heard of must still get the SPA's
+  # index.html, and the bundle that index names must be served from /assets/.
+  ASSET="$(grep -o '/assets/[^"]*\.js' "$ROOT/garmin_analytics/ui/index.html" | head -1)"
+  for p in / /activities "/activities/$AID" "$ASSET" /api/does-not-exist; do
+    say "\$ curl -sI $BASE$p"
+    curl -s -o /dev/null -w 'HTTP %{http_code}  %{size_download} bytes  %{content_type}\n' "$BASE$p" >> "$OUT"
+  done
+  if curl -s "$BASE/activities/$AID" | cmp -s - "$ROOT/garmin_analytics/ui/index.html"; then
+    say "/activities/$AID serves the built index.html: yes"
+  else
+    say "/activities/$AID serves the built index.html: NO"
+  fi
+else
+  say 'garmin_analytics/ui/ is not built (npm run build in frontend/), so / answers 503:'
+  say "\$ curl -s $BASE/"
+  curl -s -w '\nHTTP %{http_code}\n' "$BASE/" >> "$OUT"
+fi
 say ''
 close_block
 
@@ -203,44 +218,7 @@ for row in "${ENDPOINT_ROWS[@]}"; do say "$row"; done
 say ''
 
 # ---------------------------------------------------------------------------
-say '## 8. Dashboard render (headless Chromium)'
-say ''
-CHROME="$(command -v chromium-browser || command -v chromium || command -v google-chrome || true)"
-if [ -n "$CHROME" ]; then
-  say "Chromium was already installed on this machine (\`$CHROME\`); nothing was"
-  say "downloaded to produce this section."
-  say ''
-  open_block
-  for tab in overview load recovery activities performance race "activities/$AID"; do
-    DOM="$(timeout 150 "$CHROME" --headless --disable-gpu --no-sandbox \
-            --virtual-time-budget=9000 --dump-dom "$BASE/#$tab" 2>/dev/null)"
-    say "\$ chromium --headless --dump-dom '$BASE/#$tab'"
-    printf '%s' "$DOM" | "$PY" -c "
-import re, sys
-dom = sys.stdin.read()
-print(f'  DOM bytes         {len(dom)}')
-print(f'  JS bootstrapped   {\"yes\" if chr(100)+chr(97)+chr(116)+chr(97)+chr(45)+chr(114)+chr(101)+chr(97)+chr(100)+chr(121)+chr(61)+chr(34)+chr(49)+chr(34) in dom else \"NO\"}')
-print(f'  uPlot canvases    {dom.count(chr(60)+chr(99)+chr(97)+chr(110)+chr(118)+chr(97)+chr(115))}')
-print(f'  table rows        {dom.count(chr(60)+chr(116)+chr(114))}')
-err = 'banner error show' in dom
-print(f'  error banner      {\"PRESENT\" if err else \"none\"}')
-m = re.search(r'class=\"figure\">([^<]+)<', dom)
-print(f'  hero figure       {m.group(1) if m else chr(45)}')
-if 'Kilometre splits' in dom:
-    print('  drawer sections   zones, HR, pace, splits, best efforts')
-" >> "$OUT" 2>&1
-    say ''
-  done
-  close_block
-else
-  say 'No Chromium on this machine, so no headless render was performed.'
-  say 'The dashboard was verified by the contract tests in `tests/test_dashboard.py`'
-  say 'only, which assert the data path rather than the pixels.'
-  say ''
-fi
-
-# ---------------------------------------------------------------------------
-say '## 9. Idempotency: re-running the seed over the same range'
+say '## 8. Idempotency: re-running the seed over the same range'
 say ''
 open_block
 say '$ row counts before / after a second seed --reset over the identical range'
@@ -263,7 +241,7 @@ say ''
 close_block
 
 # ---------------------------------------------------------------------------
-say '## 10. Shutdown'
+say '## 9. Shutdown'
 say ''
 open_block
 say "\$ kill $SERVER_PID"
@@ -280,18 +258,20 @@ say '---'
 say ''
 say '## What this transcript does **not** prove'
 say ''
-say '- **No Garmin account was contacted.** There are no credentials on this machine.'
-say '  `garmin-analytics login` and the live half of `garmin-analytics sync` are'
-say '  unexercised; the sync loop is tested only through an injected fetcher against'
-say '  handcrafted payloads (`tests/fixtures.py`). See HANDOVER.md.'
+say '- **No Garmin account was contacted by this run.** It uses a scratch database and'
+say '  no token cache; `garmin-analytics login` and the live half of `sync` appear here'
+say '  only through the test suite, which drives the sync loop with an injected fetcher'
+say '  against handcrafted payloads (`tests/fixtures.py`).'
 say '- **The data above is synthetic.** It comes from `garmin_analytics/seed/synthetic.py`'
 say '  and is physiologically plausible by construction, not real training.'
+say '- **The web UI is served, not rendered.** Section 6 proves FastAPI hands out the'
+say '  React build; nothing here drives it in a browser.'
 say '- **The export-ZIP importer has never seen a real Garmin export.** It was tested'
 say '  against a ZIP built in `tests/test_ingest.py` using the layout Garmin documented'
 say '  as of 2026-09.'
 
-# Redact the operator's home directory. This file ships in a public repository and
-# an absolute path is a username; nothing in the transcript needs one.
+# Redact the operator's home directory. The transcript is made to be shared, and an
+# absolute path is a username; nothing in it needs one.
 sed -i "s|$HOME|~|g" "$OUT"
 
 echo "wrote $OUT"

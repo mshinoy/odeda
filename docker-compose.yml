@@ -6,6 +6,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Baked into the JavaScript bundle at build time (see .env.example); unset
+      # ones fall back to the frontend's defaults.
+      args:
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+        VITE_MAP_STYLE_LIGHT: ${VITE_MAP_STYLE_LIGHT:-}
+        VITE_MAP_STYLE_DARK: ${VITE_MAP_STYLE_DARK:-}
     image: garmin-analytics:latest
     container_name: garmin-analytics
     restart: unless-stopped

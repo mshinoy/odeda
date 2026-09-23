@@ -98,9 +98,9 @@ class TestServeWithNoDatabaseFile:
     """`GA_SEED_DEMO=0` on a clean volume means serve starts before any database exists.
 
     It used to exit 1 with "Run `garmin-analytics seed` or `sync` first", which in Docker
-    is a crash loop: the container restarts forever and the user cannot reach Settings →
-    Garmin account, the one page that would give it data. Serving empty is the only
-    behaviour that lets a real install bootstrap.
+    is a crash loop: the container restarts forever and never gets as far as
+    `garmin-analytics login` and a backfill, the only way to give it data. Serving
+    empty is the only behaviour that lets a real install bootstrap.
     """
 
     def test_serve_creates_the_schema_instead_of_exiting(self, settings, monkeypatch, capsys):
