@@ -26,7 +26,7 @@ A `.env` already exists — I created it to run the verification, with a placeho
 password and `GA_SEED_DEMO=1`. Edit it:
 
 ```bash
-cd ~/.openclaw/workspace/projects/garmin-analytics
+cd ~/garmin-analytics
 $EDITOR .env                 # set APP_PASSWORD to something real
 docker compose up -d         # picks up the change
 ```
