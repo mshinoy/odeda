@@ -218,13 +218,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # Garmin retired the endpoint this path posts to; it answers 429 for every
             # account, valid or invented. Say so, instead of leaving the user retyping
             # a password that was never the problem (matin/garth#222).
+            if "401" in str(exc):
+                raise HTTPException(
+                    401,
+                    "Garmin rejected that email and password. If they are right, check "
+                    "for an unrecognised-device email from Garmin waiting for approval.",
+                ) from exc
             if "429" in str(exc):
+                # Garmin's edge fingerprints HTTP clients and 429s anything script-shaped.
+                # curl_cffi normally handles this (connect.impersonating_transport); seeing
+                # a 429 anyway means the profile has stopped being convincing.
                 raise HTTPException(
                     503,
-                    "Garmin has retired the password login this uses — it now returns "
-                    "429 for everyone, so your password is not the problem. Use the "
-                    "browser sign-in instead: open the URL from GET /api/garmin/"
-                    "signin-url, sign in, then post the ticket to /api/garmin/ticket.",
+                    "Garmin refused the login without looking at the credentials — it "
+                    "does that to clients it does not think are a browser. The "
+                    "impersonation profile likely needs updating. The browser sign-in "
+                    "still works: GET /api/garmin/signin-url, then POST the ticket to "
+                    "/api/garmin/ticket.",
                 ) from exc
             raise HTTPException(502, f"Garmin login failed: {exc}") from exc
 

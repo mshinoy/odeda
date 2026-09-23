@@ -1,6 +1,9 @@
 # Pinned to what was installed and tested on 2026-09-22 (Python 3.12.3).
 # Direct dependencies
 garth==0.8.0
+# Garmin's login edge answers 429 on TLS fingerprint alone; curl_cffi replays Chrome's.
+# Login only — the data endpoints do not care. See connect.impersonating_transport.
+curl_cffi==0.16.3
 fitdecode==0.11.0
 fastapi==0.141.1
 uvicorn[standard]==0.53.0

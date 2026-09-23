@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -108,6 +109,10 @@ FITNESS_ENDPOINTS = {"training_readiness", "training_status"}
 # Auth
 # ---------------------------------------------------------------------------
 
+# Chrome's TLS/HTTP2 fingerprint. Garmin's login edge answers 429 to anything that looks
+# like a script; see impersonating_transport().
+IMPERSONATE_PROFILE = "chrome"
+
 
 def _garth():
     try:
@@ -115,6 +120,49 @@ def _garth():
     except ImportError as exc:  # pragma: no cover - environment problem, not logic
         raise ConnectError("garth is not installed; run pip install -r requirements.txt") from exc
     return garth
+
+
+@contextmanager
+def impersonating_transport() -> Iterator[None]:
+    """Give garth a browser-shaped TLS fingerprint for the duration of a login.
+
+    Garmin's edge fingerprints the client and answers the login route with 429 for
+    python-`requests` and plain curl alike — for any account, real or invented, which
+    is what makes it look like a dead endpoint or a blocked address. It is neither.
+    Measured from this host on 2026-09-23, one request after the other:
+
+        requests / curl   -> 429 Too Many Requests
+        curl_cffi(chrome) -> 401 INVALID_USERNAME_PASSWORD
+
+    Same URL, same body, same second. So the login works; it just has to look like a
+    browser. `curl_cffi` replays Chrome's TLS and HTTP/2 fingerprint, which is the same
+    approach python-garminconnect took when it dropped garth.
+
+    Scoped to login on purpose: the data endpoints are not fingerprinted, that path is
+    the one with years of verification behind it, and swapping its transport would put
+    all of it back in question to fix a problem it does not have.
+    """
+    garth = _garth()
+    try:
+        from curl_cffi import requests as curl_requests
+    except ImportError:  # pragma: no cover - dependency is pinned in requirements
+        raise ConnectError(
+            "curl_cffi is not installed, and Garmin's login rejects plain HTTP clients "
+            "with 429. Run: pip install -r requirements.txt"
+        ) from None
+
+    original = garth.client.sess
+    session = curl_requests.Session(impersonate=IMPERSONATE_PROFILE)
+    session.headers.update(dict(original.headers))
+    garth.client.sess = session
+    try:
+        yield
+    finally:
+        garth.client.sess = original
+        try:
+            session.close()
+        except Exception:  # pragma: no cover - closing is best effort
+            pass
 
 
 def token_dir_is_populated(token_dir: Path) -> bool:
@@ -148,7 +196,8 @@ def login(
     kwargs: dict[str, Any] = {}
     if prompt_mfa is not None:
         kwargs["prompt_mfa"] = prompt_mfa
-    garth.login(email, password, **kwargs)
+    with impersonating_transport():
+        garth.login(email, password, **kwargs)
     garth.save(str(token_dir))
     secure_token_dir(token_dir)
 
@@ -167,7 +216,8 @@ def begin_login(email: str, password: str, token_dir: Path) -> tuple[str, Any]:
     garth = _garth()
     token_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(token_dir, 0o700)
-    result = garth.login(email, password, return_on_mfa=True)
+    with impersonating_transport():
+        result = garth.login(email, password, return_on_mfa=True)
     if isinstance(result, tuple) and len(result) == 2 and result[0] == "needs_mfa":
         return "mfa", result[1]
     garth.save(str(token_dir))
@@ -180,7 +230,8 @@ def finish_login(client_state: Any, code: str, token_dir: Path) -> str:
     garth = _garth()
     from garth import sso
 
-    oauth1, oauth2 = sso.resume_login(client_state, str(code).strip())
+    with impersonating_transport():
+        oauth1, oauth2 = sso.resume_login(client_state, str(code).strip())
     garth.client.configure(oauth1_token=oauth1, oauth2_token=oauth2)
     token_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(token_dir, 0o700)

@@ -67,23 +67,36 @@ You can also do this from the terminal if you prefer:
 docker compose exec app garmin-analytics login
 ```
 
-### Password login is dead — use the browser sign-in
+### If login returns 429 Too Many Requests
 
-**The email-and-password form above no longer works, for anyone.** Garmin retired the
-mobile login endpoint garth posts to; `sso.garmin.com/mobile/api/login` now answers
-**429** to every caller. Their web sign-in sets cookies from JavaScript that no plain
-HTTP client reproduces, which is why garth was deprecated on 2026-09-22
-([matin/garth#222](https://github.com/matin/garth/discussions/222)).
+**Garmin fingerprints the HTTP client.** The login route answers 429 to python-`requests`
+and plain curl for any account, real or invented — which is why garth broke and was
+deprecated ([matin/garth#222](https://github.com/matin/garth/discussions/222)). Measured
+from one host on 2026-09-23, back to back, same URL and body:
 
-> An earlier version of this file blamed datacenter IP reputation. That was wrong. The
-> giveaway looked conclusive — an invented account got the same 429 — but that evidence
-> fits "this endpoint refuses everyone" just as well, and that is what it turned out to
-> be. The distinguishing test is whether the *other* Garmin endpoints answer normally
-> from the same host. They do.
+| client | response |
+| --- | --- |
+| `requests` / curl | `429 Too Many Requests` |
+| `curl_cffi` (chrome) | `401 INVALID_USERNAME_PASSWORD` |
 
-Only the handshake needs a browser. The service ticket it hands back exchanges for OAuth
-tokens over an ordinary API call, which works fine from a server — verified 2026-09-23:
-an invalid ticket is answered `401`, not `429`.
+So the login works; it has to look like a browser. This app sends the login over
+`curl_cffi`, which replays Chrome's TLS and HTTP/2 fingerprint — the same approach
+python-garminconnect took when it dropped garth. **Nothing extra to do: the password form
+works.** Data endpoints are not fingerprinted and keep the ordinary transport.
+
+A 429 today therefore means the impersonation profile has stopped convincing Garmin.
+Bump `IMPERSONATE_PROFILE` in `garmin_analytics/ingest/connect.py` to a newer browser, or
+use the browser sign-in below.
+
+> Two earlier versions of this file got this wrong: first blaming datacenter IP
+> reputation, then a retired endpoint. Both fit the evidence that an invented account got
+> the same 429 — and neither was right. What separated them was changing *one variable at
+> a time*: same host, same body, same second, different HTTP library.
+
+### Browser sign-in (fallback, and for MFA-heavy setups)
+
+Garmin's web sign-in hands back a service ticket that exchanges for OAuth tokens over an
+ordinary API call — verified from a server on 2026-09-23.
 
 **Three steps, about a minute:**
 

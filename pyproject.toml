@@ -9,6 +9,8 @@ description = "Personal analytics over Garmin Connect data: training load, recov
 requires-python = ">=3.11"
 dependencies = [
     "garth==0.8.0",
+    # Login only: Garmin's edge 429s python-requests on TLS fingerprint alone.
+    "curl_cffi==0.16.3",
     "fitdecode==0.11.0",
     "fastapi==0.141.1",
     "uvicorn[standard]==0.53.0",
