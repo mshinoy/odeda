@@ -59,7 +59,7 @@ Paste one of these into a fresh session.
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
 | T02 | Activity list (gym rows show sets · reps) | done | T15 | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | done | T02 | Activity editing: an Edit dialog from /api/fields that saves only what changed |
-| T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | todo | T03a | |
+| T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | in progress (claude, 2026-09-24) | T03a | |
 | T03c | Activity editing: gear and route selects | todo | T03a | |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
