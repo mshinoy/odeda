@@ -13,11 +13,13 @@ interface EChartProps {
    * The x value of each data index. The crosshair is placed by x, not by index, because
    * sampling ("lttb") drops most indices from what is drawn.
    */
-  xValues: readonly number[];
-  /** Where to show the crosshair; null hides it. */
-  hoverIndex: number | null;
-  onHoverIndex: (index: number | null) => void;
+  xValues?: readonly number[];
+  /** Where to show the crosshair; null hides it. Leave out for a chart with no shared hover. */
+  hoverIndex?: number | null;
+  onHoverIndex?: (index: number | null) => void;
 }
+
+const NO_X_VALUES: readonly number[] = [];
 
 /** What `updateAxisPointer` carries when the pointer is over a data point. */
 interface AxisPointerEvent {
@@ -26,7 +28,13 @@ interface AxisPointerEvent {
 
 const RENDER_OPTS = { renderer: "canvas" } as const;
 
-export function EChart({ option, height, xValues, hoverIndex, onHoverIndex }: EChartProps) {
+export function EChart({
+  option,
+  height,
+  xValues = NO_X_VALUES,
+  hoverIndex = null,
+  onHoverIndex,
+}: EChartProps) {
   const chartRef = useRef<ChartInstance | null>(null);
   // The index this chart last reported from the user's own pointer. When the app echoes it
   // back as `hoverIndex`, the chart already shows it and must not be moved again.
@@ -42,7 +50,7 @@ export function EChart({ option, height, xValues, hoverIndex, onHoverIndex }: EC
     const report = (index: number | null) => {
       if (index === reportedIndexRef.current) return;
       reportedIndexRef.current = index;
-      onHoverIndexRef.current(index);
+      onHoverIndexRef.current?.(index);
     };
     return {
       updateAxisPointer: (event: AxisPointerEvent) => report(event.dataIndex ?? null),

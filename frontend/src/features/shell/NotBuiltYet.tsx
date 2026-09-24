@@ -7,7 +7,7 @@ export function NotBuiltYet() {
     <EmptyState
       message="Not built yet."
       action={
-        <Link to="/" className="text-foreground underline underline-offset-4">
+        <Link to="/activities" className="text-foreground underline underline-offset-4">
           Latest activity
         </Link>
       }

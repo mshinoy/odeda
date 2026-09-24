@@ -36,4 +36,8 @@ export const queryKeys = {
   fields: ["fields"] as const,
   heatmapAll: ["heatmap"] as const,
   heatmap: (params: HeatmapParams) => ["heatmap", params] as const,
+  summary: ["summary"] as const,
+  load: ["load"] as const,
+  garminStatus: ["garmin-status"] as const,
+  syncStatus: ["sync-status"] as const,
 };

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatAgo,
+  formatDays,
+  formatDecimal,
   formatInteger,
+  formatSigned,
   MISSING,
   formatDate,
   formatDateTime,
@@ -255,5 +259,39 @@ describe("formatInteger", () => {
     expect(formatInteger(139.4)).toBe("139");
     expect(formatInteger(1145)).toBe("1,145");
     expect(formatInteger(null)).toBe("–");
+  });
+});
+
+describe("formatDecimal and formatSigned", () => {
+  it("fixes decimals", () => {
+    expect(formatDecimal(86.14)).toBe("86.1");
+    expect(formatDecimal(null)).toBe("–");
+  });
+
+  it("signs with a true minus, and no sign at zero", () => {
+    expect(formatSigned(3.24)).toBe("+3.2");
+    expect(formatSigned(-4.9)).toBe("−4.9");
+    expect(formatSigned(-0.04)).toBe("0.0");
+  });
+});
+
+describe("formatDays", () => {
+  it("pluralises", () => {
+    expect(formatDays(1)).toBe("1 day");
+    expect(formatDays(115)).toBe("115 days");
+  });
+});
+
+describe("formatAgo", () => {
+  // `now` is built from local components, like a browser clock; the ISO strings are the
+  // server's wall clock with no offset.
+  const now = new Date(2026, 8, 24, 12, 0, 0);
+
+  it("counts minutes, hours and days", () => {
+    expect(formatAgo("2026-09-24T11:59:40", now)).toBe("just now");
+    expect(formatAgo("2026-09-24T11:48:00", now)).toBe("12 min ago");
+    expect(formatAgo("2026-09-24T09:00:00", now)).toBe("3 h ago");
+    expect(formatAgo("2026-09-22T12:00:00", now)).toBe("2 d ago");
+    expect(formatAgo(null, now)).toBe("–");
   });
 });

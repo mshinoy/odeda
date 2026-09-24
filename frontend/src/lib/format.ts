@@ -237,3 +237,52 @@ export function formatWeekday(iso: string | null | undefined): string {
   if (!date) return MISSING;
   return weekdayFormat.format(date);
 }
+
+// ---------------------------------------------------------------- plain numbers
+
+/** "86.1" — a unitless value with fixed decimals. */
+export function formatDecimal(value: MaybeNumber, digits = 1): string {
+  if (!isNumber(value)) return MISSING;
+  return fixedDigits(digits).format(value);
+}
+
+/** "+3.2" / "−4.9" (a true minus sign), for values whose sign is the point, like form. */
+export function formatSigned(value: MaybeNumber, digits = 1): string {
+  if (!isNumber(value)) return MISSING;
+  const rounded = roundTo(value, digits);
+  if (rounded === 0) return fixedDigits(digits).format(0);
+  const sign = rounded > 0 ? "+" : "−";
+  return `${sign}${fixedDigits(digits).format(Math.abs(rounded))}`;
+}
+
+/** "1 day" / "115 days". */
+export function formatDays(days: MaybeNumber): string {
+  if (!isNumber(days)) return MISSING;
+  const n = Math.round(days);
+  return `${integer.format(n)} ${Math.abs(n) === 1 ? "day" : "days"}`;
+}
+
+// ---------------------------------------------------------------- relative time
+
+/**
+ * "just now", "12 min ago", "3 h ago", "2 d ago". Server timestamps without an offset are
+ * the server's local wall clock, which this app assumes is the viewer's too.
+ */
+export function formatAgo(iso: string | null | undefined, now: Date = new Date()): string {
+  const then = iso ? parseWallClock(iso) : null;
+  if (!then) return MISSING;
+  const nowWall = Date.UTC(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+  );
+  const minutes = Math.floor((nowWall - then.getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  return `${integer.format(Math.floor(hours / 24))} d ago`;
+}
