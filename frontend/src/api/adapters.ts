@@ -307,3 +307,53 @@ export function toActivity(
     track,
   };
 }
+
+// ---------------------------------------------------------------- editing
+
+/** One user-editable field, from the registry in `db/fields.py` (`GET /api/fields`). */
+export interface EditableField {
+  name: string;
+  label: string;
+  /** How the value is stored: `bool` fields arrive as 0/1, `int` and `real` as numbers. */
+  type: Schemas["EditableFieldInfo"]["type"];
+  editor: Schemas["EditableFieldInfo"]["editor"];
+  /** For `select`: the offered values, which are not always a closed set. */
+  choices: string[];
+  min: number | null;
+  max: number | null;
+}
+
+export function toEditableFields(raw: Schemas["FieldsResponse"]): EditableField[] {
+  return raw.fields.map((field) => ({
+    name: field.name,
+    label: field.label,
+    type: field.type,
+    editor: field.editor,
+    choices: field.choices ?? [],
+    min: field.min,
+    max: field.max,
+  }));
+}
+
+/** A field's current value, edits included. Null when neither Garmin nor the user set it. */
+export type EditableValue = string | number | boolean | null;
+
+/**
+ * Each field's current value on an activity, read from the row by the field's own
+ * name: the registry names are the row's column names, so a field added to
+ * `db/fields.py` needs no change here. A bool field's 0/1 becomes a boolean.
+ */
+export function toEditableValues(
+  row: Schemas["ActivityRow"],
+  fields: readonly EditableField[],
+): Record<string, EditableValue> {
+  const columns = new Map<string, unknown>(Object.entries(row));
+  const values: Record<string, EditableValue> = {};
+  for (const field of fields) {
+    const value = columns.get(field.name);
+    if (field.type === "bool") values[field.name] = value === 1 || value === true;
+    else if (typeof value === "string" || typeof value === "number") values[field.name] = value;
+    else values[field.name] = null;
+  }
+  return values;
+}

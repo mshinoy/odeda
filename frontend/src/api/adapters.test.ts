@@ -5,6 +5,8 @@ import {
   toActivityStreams,
   toActivitySummary,
   toActivityTrack,
+  toEditableFields,
+  toEditableValues,
   toGymSession,
 } from "@/api/adapters";
 import type { components } from "@/api/schema";
@@ -249,5 +251,95 @@ describe("toActivity", () => {
       manual: true,
     });
     expect(activity.track?.sampleIndex).toEqual([1, 2, 3]);
+  });
+});
+
+describe("editing", () => {
+  const fields = toEditableFields({
+    activity_types: ["running"],
+    fields: [
+      {
+        name: "activity_name",
+        type: "text",
+        label: "Title",
+        editor: "text",
+        choices: null,
+        min: null,
+        max: null,
+        user_only: false,
+        help: "",
+      },
+      {
+        name: "rpe",
+        type: "int",
+        label: "RPE",
+        editor: "number",
+        choices: null,
+        min: 1,
+        max: 10,
+        user_only: true,
+        help: "",
+      },
+      {
+        name: "private",
+        type: "bool",
+        label: "Private",
+        editor: "bool",
+        choices: null,
+        min: null,
+        max: null,
+        user_only: true,
+        help: "",
+      },
+      {
+        name: "excluded_from_stats",
+        type: "bool",
+        label: "Exclude",
+        editor: "bool",
+        choices: null,
+        min: null,
+        max: null,
+        user_only: true,
+        help: "",
+      },
+      {
+        name: "future_field",
+        type: "text",
+        label: "New",
+        editor: "text",
+        choices: null,
+        min: null,
+        max: null,
+        user_only: true,
+        help: "",
+      },
+    ],
+  });
+
+  it("keeps each field's editor, bounds and choices (none as an empty list)", () => {
+    expect(fields[1]).toEqual({
+      name: "rpe",
+      label: "RPE",
+      type: "int",
+      editor: "number",
+      choices: [],
+      min: 1,
+      max: 10,
+    });
+  });
+
+  it("reads each field's value from the row by its own name, bools as booleans", () => {
+    const values = toEditableValues(
+      row({ activity_name: "Doha Running", rpe: 7, private: 1, excluded_from_stats: null }),
+      fields,
+    );
+    expect(values).toEqual({
+      activity_name: "Doha Running",
+      rpe: 7,
+      private: true,
+      excluded_from_stats: false,
+      // A field the row doesn't carry yet is empty, not an error.
+      future_field: null,
+    });
   });
 });

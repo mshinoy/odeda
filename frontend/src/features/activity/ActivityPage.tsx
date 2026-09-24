@@ -8,6 +8,7 @@ import { ActivityDetails } from "@/features/activity/ActivityDetails";
 import { ActivityHeader } from "@/features/activity/ActivityHeader";
 import { ActivityPageSkeleton } from "@/features/activity/ActivityPageSkeleton";
 import { ActivityStats } from "@/features/activity/ActivityStats";
+import { EditActivityDialog } from "@/features/activity/edit/EditActivityDialog";
 import { MetricToggle } from "@/features/activity/MetricToggle";
 import { availableMetrics, type MetricKey } from "@/lib/metrics";
 import { supportsWebGL } from "@/map/webgl";
@@ -30,7 +31,10 @@ export function ActivityPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <ActivityHeader summary={activity.summary} />
+      <ActivityHeader
+        summary={activity.summary}
+        actions={<EditActivityDialog activityId={activity.summary.id} />}
+      />
       <ActivityStats summary={activity.summary} />
 
       {activity.track && (

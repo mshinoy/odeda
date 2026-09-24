@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 4 / 11 |
+| 1 Activities + gym | A: `open` | 5 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -58,7 +58,7 @@ Paste one of these into a fresh session.
 | T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | done | — | Activity page: splits, HR zones, best efforts; 30 s pace smoothing, /km once |
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
 | T02 | Activity list (gym rows show sets · reps) | done | T15 | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
-| T03a | Activity editing: the Edit dialog, saving only dirty fields | in progress (claude, 2026-09-24) | T02 | |
+| T03a | Activity editing: the Edit dialog, saving only dirty fields | done | T02 | Activity editing: an Edit dialog from /api/fields that saves only what changed |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | todo | T03a | |
 | T03c | Activity editing: gear and route selects | todo | T03a | |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
@@ -411,12 +411,12 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Goal:** fix what Garmin got wrong, from the activity page.
 - **Backend:** `PATCH /api/activities/{id}` and `/api/fields` are typed already.
 - **Build:**
-  - [ ] an "Edit" dialog (shadcn) with fields generated from `/api/fields`
-  - [ ] **send only dirty fields**, with correct types (the old UI sent every field as a
+  - [x] an "Edit" dialog (shadcn) with fields generated from `/api/fields`
+  - [x] **send only dirty fields**, with correct types (the old UI sent every field as a
     string on every save)
-  - [ ] keep a select's current value even when it isn't among the choices, so a save
+  - [x] keep a select's current value even when it isn't among the choices, so a save
     never silently retypes an activity
-  - [ ] invalidate the activity, activities and summary queries on save
+  - [x] invalidate the activity, activities and summary queries on save
 - **Old reference:** `drawerEditor` in `app.js`. Don't copy its bugs.
 - **Done when:** an edit on the real-data copy shows up on the page, in the list and on
   Status.
