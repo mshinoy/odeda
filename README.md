@@ -14,7 +14,7 @@ account system, no shared database, and nobody else's Garmin password anywhere.
 > page (route map and synced charts). Still to come: the activity list, Map, Health,
 > Trends, and Settings and Gear behind a corner icon. Ingestion, analytics, the
 > database and the JSON API all work today; for anything not built yet, use the CLI
-> and the API. FastAPI's interactive docs are at `/docs`, behind the same session gate as the
+> and the API. Progress and the remaining work are tracked in [`PLAN.md`](PLAN.md). FastAPI's interactive docs are at `/docs`, behind the same session gate as the
 > rest of the API.
 
 ---

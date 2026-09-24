@@ -3,6 +3,10 @@
 Thanks for looking. This is a small, self-hosted, single-tenant app and it intends to
 stay that way — the fastest way to get a change merged is for it to fit that shape.
 
+
+Frontend work is planned and tracked in [`PLAN.md`](PLAN.md): pick a task there, and
+update its status in the same commit as the work.
+
 ## Ground rules
 
 1. **No credentials, tokens or personal data in the repository.** Not in tests, not in
