@@ -166,7 +166,7 @@ Lifetime and per-period, filterable by activity type, date range and gear:
 
 ## Dashboard
 
-Single-page app: **Today · Activities · Map · Health · Trends**, with Settings and Gear behind a corner
+Single-page app: **Status · Activities · Map · Health · Trends**, with Settings and Gear behind a corner
 icon. Dark theme, responsive down to a phone. Activities: sortable/filterable table with a detail view
 containing the map, the linked streams chart, splits, and the edit/gear controls.
 React 19 + TypeScript (strict) + Vite, Tailwind + shadcn/ui, TanStack Query, Zustand, ECharts,

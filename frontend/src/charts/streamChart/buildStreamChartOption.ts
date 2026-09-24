@@ -18,6 +18,7 @@ import { kindColor, metricColor } from "@/design/scales";
 import type { ActivityKind } from "@/lib/activityKind";
 import { formatPace, MISSING } from "@/lib/format";
 import type { MetricDefinition, MetricKey } from "@/lib/metrics";
+import { fontFamily, fontSize } from "@/design/typography";
 
 export interface StreamChartInput {
   streams: ActivityStreams;
@@ -33,8 +34,8 @@ export const STREAM_CHART_GRID = { left: 64, right: 12, top: 10, bottom: 24 } as
 
 export const LINE_WIDTH = 1.5;
 const AREA_OPACITY = 0.12;
-const LABEL_FONT_SIZE = 12;
-const FONT_FAMILY = '"Geist Variable", sans-serif';
+const LABEL_FONT_SIZE = fontSize.caption;
+const FONT_FAMILY = fontFamily;
 const MAX_Y_INTERVALS = 3;
 // Fraction of the data's span added above and below the line.
 const Y_PADDING = 0.05;
@@ -184,7 +185,7 @@ export function buildStreamChartOption({
       borderColor: tokens.border,
       borderWidth: 1,
       padding: [4, 8],
-      textStyle: { color: tokens.ink, fontSize: LABEL_FONT_SIZE, fontFamily: FONT_FAMILY },
+      textStyle: { color: tokens.ink, fontSize: fontSize.body, fontFamily: FONT_FAMILY },
       extraCssText: "font-variant-numeric: tabular-nums; box-shadow: none; border-radius: 6px;",
       axisPointer: {
         type: "line",

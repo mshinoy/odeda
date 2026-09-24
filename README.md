@@ -10,7 +10,7 @@ account system, no shared database, and nobody else's Garmin password anywhere.
 
 > **The web UI is being rebuilt.** The old dashboard is gone; its replacement, a
 > React app in [`frontend/`](frontend/), is being built view by view and has **no
-> views yet** — it renders a placeholder. Planned: Today · Activities · Map · Health ·
+> views yet** — it renders a placeholder. Planned: Status · Activities · Map · Health ·
 > Trends, with Settings and Gear behind a corner icon. Ingestion, analytics, the
 > database and the JSON API all work today; until the views land, use the CLI and the
 > API. FastAPI's interactive docs are at `/docs`, behind the same session gate as the

@@ -3,7 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/today", label: "Today" },
+  { to: "/status", label: "Status" },
   { to: "/activities", label: "Activities" },
   { to: "/map", label: "Map" },
   { to: "/health", label: "Health" },

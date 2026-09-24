@@ -9,6 +9,7 @@ import { ActivityPageSkeleton } from "@/features/activity/ActivityPageSkeleton";
 import { ActivityStats } from "@/features/activity/ActivityStats";
 import { MetricToggle } from "@/features/activity/MetricToggle";
 import { availableMetrics, type MetricKey } from "@/lib/metrics";
+import { supportsWebGL } from "@/map/webgl";
 
 // deck.gl and the map libraries are large; load them only when a page shows a map.
 const ActivityMap = lazy(() =>
@@ -33,9 +34,13 @@ export function ActivityPage() {
 
       {activity.track && (
         <section className="relative h-[420px] overflow-hidden rounded-xl border">
-          <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
-            <ActivityMap activity={activity} colorBy={colorBy} />
-          </Suspense>
+          {supportsWebGL() ? (
+            <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
+              <ActivityMap activity={activity} colorBy={colorBy} />
+            </Suspense>
+          ) : (
+            <EmptyState message="Maps need WebGL. Turn on hardware acceleration in the browser." />
+          )}
           <div className="absolute top-3 left-3">
             <MetricToggle options={metricOptions} value={colorBy} onChange={setColorBy} />
           </div>
