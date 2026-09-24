@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 10 / 11 |
+| 1 Activities + gym | A: `open` | 11 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
@@ -65,7 +65,7 @@ Paste one of these into a fresh session.
 | T16b | Gym: relabel unlabelled (or wrong) exercises | done | T16, T03b | Gym: relabel an exercise Garmin got wrong, and revert it |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | done | — | Stream charts: a ride's axis in km/h, a swim's in /100m |
-| T19 | MapLibre: ship its worker so the no-token basemap draws | in progress (patti, 2026-09-24) | — | |
+| T19 | MapLibre: ship its worker so the no-token basemap draws | done | — | MapLibre: ship its worker, so a map without a Mapbox token has a background |
 
 ### Phase 2 — Map & routes · Checkpoint B: `open`
 
@@ -542,9 +542,18 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Cause:** MapLibre 6 loads `maplibre-gl-worker.mjs` from next to its own chunk
   (`import.meta.url`), and Vite neither bundles nor emits that file.
 - **Build:**
-  - [ ] import the worker with `?url` and call `setWorkerUrl` in `MaplibreBaseMap.tsx`,
-    in dev and in the build
+  - [x] import the worker with `?worker&url` and call `setWorkerUrl` in
+    `MaplibreBaseMap.tsx`, in dev and in the build
 - **Done when:** with no Mapbox token, the CARTO basemap draws in both themes with no console error.
+- **Notes:**
+  - `?worker&url`, not the plain `?url` this card guessed at: the worker file imports
+    `./maplibre-gl-shared.mjs`, and `?url` emits the one file without its sibling, so the
+    worker would 404 on its own import in the build. `?worker&url` bundles the two and
+    returns the emitted URL.
+  - The cost is that the shared half of MapLibre is downloaded twice on the no-token
+    path (a 509 kB worker chunk beside the 1,072 kB map chunk, ~140 kB more gzipped).
+    Vite builds workers as their own rollup pass, so they cannot share a chunk with the
+    main bundle. Worth a line in T13's bundle check.
 
 ### T04 — Map: all-activities heatmap
 - **Goal:** `/map` shows where you have been.

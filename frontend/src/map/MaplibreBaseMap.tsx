@@ -9,8 +9,16 @@ import {
   NavigationControl,
   useControl,
 } from "react-map-gl/maplibre";
+import { setWorkerUrl } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { FIT_PADDING_PX, type ProviderMapProps } from "@/map/types";
+
+// MapLibre looks for its worker next to its own chunk (`import.meta.url`), which is not
+// where a bundler puts it, so without this every map logs "Worker failed to load" and
+// draws on a blank background. `?worker&url` makes Vite bundle the worker with the
+// shared chunk it imports and hand back the emitted URL, in dev and in the build alike.
+setWorkerUrl(workerUrl);
 
 export function MaplibreBaseMap({
   layers,
