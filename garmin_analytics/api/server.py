@@ -363,6 +363,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "projection": race["projection"],
                 },
                 "recent_weeks": rep.get("weekly", [])[-8:],
+                "gym": gym_mod.gym_this_week(st),
             }
 
     # -- analytics -----------------------------------------------------------

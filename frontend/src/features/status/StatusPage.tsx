@@ -6,6 +6,7 @@ import {
   useTrainingLoad,
 } from "@/api/queries/useStatus";
 import { EmptyState } from "@/components/EmptyState";
+import { GymPanel } from "@/features/status/GymPanel";
 import { LoadPanel } from "@/features/status/LoadPanel";
 import { RacePanel } from "@/features/status/RacePanel";
 import { ReadinessPanel } from "@/features/status/ReadinessPanel";
@@ -34,6 +35,8 @@ export function StatusPage() {
       </div>
 
       <LoadPanel load={load.data} />
+
+      {summary.data.gym && <GymPanel gym={summary.data.gym} />}
 
       {garmin.data && sync.data && (
         <SyncStrip

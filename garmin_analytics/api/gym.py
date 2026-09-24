@@ -14,6 +14,7 @@ entry out of the file is left undone: every synced activity has its own payload.
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 from typing import Any
 
 from ..db.store import Store
@@ -81,3 +82,79 @@ def exercises_from_payload(payload: Any) -> dict[str, Any]:
             if isinstance(entry, dict)
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Gym this week (the Status page)
+# ---------------------------------------------------------------------------
+
+#: The baseline a week is compared against: the mean of the weeks just before it.
+BASELINE_WEEKS = 4
+#: With no gym session in this many weeks (this one included), there is nothing to show.
+SHOWN_WITHIN_WEEKS = 8
+
+
+def _today() -> date:
+    """The server's local date, as `compute_race` and the streaks use. A function so
+    tests can pin it."""
+    return date.today()
+
+
+def week_monday(day: date) -> date:
+    """The Monday that starts `day`'s ISO week: the week `load.weekly_loads` (the
+    Status page's weekly load chart) and `reports.weekly_report` bucket by."""
+    return day - timedelta(days=day.weekday())
+
+
+def gym_this_week(st: Store, today: date | None = None) -> dict[str, Any] | None:
+    """`GymThisWeek`: gym sessions and sets in the ISO week holding `today`, against
+    the mean of the four weeks before it. None when the last eight weeks (this one
+    included) hold no gym session.
+
+    A gym session is an activity with exercise data (`totalSets` in its payload), not
+    a `strength_training` type: HIIT and yoga sessions with sets count, as they do on
+    the activity list. Excluded-from-stats activities do not count, as for every
+    other statistic. Weeks go by the activity's local `day`.
+    """
+    this_monday = week_monday(today or _today())
+    first_monday = this_monday - timedelta(weeks=SHOWN_WITHIN_WEEKS - 1)
+    last_sunday = this_monday + timedelta(days=6)
+    rows = st.query(
+        "SELECT v.day, json_extract(raw.payload, '$.totalSets') AS total_sets "
+        "FROM v_activities_included v "
+        "JOIN raw_documents raw ON raw.id = v.raw_id "
+        "WHERE v.day BETWEEN ? AND ? "
+        "AND json_extract(raw.payload, '$.totalSets') IS NOT NULL",
+        (first_monday.isoformat(), last_sunday.isoformat()),
+    )
+    if not rows:
+        return None
+
+    sessions: dict[date, int] = {}
+    sets: dict[date, int] = {}
+    for row in rows:
+        monday = week_monday(date.fromisoformat(row["day"]))
+        sessions[monday] = sessions.get(monday, 0) + 1
+        sets[monday] = sets.get(monday, 0) + int(row["total_sets"])
+
+    baseline = [this_monday - timedelta(weeks=n) for n in range(1, BASELINE_WEEKS + 1)]
+    avg_sessions = sum(sessions.get(m, 0) for m in baseline) / BASELINE_WEEKS
+    avg_sets = sum(sets.get(m, 0) for m in baseline) / BASELINE_WEEKS
+    week_sessions = sessions.get(this_monday, 0)
+    week_sets = sets.get(this_monday, 0)
+    return {
+        "week_start": this_monday.isoformat(),
+        "sessions": week_sessions,
+        "sets": week_sets,
+        "avg_sessions": avg_sessions,
+        "avg_sets": avg_sets,
+        "sessions_delta_pct": _delta_pct(week_sessions, avg_sessions),
+        "sets_delta_pct": _delta_pct(week_sets, avg_sets),
+    }
+
+
+def _delta_pct(value: float, baseline: float) -> float | None:
+    """Percent change from `baseline`; None off a zero baseline, where it has no size."""
+    if baseline <= 0:
+        return None
+    return round((value - baseline) / baseline * 100.0, 1)

@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 3 / 11 |
+| 1 Activities + gym | A: `open` | 4 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -63,7 +63,7 @@ Paste one of these into a fresh session.
 | T03c | Activity editing: gear and route selects | todo | T03a | |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
-| T17 | Status: "gym this week" | in progress (garmin-analytics-04, 2026-09-24) | T15 | |
+| T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | todo | — | |
 | T19 | MapLibre: ship its worker so the no-token basemap draws | todo | — | |
 
@@ -489,11 +489,11 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 
 ### T17 — Status: gym this week
 - **Build:**
-  - [ ] stat cards on Status for gym sessions and sets this week, with deltas against
+  - [x] stat cards on Status for gym sessions and sets this week, with deltas against
     the 4-week average. Use the same week definition as `LoadPanel`.
-  - [ ] data added to `/api/summary` at the response boundary (or a small typed
+  - [x] data added to `/api/summary` at the response boundary (or a small typed
     endpoint if that's cleaner)
-  - [ ] hidden when there are no gym sessions in the last 8 weeks
+  - [x] hidden when there are no gym sessions in the last 8 weeks
 - **Done when:** it shows the right numbers on real data in both themes and doesn't
   crowd the page.
 

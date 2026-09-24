@@ -41,6 +41,8 @@ DROPPED_PERSONAL_BEST_KEYS = {"time", "pace"}
 #: The summary's race block gains the race distance, so `projected_seconds` can be
 #: turned into a pace without a second request.
 ADDED_SUMMARY_RACE_KEYS = {"distance_m"}
+#: Gym sessions and sets this week (T17), read from the raw payloads (`api/gym.py`).
+ADDED_SUMMARY_KEYS = {"gym"}
 #: The "0:01:30" rendering of `eta_s`.
 DROPPED_SYNC_STATUS_KEYS = {"eta"}
 
@@ -222,6 +224,8 @@ class TestPayloadsUnchangedExceptDrops:
     def test_summary(self, client, st):
         old = _as_json(_old_summary(st))
         new = client.get("/api/summary").json()
+        assert set(new) - set(old) == ADDED_SUMMARY_KEYS
+        new = _drop(new, ADDED_SUMMARY_KEYS)
         assert set(old) == set(new)
         old_race, new_race = old.pop("race"), new.pop("race")
         _strict_equal(new, old)

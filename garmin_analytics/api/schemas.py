@@ -646,6 +646,24 @@ class Streaks(_Model):
     longest_wear: Streak
 
 
+class GymThisWeek(_Model):
+    """Gym work in the current ISO week (Monday to Sunday, by the activity's local
+    day) against the mean of the four weeks before it. A gym session is an activity
+    with exercise data (`total_sets`); excluded-from-stats activities do not count."""
+
+    week_start: str
+    """The Monday that starts this week."""
+    sessions: int
+    sets: int
+    """`total_sets` summed over this week's sessions."""
+    avg_sessions: float
+    """Mean sessions per week over the four weeks before this one."""
+    avg_sets: float
+    sessions_delta_pct: float | None
+    """This week against `avg_sessions`, percent; null when the average is zero."""
+    sets_delta_pct: float | None
+
+
 class Summary(_Model):
     """`GET /api/summary`: the overview in one round trip. Load keys are null with
     no activities."""
@@ -666,6 +684,8 @@ class Summary(_Model):
     race: SummaryRace
     recent_weeks: list[WeeklyReportRow]
     """Up to the last eight weeks with activity."""
+    gym: GymThisWeek | None
+    """Null when there was no gym session in the last eight weeks (this one included)."""
 
 
 class Health(_Model):
