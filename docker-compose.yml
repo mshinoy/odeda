@@ -54,6 +54,41 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Optional, for working on the UI: the Vite dev server on this checkout's frontend/,
+  # with live reload, talking to the app above (your real data). Not part of the
+  # install; start it on its own, without touching the app container:
+  #
+  #   docker compose --profile dev up -d --no-deps ui-dev    # then open :5173
+  #   docker compose --profile dev stop ui-dev
+  #
+  # frontend/.env (map token and styles) is read as in `npm run dev`. If the app has
+  # APP_PASSWORD set, sign in on :5173 as usual.
+  ui-dev:
+    profiles: [dev]
+    image: node:24-bookworm-slim
+    container_name: garmin-analytics-ui-dev
+    working_dir: /app/frontend
+    # npm ci only when the lockfile is newer than the installed modules.
+    command:
+      - sh
+      - -c
+      - |
+        [ node_modules/.package-lock.json -nt package-lock.json ] || npm ci --no-audit --no-fund
+        exec npx vite --host 0.0.0.0 --port 5173 --strictPort
+    environment:
+      # Wins over VITE_API_URL in frontend/.env: /api goes to the app container.
+      VITE_API_URL: http://app:8000
+    ports:
+      - "127.0.0.1:${GA_UI_DEV_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      # The container's own node_modules (and Vite's cache in it), so the host's
+      # are never overwritten and no root-owned files land in the checkout.
+      - ui-dev-node-modules:/app/frontend/node_modules
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   garmin-data:
     name: garmin-analytics-data
+  ui-dev-node-modules:
