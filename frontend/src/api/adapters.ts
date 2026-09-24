@@ -138,7 +138,8 @@ export interface Activity {
   efficiencyFactor: number | null;
   route: ActivityRoute | null;
   gear: Schemas["ActivityGear"][];
-  overrides: Schemas["Override"][];
+  /** The fields the user has edited, in field order. */
+  edits: FieldEdit[];
   streams: ActivityStreams;
   /** Null for indoor activities. */
   track: ActivityTrack | null;
@@ -302,7 +303,7 @@ export function toActivity(
         }
       : null,
     gear: detail.gear,
-    overrides: detail.overrides,
+    edits: toFieldEdits(detail.overrides),
     streams,
     track,
   };
@@ -321,6 +322,8 @@ export interface EditableField {
   choices: string[];
   min: number | null;
   max: number | null;
+  /** Garmin never supplies it (notes, RPE, ...): reverting clears it. */
+  userOnly: boolean;
 }
 
 export function toEditableFields(raw: Schemas["FieldsResponse"]): EditableField[] {
@@ -332,6 +335,7 @@ export function toEditableFields(raw: Schemas["FieldsResponse"]): EditableField[
     choices: field.choices ?? [],
     min: field.min,
     max: field.max,
+    userOnly: field.user_only,
   }));
 }
 
@@ -356,4 +360,20 @@ export function toEditableValues(
     else values[field.name] = null;
   }
   return values;
+}
+
+/** One edited field, and what Garmin says for it now (what a revert brings back). */
+export interface FieldEdit {
+  field: string;
+  label: string;
+  /** Null for user-only fields, and when Garmin has no value. */
+  garminValue: string | number | null;
+}
+
+export function toFieldEdits(overrides: readonly Schemas["Override"][]): FieldEdit[] {
+  return overrides.map((o) => ({
+    field: o.field,
+    label: o.label,
+    garminValue: o.current_garmin_value,
+  }));
 }

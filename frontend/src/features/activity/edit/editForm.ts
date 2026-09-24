@@ -4,7 +4,7 @@
 import type { EditableField, EditableValue } from "@/api/adapters";
 import type { ActivityEditPatch } from "@/api/queries/useEditActivity";
 import { activityTypeLabel } from "@/lib/activityKind";
-import { formatDecimal } from "@/lib/format";
+import { formatDecimal, MISSING } from "@/lib/format";
 
 /** What each input holds: text for text, selects and numbers (so typing "1" of "10" works), a boolean for switches. */
 export type FormValue = string | boolean;
@@ -93,4 +93,15 @@ export function selectOptions(field: EditableField, initial: FormValue): string[
 /** How a select option reads: activity types by their label, anything else as sent. */
 export function optionLabel(field: EditableField, value: string): string {
   return field.name === "activity_type" ? activityTypeLabel(value) : value;
+}
+
+/**
+ * What an edited field's revert link says: the value Garmin would bring back, or
+ * "Clear" for a field only the user sets.
+ */
+export function revertLabel(field: EditableField, garminValue: string | number | null): string {
+  if (field.userOnly) return "Clear";
+  if (garminValue === null) return `Garmin: ${MISSING}`;
+  const text = String(garminValue);
+  return `Garmin: ${field.editor === "select" ? optionLabel(field, text) : text}`;
 }

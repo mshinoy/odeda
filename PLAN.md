@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 5 / 11 |
+| 1 Activities + gym | A: `open` | 6 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -59,7 +59,7 @@ Paste one of these into a fresh session.
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
 | T02 | Activity list (gym rows show sets · reps) | done | T15 | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | done | T02 | Activity editing: an Edit dialog from /api/fields that saves only what changed |
-| T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | in progress (claude, 2026-09-24) | T03a | |
+| T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | done | T03a | Activity editing: edited fields marked, revert one field or all of them |
 | T03c | Activity editing: gear and route selects | todo | T03a | |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
@@ -425,9 +425,9 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Backend:** type `DELETE /api/activities/{id}/overrides/{field}` and
   `DELETE /api/activities/{id}/overrides`.
 - **Build:**
-  - [ ] edited fields are marked, in the dialog and on the page
-  - [ ] per-field revert, and "revert all" with a confirm
-  - [ ] invalidate as in T03a
+  - [x] edited fields are marked, in the dialog and on the page
+  - [x] per-field revert, and "revert all" with a confirm
+  - [x] invalidate as in T03a
 - **Done when:** reverting brings back Garmin's value everywhere it is shown.
 
 ### T03c — Activity editing: gear and route

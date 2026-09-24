@@ -318,6 +318,7 @@ describe("editing", () => {
 
   it("keeps each field's editor, bounds and choices (none as an empty list)", () => {
     expect(fields[1]).toEqual({
+      userOnly: true,
       name: "rpe",
       label: "RPE",
       type: "int",

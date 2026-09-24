@@ -33,6 +33,7 @@ export function ActivityPage() {
     <div className="flex flex-col gap-8">
       <ActivityHeader
         summary={activity.summary}
+        edits={activity.edits}
         actions={<EditActivityDialog activityId={activity.summary.id} />}
       />
       <ActivityStats summary={activity.summary} />

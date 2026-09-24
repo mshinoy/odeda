@@ -4,6 +4,7 @@ import {
   editPatch,
   fieldError,
   hasErrors,
+  revertLabel,
   selectOptions,
   toFormValues,
 } from "@/features/activity/edit/editForm";
@@ -16,6 +17,7 @@ function field(overrides: Partial<EditableField> & Pick<EditableField, "name">):
     choices: [],
     min: null,
     max: null,
+    userOnly: false,
     ...overrides,
   };
 }
@@ -24,10 +26,10 @@ function field(overrides: Partial<EditableField> & Pick<EditableField, "name">):
 const fields: EditableField[] = [
   field({ name: "activity_name" }),
   field({ name: "activity_type", editor: "select", choices: ["running", "cycling", "other"] }),
-  field({ name: "notes", editor: "textarea" }),
-  field({ name: "rpe", type: "int", editor: "number", min: 1, max: 10 }),
-  field({ name: "private", type: "bool", editor: "bool" }),
-  field({ name: "excluded_from_stats", type: "bool", editor: "bool" }),
+  field({ name: "notes", editor: "textarea", userOnly: true }),
+  field({ name: "rpe", type: "int", editor: "number", min: 1, max: 10, userOnly: true }),
+  field({ name: "private", type: "bool", editor: "bool", userOnly: true }),
+  field({ name: "excluded_from_stats", type: "bool", editor: "bool", userOnly: true }),
 ];
 
 const values = {
@@ -126,5 +128,20 @@ describe("selectOptions", () => {
         { ...initial, activity_type: "hiit" },
       ),
     ).toEqual({});
+  });
+});
+
+describe("revertLabel", () => {
+  const [title, type, notes] = fields;
+  if (title === undefined || type === undefined || notes === undefined) throw new Error("fields");
+
+  it("names the value Garmin brings back, types by their label", () => {
+    expect(revertLabel(title, "Doha Running")).toBe("Garmin: Doha Running");
+    expect(revertLabel(type, "running")).toBe("Garmin: Running");
+    expect(revertLabel(title, null)).toBe("Garmin: –");
+  });
+
+  it("says Clear for a field Garmin never sets", () => {
+    expect(revertLabel(notes, null)).toBe("Clear");
   });
 });

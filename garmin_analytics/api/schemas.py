@@ -303,6 +303,25 @@ class ActivityEditResult(_Model):
     overrides: list[Override]
 
 
+class RevertFieldResult(_Model):
+    """`DELETE /api/activities/{id}/overrides/{field}`: one field back to Garmin's value."""
+
+    reverted: bool
+    """False when the field had no edit to revert."""
+    activity: ActivityRow | None
+    """Null when the activity does not exist."""
+    overrides: list[Override]
+    """The edits still on the activity."""
+
+
+class RevertAllResult(_Model):
+    """`DELETE /api/activities/{id}/overrides`: every field back to Garmin's value."""
+
+    reverted: int
+    """How many edits were dropped."""
+    activity: ActivityRow | None
+
+
 class EditableFieldInfo(_Model):
     """One entry of the editable-field registry (`db/fields.py`)."""
 

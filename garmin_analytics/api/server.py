@@ -62,6 +62,8 @@ from .schemas import (
     RacePanel,
     Readiness,
     ReadinessHistory,
+    RevertAllResult,
+    RevertFieldResult,
     Summary,
     SyncStartRequest,
     SyncStarted,
@@ -664,7 +666,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "overrides": ov_mod.list_overrides(st, activity_id),
             }
 
-    @app.delete("/api/activities/{activity_id}/overrides/{field}")
+    @app.delete(
+        "/api/activities/{activity_id}/overrides/{field}", response_model=RevertFieldResult
+    )
     def api_revert_field(activity_id: str, field: str) -> dict[str, Any]:
         """Reset one field to whatever Garmin says."""
         with store() as st:
@@ -678,8 +682,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "overrides": ov_mod.list_overrides(st, activity_id),
             }
 
-    @app.delete("/api/activities/{activity_id}/overrides")
+    @app.delete("/api/activities/{activity_id}/overrides", response_model=RevertAllResult)
     def api_revert_all(activity_id: str) -> dict[str, Any]:
+        """Reset every edited field on the activity to whatever Garmin says."""
         with store() as st:
             n = ov_mod.revert_all(st, activity_id)
             return {"reverted": n, "activity": gym_mod.activity_row(st, activity_id)}

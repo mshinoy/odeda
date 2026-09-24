@@ -90,7 +90,7 @@ function activity(overrides: Partial<Activity> = {}): Activity {
     efficiencyFactor: null,
     route: null,
     gear: [],
-    overrides: [],
+    edits: [],
     streams: streams(),
     track,
     ...overrides,
