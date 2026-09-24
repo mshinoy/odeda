@@ -65,6 +65,31 @@ ACTIVITY_SPARSE = {
     "duration": 2400.0,
 }
 
+# A gym session as the activity list returns it: exercises summed over their sets.
+# Weights are grams, volume is grams x reps, durations are ms. Garmin leaves
+# `maxWeight` out for bodyweight work and `subCategory` out when it has no variant.
+STRENGTH_ACTIVITY = {
+    "activityId": 333,
+    "activityName": "Evening strength",
+    "startTimeLocal": "2026-09-17 18:30:00",
+    "startTimeGMT": "2026-09-17 15:30:00",
+    "activityType": {"typeKey": "strength_training"},
+    "duration": 2700.0,
+    "averageHR": 112.0,
+    "totalSets": 6,          # 3 + 2 + 1
+    "activeSets": 6,
+    "totalReps": 50,         # 24 + 16 + 10
+    "summarizedExerciseSets": [
+        {"category": "BENCH_PRESS", "sets": 3, "reps": 24, "maxWeight": 50000,
+         "volume": 1200000, "duration": 150000.5},             # 50 kg x 24 reps
+        {"category": "DEADLIFT", "subCategory": "ROMANIAN_DEADLIFT", "sets": 2,
+         "reps": 16, "maxWeight": 60000, "volume": 960000,     # 60 kg x 16 reps
+         "duration": 95000.0},
+        {"category": "UNKNOWN", "sets": 1, "reps": 10, "volume": 0,
+         "duration": 30000.0},
+    ],
+}
+
 HR_ZONES = [
     {"zoneNumber": 1, "secsInZone": 245.0, "zoneLowBoundary": 97},
     {"zoneNumber": 2, "secsInZone": 1180.0, "zoneLowBoundary": 120},

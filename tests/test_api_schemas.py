@@ -29,6 +29,8 @@ from garmin_analytics.edits import overrides as ov_mod
 DROPPED_DETAIL_KEYS = {"samples"}
 DROPPED_BEST_EFFORT_KEYS = {"time", "pace"}
 DROPPED_KM_SPLIT_KEYS = {"pace"}
+#: Keys added to every activity row on purpose (T15), read from the raw payload.
+ADDED_ROW_KEYS = ["total_sets", "total_reps"]
 
 
 @pytest.fixture
@@ -74,10 +76,16 @@ def _as_json(value: Any) -> Any:
     return json.loads(json.dumps(value))
 
 
+def _with_gym_totals(row: dict[str, Any] | None) -> dict[str, Any]:
+    """A view row as the API returns it. The seeded payloads carry no exercise data,
+    so the totals are null here; tests/test_gym.py covers the filled-in case."""
+    assert row is not None
+    return {**row, **{k: None for k in ADDED_ROW_KEYS}}
+
+
 def _old_detail(st: Store, activity_id: str) -> dict[str, Any]:
     """The pre-typing `GET /api/activities/{id}` body (samples=true), verbatim."""
-    act = ov_mod.effective(st, activity_id)
-    assert act is not None
+    act = _with_gym_totals(ov_mod.effective(st, activity_id))
     zones = st.query(
         "SELECT zone, seconds FROM activity_hr_zones WHERE activity_id = ? ORDER BY zone",
         (activity_id,),
@@ -193,7 +201,7 @@ class TestPayloadsUnchangedExceptDrops:
             "SELECT * FROM v_activities ORDER BY day DESC, activity_id DESC"
         )
         assert body["total"] == len(view)
-        _strict_equal(body["rows"], _as_json(view))
+        _strict_equal(body["rows"], _as_json([_with_gym_totals(r) for r in view]))
         edited = next(r for r in body["rows"] if r["activity_id"] == sample_ids["gps_run"])
         assert edited["override_count"] == 5 and edited["rpe"] == 7 and edited["private"] == 1
         assert edited["gear_ids"] and edited["route_id"] is not None
@@ -209,7 +217,7 @@ class TestPayloadsUnchangedExceptDrops:
     def test_activity_row_declares_every_view_column(self, rw_store):
         cols = [d[0] for d in rw_store.conn.execute(
             "SELECT * FROM v_activities LIMIT 0").description]
-        assert list(schemas.ActivityRow.model_fields) == cols, (
+        assert list(schemas.ActivityRow.model_fields) == cols + ADDED_ROW_KEYS, (
             "v_activities changed shape: declare the new column on ActivityRow "
             "(an undeclared column is silently left out of the API)"
         )
@@ -249,7 +257,8 @@ class TestEditAndFields:
                                     "notes": ""})
         assert res.status_code == 200, res.text
         body = res.json()
-        _strict_equal(body["activity"], _as_json(ov_mod.effective(rw_store, aid)))
+        _strict_equal(body["activity"],
+                      _as_json(_with_gym_totals(ov_mod.effective(rw_store, aid))))
         _strict_equal(body["overrides"], _as_json(ov_mod.list_overrides(rw_store, aid)))
         by_field = {a["field"]: a for a in body["applied"]}
         assert by_field["private"]["value"] == 1            # bools are stored as 0/1

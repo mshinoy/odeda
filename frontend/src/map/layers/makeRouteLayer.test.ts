@@ -78,6 +78,8 @@ function activity(overrides: Partial<Activity> = {}): Activity {
       isPrivate: false,
       excludedFromStats: false,
       edited: false,
+      totalSets: null,
+      totalReps: null,
     },
     hasGps: true,
     hrZones: [],

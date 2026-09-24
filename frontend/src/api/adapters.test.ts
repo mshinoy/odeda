@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { toActivity, toActivityStreams, toActivitySummary, toActivityTrack } from "@/api/adapters";
+import {
+  UNKNOWN_EXERCISE,
+  toActivity,
+  toActivityStreams,
+  toActivitySummary,
+  toActivityTrack,
+  toGymSession,
+} from "@/api/adapters";
 import type { components } from "@/api/schema";
 
 type Schemas = components["schemas"];
@@ -34,6 +41,8 @@ function row(overrides: Partial<Schemas["ActivityRow"]> = {}): Schemas["Activity
     override_count: 2,
     gear_ids: "3,7",
     route_id: 4,
+    total_sets: null,
+    total_reps: null,
     ...overrides,
   };
 }
@@ -74,6 +83,78 @@ describe("toActivitySummary", () => {
     expect(summary.name).toBe("");
     expect(summary.gearIds).toEqual([]);
     expect(summary.edited).toBe(false);
+  });
+
+  it("carries the gym totals, null when there are none", () => {
+    expect(toActivitySummary(row()).totalSets).toBeNull();
+    const gym = toActivitySummary(
+      row({ activity_type: "strength_training", total_sets: 14, total_reps: 135 }),
+    );
+    expect(gym.kind).toBe("strength");
+    expect(gym.totalSets).toBe(14);
+    expect(gym.totalReps).toBe(135);
+  });
+});
+
+describe("toGymSession", () => {
+  const session = toGymSession({
+    total_sets: 4,
+    active_sets: 4,
+    total_reps: 30,
+    exercises: [
+      {
+        index: 0,
+        category: "DEADLIFT",
+        sub_category: "ROMANIAN_DEADLIFT",
+        sets: 3,
+        reps: 24,
+        max_weight_g: 60000,
+        volume_g: 1440000,
+        duration_ms: 95000.5,
+      },
+      {
+        index: 2,
+        category: null,
+        sub_category: null,
+        sets: 1,
+        reps: 6,
+        max_weight_g: null,
+        volume_g: 0,
+        duration_ms: null,
+      },
+    ],
+  });
+
+  it("keeps totals, payload index and units (grams, ms)", () => {
+    expect(session.totalSets).toBe(4);
+    expect(session.activeSets).toBe(4);
+    expect(session.totalReps).toBe(30);
+    expect(session.exercises[0]).toEqual({
+      index: 0,
+      category: "DEADLIFT",
+      subCategory: "ROMANIAN_DEADLIFT",
+      sets: 3,
+      reps: 24,
+      maxWeightG: 60000,
+      volumeG: 1440000,
+      durationMs: 95000.5,
+    });
+    expect(session.exercises[1]?.index).toBe(2);
+  });
+
+  it("treats a missing category as Garmin's UNKNOWN", () => {
+    expect(session.exercises[1]?.category).toBe(UNKNOWN_EXERCISE);
+    expect(session.exercises[1]?.maxWeightG).toBeNull();
+  });
+
+  it("is empty for an activity without exercise data", () => {
+    const none = toGymSession({
+      total_sets: null,
+      active_sets: null,
+      total_reps: null,
+      exercises: [],
+    });
+    expect(none).toEqual({ totalSets: null, activeSets: null, totalReps: null, exercises: [] });
   });
 });
 

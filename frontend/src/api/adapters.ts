@@ -1,6 +1,6 @@
 // The one place API payloads become the app's own shapes. Maps and charts consume
-// `Activity`, `ActivitySummary`, `ActivityStreams` and `ActivityTrack` only, so a change
-// in the backend's shape is absorbed here and nowhere else.
+// `Activity`, `ActivitySummary`, `ActivityStreams`, `ActivityTrack` and `GymSession`
+// only, so a change in the backend's shape is absorbed here and nowhere else.
 import type { LineString } from "geojson";
 import type { components } from "@/api/schema";
 import { activityKind, type ActivityKind } from "@/lib/activityKind";
@@ -33,6 +33,9 @@ export interface ActivitySummary {
   isPrivate: boolean;
   excludedFromStats: boolean;
   edited: boolean;
+  /** Gym totals; null for activities without exercise data. */
+  totalSets: number | null;
+  totalReps: number | null;
 }
 
 /**
@@ -90,6 +93,34 @@ export interface ActivityRoute {
   manual: boolean;
 }
 
+/** Garmin's category for an exercise it could not name. */
+export const UNKNOWN_EXERCISE = "UNKNOWN";
+
+/** One exercise summed over its sets (Garmin has no per-set detail). */
+export interface Exercise {
+  /** Position in Garmin's payload; relabels key on it. */
+  index: number;
+  /** Garmin's category, e.g. `BENCH_PRESS`; `UNKNOWN_EXERCISE` when it has none. */
+  category: string;
+  /** The variant, e.g. `ROMANIAN_DEADLIFT`, when Garmin names one. */
+  subCategory: string | null;
+  sets: number | null;
+  reps: number | null;
+  /** Heaviest weight, grams; null for bodyweight work. */
+  maxWeightG: number | null;
+  /** Weight x reps summed over the sets, grams. */
+  volumeG: number | null;
+  durationMs: number | null;
+}
+
+/** The gym part of an activity. `exercises` is empty when there is no exercise data. */
+export interface GymSession {
+  totalSets: number | null;
+  activeSets: number | null;
+  totalReps: number | null;
+  exercises: Exercise[];
+}
+
 /** An activity with everything the single-activity view shows. */
 export interface Activity {
   summary: ActivitySummary;
@@ -134,6 +165,8 @@ export function toActivitySummary(row: Schemas["ActivityRow"]): ActivitySummary 
     isPrivate: row.private === 1,
     excludedFromStats: row.excluded_from_stats === 1,
     edited: row.override_count > 0,
+    totalSets: row.total_sets,
+    totalReps: row.total_reps,
   };
 }
 
@@ -144,6 +177,31 @@ function parseGearIds(value: string | null): number[] {
     .split(",")
     .map((part) => Number(part.trim()))
     .filter((id) => Number.isInteger(id));
+}
+
+// ---------------------------------------------------------------- gym
+
+export function toGymSession(raw: Schemas["ActivityExercises"]): GymSession {
+  return {
+    totalSets: raw.total_sets,
+    activeSets: raw.active_sets,
+    totalReps: raw.total_reps,
+    exercises: raw.exercises.map(toExercise),
+  };
+}
+
+function toExercise(raw: Schemas["Exercise"]): Exercise {
+  return {
+    index: raw.index,
+    // A missing category and Garmin's UNKNOWN mean the same thing: unlabelled.
+    category: raw.category ?? UNKNOWN_EXERCISE,
+    subCategory: raw.sub_category,
+    sets: raw.sets,
+    reps: raw.reps,
+    maxWeightG: raw.max_weight_g,
+    volumeG: raw.volume_g,
+    durationMs: raw.duration_ms,
+  };
 }
 
 // ---------------------------------------------------------------- streams and track

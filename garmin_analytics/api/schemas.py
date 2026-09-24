@@ -32,6 +32,11 @@ GearKind = Literal["shoe", "bike", "strap", "other"]
 #: A scalar as it can appear in an edit or a raw column value.
 Scalar = str | float | int | None
 
+#: A JSON number that may come out as an int or a float, and must keep which one it
+#: was. Pydantic turns an int into a float for a plain `float` field, which would
+#: change `1000` into `1000.0` on the wire.
+Number = int | float
+
 
 class _Model(BaseModel):
     # Attribute docstrings become field descriptions in the OpenAPI schema, so the
@@ -48,7 +53,8 @@ class ActivityRow(_Model):
     """One row of `v_activities`: Garmin's values with the user's edits applied.
 
     Columns in view order: every column of `activities`, then the user-only edit
-    fields, then the convenience columns the view derives.
+    fields, then the convenience columns the view derives. Last come the gym totals,
+    which are not in the view: they are read from the raw payload (`api/gym.py`).
     """
 
     activity_id: str
@@ -94,6 +100,9 @@ class ActivityRow(_Model):
     """Comma-separated `gear_id`s on this activity (SQLite `group_concat`), or null
     when none. Order is not guaranteed."""
     route_id: int | None
+    # Gym totals from the raw payload; null for activities without exercise data.
+    total_sets: int | None
+    total_reps: int | None
 
 
 class ActivityList(_Model):
@@ -221,6 +230,39 @@ class ActivityStreams(_Model):
     lon: list[float | None]
 
 
+class Exercise(_Model):
+    """One entry of Garmin's `summarizedExerciseSets`: an exercise summed over its
+    sets. There is no per-set detail (weight and reps of each set)."""
+
+    index: int
+    """Position in the payload's `summarizedExerciseSets`; stable, so relabels key on it."""
+    category: str | None
+    """Garmin's exercise category (`BENCH_PRESS`, `DEADLIFT`, ...). `UNKNOWN` when the
+    watch could not tell."""
+    sub_category: str | None
+    """The specific variant (`ROMANIAN_DEADLIFT`), when Garmin names one."""
+    sets: int | None
+    reps: int | None
+    """Summed over all sets."""
+    max_weight_g: Number | None
+    """Heaviest weight used, grams; null for bodyweight exercises."""
+    volume_g: Number | None
+    """Sum of weight x reps over the sets, grams."""
+    duration_ms: float | None
+    """Summed duration of the exercise's sets, milliseconds."""
+
+
+class ActivityExercises(_Model):
+    """`GET /api/activities/{id}/exercises`: the gym part of the raw payload. Totals
+    are null and `exercises` is empty for activities without exercise data."""
+
+    total_sets: int | None
+    active_sets: int | None
+    """Garmin's `activeSets`, passed through."""
+    total_reps: int | None
+    exercises: list[Exercise]
+
+
 # ---------------------------------------------------------------------------
 # Editing
 # ---------------------------------------------------------------------------
@@ -291,11 +333,6 @@ class FieldsResponse(_Model):
 # keys have a default and their routes use `response_model_exclude_unset`, so an
 # absent key stays absent instead of turning into an explicit null. In OpenAPI they
 # are simply not `required`.
-
-#: A JSON number that may come out as an int or a float, and must keep which one it
-#: was. Pydantic turns an int into a float for a plain `float` field, which would
-#: change `1000` into `1000.0` on the wire.
-Number = int | float
 
 #: `trends.TREND_METRICS`: every metric `compute_trends` scores by default.
 TrendMetric = Literal[

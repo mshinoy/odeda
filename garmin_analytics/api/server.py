@@ -48,10 +48,12 @@ from ..edits import overrides as ov_mod
 from ..ingest import backfill as backfill_mod
 from ..seed import synthetic
 from . import auth as auth_mod
+from . import gym as gym_mod
 from .schemas import (
     ActivityDetail,
     ActivityEditPayload,
     ActivityEditResult,
+    ActivityExercises,
     ActivityList,
     ActivityStreams,
     FieldsResponse,
@@ -522,7 +524,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             total = st.scalar(f"SELECT COUNT(*) FROM v_activities{clause}", params)
             rows = st.query(
-                f"SELECT * FROM v_activities{clause} "
+                f"{gym_mod.ROWS_SQL}{clause} "
                 f"ORDER BY {sort} {order.upper()}, activity_id DESC LIMIT ? OFFSET ?",
                 [*params, limit, offset],
             )
@@ -540,7 +542,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_activity(activity_id: str) -> dict[str, Any]:
         """One activity with everything derived from it. The stream is `/streams`."""
         with store() as st:
-            act = ov_mod.effective(st, activity_id)
+            act = gym_mod.activity_row(st, activity_id)
             if act is None:
                 raise HTTPException(404, f"no activity {activity_id!r}")
             zones = st.query(
@@ -613,6 +615,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             out[col] = [r[i] for r in rows]
         return out
 
+    @app.get("/api/activities/{activity_id}/exercises", response_model=ActivityExercises)
+    def api_activity_exercises(activity_id: str) -> dict[str, Any]:
+        """The exercises Garmin summarised for a gym session, from the raw payload.
+
+        Empty (null totals, no exercises) for an activity without exercise data.
+        """
+        with store() as st:
+            body = gym_mod.activity_exercises(st, activity_id)
+        if body is None:
+            raise HTTPException(404, f"no activity {activity_id!r}")
+        return body
+
     @app.get("/api/activities/{activity_id}/track")
     def api_activity_track(activity_id: str) -> dict[str, Any]:
         """The GPS stream for the map. `has_gps: false` for indoor activities."""
@@ -644,7 +658,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
             return {
-                "activity": ov_mod.effective(st, activity_id),
+                "activity": gym_mod.activity_row(st, activity_id),
                 "applied": applied,
                 "overrides": ov_mod.list_overrides(st, activity_id),
             }
@@ -659,7 +673,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(400, str(exc)) from exc
             return {
                 "reverted": reverted,
-                "activity": ov_mod.effective(st, activity_id),
+                "activity": gym_mod.activity_row(st, activity_id),
                 "overrides": ov_mod.list_overrides(st, activity_id),
             }
 
@@ -667,7 +681,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_revert_all(activity_id: str) -> dict[str, Any]:
         with store() as st:
             n = ov_mod.revert_all(st, activity_id)
-            return {"reverted": n, "activity": ov_mod.effective(st, activity_id)}
+            return {"reverted": n, "activity": gym_mod.activity_row(st, activity_id)}
 
     @app.post("/api/overrides/bulk")
     def api_bulk_override(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:

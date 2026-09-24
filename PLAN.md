@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 10 / 10 |
-| 1 Activities + gym | A: `open` | 0 / 9 |
+| 1 Activities + gym | A: `open` | 1 / 9 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -56,7 +56,7 @@ Paste one of these into a fresh session.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | in progress (claude-parallel, 2026-09-24) | — | |
-| T15 | Gym data API: exercises from the saved activity data, and set/rep totals | in progress (claude-parallel, 2026-09-24) | — | |
+| T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
 | T02 | Activity list (gym rows show sets · reps) | todo | T15 | |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | todo | T02 | |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | todo | T03a | |
@@ -332,7 +332,7 @@ In parallel mode, use your own ports: add the task number to 8818 and 5180, e.g.
 
 **Endpoints already typed:**
 - Activities: `/api/activities`, `/api/activities/{id}` (GET, PATCH),
-  `/api/activities/{id}/streams`, `/api/fields`
+  `/api/activities/{id}/streams`, `/api/activities/{id}/exercises`, `/api/fields`
 - Status: `/api/summary`, `/api/load`, `/api/readiness`, `/api/readiness/history`,
   `/api/race`, `/api/health`
 - Sync: `/api/garmin/status`, `/api/sync/status`, `/api/sync/start`, `/api/sync/stop`
@@ -373,15 +373,15 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - About 71 exercises are `category: "UNKNOWN"`.
   - There is **no** muscle data and **no** per-set detail.
 - **Backend:**
-  - [ ] `GET /api/activities/{id}/exercises` returns `{ total_sets, active_sets,
+  - [x] `GET /api/activities/{id}/exercises` returns `{ total_sets, active_sets,
     total_reps, exercises: [{ index, category, sub_category, sets, reps,
     max_weight_g, volume_g, duration_ms }] }`. `index` is the position in the payload
     (T16b keys relabels on it). For activities without the data, `exercises` is empty.
-  - [ ] `total_sets` and `total_reps` on the activity list and detail responses (null
+  - [x] `total_sets` and `total_reps` on the activity list and detail responses (null
     when absent). Use `json_extract` in SQL so the list stays one query.
-  - [ ] Pydantic models, `npm run gen:api`, and adapters that turn them into app
+  - [x] Pydantic models, `npm run gen:api`, and adapters that turn them into app
     shapes, with the units kept.
-  - [ ] Tests with a small strength-payload fixture (not real data).
+  - [x] Tests with a small strength-payload fixture (not real data).
 - **Rules:** read `raw_documents` at the response boundary. Don't touch `ingest/`,
   `db/schema.sql` or stored data.
 - **Done when:** on the real-data copy, the 2026-09-14 session returns 6 exercises,
