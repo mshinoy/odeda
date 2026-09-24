@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatInteger,
   MISSING,
   formatDate,
   formatDateTime,
@@ -246,5 +247,13 @@ describe("dates", () => {
       expect(formatDateTime(input, today)).toBe(MISSING);
       expect(formatWeekday(input)).toBe(MISSING);
     }
+  });
+});
+
+describe("formatInteger", () => {
+  it("rounds and groups", () => {
+    expect(formatInteger(139.4)).toBe("139");
+    expect(formatInteger(1145)).toBe("1,145");
+    expect(formatInteger(null)).toBe("–");
   });
 });

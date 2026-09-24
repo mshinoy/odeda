@@ -116,6 +116,12 @@ export function formatSportSpeed(mps: MaybeNumber, kind: ActivityKind): string {
 
 // ---------------------------------------------------------------- body, terrain, ratios
 
+/** A unitless count or score, rounded: "139", "1,145". */
+export function formatInteger(value: MaybeNumber): string {
+  if (!isNumber(value)) return MISSING;
+  return integer.format(value);
+}
+
 export function formatHeartRate(bpm: MaybeNumber): string {
   if (!isNumber(bpm)) return MISSING;
   return `${integer.format(bpm)} bpm`;

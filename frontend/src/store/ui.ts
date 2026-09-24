@@ -32,7 +32,14 @@ export const useUiStore = create<UiState>()((set) => ({
   clearSelected: () => set({ selectedActivityIds: [] }),
 
   hover: null,
-  setHover: (hover) => set({ hover }),
+  // Map and charts both write hover on every pointer move; skipping a same-sample write
+  // keeps them from re-rendering each other in a loop.
+  setHover: (hover) =>
+    set((state) =>
+      state.hover?.activityId === hover.activityId && state.hover.index === hover.index
+        ? state
+        : { hover },
+    ),
   clearHover: () => set({ hover: null }),
 
   timeRange: lastNDays(30),

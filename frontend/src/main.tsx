@@ -1,17 +1,17 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { queryClient } from "@/api/queryClient";
 import { App } from "@/App";
+import { initTheme } from "@/design/theme";
 import "./index.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html is missing #root");
 
+// Before the first render, so the first paint already has the right theme.
+initTheme();
+
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <App />
   </StrictMode>,
 );
