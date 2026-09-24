@@ -62,7 +62,7 @@ Paste one of these into a fresh session.
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | done | T03a | Activity editing: edited fields marked, revert one field or all of them |
 | T03c | Activity editing: gear and route selects | done | T03a | Activity editing: gear and route selects in the dialog |
 | T16 | Gym session page: body diagram and exercise table | done | T15 | Gym session page: a body diagram of what was trained, and the exercises |
-| T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
+| T16b | Gym: relabel unlabelled (or wrong) exercises | in progress (patti, 2026-09-24) | T16, T03b | |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | todo | — | |
 | T19 | MapLibre: ship its worker so the no-token basemap draws | todo | — | |
