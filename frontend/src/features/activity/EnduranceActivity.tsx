@@ -33,7 +33,12 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
             <EmptyState message="Maps need WebGL. Turn on hardware acceleration in the browser." />
           )}
           <div className="absolute top-3 left-3">
-            <MetricToggle options={metricOptions} value={colorBy} onChange={setColorBy} />
+            <MetricToggle
+              options={metricOptions}
+              value={colorBy}
+              kind={activity.summary.kind}
+              onChange={setColorBy}
+            />
           </div>
         </section>
       )}

@@ -10,6 +10,7 @@ import {
 } from "@/charts/streamChart/buildStreamChartOption";
 import { streamXAxis } from "@/charts/streamChart/streamXAxis";
 import { colorTokens, type ColorTokens } from "@/design/tokens";
+import type { ActivityKind } from "@/lib/activityKind";
 import { metrics } from "@/lib/metrics";
 
 // Sentinel strings instead of real colours, so a match proves the colour came from here.
@@ -79,8 +80,8 @@ function pointsOf(option: ChartOption): unknown[][] {
   });
 }
 
-function build(streams: ActivityStreams, key: keyof typeof metrics) {
-  return buildStreamChartOption({ streams, metric: metrics[key], kind: "run", tokens });
+function build(streams: ActivityStreams, key: keyof typeof metrics, kind: ActivityKind = "run") {
+  return buildStreamChartOption({ streams, metric: metrics[key], kind, tokens });
 }
 
 // ---------------------------------------------------------------- the option
@@ -91,6 +92,8 @@ describe("buildStreamChartOption", () => {
     expect(yAxisOf(build(streams, "pace")).inverse).toBe(true);
     expect(yAxisOf(build(streams, "hr")).inverse).toBe(false);
     expect(yAxisOf(build(streams, "elevation")).inverse).toBe(false);
+    // A ride plots km/h, where bigger is faster, so it is not inverted.
+    expect(yAxisOf(build(streams, "pace", "ride")).inverse).toBe(false);
   });
 
   it("plots x in km when the activity has distance", () => {
@@ -201,13 +204,60 @@ describe("the pace axis", () => {
     expect(formatYTick(metrics.pace, 300, "run", false)).toBe("5:00");
     expect(formatYTick(metrics.pace, 300, "run", true)).toBe("5:00 /km");
   });
+
+  it("plots a ride in km/h, faster at the top, with the unit said once", () => {
+    // 5 m/s is 18 km/h. Before T18 this axis read "–, 5:00, 10:00" in s/km while the
+    // activity's header, splits and legend all said km/h.
+    const n = 50;
+    const streams = makeStreams(n, {
+      smoothSpeedMps: Array.from({ length: n }, (_, i) => 5 + (i % 4)),
+    });
+    const option = build(streams, "pace", "ride");
+    const axis = yAxisOf(option);
+    expect(axis.inverse).toBe(false);
+    expect(pointsOf(option)[0]?.[1]).toBeCloseTo(18);
+    const top = axis.max;
+    const step = axis.interval;
+    if (typeof top !== "number" || typeof step !== "number") {
+      throw new Error("expected a fixed scale");
+    }
+    expect(yTickLabel(option, top)).toMatch(/^[\d.]+ km\/h$/);
+    expect(yTickLabel(option, top - step)).toMatch(/^[\d.]+$/);
+  });
+
+  it("plots a swim per 100 m, faster at the top", () => {
+    const n = 50;
+    const streams = makeStreams(n, {
+      smoothSpeedMps: Array.from({ length: n }, () => 1),
+    });
+    const option = build(streams, "pace", "swim");
+    expect(yAxisOf(option).inverse).toBe(true);
+    // 1 m/s is 100 s per 100 m.
+    expect(pointsOf(option)[0]?.[1]).toBeCloseTo(100);
+    expect(formatYTick(metrics.pace, 100, "swim", true)).toBe("1:40 /100m");
+    expect(formatYTick(metrics.pace, 100, "swim", false)).toBe("1:40");
+  });
+
+  it("puts the tooltip in the same unit as the axis", () => {
+    const km = streamXAxis(makeStreams(200));
+    expect(formatTooltipLine(metrics.pace, "ride", km, 3.4, 18)).toBe("18.0 km/h · 3.4 km");
+    expect(formatTooltipLine(metrics.pace, "swim", km, 3.4, 100)).toBe("1:40 /100m · 3.4 km");
+    expect(formatTooltipLine(metrics.pace, "run", km, 3.4, 312)).toBe("5:12 /km · 3.4 km");
+  });
+
+  it("gives a steady ride a sensible height rather than a 30 km/h one", () => {
+    // The old floor was 30, which is right for s/km and absurd for km/h.
+    const scale = streamYScale(metrics.pace, [18, 18.4, 19], "ride");
+    expect((scale?.max ?? 0) - (scale?.min ?? 0)).toBeLessThan(10);
+    expect((scale?.max ?? 0) - (scale?.min ?? 0)).toBeGreaterThanOrEqual(2);
+  });
 });
 
 // ---------------------------------------------------------------- the parts
 
 describe("streamYScale", () => {
   it("scales to the data rather than from zero, on round values", () => {
-    const scale = streamYScale(metrics.hr, [142, 150, 171]);
+    const scale = streamYScale(metrics.hr, [142, 150, 171], "run");
     if (scale === null) throw new Error("expected a scale");
     expect(scale.min).toBeGreaterThan(0);
     expect(scale.min).toBeLessThan(142);
@@ -218,17 +268,17 @@ describe("streamYScale", () => {
 
   it("ignores a stop's pace spike", () => {
     const pace = [...Array.from({ length: 200 }, (_, i) => 300 + (i % 20)), 1500];
-    const scale = streamYScale(metrics.pace, pace);
+    const scale = streamYScale(metrics.pace, pace, "run");
     expect(scale?.max).toBeLessThan(400);
   });
 
   it("gives a flat course a minimum height", () => {
-    const scale = streamYScale(metrics.elevation, [100, 101, 100]);
+    const scale = streamYScale(metrics.elevation, [100, 101, 100], "run");
     expect((scale?.max ?? 0) - (scale?.min ?? 0)).toBeGreaterThanOrEqual(10);
   });
 
   it("is null without values", () => {
-    expect(streamYScale(metrics.hr, [null, null])).toBeNull();
+    expect(streamYScale(metrics.hr, [null, null], "run")).toBeNull();
   });
 });
 

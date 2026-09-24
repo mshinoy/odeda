@@ -1,6 +1,6 @@
 import type { ColorTokens } from "@/design/tokens";
 import type { ActivityKind } from "@/lib/activityKind";
-import { metrics, type MetricKey } from "@/lib/metrics";
+import { metricLabel, metrics, type MetricKey } from "@/lib/metrics";
 import { steppedGradient } from "@/map/legend";
 
 interface MetricLegendProps {
@@ -22,7 +22,7 @@ export function MetricLegend({ colorBy, range, kind, tokens }: MetricLegendProps
   return (
     <div
       role="img"
-      aria-label={`${metric.label}: ${lowLabel} to ${highLabel}`}
+      aria-label={`${metricLabel(metric, kind)}: ${lowLabel} to ${highLabel}`}
       className="bg-background/90 text-muted-foreground flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs tabular-nums shadow-sm backdrop-blur"
     >
       <span>{lowLabel}</span>

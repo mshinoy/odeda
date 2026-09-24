@@ -1,14 +1,17 @@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { MetricDefinition, MetricKey } from "@/lib/metrics";
+import { metricLabel, type MetricDefinition, type MetricKey } from "@/lib/metrics";
+import type { ActivityKind } from "@/lib/activityKind";
 
 interface MetricToggleProps {
   options: MetricDefinition[];
   value: MetricKey;
+  /** The sport, which decides whether the speed metric reads "Pace" or "Speed". */
+  kind: ActivityKind;
   onChange: (key: MetricKey) => void;
 }
 
 /** "Colour by" for the route: one word per option. */
-export function MetricToggle({ options, value, onChange }: MetricToggleProps) {
+export function MetricToggle({ options, value, kind, onChange }: MetricToggleProps) {
   return (
     <ToggleGroup
       type="single"
@@ -22,7 +25,7 @@ export function MetricToggle({ options, value, onChange }: MetricToggleProps) {
     >
       {options.map((option) => (
         <ToggleGroupItem key={option.key} value={option.key} className="px-3 text-xs">
-          {option.label}
+          {metricLabel(option, kind)}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

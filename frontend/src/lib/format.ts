@@ -103,12 +103,30 @@ export function paceFromSpeed(mps: MaybeNumber): number | null {
 
 export function formatSpeed(mps: MaybeNumber, digits = 1): string {
   if (!isNumber(mps)) return MISSING;
-  return `${fixedDigits(digits).format(mps * 3.6)} km/h`;
+  return formatKmh(mps * 3.6, digits);
+}
+
+/** A speed already in km/h, for an axis that plots it directly: "19.3 km/h". */
+export function formatKmh(kmh: MaybeNumber, digits = 1): string {
+  if (!isNumber(kmh)) return MISSING;
+  return `${fixedDigits(digits).format(kmh)} km/h`;
+}
+
+/** A km/h value with no unit, for axis ticks that carry the unit once: "19.3". */
+export function formatKmhBare(kmh: MaybeNumber, digits = 1): string {
+  if (!isNumber(kmh)) return MISSING;
+  return fixedDigits(digits).format(kmh);
 }
 
 export function formatSwimPace(mps: MaybeNumber): string {
   if (!isNumber(mps) || mps <= MIN_SWIMMING_SPEED_MPS) return MISSING;
-  return `${minutesSeconds(100 / mps)} /100m`;
+  return formatPer100m(100 / mps);
+}
+
+/** Seconds per 100 m, the unit a pool thinks in: "1:42 /100m". */
+export function formatPer100m(secondsPer100m: MaybeNumber): string {
+  if (!isNumber(secondsPer100m) || secondsPer100m <= 0) return MISSING;
+  return `${minutesSeconds(secondsPer100m)} /100m`;
 }
 
 /** Speed in the unit each sport thinks in: pace on foot, km/h on a bike, /100m in water. */

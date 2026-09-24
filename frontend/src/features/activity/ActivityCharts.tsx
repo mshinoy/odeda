@@ -1,11 +1,17 @@
 import { useCallback, useMemo } from "react";
 import type { Activity, ActivityStreams } from "@/api/adapters";
-import { buildStreamChartOption } from "@/charts/streamChart/buildStreamChartOption";
+import type { ActivityKind } from "@/lib/activityKind";
+import { buildStreamChartOption, streamYValues } from "@/charts/streamChart/buildStreamChartOption";
 import { StreamChart } from "@/charts/streamChart/StreamChart";
 import { streamXAxis } from "@/charts/streamChart/streamXAxis";
 import { EmptyState } from "@/components/EmptyState";
 import { useTokens } from "@/design/theme";
-import { availableMetrics, type MetricDefinition, type MetricKey } from "@/lib/metrics";
+import {
+  availableMetrics,
+  metricLabel,
+  type MetricDefinition,
+  type MetricKey,
+} from "@/lib/metrics";
 import { useUiStore } from "@/store/ui";
 
 // Grade is left out here: next to elevation it mostly repeats it, only noisier.
@@ -14,10 +20,11 @@ const CHARTED_METRICS: readonly MetricKey[] = ["pace", "hr", "elevation"];
 const CHART_HEIGHT = 150;
 
 /** The charted metrics with at least one value to plot, in display order. */
-function chartedMetrics(streams: ActivityStreams): MetricDefinition[] {
+function chartedMetrics(streams: ActivityStreams, kind: ActivityKind): MetricDefinition[] {
   return availableMetrics(streams).filter(
     (metric) =>
-      CHARTED_METRICS.includes(metric.key) && metric.plotValues(streams).some((v) => v !== null),
+      CHARTED_METRICS.includes(metric.key) &&
+      streamYValues(metric, streams, kind).some((v) => v !== null),
   );
 }
 
@@ -37,7 +44,7 @@ export function ActivityCharts({ activity }: { activity: Activity }) {
 
   // Built once per data and theme; hover only moves the crosshair.
   const charts = useMemo(() => {
-    const metrics = chartedMetrics(streams);
+    const metrics = chartedMetrics(streams, summary.kind);
     return metrics.map((metric, i) => ({
       metric,
       option: buildStreamChartOption({
@@ -68,7 +75,7 @@ export function ActivityCharts({ activity }: { activity: Activity }) {
       {charts.map(({ metric, option }) => (
         <StreamChart
           key={metric.key}
-          label={metric.label}
+          label={metricLabel(metric, summary.kind)}
           option={option}
           xValues={xValues}
           height={CHART_HEIGHT}

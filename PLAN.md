@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 9 / 11 |
+| 1 Activities + gym | A: `open` | 10 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
@@ -64,7 +64,7 @@ Paste one of these into a fresh session.
 | T16 | Gym session page: body diagram and exercise table | done | T15 | Gym session page: a body diagram of what was trained, and the exercises |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | done | T16, T03b | Gym: relabel an exercise Garmin got wrong, and revert it |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
-| T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | in progress (patti, 2026-09-24) | — | |
+| T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | done | — | Stream charts: a ride's axis in km/h, a swim's in /100m |
 | T19 | MapLibre: ship its worker so the no-token basemap draws | todo | — | |
 
 ### Phase 2 — Map & routes · Checkpoint B: `open`
@@ -522,11 +522,19 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Problem:** the stream "Pace" chart plots s/km for every sport, so a ride's axis
   reads "–, 5:00, 10:00" (the top tick is 0 s/km) while its header, splits and legend say km/h.
 - **Build:**
-  - [ ] rides (and other speed sports) plot km/h, higher at the top; swims plot /100m;
+  - [x] rides (and other speed sports) plot km/h, higher at the top; swims plot /100m;
     runs and walks keep s/km inverted. Reuse the units of `formatSportSpeed`.
-  - [ ] the unit shown once on the top tick, as T01 did for /km
-  - [ ] tooltip and crosshair in the same unit
+  - [x] the unit shown once on the top tick, as T01 did for /km
+  - [x] tooltip and crosshair in the same unit
 - **Done when:** a real ride, run and swim read in their own unit.
+- **Notes:**
+  - The chart's label follows the unit: a ride's chart, colour-by toggle and stat card
+    all read "Speed", on foot and in water they read "Pace" (`metricLabel`).
+  - **The swim path is unit-tested only.** None of the owner's 24 pool swims carries a
+    per-sample speed or distance stream — Garmin sends lengths, not samples — so a swim
+    page shows HR alone and there is no pace chart to check. The /100m axis is therefore
+    proven by tests, not by a real activity. The swim's stat card, list row and map
+    legend already read /100m and still do.
 
 ### T19 — MapLibre worker
 - **Found in:** T01. Without `VITE_MAPBOX_TOKEN`, every map logs "Worker failed to load"

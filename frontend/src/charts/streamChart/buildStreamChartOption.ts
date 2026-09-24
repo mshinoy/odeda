@@ -16,8 +16,8 @@ import { streamXAxis, type StreamXAxis } from "@/charts/streamChart/streamXAxis"
 import type { ColorTokens } from "@/design/tokens";
 import { kindColor, metricColor } from "@/design/scales";
 import type { ActivityKind } from "@/lib/activityKind";
-import { formatPace, formatPaceClock, MISSING } from "@/lib/format";
-import type { MetricDefinition, MetricKey } from "@/lib/metrics";
+import { MISSING } from "@/lib/format";
+import { paceScale, type MetricDefinition, type MetricKey } from "@/lib/metrics";
 import { fontFamily, fontSize } from "@/design/typography";
 
 export interface StreamChartInput {
@@ -52,9 +52,12 @@ const Y_QUANTILES: Record<MetricKey, [number, number]> = {
   gradient: [0.02, 0.98],
 };
 
-/** The smallest y span, so a flat course or a steady effort does not fill the chart with noise. */
-const Y_MIN_SPAN: Record<MetricKey, number> = {
-  pace: 30,
+/**
+ * The smallest y span, so a flat course or a steady effort does not fill the chart with
+ * noise. Pace has no entry: its unit depends on the sport, so its floor comes from
+ * `paceScale(kind)`.
+ */
+const Y_MIN_SPAN: Partial<Record<MetricKey, number>> = {
   hr: 10,
   elevation: 10,
   gradient: 2,
@@ -81,19 +84,22 @@ export function streamLineColor(
   }
 }
 
-/** A plotted value as text. Pace plots seconds per km; the rest plot their scale value. */
+/**
+ * A plotted value as text. The pace metric plots whatever unit the sport reads in
+ * (s/km on foot, km/h on a bike, s/100m in water); the rest plot their scale value.
+ */
 export function formatPlotValue(
   metric: MetricDefinition,
   value: number,
   kind: ActivityKind,
 ): string {
-  if (metric.key === "pace") return formatPace(value);
+  if (metric.key === "pace") return paceScale(kind).format(value);
   return metric.formatScaleValue(value, kind);
 }
 
 /**
- * A y-axis tick. Pace ticks are bare m:ss and only the top one says "/km", so the unit
- * is read once instead of on every line. Other metrics keep their unit on each tick.
+ * A y-axis tick. Pace ticks are bare and only the top one carries the unit, so it is
+ * read once instead of on every line. Other metrics keep their unit on each tick.
  */
 export function formatYTick(
   metric: MetricDefinition,
@@ -102,7 +108,8 @@ export function formatYTick(
   isTopTick: boolean,
 ): string {
   if (metric.key !== "pace") return formatPlotValue(metric, value, kind);
-  return isTopTick ? formatPace(value) : formatPaceClock(value);
+  const scale = paceScale(kind);
+  return isTopTick ? scale.format(value) : scale.formatBare(value);
 }
 
 /** The tooltip's one line: "5:12 /km · 3.4 km". A missing value shows as MISSING. */
@@ -121,19 +128,37 @@ export function formatTooltipLine(
 export function streamYScale(
   metric: MetricDefinition,
   values: readonly (number | null)[],
+  kind: ActivityKind,
 ): { min: number; max: number; step: number } | null {
   const [lowerQuantile, upperQuantile] = Y_QUANTILES[metric.key];
   const range = quantileRange(values, lowerQuantile, upperQuantile);
   if (range === null) return null;
 
-  const spread = padded(withMinSpan(range, Y_MIN_SPAN[metric.key]), Y_PADDING);
+  const pace = metric.key === "pace" ? paceScale(kind) : null;
+  const minSpan = pace?.minSpan ?? Y_MIN_SPAN[metric.key] ?? 0;
+  const spread = padded(withMinSpan(range, minSpan), Y_PADDING);
   const span = spread[1] - spread[0];
-  const step =
-    metric.key === "pace"
-      ? stepFrom(SECONDS_STEPS, span, MAX_Y_INTERVALS)
-      : decimalStep(span, MAX_Y_INTERVALS);
+  // A km/h axis wants round decimals; anything measured in time wants round seconds.
+  const onSeconds = pace ? pace.seconds : false;
+  const step = onSeconds
+    ? stepFrom(SECONDS_STEPS, span, MAX_Y_INTERVALS)
+    : decimalStep(span, MAX_Y_INTERVALS);
   const [min, max] = snapToStep(spread, step);
   return { min, max, step };
+}
+
+/** Which way up the metric reads for this sport: faster is higher, whatever the unit. */
+export function streamYInverted(metric: MetricDefinition, kind: ActivityKind): boolean {
+  return metric.key === "pace" ? paceScale(kind).invert : metric.invertAxis;
+}
+
+/** The column a chart plots. Pace plots the sport's own unit, not always s/km. */
+export function streamYValues(
+  metric: MetricDefinition,
+  streams: ActivityStreams,
+  kind: ActivityKind,
+): (number | null)[] {
+  return metric.key === "pace" ? paceScale(kind).values(streams) : metric.plotValues(streams);
 }
 
 export function buildStreamChartOption({
@@ -144,8 +169,9 @@ export function buildStreamChartOption({
   showXAxisLabels = true,
 }: StreamChartInput): ChartOption {
   const xAxis = streamXAxis(streams);
-  const yValues = metric.plotValues(streams);
-  const yScale = streamYScale(metric, yValues);
+  const yValues = streamYValues(metric, streams, kind);
+  const yScale = streamYScale(metric, yValues, kind);
+  const inverted = streamYInverted(metric, kind);
   const color = streamLineColor(metric.key, kind, tokens);
   const data = xAxis.values.map((x, i) => [x, yValues[i] ?? null]);
   const areaStyle =
@@ -176,7 +202,7 @@ export function buildStreamChartOption({
     },
     yAxis: {
       type: "value",
-      inverse: metric.invertAxis,
+      inverse: inverted,
       min: yScale?.min,
       max: yScale?.max,
       interval: yScale?.step,
@@ -187,7 +213,7 @@ export function buildStreamChartOption({
         color: tokens.inkMuted,
         fontSize: LABEL_FONT_SIZE,
         formatter: (value: number) =>
-          formatYTick(metric, value, kind, isTop(value, yScale, metric.invertAxis)),
+          formatYTick(metric, value, kind, isTop(value, yScale, inverted)),
       },
     },
     tooltip: {

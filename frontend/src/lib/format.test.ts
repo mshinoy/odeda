@@ -15,8 +15,11 @@ import {
   formatElevation,
   formatExerciseName,
   formatHeartRate,
+  formatKmh,
+  formatKmhBare,
   formatPace,
   formatPaceClock,
+  formatPer100m,
   formatPercent,
   formatSetsReps,
   formatSpeed,
@@ -387,5 +390,24 @@ describe("formatWeight and formatVolume", () => {
     expect(formatVolume(4850000)).toBe("4,850 kg");
     expect(formatVolume(1500)).toBe("2 kg");
     expect(formatVolume(undefined)).toBe("–");
+  });
+});
+
+describe("formatKmh and formatPer100m", () => {
+  it("shows a speed already in km/h, and the same without its unit for a tick", () => {
+    expect(formatKmh(19.34)).toBe("19.3 km/h");
+    expect(formatKmhBare(19.34)).toBe("19.3");
+    expect(formatKmh(null)).toBe("–");
+  });
+
+  it("shows seconds per 100 m the way a pool does", () => {
+    expect(formatPer100m(102)).toBe("1:42 /100m");
+    expect(formatPer100m(0)).toBe("–");
+    expect(formatPer100m(undefined)).toBe("–");
+  });
+
+  it("agrees with the metres-per-second versions", () => {
+    expect(formatSpeed(5)).toBe(formatKmh(18));
+    expect(formatSwimPace(1)).toBe(formatPer100m(100));
   });
 });
