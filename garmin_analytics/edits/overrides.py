@@ -16,6 +16,7 @@ from typing import Any, Sequence
 
 from ..db.fields import FIELDS, FIELDS_BY_NAME, EditableField
 from ..db.store import Store, utcnow
+from . import exercises as relabels_mod
 
 
 class UnknownField(KeyError):
@@ -61,11 +62,15 @@ def effective(store: Store, activity_id: str) -> dict[str, Any] | None:
 
 
 def list_overrides(store: Store, activity_id: str) -> list[dict[str, Any]]:
-    """Every edit on one activity, each with the Garmin value it is masking."""
+    """Every *field* edit on one activity, each with the Garmin value it is masking.
+
+    Exercise relabels share the table but are not activity fields, so they are left
+    out here and reported on the exercises themselves (`edits/exercises.py`).
+    """
     rows = store.query(
         "SELECT field, value, value_type, garmin_value_at_edit, created_at, updated_at "
-        "FROM overrides WHERE activity_id = ? ORDER BY field",
-        (activity_id,),
+        "FROM overrides WHERE activity_id = ? AND field NOT LIKE ? ORDER BY field",
+        (activity_id, f"{relabels_mod.RELABEL_PREFIX}%"),
     )
     out: list[dict[str, Any]] = []
     for r in rows:
@@ -151,7 +156,17 @@ def revert(store: Store, activity_id: str, name: str) -> bool:
 
 
 def revert_all(store: Store, activity_id: str) -> int:
-    cur = store.conn.execute("DELETE FROM overrides WHERE activity_id = ?", (activity_id,))
+    """Drop every field edit on the activity.
+
+    Exercise relabels are left alone: "revert all" is the Edit dialog's button, the
+    dialog counts only the field edits it shows, and silently throwing away work done
+    on another screen would be the worst kind of surprise. Each relabel reverts from
+    its own row.
+    """
+    cur = store.conn.execute(
+        "DELETE FROM overrides WHERE activity_id = ? AND field NOT LIKE ?",
+        (activity_id, f"{relabels_mod.RELABEL_PREFIX}%"),
+    )
     store.conn.commit()
     return cur.rowcount
 
@@ -179,11 +194,18 @@ def bulk_set(
 
 
 def stats(store: Store) -> dict[str, Any]:
-    """Summary for the settings screen: how much of the data the user has corrected."""
+    """Summary for the settings screen: how much of the data the user has corrected.
+
+    Relabels are counted together as `exercise_relabels` rather than appearing in
+    `by_field` as one entry per exercise index, which would be a list of noise.
+    """
     by_field = store.query(
-        "SELECT field, COUNT(*) AS n FROM overrides GROUP BY field ORDER BY n DESC"
+        "SELECT field, COUNT(*) AS n FROM overrides WHERE field NOT LIKE ? "
+        "GROUP BY field ORDER BY n DESC",
+        (f"{relabels_mod.RELABEL_PREFIX}%",),
     )
     return {
+        "exercise_relabels": relabels_mod.count(store),
         "total": int(store.scalar("SELECT COUNT(*) FROM overrides") or 0),
         "activities_edited": int(
             store.scalar("SELECT COUNT(DISTINCT activity_id) FROM overrides") or 0

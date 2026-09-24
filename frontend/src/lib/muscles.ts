@@ -126,6 +126,17 @@ const BY_SUB_CATEGORY: Readonly<Record<string, MuscleGroups>> = {
   ALTERNATING_BOX_DUMBBELL_STEP_UPS: groups(["quads", "glutes"], ["hamstrings", "calves"]),
 };
 
+/**
+ * The categories a relabel can choose from (T16b): the ones that say which muscles an
+ * exercise trains. `UNKNOWN` is not offered — reverting the relabel is how you go back
+ * to "Garmin did not know" — and neither are the equipment-only categories, which
+ * would teach the diagram nothing.
+ */
+export const RELABEL_CATEGORIES: readonly string[] = Object.entries(BY_CATEGORY)
+  .filter(([, groups]) => groups.primary.length > 0)
+  .map(([category]) => category)
+  .sort();
+
 /** The muscles an exercise trains. Empty for an exercise Garmin could not name. */
 export function musclesFor(
   category: string | null,

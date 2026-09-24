@@ -23,14 +23,19 @@ RUN_ID = str(F.ACTIVITY["activityId"])
 EXPORTED_ID = "444"
 
 #: `STRENGTH_ACTIVITY`'s exercises as the API returns them: keys renamed, units and
-#: int/float kept as Garmin sent them, and null where Garmin left a key out.
+#: int/float kept as Garmin sent them, and null where Garmin left a key out. With no
+#: relabel (T16b) the user's category is Garmin's and `edited` is false.
 EXPECTED_EXERCISES = [
     {"index": 0, "category": "BENCH_PRESS", "sub_category": None, "sets": 3, "reps": 24,
-     "max_weight_g": 50000, "volume_g": 1200000, "duration_ms": 150000.5},
+     "max_weight_g": 50000, "volume_g": 1200000, "duration_ms": 150000.5,
+     "edited": False, "garmin_category": "BENCH_PRESS", "garmin_sub_category": None},
     {"index": 1, "category": "DEADLIFT", "sub_category": "ROMANIAN_DEADLIFT", "sets": 2,
-     "reps": 16, "max_weight_g": 60000, "volume_g": 960000, "duration_ms": 95000.0},
+     "reps": 16, "max_weight_g": 60000, "volume_g": 960000, "duration_ms": 95000.0,
+     "edited": False, "garmin_category": "DEADLIFT",
+     "garmin_sub_category": "ROMANIAN_DEADLIFT"},
     {"index": 2, "category": "UNKNOWN", "sub_category": None, "sets": 1, "reps": 10,
-     "max_weight_g": None, "volume_g": 0, "duration_ms": 30000.0},
+     "max_weight_g": None, "volume_g": 0, "duration_ms": 30000.0,
+     "edited": False, "garmin_category": "UNKNOWN", "garmin_sub_category": None},
 ]
 
 
@@ -132,3 +137,114 @@ class TestExercisesFromPayload:
     def test_junk_is_empty(self, payload):
         assert exercises_from_payload(payload) == {
             "total_sets": None, "active_sets": None, "total_reps": None, "exercises": []}
+
+
+class TestRelabels:
+    """T16b: the user saying what an exercise really was, in `overrides`."""
+
+    def _exercises(self, client, activity_id: str = GYM_ID) -> list[dict[str, Any]]:
+        return client.get(f"/api/activities/{activity_id}/exercises").json()["exercises"]
+
+    def test_a_relabel_replaces_the_category_and_keeps_garmins(self, client):
+        res = client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        assert res.status_code == 200, res.text
+        # The PUT answers with the whole session, so one round trip refreshes the page.
+        row = next(e for e in res.json()["exercises"] if e["index"] == 2)
+        assert (row["category"], row["sub_category"]) == ("SQUAT", None)
+        assert row["edited"] is True
+        assert (row["garmin_category"], row["garmin_sub_category"]) == ("UNKNOWN", None)
+        # And it survives a reload.
+        assert self._exercises(client)[2] == row
+        # The others are untouched.
+        assert [e["edited"] for e in self._exercises(client)] == [False, False, True]
+
+    def test_a_relabel_can_carry_a_subcategory(self, client):
+        body = client.put(
+            f"/api/activities/{GYM_ID}/exercises/0",
+            json={"category": "SQUAT", "sub_category": "LEG_PRESS"},
+        ).json()
+        row = body["exercises"][0]
+        assert (row["category"], row["sub_category"]) == ("SQUAT", "LEG_PRESS")
+        assert row["garmin_category"] == "BENCH_PRESS"
+
+    def test_reverting_brings_garmins_guess_back(self, client):
+        client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        res = client.delete(f"/api/activities/{GYM_ID}/exercises/2")
+        assert res.status_code == 200, res.text
+        row = res.json()["exercises"][2]
+        assert (row["category"], row["edited"]) == ("UNKNOWN", False)
+        # Reverting something that was never relabelled is not an error.
+        assert client.delete(f"/api/activities/{GYM_ID}/exercises/2").status_code == 200
+
+    def test_the_first_garmin_value_survives_several_relabels(self, client):
+        client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        body = client.put(
+            f"/api/activities/{GYM_ID}/exercises/2", json={"category": "LUNGE"}
+        ).json()
+        row = body["exercises"][2]
+        assert (row["category"], row["garmin_category"]) == ("LUNGE", "UNKNOWN")
+
+    def test_a_relabel_is_not_an_activity_field_edit(self, client):
+        client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        detail = client.get(f"/api/activities/{GYM_ID}").json()
+        # It must not appear in the Edit dialog as a field called "exercise:2" ...
+        assert detail["overrides"] == []
+        # ... but the activity does carry an edit.
+        assert detail["activity"]["override_count"] == 1
+        # It is not offered as an editable field either.
+        names = {f["name"] for f in client.get("/api/fields").json()["fields"]}
+        assert not any(n.startswith("exercise:") for n in names)
+        # The bulk endpoint rejects it rather than writing one across activities.
+        bulk = client.post(
+            "/api/overrides/bulk", json={"activity_ids": [GYM_ID], "field": "exercise:2",
+                                         "value": "SQUAT"}
+        )
+        assert bulk.status_code == 400
+
+    def test_revert_all_leaves_relabels_alone(self, client):
+        client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        client.patch(f"/api/activities/{GYM_ID}", json={"activity_name": "Legs", "rpe": 6})
+        every = client.delete(f"/api/activities/{GYM_ID}/overrides").json()
+        # Two fields reverted, not three: the relabel is not the dialog's to throw away.
+        assert every["reverted"] == 2
+        assert self._exercises(client)[2]["edited"] is True
+
+    def test_the_edits_summary_counts_relabels_together(self, client):
+        for index in (0, 2):
+            client.put(f"/api/activities/{GYM_ID}/exercises/{index}",
+                       json={"category": "SQUAT"})
+        client.patch(f"/api/activities/{GYM_ID}", json={"rpe": 6})
+        stats = client.get("/api/overrides").json()
+        assert stats["exercise_relabels"] == 2
+        assert stats["total"] == 3
+        # One entry per exercise index in by_field would be a list of noise.
+        assert [r["field"] for r in stats["by_field"]] == ["rpe"]
+
+    @pytest.mark.parametrize("body", [
+        {"category": "bad category"}, {"category": ""},
+        {"category": "SQUAT", "sub_category": "not a token"},
+    ])
+    def test_a_relabel_that_is_not_an_exercise_constant_is_rejected(self, client, body):
+        assert client.put(f"/api/activities/{GYM_ID}/exercises/0",
+                          json=body).status_code == 400
+
+    def test_a_relabel_is_uppercased(self, client):
+        body = client.put(f"/api/activities/{GYM_ID}/exercises/0",
+                          json={"category": "squat"}).json()
+        assert body["exercises"][0]["category"] == "SQUAT"
+
+    def test_unknown_activity_or_exercise(self, client):
+        assert client.put("/api/activities/nope/exercises/0",
+                          json={"category": "SQUAT"}).status_code == 404
+        assert client.put(f"/api/activities/{GYM_ID}/exercises/9",
+                          json={"category": "SQUAT"}).status_code == 404
+        assert client.delete(f"/api/activities/{GYM_ID}/exercises/9").status_code == 404
+        # An activity with no exercise data has no exercise 0 either.
+        assert client.delete(f"/api/activities/{RUN_ID}/exercises/0").status_code == 404
+
+    def test_a_relabel_survives_a_resync_of_the_activity(self, client, settings):
+        client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        with Store.open(settings) as st, st.tx():
+            _ingest(st, "connect", "activities", GYM_ID, F.STRENGTH_ACTIVITY,
+                    F.STRENGTH_ACTIVITY)
+        assert self._exercises(client)[2]["category"] == "SQUAT"

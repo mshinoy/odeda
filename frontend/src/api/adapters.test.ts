@@ -116,6 +116,9 @@ describe("toGymSession", () => {
         max_weight_g: 60000,
         volume_g: 1440000,
         duration_ms: 95000.5,
+        edited: false,
+        garmin_category: "DEADLIFT",
+        garmin_sub_category: "ROMANIAN_DEADLIFT",
       },
       {
         index: 2,
@@ -126,6 +129,10 @@ describe("toGymSession", () => {
         max_weight_g: null,
         volume_g: 0,
         duration_ms: null,
+        // Relabelled by the user: Garmin had no idea what it was.
+        edited: true,
+        garmin_category: null,
+        garmin_sub_category: null,
       },
     ],
   });
@@ -143,6 +150,9 @@ describe("toGymSession", () => {
       maxWeightG: 60000,
       volumeG: 1440000,
       durationMs: 95000.5,
+      edited: false,
+      garminCategory: "DEADLIFT",
+      garminSubCategory: "ROMANIAN_DEADLIFT",
     });
     expect(session.exercises[1]?.index).toBe(2);
   });
@@ -150,6 +160,10 @@ describe("toGymSession", () => {
   it("treats a missing category as Garmin's UNKNOWN", () => {
     expect(session.exercises[1]?.category).toBe(UNKNOWN_EXERCISE);
     expect(session.exercises[1]?.maxWeightG).toBeNull();
+    // Relabelled, and Garmin's missing category reads as unlabelled too.
+    expect(session.exercises[1]?.edited).toBe(true);
+    expect(session.exercises[1]?.garminCategory).toBe(UNKNOWN_EXERCISE);
+    expect(session.exercises[1]?.garminSubCategory).toBeNull();
   });
 
   it("is empty for an activity without exercise data", () => {

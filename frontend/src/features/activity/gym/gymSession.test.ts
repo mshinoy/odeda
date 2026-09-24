@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { Exercise, GymSession } from "@/api/adapters";
 import {
+  exerciseLabel,
   exerciseRows,
   highlightedMuscles,
   highlightedRows,
   isGymSession,
+  relabelOptions,
   sessionTotals,
+  toRelabel,
   totalVolumeG,
 } from "@/features/activity/gym/gymSession";
+import { RELABEL_CATEGORIES } from "@/lib/muscles";
 
 function exercise(overrides: Partial<Exercise> & Pick<Exercise, "index">): Exercise {
   return {
@@ -18,6 +22,9 @@ function exercise(overrides: Partial<Exercise> & Pick<Exercise, "index">): Exerc
     maxWeightG: 40000,
     volumeG: 1200000,
     durationMs: 300000,
+    edited: false,
+    garminCategory: "BENCH_PRESS",
+    garminSubCategory: null,
     ...overrides,
   };
 }
@@ -124,5 +131,65 @@ describe("hover", () => {
 
   it("marks nothing for an exercise row that is gone", () => {
     expect(highlightedMuscles(rows, { on: "exercise", index: 99 }).size).toBe(0);
+  });
+});
+
+describe("relabelling", () => {
+  const rows = exerciseRows([
+    ...EXERCISES,
+    exercise({
+      index: 4,
+      category: "SQUAT",
+      edited: true,
+      garminCategory: "UNKNOWN",
+      garminSubCategory: null,
+    }),
+  ]);
+
+  it("names the label the API uses", () => {
+    expect(exerciseLabel("SQUAT", null)).toBe("SQUAT");
+    expect(exerciseLabel("DEADLIFT", "ROMANIAN_DEADLIFT")).toBe("DEADLIFT/ROMANIAN_DEADLIFT");
+  });
+
+  it("carries what Garmin called a relabelled exercise", () => {
+    const relabelled = rows[4];
+    expect(relabelled?.edited).toBe(true);
+    expect(relabelled?.name).toBe("Squat");
+    expect(relabelled?.garminName).toBe("Unlabelled");
+  });
+
+  it("offers the categories that say something about muscles", () => {
+    const squat = rows[4];
+    expect(squat).toBeDefined();
+    if (!squat) return;
+    const options = relabelOptions(squat);
+    expect(options.map((option) => option.value)).toEqual([...RELABEL_CATEGORIES]);
+    expect(options.find((option) => option.value === "BENCH_PRESS")?.label).toBe("Bench press");
+    // Equipment-only categories and UNKNOWN are not on offer.
+    expect(options.map((o) => o.value)).not.toContain("UNKNOWN");
+    expect(options.map((o) => o.value)).not.toContain("SUSPENSION");
+  });
+
+  it("keeps a row's own label when it is not one of the offered categories", () => {
+    // A Romanian deadlift must still read as itself, and an unlabelled row must not
+    // silently show somebody else's exercise as its current value.
+    const romanian = rows[1];
+    const unlabelled = rows[3];
+    expect(romanian && relabelOptions(romanian)[0]).toEqual({
+      value: "DEADLIFT/ROMANIAN_DEADLIFT",
+      label: "Romanian deadlift",
+    });
+    expect(unlabelled && relabelOptions(unlabelled)[0]).toEqual({
+      value: "UNKNOWN",
+      label: "Unlabelled",
+    });
+  });
+
+  it("turns a select's value into the body the API takes", () => {
+    expect(toRelabel("SQUAT")).toEqual({ category: "SQUAT", sub_category: null });
+    expect(toRelabel("DEADLIFT/ROMANIAN_DEADLIFT")).toEqual({
+      category: "DEADLIFT",
+      sub_category: "ROMANIAN_DEADLIFT",
+    });
   });
 });

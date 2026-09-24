@@ -88,6 +88,9 @@ function exercise(overrides: Partial<Exercise> = {}): Exercise {
     maxWeightG: 40000,
     volumeG: 1200000,
     durationMs: 300000,
+    edited: false,
+    garminCategory: "BENCH_PRESS",
+    garminSubCategory: null,
     ...overrides,
   };
 }

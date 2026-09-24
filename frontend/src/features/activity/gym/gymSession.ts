@@ -3,7 +3,7 @@
 // row lights up the muscles it trains and pointing at a muscle lights up the rows.
 import type { ActivitySummary, Exercise, GymSession } from "@/api/adapters";
 import { formatExerciseName, UNLABELLED_EXERCISE } from "@/lib/format";
-import { musclesOf, type Muscle } from "@/lib/muscles";
+import { musclesOf, RELABEL_CATEGORIES, type Muscle } from "@/lib/muscles";
 
 /**
  * Whether an activity gets the gym layout. `totalSets` comes from the raw payload and
@@ -15,11 +15,17 @@ export function isGymSession(summary: Pick<ActivitySummary, "totalSets">): boole
 }
 
 export interface ExerciseRow {
-  /** Position in Garmin's payload. T16b's relabels key on it, and it keys the hover. */
+  /** Position in Garmin's payload. A relabel keys on it, and so does the hover. */
   index: number;
   name: string;
-  /** True when Garmin could not name it; the row invites a relabel (T16b). */
+  /** `CATEGORY` or `CATEGORY/SUB_CATEGORY`: the relabel select's current value. */
+  label: string;
+  /** True when Garmin could not name it; the row invites a relabel. */
   unlabelled: boolean;
+  /** True when the user relabelled it. */
+  edited: boolean;
+  /** What Garmin called it, for the revert link. */
+  garminName: string;
   sets: number | null;
   reps: number | null;
   maxWeightG: number | null;
@@ -34,7 +40,10 @@ export function exerciseRows(exercises: readonly Exercise[]): ExerciseRow[] {
     return {
       index: exercise.index,
       name,
+      label: exerciseLabel(exercise.category, exercise.subCategory),
       unlabelled: name === UNLABELLED_EXERCISE,
+      edited: exercise.edited,
+      garminName: formatExerciseName(exercise.garminCategory, exercise.garminSubCategory),
       sets: exercise.sets,
       reps: exercise.reps,
       maxWeightG: exercise.maxWeightG,
@@ -42,6 +51,38 @@ export function exerciseRows(exercises: readonly Exercise[]): ExerciseRow[] {
       muscles: musclesOf(exercise.category, exercise.subCategory),
     };
   });
+}
+
+/** How the API names an exercise: `CATEGORY`, or `CATEGORY/SUB_CATEGORY` when specific. */
+export function exerciseLabel(category: string, subCategory: string | null): string {
+  return subCategory ? `${category}/${subCategory}` : category;
+}
+
+/** One option of a relabel select. */
+export interface RelabelOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * What a row can be relabelled to: every category that says something about muscles,
+ * plus the row's own current label when that is not one of them — so a Romanian
+ * deadlift still reads as itself, and an unlabelled row does not silently show
+ * somebody else's exercise.
+ */
+export function relabelOptions(row: ExerciseRow): RelabelOption[] {
+  const known = RELABEL_CATEGORIES.map((category) => ({
+    value: category,
+    label: formatExerciseName(category),
+  }));
+  if (known.some((option) => option.value === row.label)) return known;
+  return [{ value: row.label, label: row.name }, ...known];
+}
+
+/** A select's value back into the relabel body the API takes. */
+export function toRelabel(value: string): { category: string; sub_category: string | null } {
+  const [category, subCategory] = value.split("/");
+  return { category: category ?? value, sub_category: subCategory ?? null };
 }
 
 /** The session's total volume in grams, or null when no exercise reports any. */

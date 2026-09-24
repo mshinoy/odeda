@@ -137,6 +137,11 @@ export interface Exercise {
   /** Weight x reps summed over the sets, grams. */
   volumeG: number | null;
   durationMs: number | null;
+  /** True when the user relabelled it: `category` is theirs, not Garmin's. */
+  edited: boolean;
+  /** What Garmin called it, which is what reverting the relabel brings back. */
+  garminCategory: string;
+  garminSubCategory: string | null;
 }
 
 /** The gym part of an activity. `exercises` is empty when there is no exercise data. */
@@ -228,6 +233,9 @@ function toExercise(raw: Schemas["Exercise"]): Exercise {
     maxWeightG: raw.max_weight_g,
     volumeG: raw.volume_g,
     durationMs: raw.duration_ms,
+    edited: raw.edited,
+    garminCategory: raw.garmin_category ?? UNKNOWN_EXERCISE,
+    garminSubCategory: raw.garmin_sub_category,
   };
 }
 

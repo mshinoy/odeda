@@ -250,17 +250,37 @@ class Exercise(_Model):
     """Sum of weight x reps over the sets, grams."""
     duration_ms: float | None
     """Summed duration of the exercise's sets, milliseconds."""
+    edited: bool
+    """True when the user relabelled this exercise; `category` is then theirs."""
+    garmin_category: str | None
+    """What Garmin called it, whatever the user relabelled it to. A revert
+    (`DELETE /api/activities/{id}/exercises/{index}`) brings this back."""
+    garmin_sub_category: str | None
 
 
 class ActivityExercises(_Model):
-    """`GET /api/activities/{id}/exercises`: the gym part of the raw payload. Totals
-    are null and `exercises` is empty for activities without exercise data."""
+    """`GET /api/activities/{id}/exercises`: the gym part of the raw payload, with the
+    user's relabels applied. Totals are null and `exercises` is empty for activities
+    without exercise data."""
 
     total_sets: int | None
     active_sets: int | None
     """Garmin's `activeSets`, passed through."""
     total_reps: int | None
     exercises: list[Exercise]
+
+
+class ExerciseRelabelRequest(_Model):
+    """`PUT /api/activities/{id}/exercises/{index}` body: what the exercise really was.
+
+    Garmin's own vocabulary (`BENCH_PRESS`, `ROMANIAN_DEADLIFT`), not free text, so the
+    relabel maps to muscles like any other exercise. The set of names is not validated
+    against a fixed list — Garmin adds exercises every year, and a correction the
+    server refuses is one the user cannot make — but the shape is.
+    """
+
+    category: str
+    sub_category: str | None = None
 
 
 # ---------------------------------------------------------------------------

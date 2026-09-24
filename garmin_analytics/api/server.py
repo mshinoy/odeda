@@ -43,6 +43,7 @@ from ..analytics import trends as trends_mod
 from ..config import Settings, load_settings
 from ..db import fields as fields_mod
 from ..db.store import Store
+from ..edits import exercises as relabels_mod
 from ..edits import gear as gear_mod
 from ..edits import overrides as ov_mod
 from ..ingest import backfill as backfill_mod
@@ -60,6 +61,7 @@ from .schemas import (
     ActivityRouteRequest,
     ActivityRouteResult,
     ActivityStreams,
+    ExerciseRelabelRequest,
     FieldsResponse,
     GarminStatus,
     GearList,
@@ -635,6 +637,55 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if body is None:
             raise HTTPException(404, f"no activity {activity_id!r}")
         return body
+
+    @app.put(
+        "/api/activities/{activity_id}/exercises/{index}", response_model=ActivityExercises
+    )
+    def api_relabel_exercise(
+        activity_id: str, index: int, payload: ExerciseRelabelRequest = Body(...)
+    ) -> dict[str, Any]:
+        """Say what an exercise really was, when Garmin guessed wrong or not at all.
+
+        Stored in `overrides` under `exercise:<index>`, so a re-sync cannot undo it.
+        """
+        with store() as st:
+            entry = _exercise_entry(st, activity_id, index)
+            try:
+                label = relabels_mod.clean_label(payload.category, payload.sub_category)
+            except relabels_mod.BadRelabel as exc:
+                raise HTTPException(400, str(exc)) from exc
+            relabels_mod.set_relabel(
+                st,
+                activity_id,
+                index,
+                label,
+                relabels_mod.format_label(entry["garmin_category"], entry["garmin_sub_category"]),
+            )
+            body = gym_mod.activity_exercises(st, activity_id)
+            assert body is not None  # the activity existed a moment ago
+            return body
+
+    @app.delete(
+        "/api/activities/{activity_id}/exercises/{index}", response_model=ActivityExercises
+    )
+    def api_revert_exercise(activity_id: str, index: int) -> dict[str, Any]:
+        """Drop a relabel, so Garmin's own guess shows through again."""
+        with store() as st:
+            _exercise_entry(st, activity_id, index)
+            relabels_mod.clear_relabel(st, activity_id, index)
+            body = gym_mod.activity_exercises(st, activity_id)
+            assert body is not None
+            return body
+
+    def _exercise_entry(st: Any, activity_id: str, index: int) -> dict[str, Any]:
+        """The exercise at `index`, or a 404 naming which half is missing."""
+        body = gym_mod.activity_exercises(st, activity_id)
+        if body is None:
+            raise HTTPException(404, f"no activity {activity_id!r}")
+        for entry in body["exercises"]:
+            if entry["index"] == index:
+                return entry
+        raise HTTPException(404, f"activity {activity_id!r} has no exercise {index}")
 
     @app.get("/api/activities/{activity_id}/track")
     def api_activity_track(activity_id: str) -> dict[str, Any]:

@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from ..db.store import Store
+from ..edits import exercises as relabels_mod
 
 #: Every `ActivityRow` the API returns: `v_activities` plus the set and rep totals.
 #: `json_extract` keeps the activity list one query; both are null when absent.
@@ -49,14 +50,24 @@ def activity_exercises(st: Store, activity_id: str) -> dict[str, Any] | None:
     if not rows:
         return None
     payload = rows[0]["payload"]
-    return exercises_from_payload(json.loads(payload) if payload else None)
+    return exercises_from_payload(
+        json.loads(payload) if payload else None,
+        relabels_mod.list_relabels(st, activity_id),
+    )
 
 
-def exercises_from_payload(payload: Any) -> dict[str, Any]:
-    """Totals and exercises out of one raw activity payload.
+def exercises_from_payload(
+    payload: Any, relabels: dict[int, dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """Totals and exercises out of one raw activity payload, user relabels applied.
 
     `index` is the exercise's position in `summarizedExerciseSets`, counted before
-    anything malformed is skipped, so it always points back at the same payload entry.
+    anything malformed is skipped, so it always points back at the same payload entry —
+    and so a relabel keeps pointing at the exercise it was made on.
+
+    A relabelled row carries the user's `category`/`sub_category`, `edited: true`, and
+    Garmin's own guess in `garmin_category`/`garmin_sub_category`, which is what
+    reverting brings back.
     """
     if not isinstance(payload, dict):
         payload = {}
@@ -68,19 +79,33 @@ def exercises_from_payload(payload: Any) -> dict[str, Any]:
         "active_sets": payload.get("activeSets"),
         "total_reps": payload.get("totalReps"),
         "exercises": [
-            {
-                "index": index,
-                "category": entry.get("category"),
-                "sub_category": entry.get("subCategory"),
-                "sets": entry.get("sets"),
-                "reps": entry.get("reps"),
-                "max_weight_g": entry.get("maxWeight"),
-                "volume_g": entry.get("volume"),
-                "duration_ms": entry.get("duration"),
-            }
+            _exercise(index, entry, (relabels or {}).get(index))
             for index, entry in enumerate(entries)
             if isinstance(entry, dict)
         ],
+    }
+
+
+def _exercise(
+    index: int, entry: dict[str, Any], relabel: dict[str, Any] | None
+) -> dict[str, Any]:
+    garmin_category = entry.get("category")
+    garmin_sub_category = entry.get("subCategory")
+    category, sub_category = garmin_category, garmin_sub_category
+    if relabel is not None:
+        category, sub_category = relabels_mod.parse_label(relabel["value"])
+    return {
+        "index": index,
+        "category": category,
+        "sub_category": sub_category,
+        "sets": entry.get("sets"),
+        "reps": entry.get("reps"),
+        "max_weight_g": entry.get("maxWeight"),
+        "volume_g": entry.get("volume"),
+        "duration_ms": entry.get("duration"),
+        "edited": relabel is not None,
+        "garmin_category": garmin_category,
+        "garmin_sub_category": garmin_sub_category,
     }
 
 

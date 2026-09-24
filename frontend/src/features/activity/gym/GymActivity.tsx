@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Activity } from "@/api/adapters";
-import { useExercises } from "@/api/queries/useExercises";
+import { useExercises, useRelabelExercise, useRevertExercise } from "@/api/queries/useExercises";
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import {
   highlightedMuscles,
   highlightedRows,
   sessionTotals,
+  toRelabel,
   totalVolumeG,
   type GymHover,
 } from "@/features/activity/gym/gymSession";
@@ -34,8 +35,13 @@ const DIAGRAM_HEIGHT = "h-[360px]";
  * to draw.
  */
 export function GymActivity({ activity }: { activity: Activity }) {
-  const exercises = useExercises(activity.summary.id);
+  const id = activity.summary.id;
+  const exercises = useExercises(id);
+  const relabel = useRelabelExercise(id);
+  const revert = useRevertExercise(id);
   const [hover, setHover] = useState<GymHover>(null);
+  const busy = relabel.isPending || revert.isPending;
+  const error = exercises.error ?? relabel.error ?? revert.error;
 
   const session = exercises.data;
   const rows = useMemo(() => exerciseRows(session?.exercises ?? []), [session]);
@@ -56,8 +62,8 @@ export function GymActivity({ activity }: { activity: Activity }) {
         <StatCard label="Avg HR" value={formatHeartRate(activity.summary.avgHr)} />
       </div>
 
-      {exercises.error && <EmptyState message={exercises.error.message} />}
-      {!exercises.error && session === undefined && (
+      {error && <EmptyState message={error.message} />}
+      {!error && session === undefined && (
         <Skeleton className={`${DIAGRAM_HEIGHT} w-full rounded-xl`} />
       )}
       {session && rows.length === 0 && (
@@ -87,6 +93,9 @@ export function GymActivity({ activity }: { activity: Activity }) {
               rows={rows}
               highlighted={marked}
               onHover={(index) => setHover(index === null ? null : { on: "exercise", index })}
+              onRelabel={(index, label) => relabel.mutate({ index, ...toRelabel(label) })}
+              onRevert={(index) => revert.mutate(index)}
+              busy={busy}
             />
           </section>
         </div>

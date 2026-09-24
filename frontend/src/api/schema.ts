@@ -492,6 +492,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activities/{activity_id}/exercises/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Api Relabel Exercise
+         * @description Say what an exercise really was, when Garmin guessed wrong or not at all.
+         *
+         *     Stored in `overrides` under `exercise:<index>`, so a re-sync cannot undo it.
+         */
+        put: operations["api_relabel_exercise"];
+        post?: never;
+        /**
+         * Api Revert Exercise
+         * @description Drop a relabel, so Garmin's own guess shows through again.
+         */
+        delete: operations["api_revert_exercise"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activities/{activity_id}/track": {
         parameters: {
             query?: never;
@@ -1059,8 +1085,9 @@ export interface components {
         };
         /**
          * ActivityExercises
-         * @description `GET /api/activities/{id}/exercises`: the gym part of the raw payload. Totals
-         *     are null and `exercises` is empty for activities without exercise data.
+         * @description `GET /api/activities/{id}/exercises`: the gym part of the raw payload, with the
+         *     user's relabels applied. Totals are null and `exercises` is empty for activities
+         *     without exercise data.
          */
         ActivityExercises: {
             /** Total Sets */
@@ -1533,6 +1560,34 @@ export interface components {
              * @description Summed duration of the exercise's sets, milliseconds.
              */
             duration_ms: number | null;
+            /**
+             * Edited
+             * @description True when the user relabelled this exercise; `category` is then theirs.
+             */
+            edited: boolean;
+            /**
+             * Garmin Category
+             * @description What Garmin called it, whatever the user relabelled it to. A revert
+             *     (`DELETE /api/activities/{id}/exercises/{index}`) brings this back.
+             */
+            garmin_category: string | null;
+            /** Garmin Sub Category */
+            garmin_sub_category: string | null;
+        };
+        /**
+         * ExerciseRelabelRequest
+         * @description `PUT /api/activities/{id}/exercises/{index}` body: what the exercise really was.
+         *
+         *     Garmin's own vocabulary (`BENCH_PRESS`, `ROMANIAN_DEADLIFT`), not free text, so the
+         *     relabel maps to muscles like any other exercise. The set of names is not validated
+         *     against a fixed list — Garmin adds exercises every year, and a correction the
+         *     server refuses is one the user cannot make — but the shape is.
+         */
+        ExerciseRelabelRequest: {
+            /** Category */
+            category: string;
+            /** Sub Category */
+            sub_category?: string | null;
         };
         /** FieldsResponse */
         FieldsResponse: {
@@ -3383,6 +3438,74 @@ export interface operations {
             header?: never;
             path: {
                 activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityExercises"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_relabel_exercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExerciseRelabelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityExercises"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_revert_exercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+                index: number;
             };
             cookie?: never;
         };

@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 8 / 11 |
+| 1 Activities + gym | A: `open` | 9 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
@@ -62,7 +62,7 @@ Paste one of these into a fresh session.
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | done | T03a | Activity editing: edited fields marked, revert one field or all of them |
 | T03c | Activity editing: gear and route selects | done | T03a | Activity editing: gear and route selects in the dialog |
 | T16 | Gym session page: body diagram and exercise table | done | T15 | Gym session page: a body diagram of what was trained, and the exercises |
-| T16b | Gym: relabel unlabelled (or wrong) exercises | in progress (patti, 2026-09-24) | T16, T03b | |
+| T16b | Gym: relabel unlabelled (or wrong) exercises | done | T16, T03b | Gym: relabel an exercise Garmin got wrong, and revert it |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | todo | — | |
 | T19 | MapLibre: ship its worker so the no-token basemap draws | todo | — | |
@@ -487,15 +487,25 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     new field names. They must not show up as unknown activity fields; group them as
     exercise relabels.
 - **Backend:**
-  - [ ] `PUT` and `DELETE /api/activities/{id}/exercises/{index}`, typed
-  - [ ] the exercises endpoint applies relabels and marks those rows `edited`
+  - [x] `PUT` and `DELETE /api/activities/{id}/exercises/{index}`, typed
+  - [x] the exercises endpoint applies relabels and marks those rows `edited`
 - **Build:**
-  - [ ] every exercise row can be relabelled from a select (the categories known to
+  - [x] every exercise row can be relabelled from a select (the categories known to
     `lib/muscles.ts`); "Unlabelled" rows invite it
-  - [ ] edited rows are marked and can be reverted, as in T03b
-  - [ ] invalidate the exercises query; the body diagram updates
+  - [x] edited rows are marked and can be reverted, as in T03b
+  - [x] invalidate the exercises query; the body diagram updates
 - **Done when:** on the real-data copy, a relabel survives a reload, updates the
   diagram, and a revert restores Garmin's label.
+- **Notes:**
+  - The relabel vocabulary is not validated against a fixed list, only its shape, for
+    the reason `activity_type` is not: Garmin adds exercises every year and a
+    correction the server refuses is one the user cannot make.
+  - `revert_all` (the Edit dialog's "Revert all") now leaves relabels alone. It counts
+    only the field edits it shows, so throwing away work done on another screen would
+    be a surprise; each relabel reverts from its own row.
+  - A relabel still counts towards `override_count`, so a relabelled activity matches
+    the list's `edited=true` filter. The page header's "Edited" mark stays about field
+    edits; the relabel is marked on its own row.
 
 ### T17 — Status: gym this week
 - **Build:**
