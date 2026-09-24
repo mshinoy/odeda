@@ -58,7 +58,7 @@ Paste one of these into a fresh session.
 | T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | done | — | Activity page: splits, HR zones, best efforts; 30 s pace smoothing, /km once |
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
 | T02 | Activity list (gym rows show sets · reps) | done | T15 | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
-| T03a | Activity editing: the Edit dialog, saving only dirty fields | todo | T02 | |
+| T03a | Activity editing: the Edit dialog, saving only dirty fields | in progress (claude, 2026-09-24) | T02 | |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | todo | T03a | |
 | T03c | Activity editing: gear and route selects | todo | T03a | |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
