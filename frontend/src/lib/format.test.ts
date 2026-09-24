@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatAgo,
+  formatCountRange,
   formatDays,
   formatDecimal,
   formatInteger,
@@ -16,6 +17,7 @@ import {
   formatPace,
   formatPaceClock,
   formatPercent,
+  formatSetsReps,
   formatSpeed,
   formatSportSpeed,
   formatSwimPace,
@@ -323,5 +325,30 @@ describe("formatAgo", () => {
     expect(formatAgo("2026-09-24T09:00:00", now)).toBe("3 h ago");
     expect(formatAgo("2026-09-22T12:00:00", now)).toBe("2 d ago");
     expect(formatAgo(null, now)).toBe("–");
+  });
+});
+
+describe("formatSetsReps", () => {
+  it("joins sets and reps with a middle dot", () => {
+    expect(formatSetsReps(14, 135)).toBe("14 sets · 135 reps");
+    expect(formatSetsReps(1, 1)).toBe("1 set · 1 rep");
+    expect(formatSetsReps(12, 1145)).toBe("12 sets · 1,145 reps");
+  });
+
+  it("leaves out a missing count, and shows the placeholder when both are missing", () => {
+    expect(formatSetsReps(5, null)).toBe("5 sets");
+    expect(formatSetsReps(null, 40)).toBe("40 reps");
+    expect(formatSetsReps(null, undefined)).toBe("–");
+  });
+});
+
+describe("formatCountRange", () => {
+  it("shows the first and last row shown, and the total", () => {
+    expect(formatCountRange(1, 50, 488)).toBe("1–50 of 488");
+    expect(formatCountRange(451, 488, 1488)).toBe("451–488 of 1,488");
+  });
+
+  it("renders missing input as the placeholder", () => {
+    expect(formatCountRange(1, null, 10)).toBe("–");
   });
 });

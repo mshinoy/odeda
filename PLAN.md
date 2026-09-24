@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 2 / 11 |
+| 1 Activities + gym | A: `open` | 3 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -57,7 +57,7 @@ Paste one of these into a fresh session.
 |---|---|---|---|---|
 | T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | done | — | Activity page: splits, HR zones, best efforts; 30 s pace smoothing, /km once |
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
-| T02 | Activity list (gym rows show sets · reps) | in progress (garmin-analytics-04, 2026-09-24) | T15 | |
+| T02 | Activity list (gym rows show sets · reps) | done | T15 | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | todo | T02 | |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | todo | T03a | |
 | T03c | Activity editing: gear and route selects | todo | T03a | |
@@ -395,14 +395,14 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Backend:** `/api/activities` is typed already (filters: `type`, `start`, `end`, `q`,
   `sort`, `order`, `limit`, `offset`, `gear_id`, `route_id`). T15 adds set and rep totals.
 - **Build:**
-  - [ ] rows: date, name, kind badge, distance, time, pace (sport-aware), avg HR
-  - [ ] gym rows (anything with `total_sets`) show sets · reps in place of distance and pace
-  - [ ] sortable columns; filters in one row above: type, date range (default: the
+  - [x] rows: date, name, kind badge, distance, time, pace (sport-aware), avg HR
+  - [x] gym rows (anything with `total_sets`) show sets · reps in place of distance and pace
+  - [x] sortable columns; filters in one row above: type, date range (default: the
     store's time range), name search (debounced)
-  - [ ] paging, or "load more"
-  - [ ] sort and filter state in the URL, so Back works
-  - [ ] skeleton rows while loading; a one-line empty state with a "Clear filters" action
-  - [ ] remove the temporary `activities` → latest-activity redirect in `routes.tsx`
+  - [x] paging, or "load more"
+  - [x] sort and filter state in the URL, so Back works
+  - [x] skeleton rows while loading; a one-line empty state with a "Clear filters" action
+  - [x] remove the temporary `activities` → latest-activity redirect in `routes.tsx`
 - **Old reference:** `loadActivities` in `app.js`.
 - **Done when:** sorting, filtering, paging and Back all work on real data, in both
   themes, and gym rows read well.

@@ -8,7 +8,7 @@ export function NotBuiltYet() {
       message="Not built yet."
       action={
         <Link to="/activities" className="text-foreground underline underline-offset-4">
-          Latest activity
+          Activities
         </Link>
       }
     />

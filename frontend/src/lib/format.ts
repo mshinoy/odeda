@@ -267,6 +267,30 @@ export function formatSigned(value: MaybeNumber, digits = 1): string {
   return `${sign}${fixedDigits(digits).format(Math.abs(rounded))}`;
 }
 
+/** "14 sets · 135 reps"; either part is left out when Garmin has no count for it. */
+export function formatSetsReps(sets: MaybeNumber, reps: MaybeNumber): string {
+  const parts = [countOf(sets, "set", "sets"), countOf(reps, "rep", "reps")].filter(
+    (part): part is string => part !== null,
+  );
+  return parts.length > 0 ? parts.join(" · ") : MISSING;
+}
+
+function countOf(value: MaybeNumber, one: string, many: string): string | null {
+  if (!isNumber(value)) return null;
+  const n = Math.round(value);
+  return `${integer.format(n)} ${Math.abs(n) === 1 ? one : many}`;
+}
+
+/** Which rows of a list are on screen: "1–50 of 488". */
+export function formatCountRange(
+  first: MaybeNumber,
+  last: MaybeNumber,
+  total: MaybeNumber,
+): string {
+  if (!isNumber(first) || !isNumber(last) || !isNumber(total)) return MISSING;
+  return `${integer.format(first)}–${integer.format(last)} of ${integer.format(total)}`;
+}
+
 /** "1 day" / "115 days". */
 export function formatDays(days: MaybeNumber): string {
   if (!isNumber(days)) return MISSING;

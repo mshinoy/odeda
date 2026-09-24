@@ -1,5 +1,5 @@
 import { Settings } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -41,6 +41,8 @@ export function AppShell() {
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />
       </main>
+      {/* A new page opens at the top; Back returns to where the list was scrolled. */}
+      <ScrollRestoration />
     </div>
   );
 }
