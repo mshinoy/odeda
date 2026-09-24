@@ -987,40 +987,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Login Page */
-        get: operations["login_page"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Index */
-        get: operations["index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1327,6 +1293,73 @@ export interface components {
             label: string | null;
         };
         /**
+         * DailyRow
+         * @description One row of `v_daily`: the per-day wellness picture, joined across tables.
+         */
+        DailyRow: {
+            /** Day */
+            day: string;
+            /** Resting Hr */
+            resting_hr: number | null;
+            /** Steps */
+            steps: number | null;
+            /** Stress Avg */
+            stress_avg: number | null;
+            /**
+             * Bb High
+             * @description Body Battery, 0..100.
+             */
+            bb_high: number | null;
+            /** Bb Low */
+            bb_low: number | null;
+            /** Bb Charged */
+            bb_charged: number | null;
+            /** Bb Drained */
+            bb_drained: number | null;
+            /** Total Sleep S */
+            total_sleep_s: number | null;
+            /** Sleep Score */
+            sleep_score: number | null;
+            /** Deep S */
+            deep_s: number | null;
+            /** Rem S */
+            rem_s: number | null;
+            /**
+             * Hrv
+             * @description Last night's average HRV, ms.
+             */
+            hrv: number | null;
+            /**
+             * Hrv Status
+             * @description Garmin's own label (BALANCED, UNBALANCED, LOW, POOR, ...), passed through.
+             */
+            hrv_status: string | null;
+            /** Vo2Max Run */
+            vo2max_run: number | null;
+            /**
+             * Training Status
+             * @description Garmin's own label (PRODUCTIVE, MAINTAINING, ...), passed through.
+             */
+            training_status: string | null;
+            /**
+             * Training Readiness
+             * @description Garmin's training-readiness score, 0..100.
+             */
+            training_readiness: number | null;
+            /** Weight Kg */
+            weight_kg: number | null;
+        };
+        /**
+         * DayRange
+         * @description First and last day of `daily_wellness`; both null on an empty database.
+         */
+        DayRange: {
+            /** From */
+            from: string | null;
+            /** To */
+            to: string | null;
+        };
+        /**
          * EditableFieldInfo
          * @description One entry of the editable-field registry (`db/fields.py`).
          */
@@ -1369,10 +1402,48 @@ export interface components {
             /** Activity Types */
             activity_types: string[];
         };
+        /**
+         * GarminStatus
+         * @description Whether a Garmin token cache exists. Checked on disk, not against Garmin.
+         */
+        GarminStatus: {
+            /** Connected */
+            connected: boolean;
+            /** Token Dir */
+            token_dir: string;
+            /**
+             * Tokens Updated At
+             * @description ISO-8601 UTC (trailing Z) mtime of the token file; null when not connected.
+             */
+            tokens_updated_at: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Health */
+        Health: {
+            /**
+             * Status
+             * @constant
+             */
+            status: "ok";
+            /** Version */
+            version: string;
+            /**
+             * Db
+             * @description Path of the SQLite database file.
+             */
+            db: string;
+            day_range: components["schemas"]["DayRange"];
+            /** Synthetic */
+            synthetic: boolean;
+            /**
+             * Server Time
+             * @description Server local time, ISO-8601 to the second, no offset.
+             */
+            server_time: string;
         };
         /** HrZone */
         HrZone: {
@@ -1392,6 +1463,93 @@ export interface components {
             seconds: number;
             /** Avg Hr */
             avg_hr: number | null;
+        };
+        /**
+         * LoadCurrent
+         * @description The last day of the load curve.
+         */
+        LoadCurrent: {
+            /** Day */
+            day: string;
+            /** Ctl */
+            ctl: number;
+            /** Atl */
+            atl: number;
+            /** Tsb */
+            tsb: number;
+            /**
+             * Form
+             * @enum {string}
+             */
+            form: "very fresh (detraining risk)" | "fresh" | "neutral" | "fatigued (productive)" | "very fatigued";
+        };
+        /**
+         * LoadDay
+         * @description One day of the dense CTL/ATL/TSB curve (rest days are zero-load rows).
+         */
+        LoadDay: {
+            /** Day */
+            day: string;
+            /**
+             * Load
+             * @description That day's summed TRIMP.
+             */
+            load: number;
+            /**
+             * Ctl
+             * @description Chronic training load, 42-day EWMA of TRIMP.
+             */
+            ctl: number;
+            /**
+             * Atl
+             * @description Acute training load, 7-day EWMA of TRIMP.
+             */
+            atl: number;
+            /**
+             * Tsb
+             * @description Training stress balance, CTL - ATL (same day).
+             */
+            tsb: number;
+        };
+        /**
+         * LoadWeek
+         * @description The daily curve rolled up into an ISO week.
+         */
+        LoadWeek: {
+            /**
+             * Week
+             * @description ISO week, `2026-W38`.
+             */
+            week: string;
+            /**
+             * Start
+             * @description Monday of the week (or the first curve day, for a partial first week).
+             */
+            start: string;
+            /** Load */
+            load: number;
+            /** Ctl End */
+            ctl_end: number;
+            /** Atl End */
+            atl_end: number;
+            /** Tsb End */
+            tsb_end: number;
+            /**
+             * Delta Pct
+             * @description Load change vs the previous week, percent; null for the first week or after
+             *     a zero-load week.
+             */
+            delta_pct: number | null;
+            /**
+             * Ctl Delta Pct
+             * @description CTL change vs the previous week's end, percent.
+             */
+            ctl_delta_pct: number | null;
+            /**
+             * Overreaching
+             * @description True when `ctl_delta_pct` exceeds the 10 %/week ramp flag.
+             */
+            overreaching: boolean;
         };
         /**
          * Override
@@ -1430,6 +1588,254 @@ export interface components {
             revertible: boolean;
         };
         /**
+         * PersonalBest
+         * @description Fastest effort at a standard distance (running, treadmill or walking).
+         */
+        PersonalBest: {
+            /** Distance M */
+            distance_m: number;
+            /** Label */
+            label: string;
+            /** Seconds */
+            seconds: number;
+            /** Day */
+            day: string;
+            /** Activity Id */
+            activity_id: string;
+        };
+        /** RaceInfo */
+        RaceInfo: {
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * @description ISO date.
+             */
+            date: string;
+            /**
+             * Start Local
+             * @description Gun time, HH:MM local to `timezone`.
+             */
+            start_local: string;
+            /**
+             * Timezone
+             * @description IANA zone name.
+             */
+            timezone: string;
+            /** Distance M */
+            distance_m: number;
+        };
+        /** RaceNote */
+        RaceNote: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "good" | "warning";
+            /** Text */
+            text: string;
+        };
+        /**
+         * RacePanel
+         * @description `GET /api/race`: countdown, projection and the CTL / volume gap to target.
+         */
+        RacePanel: {
+            race: components["schemas"]["RaceInfo"];
+            /** Today */
+            today: string;
+            /**
+             * Days To Go
+             * @description Negative once the race has passed.
+             */
+            days_to_go: number;
+            /** Weeks To Go */
+            weeks_to_go: number;
+            /** @description Null with no usable best effort. */
+            projection: components["schemas"]["RaceProjection"] | null;
+            /** Ctl Now */
+            ctl_now: number;
+            /** Ctl Target */
+            ctl_target: number;
+            /**
+             * Ctl Per Week Needed
+             * @description Straight-line CTL gain per week to reach the target; null inside the last
+             *     week.
+             */
+            ctl_per_week_needed: number | null;
+            /** Tsb Now */
+            tsb_now: number | null;
+            /**
+             * Weekly Km
+             * @description The last 26 weeks with any running.
+             */
+            weekly_km: components["schemas"]["RaceWeekKm"][];
+            /**
+             * Weekly Km Avg 4Wk
+             * @description Running km/week over the 28 days ending on the last activity.
+             */
+            weekly_km_avg_4wk: number;
+            /** Weekly Km Target */
+            weekly_km_target: number;
+            /**
+             * Recent Bests
+             * @description Bests from the last 120 days of activities.
+             */
+            recent_bests: components["schemas"]["PersonalBest"][];
+            /** Notes */
+            notes: components["schemas"]["RaceNote"][];
+        };
+        /**
+         * RaceProjection
+         * @description Riegel projection to the race distance from the longest usable recent best.
+         */
+        RaceProjection: {
+            /** From Distance M */
+            from_distance_m: number;
+            /**
+             * From Label
+             * @description Label of the best it was projected from ("5 k", "10 k", ...).
+             */
+            from_label: string;
+            /**
+             * From Seconds
+             * @description Time of that best effort.
+             */
+            from_seconds: number;
+            /** From Day */
+            from_day: string;
+            /** Projected Seconds */
+            projected_seconds: number;
+            /**
+             * Exponent
+             * @description Riegel exponent used.
+             */
+            exponent: number;
+        };
+        /** RaceWeekKm */
+        RaceWeekKm: {
+            /**
+             * Week
+             * @description ISO week, `2026-W38`.
+             */
+            week: string;
+            /**
+             * Start
+             * @description Monday of the week.
+             */
+            start: string;
+            /**
+             * Km
+             * @description Running kilometres that week.
+             */
+            km: number;
+        };
+        /**
+         * Readiness
+         * @description Today's composite readiness, with the reasoning behind it.
+         */
+        Readiness: {
+            /**
+             * Day
+             * @description The day scored (latest in `v_daily` unless asked); null with no data.
+             */
+            day: string | null;
+            /**
+             * Score
+             * @description 0..100, null when no component has data.
+             */
+            score: number | null;
+            /** Band */
+            band: ("prime" | "ready" | "moderate" | "low" | "rest") | null;
+            components: components["schemas"]["ReadinessComponents"];
+            weights: components["schemas"]["ReadinessWeights"];
+            /**
+             * Reasons
+             * @description One sentence per component (sleep, HRV, TSB, resting HR), or ["No data."].
+             */
+            reasons: string[];
+            /**
+             * Recommendation
+             * @description What to do today, in words.
+             */
+            recommendation: string;
+            /**
+             * Garmin Training Readiness
+             * @description Garmin's own score for the day, for comparison.
+             */
+            garmin_training_readiness: number | null;
+            /** Flags */
+            flags: components["schemas"]["TrendFlag"][];
+        };
+        /**
+         * ReadinessComponents
+         * @description Per-component sub-scores, 0..100, null when that component has no data.
+         *
+         *     Every key is present once any wellness day exists; the object is empty `{}` on
+         *     an empty database.
+         */
+        ReadinessComponents: {
+            /** Sleep */
+            sleep?: number | null;
+            /** Hrv */
+            hrv?: number | null;
+            /** Tsb */
+            tsb?: number | null;
+            /** Rhr */
+            rhr?: number | null;
+        };
+        /** ReadinessHistory */
+        ReadinessHistory: {
+            /**
+             * Days
+             * @description The window asked for; `series` may be shorter.
+             */
+            days: number;
+            /** Series */
+            series: components["schemas"]["ReadinessPoint"][];
+        };
+        /** ReadinessPoint */
+        ReadinessPoint: {
+            /** Day */
+            day: string;
+            /** Score */
+            score: number | null;
+            /** Band */
+            band: ("prime" | "ready" | "moderate" | "low" | "rest") | null;
+        };
+        /**
+         * ReadinessWeights
+         * @description Component weights (sum 1.0). Components without data are dropped and the
+         *     rest renormalised.
+         */
+        ReadinessWeights: {
+            /** Sleep */
+            sleep: number;
+            /** Hrv */
+            hrv: number;
+            /** Tsb */
+            tsb: number;
+            /** Rhr */
+            rhr: number;
+        };
+        /** ReportTotals */
+        ReportTotals: {
+            /** Activities */
+            activities: number;
+            /** Active Days */
+            active_days: number;
+            /**
+             * Tracked Days
+             * @description Days with any wellness data.
+             */
+            tracked_days: number;
+            /** Total Km */
+            total_km: number;
+            /** Total Run Km */
+            total_run_km: number;
+            /** Total Hours */
+            total_hours: number;
+        };
+        /**
          * RevertedEdit
          * @description An edit whose value was null/empty, which reverts the field instead.
          */
@@ -1466,6 +1872,240 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** Streak */
+        Streak: {
+            /** Length */
+            length: number;
+            /** Start */
+            start: string | null;
+            /** End */
+            end: string | null;
+        };
+        /** Streaks */
+        Streaks: {
+            longest_active: components["schemas"]["Streak"];
+            /**
+             * Current Active
+             * @description Consecutive active days ending on the last wellness day (or the day before).
+             */
+            current_active: number;
+            longest_wear: components["schemas"]["Streak"];
+        };
+        /**
+         * Summary
+         * @description `GET /api/summary`: the overview in one round trip. Load keys are null with
+         *     no activities.
+         */
+        Summary: {
+            day_range: components["schemas"]["DayRange"];
+            /**
+             * Synthetic
+             * @description True when the database holds seeded demo data, not a real account.
+             */
+            synthetic: boolean;
+            latest_day: components["schemas"]["DailyRow"] | null;
+            readiness: components["schemas"]["Readiness"];
+            load: components["schemas"]["LoadCurrent"] | null;
+            /** Ramp Pct */
+            ramp_pct: number | null;
+            /** Ramp Flag */
+            ramp_flag: boolean | null;
+            /** Warmup Note */
+            warmup_note: string | null;
+            /**
+             * Flags
+             * @description Recovery-metric deviations over the last 180 days.
+             */
+            flags: components["schemas"]["TrendFlag"][];
+            totals: components["schemas"]["ReportTotals"];
+            streaks: components["schemas"]["Streaks"];
+            race: components["schemas"]["SummaryRace"];
+            /**
+             * Recent Weeks
+             * @description Up to the last eight weeks with activity.
+             */
+            recent_weeks: components["schemas"]["WeeklyReportRow"][];
+        };
+        /**
+         * SummaryRace
+         * @description The race countdown, cut down for the summary.
+         */
+        SummaryRace: {
+            /** Name */
+            name: string;
+            /** Date */
+            date: string;
+            /** Distance M */
+            distance_m: number;
+            /** Days To Go */
+            days_to_go: number;
+            projection: components["schemas"]["RaceProjection"] | null;
+        };
+        /**
+         * SyncCursor
+         * @description The backfill's resume point. Holds only the keys the last checkpoint wrote:
+         *     `activity_offset` + `oldest_day` mid activity list, `oldest_day` after it,
+         *     `last_activity` + `phase` during details. `{}` before any run.
+         */
+        SyncCursor: {
+            /** Activity Offset */
+            activity_offset?: number | null;
+            /** Oldest Day */
+            oldest_day?: string | null;
+            /** Last Activity */
+            last_activity?: string | null;
+            /** Phase */
+            phase?: "details" | null;
+        };
+        /**
+         * SyncStartRequest
+         * @description `POST /api/sync/start` body. Both keys optional; `{}` or no body runs a full
+         *     backfill.
+         */
+        SyncStartRequest: {
+            /**
+             * Phases
+             * @description Phases to run; null or empty means all of them.
+             */
+            phases?: ("activities" | "details" | "wellness" | "derive")[] | null;
+            /**
+             * Detail Limit
+             * @description Cap on activity streams fetched this run; null or 0 means no cap.
+             */
+            detail_limit?: number | null;
+        };
+        /** SyncStarted */
+        SyncStarted: {
+            /**
+             * Status
+             * @constant
+             */
+            status: "started";
+            /** Phases */
+            phases: ("activities" | "details" | "wellness" | "derive")[];
+        };
+        /**
+         * SyncStatus
+         * @description `GET /api/sync/status`: the backfill's durable progress plus this process's
+         *     worker thread.
+         */
+        SyncStatus: {
+            /**
+             * Job
+             * @constant
+             */
+            job: "backfill";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "running" | "done" | "cancelled" | "error";
+            /**
+             * Phase
+             * @description The phase last checkpointed. "starting" before the first phase begins; ""
+             *     when a run failed before reaching any phase; null before any run.
+             */
+            phase: ("activities" | "details" | "wellness" | "derive") | ("starting" | "") | null;
+            /** Done */
+            done: number;
+            /**
+             * Total
+             * @description Null when unknown (or zero).
+             */
+            total: number | null;
+            /** Pct */
+            pct: number | null;
+            /**
+             * Eta S
+             * @description Estimated seconds left in the current phase.
+             */
+            eta_s: number | null;
+            /**
+             * Message
+             * @description Human-readable progress or error text.
+             */
+            message: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            cursor: components["schemas"]["SyncCursor"];
+            /**
+             * Phases
+             * @description Every phase a full run goes through, in order.
+             */
+            phases: ("activities" | "details" | "wellness" | "derive")[];
+            /**
+             * Thread Running
+             * @description Whether this server process's worker thread is alive.
+             */
+            thread_running: boolean;
+            /**
+             * Last Error
+             * @description The exception that ended this process's last run, if it raised.
+             */
+            last_error: string | null;
+            /** Watermarks */
+            watermarks: components["schemas"]["Watermark"][];
+        };
+        /** SyncStopResult */
+        SyncStopResult: {
+            /**
+             * Stopping
+             * @description False when no sync was running.
+             */
+            stopping: boolean;
+        };
+        /**
+         * TrainingLoad
+         * @description `GET /api/load`. With no activities: empty lists, and `current` and
+         *     `ramp_pct` null; the warm-up keys and `ramp_flag` are then absent.
+         */
+        TrainingLoad: {
+            /** Curve */
+            curve: components["schemas"]["LoadDay"][];
+            /** Weeks */
+            weeks: components["schemas"]["LoadWeek"][];
+            /**
+             * Warmup Until
+             * @description Before this day, CTL/ATL are a cold-start artefact of seeding at zero.
+             */
+            warmup_until?: string | null;
+            /** Warmup Note */
+            warmup_note?: string | null;
+            current: components["schemas"]["LoadCurrent"] | null;
+            /**
+             * Ramp Pct
+             * @description Percent change in CTL over the last 7 days; null without enough history.
+             */
+            ramp_pct: number | null;
+            /**
+             * Ramp Flag
+             * @description True when `ramp_pct` is above the 10 %/week flag.
+             */
+            ramp_flag?: boolean | null;
+        };
+        /**
+         * TrendFlag
+         * @description A recovery metric whose latest value is at least `z_threshold` sigma off its
+         *     own trailing baseline.
+         */
+        TrendFlag: {
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "resting_hr" | "hrv" | "sleep_score" | "total_sleep_s" | "bb_high" | "stress_avg";
+            /** Z */
+            z: number;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "better than baseline" | "worse than baseline";
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1478,6 +2118,74 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * Watermark
+         * @description One `sync_watermark` row: how far an endpoint has been synced.
+         */
+        Watermark: {
+            /**
+             * Endpoint
+             * @description Open vocabulary: a Connect endpoint name, "activities", "export_zip", ...
+             */
+            endpoint: string;
+            /** Last Day */
+            last_day: string | null;
+            /** Last Run At */
+            last_run_at: string | null;
+            /** Status */
+            status: ("ok" | "error" | "partial") | null;
+            /** Note */
+            note: string | null;
+        };
+        /**
+         * WeeklyReportRow
+         * @description One ISO week of activity and wellness totals (`reports.weekly_report`).
+         */
+        WeeklyReportRow: {
+            /** Week */
+            week: string;
+            /** Start */
+            start: string;
+            /** Sessions */
+            sessions: number;
+            /** Runs */
+            runs: number;
+            /**
+             * Km
+             * @description All sports.
+             */
+            km: number;
+            /**
+             * Run Km
+             * @description Running only.
+             */
+            run_km: number;
+            /** Hours */
+            hours: number;
+            /** Trimp */
+            trimp: number;
+            /** Elev M */
+            elev_m: number;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Rhr */
+            rhr: number | null;
+            /** Hrv */
+            hrv: number | null;
+            /** Sleep H */
+            sleep_h: number | null;
+            /** Sleep Score */
+            sleep_score: number | null;
+            /** Steps */
+            steps: number | null;
+            /**
+             * Km Delta Pct
+             * @description Running km change vs the previous week, percent.
+             */
+            km_delta_pct: number | null;
+            /** Trimp Delta Pct */
+            trimp_delta_pct: number | null;
         };
     };
     responses: never;
@@ -1584,9 +2292,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GarminStatus"];
                 };
             };
         };
@@ -1761,9 +2467,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Health"];
                 };
             };
         };
@@ -1805,9 +2509,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Summary"];
                 };
             };
         };
@@ -1832,9 +2534,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrainingLoad"];
                 };
             };
             /** @description Validation Error */
@@ -1900,9 +2600,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Readiness"];
                 };
             };
             /** @description Validation Error */
@@ -1933,9 +2631,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReadinessHistory"];
                 };
             };
             /** @description Validation Error */
@@ -1986,9 +2682,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RacePanel"];
                 };
             };
         };
@@ -3230,9 +3924,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SyncStatus"];
                 };
             };
         };
@@ -3268,9 +3960,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["SyncStartRequest"];
             };
         };
         responses: {
@@ -3280,9 +3970,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SyncStarted"];
                 };
             };
             /** @description Validation Error */
@@ -3311,9 +3999,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SyncStopResult"];
                 };
             };
         };
@@ -3368,46 +4054,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    login_page: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    index: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
         };

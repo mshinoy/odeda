@@ -55,6 +55,17 @@ from .schemas import (
     ActivityList,
     ActivityStreams,
     FieldsResponse,
+    GarminStatus,
+    Health,
+    RacePanel,
+    Readiness,
+    ReadinessHistory,
+    Summary,
+    SyncStartRequest,
+    SyncStarted,
+    SyncStatus,
+    SyncStopResult,
+    TrainingLoad,
 )
 
 CACHE_TTL_S = 30.0
@@ -221,7 +232,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- Garmin connection (the first-run setup screen) ----------------------
 
-    @app.get("/api/garmin/status")
+    @app.get("/api/garmin/status", response_model=GarminStatus)
     def garmin_status() -> dict[str, Any]:
         return auth_mod.garmin_status(settings)
 
@@ -296,7 +307,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- meta ----------------------------------------------------------------
 
-    @app.get("/api/health")
+    @app.get("/api/health", response_model=Health)
     def health() -> dict[str, Any]:
         with store() as st:
             lo, hi = st.day_range()
@@ -315,7 +326,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         return run_doctor(settings)
 
-    @app.get("/api/summary")
+    # exclude_unset: an empty database leaves `readiness.components` as `{}`; see
+    # the note above the status models in schemas.py.
+    @app.get("/api/summary", response_model=Summary, response_model_exclude_unset=True)
     def summary() -> dict[str, Any]:
         """Everything the Overview tab needs, in one round trip."""
         with store() as st:
@@ -324,7 +337,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             rd = ready_mod.compute_readiness(st)
             tr = cached(settings, "trends", lambda: trends_mod.compute_trends(st, days=180))
             rep = cached(settings, "reports", lambda: reports_mod.compute_reports(st))
-            race = ready_mod.compute_race(st)
+            race = _race(st)
             latest = st.query("SELECT * FROM v_daily ORDER BY day DESC LIMIT 1")
             return {
                 "day_range": {"from": lo, "to": hi},
@@ -341,6 +354,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "race": {
                     "name": race["race"]["name"],
                     "date": race["race"]["date"],
+                    # The distance behind `projection.projected_seconds`, so a pace
+                    # can be worked out without a second request.
+                    "distance_m": race["race"]["distance_m"],
                     "days_to_go": race["days_to_go"],
                     "projection": race["projection"],
                 },
@@ -349,7 +365,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- analytics -----------------------------------------------------------
 
-    @app.get("/api/load")
+    # exclude_unset: with no activities, compute_load returns no warm-up keys and
+    # no `ramp_flag`, and they stay absent rather than becoming nulls.
+    @app.get("/api/load", response_model=TrainingLoad, response_model_exclude_unset=True)
     def api_load(
         start: str | None = Query(None, description="ISO date"),
         end: str | None = Query(None, description="ISO date"),
@@ -372,12 +390,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return trends_mod.compute_trends(st, days=days, metrics=wanted)
 
-    @app.get("/api/readiness")
+    @app.get("/api/readiness", response_model=Readiness, response_model_exclude_unset=True)
     def api_readiness(day: str | None = None) -> dict[str, Any]:
         with store() as st:
             return ready_mod.compute_readiness(st, day)
 
-    @app.get("/api/readiness/history")
+    @app.get("/api/readiness/history", response_model=ReadinessHistory)
     def api_readiness_history(days: int = Query(90, ge=7, le=800)) -> dict[str, Any]:
         with store() as st:
             return {"days": days, "series": ready_mod.readiness_history(st, days)}
@@ -387,10 +405,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return cached(settings, "performance", lambda: perf.compute_performance(st))
 
-    @app.get("/api/race")
+    @app.get("/api/race", response_model=RacePanel)
     def api_race() -> dict[str, Any]:
         with store() as st:
-            return ready_mod.compute_race(st)
+            return _race(st)
 
     @app.get("/api/reports")
     def api_reports() -> dict[str, Any]:
@@ -892,7 +910,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- sync ----------------------------------------------------------------
 
-    @app.get("/api/sync/status")
+    # exclude_unset: the resume cursor only ever holds the keys its phase wrote.
+    @app.get("/api/sync/status", response_model=SyncStatus,
+             response_model_exclude_unset=True)
     def api_sync_status() -> dict[str, Any]:
         with store() as st:
             out = backfill_mod.status(st)
@@ -906,8 +926,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return backfill_mod.estimate(st)
 
-    @app.post("/api/sync/start")
-    def api_sync_start(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    @app.post("/api/sync/start", response_model=SyncStarted)
+    def api_sync_start(
+        payload: SyncStartRequest = Body(default_factory=SyncStartRequest),
+    ) -> dict[str, Any]:
         """Kick off a full backfill in the background. Safe to call after a crash."""
         if not auth_mod.garmin_status(settings)["connected"]:
             raise HTTPException(
@@ -916,8 +938,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if job.running:
             raise HTTPException(409, "a sync is already running")
 
-        phases = payload.get("phases") or list(backfill_mod.PHASES)
-        limit = payload.get("detail_limit")
+        phases = payload.phases or list(backfill_mod.PHASES)
+        limit = payload.detail_limit
 
         def target(should_stop: Callable[[], bool]) -> None:
             with Store.open(settings) as st:
@@ -933,7 +955,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         job.start(target)
         return {"status": "started", "phases": phases}
 
-    @app.post("/api/sync/stop")
+    @app.post("/api/sync/stop", response_model=SyncStopResult)
     def api_sync_stop() -> dict[str, Any]:
         return {"stopping": job.stop()}
 
@@ -1026,6 +1048,23 @@ def _mount_ui(app: FastAPI, settings: Settings) -> None:
         # index.html names the hashed bundles, so it must be revalidated after a
         # rebuild; the bundles themselves are immutable by name.
         return FileResponse(str(index), headers={"Cache-Control": "no-cache"})
+
+
+def _race(st: Store) -> dict[str, Any]:
+    """`compute_race`, plus `projection.from_seconds`: the time of the best effort the
+    projection starts from, which the analytics only return as a string.
+
+    The source is found the way `compute_race` found it: among the recent bests, or
+    all-time bests when there are no recent ones, the entry at `from_distance_m`
+    (there is one best per standard distance).
+    """
+    race = ready_mod.compute_race(st)
+    proj = race["projection"]
+    if proj is not None:
+        bests = race["recent_bests"] or perf.personal_bests(st)
+        source = next(b for b in bests if b["distance_m"] == proj["from_distance_m"])
+        race["projection"] = {**proj, "from_seconds": source["seconds"]}
+    return race
 
 
 def _splits(samples: list[dict[str, Any]], split_m: float = 1000.0) -> list[dict[str, Any]]:

@@ -172,7 +172,7 @@ class TestRace:
 
     def test_projection_is_self_describing(self, client):
         p = client.get("/api/race").json()["projection"]
-        assert p["projected_time"] and p["from_label"] and p["from_day"]
+        assert p["projected_seconds"] and p["from_seconds"] and p["from_label"] and p["from_day"]
 
 
 class TestReports:
