@@ -63,7 +63,7 @@ Paste one of these into a fresh session.
 | T03c | Activity editing: gear and route selects | todo | T03a | |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
-| T17 | Status: "gym this week" | todo | T15 | |
+| T17 | Status: "gym this week" | in progress (garmin-analytics-04, 2026-09-24) | T15 | |
 
 ### Phase 2 — Map & routes · Checkpoint B: `open`
 
