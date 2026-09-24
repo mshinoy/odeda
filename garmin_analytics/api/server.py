@@ -54,16 +54,22 @@ from .schemas import (
     ActivityEditPayload,
     ActivityEditResult,
     ActivityExercises,
+    ActivityGearRequest,
+    ActivityGearResult,
     ActivityList,
+    ActivityRouteRequest,
+    ActivityRouteResult,
     ActivityStreams,
     FieldsResponse,
     GarminStatus,
+    GearList,
     Health,
     RacePanel,
     Readiness,
     ReadinessHistory,
     RevertAllResult,
     RevertFieldResult,
+    RouteList,
     Summary,
     SyncStartRequest,
     SyncStarted,
@@ -712,7 +718,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- gear ----------------------------------------------------------------
 
-    @app.get("/api/gear")
+    @app.get("/api/gear", response_model=GearList)
     def api_gear(include_retired: bool = True, kind: str | None = None) -> dict[str, Any]:
         with store() as st:
             return {
@@ -766,22 +772,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return {"deleted": gear_mod.delete(st, gear_id)}
 
-    @app.put("/api/activities/{activity_id}/gear")
+    @app.put("/api/activities/{activity_id}/gear", response_model=ActivityGearResult)
     def api_set_activity_gear(
-        activity_id: str, payload: dict[str, Any] = Body(...)
+        activity_id: str, payload: ActivityGearRequest = Body(...)
     ) -> dict[str, Any]:
-        """Replace an activity's gear set — the drawer's dropdown, retroactively."""
+        """Replace an activity's gear set — the dialog's dropdown, retroactively."""
         with store() as st:
             try:
-                if "gear_ids" in payload:
-                    return gear_mod.set_for_activity(
-                        st, activity_id, [int(g) for g in payload["gear_ids"]]
-                    )
-                return gear_mod.assign(st, activity_id, int(payload["gear_id"]))
+                if payload.gear_ids is not None:
+                    return gear_mod.set_for_activity(st, activity_id, payload.gear_ids)
+                if payload.gear_id is None:
+                    raise HTTPException(400, "expected gear_id or gear_ids")
+                return gear_mod.assign(st, activity_id, payload.gear_id)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
-            except (KeyError, TypeError, ValueError) as exc:
-                raise HTTPException(400, f"expected gear_id or gear_ids: {exc}") from exc
 
     @app.delete("/api/activities/{activity_id}/gear/{gear_id}")
     def api_unassign_gear(activity_id: str, gear_id: int) -> dict[str, Any]:
@@ -824,7 +828,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- routes & maps -------------------------------------------------------
 
-    @app.get("/api/routes")
+    @app.get("/api/routes", response_model=RouteList)
     def api_routes(type: str | None = None) -> dict[str, Any]:
         with store() as st:
             return {"routes": routes_mod.list_routes(st, type)}
@@ -883,17 +887,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return {"deleted": routes_mod.delete_route(st, route_id)}
 
-    @app.put("/api/activities/{activity_id}/route")
+    @app.put("/api/activities/{activity_id}/route", response_model=ActivityRouteResult)
     def api_move_activity(
-        activity_id: str, payload: dict[str, Any] = Body(...)
+        activity_id: str, payload: ActivityRouteRequest = Body(...)
     ) -> dict[str, Any]:
         with store() as st:
             try:
-                return routes_mod.move_activity(st, activity_id, int(payload["route_id"]))
+                return routes_mod.move_activity(st, activity_id, payload.route_id)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
-            except (KeyError, TypeError, ValueError) as exc:
-                raise HTTPException(400, f"need route_id: {exc}") from exc
 
     @app.get("/api/routes/compare/tracks")
     def api_route_compare(ids: str = Query(..., description="comma-separated activity ids")):

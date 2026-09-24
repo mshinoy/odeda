@@ -34,6 +34,8 @@ export function ActivityPage() {
       <ActivityHeader
         summary={activity.summary}
         edits={activity.edits}
+        gear={activity.gear}
+        route={activity.route}
         actions={<EditActivityDialog activityId={activity.summary.id} />}
       />
       <ActivityStats summary={activity.summary} />

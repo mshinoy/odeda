@@ -1,9 +1,22 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { toEditableValues, type EditableField, type FieldEdit } from "@/api/adapters";
+import {
+  toEditableValues,
+  type EditableField,
+  type FieldEdit,
+  type GearItem,
+} from "@/api/adapters";
 import type { components } from "@/api/schema";
 import { useEditActivity, useRevertAll, useRevertField } from "@/api/queries/useEditActivity";
+import { useGear, useSetActivityGear } from "@/api/queries/useGear";
+import { useRoutes, useSetActivityRoute } from "@/api/queries/useRoutes";
 import { Button } from "@/components/ui/button";
 import { DialogClose, DialogFooter } from "@/components/ui/dialog";
+import {
+  assignmentChanges,
+  hasAssignmentChanges,
+  toAssignmentValues,
+} from "@/features/activity/edit/assignments";
+import { AssignmentFields } from "@/features/activity/edit/AssignmentFields";
 import {
   editPatch,
   fieldError,
@@ -14,6 +27,7 @@ import {
   type FormValue,
 } from "@/features/activity/edit/editForm";
 import { FieldControl } from "@/features/activity/edit/FieldControl";
+import { activityKind } from "@/lib/activityKind";
 import { formatInteger } from "@/lib/format";
 
 type ActivityRow = components["schemas"]["ActivityRow"];
@@ -22,23 +36,57 @@ interface EditActivityFormProps {
   row: ActivityRow;
   fields: readonly EditableField[];
   edits: readonly FieldEdit[];
+  /** The gear on this activity, and the route it is filed under. */
+  gear: readonly GearItem[];
+  routeId: number | null;
+  hasGps: boolean;
   onSaved: () => void;
 }
 
 /** The fields and Save. Mounted each time the dialog opens, so it starts from the saved values. */
-export function EditActivityForm({ row, fields, edits, onSaved }: EditActivityFormProps) {
+export function EditActivityForm({
+  row,
+  fields,
+  edits,
+  gear,
+  routeId,
+  hasGps,
+  onSaved,
+}: EditActivityFormProps) {
   const initial = useMemo(() => toFormValues(fields, toEditableValues(row, fields)), [row, fields]);
+  const initialAssignments = useMemo(() => toAssignmentValues(gear, routeId), [gear, routeId]);
   const [form, setForm] = useState(initial);
+  const [assignments, setAssignments] = useState(initialAssignments);
   const [confirmRevertAll, setConfirmRevertAll] = useState(false);
   const id = row.activity_id;
+  // An indoor activity is on no route and can never be put on one.
+  const showRoute = hasGps || routeId !== null;
+  const allGear = useGear();
+  const routes = useRoutes(showRoute);
   const save = useEditActivity(id);
+  const setGear = useSetActivityGear(id);
+  const setRoute = useSetActivityRoute(id);
   const revertField = useRevertField(id);
   const revertAll = useRevertAll(id);
-  const busy = save.isPending || revertField.isPending || revertAll.isPending;
-  const error = save.error ?? revertField.error ?? revertAll.error;
+  const busy =
+    save.isPending ||
+    setGear.isPending ||
+    setRoute.isPending ||
+    revertField.isPending ||
+    revertAll.isPending;
+  const error =
+    save.error ??
+    setGear.error ??
+    setRoute.error ??
+    revertField.error ??
+    revertAll.error ??
+    allGear.error ??
+    routes.error;
 
   const patch = editPatch(fields, initial, form);
-  const canSave = Object.keys(patch).length > 0 && !hasErrors(fields, form) && !busy;
+  const changes = assignmentChanges(initialAssignments, assignments);
+  const dirty = Object.keys(patch).length > 0 || hasAssignmentChanges(changes);
+  const canSave = dirty && !hasErrors(fields, form) && !busy;
   const editsByField = new Map(edits.map((edit) => [edit.field, edit]));
 
   function setValue(name: string, value: FormValue) {
@@ -66,9 +114,22 @@ export function EditActivityForm({ row, fields, edits, onSaved }: EditActivityFo
     });
   }
 
-  function submit(event: FormEvent) {
+  /**
+   * Fields, then gear, then the route: three endpoints, one Save. They run in turn so
+   * that a failure stops there instead of leaving a half-applied change behind, and the
+   * first error is the one shown.
+   */
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    if (canSave) save.mutate(patch, { onSuccess: onSaved });
+    if (!canSave) return;
+    try {
+      if (Object.keys(patch).length > 0) await save.mutateAsync(patch);
+      if (changes.gearIds !== null) await setGear.mutateAsync(changes.gearIds);
+      if (changes.routeId !== null) await setRoute.mutateAsync(changes.routeId);
+      onSaved();
+    } catch {
+      // The failed mutation holds the error; it is shown in the footer.
+    }
   }
 
   return (
@@ -94,6 +155,17 @@ export function EditActivityForm({ row, fields, edits, onSaved }: EditActivityFo
           />
         );
       })}
+      <AssignmentFields
+        activityKind={activityKind(row.activity_type)}
+        activityType={row.activity_type}
+        gear={allGear.data}
+        routes={routes.data}
+        assigned={gear}
+        routeId={routeId}
+        showRoute={showRoute}
+        values={assignments}
+        onChange={setAssignments}
+      />
       <DialogFooter className="items-center">
         {error && <p className="text-delta-bad mr-auto text-sm">{error.message}</p>}
         {!error && edits.length > 0 && !confirmRevertAll && (

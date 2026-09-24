@@ -344,6 +344,155 @@ class FieldsResponse(_Model):
 
 
 # ---------------------------------------------------------------------------
+# Gear
+# ---------------------------------------------------------------------------
+
+
+#: `edits/gear.py` `_with_mileage`: how close the item is to its retirement distance.
+GearState = Literal["ok", "warn", "over", "retired"]
+
+
+class GearItem(_Model):
+    """A `gear` row with the mileage put on it, for the gear list and the selects.
+
+    Distances are metres unless the name says otherwise; `total_distance_m` includes
+    `initial_distance_m`, the mileage the item already had before it was tracked here.
+    """
+
+    gear_id: int
+    kind: GearKind
+    brand: str | None
+    model: str | None
+    nickname: str | None
+    purchase_date: str | None
+    """ISO date."""
+    initial_distance_m: float
+    retirement_distance_m: float | None
+    """Warn/retire threshold; null means no limit."""
+    retired: int
+    """0/1 flag."""
+    notes: str | None
+    photo_path: str | None
+    source: str
+    """Where the gear record came from: 'manual' or 'garmin'."""
+    garmin_uuid: str | None
+    created_at: str
+    updated_at: str
+    display_name: str
+    """Nickname if set, else brand + model."""
+    activity_count: int
+    """Activities carrying this gear, excluded-from-stats ones left out."""
+    tracked_distance_m: float
+    """Distance of those activities, without `initial_distance_m`."""
+    total_distance_m: float
+    total_distance_km: float
+    moving_time_s: float
+    elevation_gain_m: float
+    first_use: str | None
+    """Local day of the earliest activity carrying it; null when unused."""
+    last_use: str | None
+    retirement_pct: float | None
+    """`total_distance_m` as a percentage of the threshold; null without one."""
+    remaining_m: float | None
+    state: GearState
+    distance_per_week_km: float | None
+    """Tracked distance spread over first use to last use; null when unused."""
+
+
+class GearDefaultRule(_Model):
+    """A `gear_defaults` row: the gear newly-synced activities of a type get."""
+
+    activity_type: str
+    gear_id: int
+    kind: GearKind
+    brand: str | None
+    model: str | None
+    nickname: str | None
+    display_name: str
+
+
+class GearList(_Model):
+    """`GET /api/gear`: every item, the default rules, and the kinds that exist."""
+
+    gear: list[GearItem]
+    defaults: list[GearDefaultRule]
+    kinds: list[GearKind]
+
+
+class ActivityGearRequest(_Model):
+    """`PUT /api/activities/{id}/gear` body.
+
+    `gear_ids` replaces the activity's whole gear set. `gear_id` attaches one item and
+    replaces whatever gear of the *same kind* was there, which is what a per-kind
+    select means: new shoes swap the old shoes and leave the HR strap alone. Send one
+    or the other; `gear_ids` wins if both are present.
+    """
+
+    gear_ids: list[int] | None = None
+    gear_id: int | None = None
+
+
+class ActivityGearResult(_Model):
+    """The activity's gear after the change."""
+
+    activity_id: str
+    gear: list[ActivityGear]
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+
+class RouteSummary(_Model):
+    """One clustered route with its attempt count and headline stats.
+
+    The per-attempt times come from `v_activities_included`, so activities the user
+    excluded from stats do not set the best time. They are null for a route whose
+    attempts have no moving time (or, after a split, none at all).
+    """
+
+    route_id: int
+    name: str
+    activity_type: str
+    distance_m: float
+    is_loop: bool
+    pinned: bool
+    """True once the user renamed, merged or split it: reclustering leaves it alone."""
+    start_lat: float
+    start_lon: float
+    centroid_lat: float
+    centroid_lon: float
+    elevation_gain_m: float | None
+    created_at: str
+    updated_at: str
+    attempts: int
+    first_day: str | None
+    last_day: str | None
+    avg_moving_time_s: float | None
+    best_moving_time_s: float | None
+    avg_hr: float | None
+    distance_km: float
+
+
+class RouteList(_Model):
+    routes: list[RouteSummary]
+
+
+class ActivityRouteRequest(_Model):
+    """`PUT /api/activities/{id}/route` body: the route to refile the activity onto."""
+
+    route_id: int
+
+
+class ActivityRouteResult(_Model):
+    activity_id: str
+    route_id: int
+    assigned: Literal["manual"]
+    """A move by hand is always manual, never a match score."""
+
+
+# ---------------------------------------------------------------------------
 # Status: summary, training load, readiness, race, health, Garmin and sync
 # ---------------------------------------------------------------------------
 #

@@ -312,7 +312,10 @@ class TestOpenApi:
         for name in ("ActivityRow", "ActivityList", "ActivityDetail", "ActivityStreams",
                      "ActivityEditResult", "AppliedEdit", "RevertedEdit", "Override",
                      "ActivityGear", "RouteAssignment", "HrZone", "BestEffort", "KmSplit",
-                     "FieldsResponse", "EditableFieldInfo"):
+                     "FieldsResponse", "EditableFieldInfo", "GearList", "GearItem",
+                     "GearDefaultRule", "ActivityGearResult", "ActivityGearRequest",
+                     "RouteList", "RouteSummary", "ActivityRouteResult",
+                     "ActivityRouteRequest"):
             assert name in comps, name
         assert set(comps["ActivityRow"]["properties"]) == set(schemas.ActivityRow.model_fields)
         assert "pace" not in comps["KmSplit"]["properties"]
@@ -331,9 +334,90 @@ class TestOpenApi:
         assert ref("/api/activities/{activity_id}/streams", "get") == "ActivityStreams"
         assert ref("/api/activities/{activity_id}", "patch") == "ActivityEditResult"
         assert ref("/api/fields", "get") == "FieldsResponse"
+        assert ref("/api/gear", "get") == "GearList"
+        assert ref("/api/routes", "get") == "RouteList"
+        assert ref("/api/activities/{activity_id}/gear", "put") == "ActivityGearResult"
+        assert ref("/api/activities/{activity_id}/route", "put") == "ActivityRouteResult"
         detail_params = {p["name"] for p in
                          spec["paths"]["/api/activities/{activity_id}"]["get"]["parameters"]}
         assert detail_params == {"activity_id"}
         body = spec["paths"]["/api/activities/{activity_id}"]["patch"]["requestBody"]
         body_schema = body["content"]["application/json"]["schema"]
         assert body_schema["type"] == "object" and "additionalProperties" in body_schema
+
+
+class TestGearAndRoute:
+    """T03c's selects: `GET /api/gear`, `GET /api/routes`, and the two PUTs."""
+
+    def test_gear_list_equals_the_store(self, rw_client, rw_store):
+        body = rw_client.get("/api/gear").json()
+        _strict_equal(body, _as_json({
+            "gear": gear_mod.list_gear(rw_store, True, None),
+            "defaults": gear_mod.list_defaults(rw_store),
+            "kinds": list(gear_mod.GEAR_KINDS),
+        }))
+        assert body["gear"], "the seeded database should have gear"
+
+    def test_gear_list_filters(self, rw_client, rw_store):
+        shoes = rw_client.get("/api/gear?kind=shoe&include_retired=false").json()["gear"]
+        _strict_equal(shoes, _as_json(gear_mod.list_gear(rw_store, False, "shoe")))
+        assert {g["kind"] for g in shoes} == {"shoe"}
+        assert all(g["retired"] == 0 for g in shoes)
+
+    def test_routes_equal_the_store(self, rw_client, rw_store):
+        _strict_equal(rw_client.get("/api/routes").json(),
+                      _as_json({"routes": routes_mod.list_routes(rw_store)}))
+        running = rw_client.get("/api/routes?type=running").json()
+        _strict_equal(running, _as_json({"routes": routes_mod.list_routes(rw_store, "running")}))
+        assert running["routes"], "the seeded database should have running routes"
+
+    def test_assigning_one_item_replaces_that_kind_only(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM activity_gear LIMIT 1")
+        shoe = int(_pick(rw_store, "SELECT gear_id FROM gear WHERE kind = 'shoe' LIMIT 1"))
+        strap = int(_pick(rw_store, "SELECT gear_id FROM gear WHERE kind = 'strap' LIMIT 1"))
+        rw_client.put(f"/api/activities/{aid}/gear", json={"gear_ids": [shoe, strap]})
+        other = int(_pick(
+            rw_store, f"SELECT gear_id FROM gear WHERE kind = 'shoe' AND gear_id != {shoe} LIMIT 1"
+        ))
+        res = rw_client.put(f"/api/activities/{aid}/gear", json={"gear_id": other})
+        assert res.status_code == 200, res.text
+        body = res.json()
+        _strict_equal(body, _as_json(
+            {"activity_id": aid, "gear": gear_mod.for_activity(rw_store, aid)}))
+        # The other pair of shoes went, the strap stayed.
+        assert {g["gear_id"] for g in body["gear"]} == {other, strap}
+
+    def test_setting_the_whole_set_replaces_it(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM activity_gear LIMIT 1")
+        gid = int(_pick(rw_store, "SELECT gear_id FROM gear LIMIT 1"))
+        body = rw_client.put(f"/api/activities/{aid}/gear", json={"gear_ids": [gid]}).json()
+        assert [g["gear_id"] for g in body["gear"]] == [gid]
+        # And an empty list takes all the gear off.
+        cleared = rw_client.put(f"/api/activities/{aid}/gear", json={"gear_ids": []}).json()
+        assert cleared["gear"] == []
+
+    def test_gear_errors_are_unchanged(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM activities LIMIT 1")
+        assert rw_client.put(f"/api/activities/{aid}/gear",
+                             json={"gear_id": 999999}).status_code == 404
+        assert rw_client.put("/api/activities/nope/gear",
+                             json={"gear_id": 1}).status_code == 404
+        assert rw_client.put(f"/api/activities/{aid}/gear", json={}).status_code == 400
+
+    def test_moving_an_activity_to_another_route(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM route_members LIMIT 1")
+        target = int(_pick(rw_store, (
+            "SELECT route_id FROM routes WHERE route_id != "
+            f"(SELECT route_id FROM route_members WHERE activity_id = '{aid}') LIMIT 1")))
+        res = rw_client.put(f"/api/activities/{aid}/route", json={"route_id": target})
+        assert res.status_code == 200, res.text
+        assert res.json() == {"activity_id": aid, "route_id": target, "assigned": "manual"}
+        detail = rw_client.get(f"/api/activities/{aid}").json()
+        assert detail["route"]["route_id"] == target
+        assert detail["route"]["assigned"] == "manual"
+        assert detail["route"]["match_score"] is None
+
+    def test_route_errors_are_unchanged(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM route_members LIMIT 1")
+        assert rw_client.put(f"/api/activities/{aid}/route",
+                             json={"route_id": 999999}).status_code == 404

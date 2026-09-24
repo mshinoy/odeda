@@ -34,6 +34,8 @@ export const queryKeys = {
   activity: (id: string) => ["activity", id] as const,
   streams: (id: string) => ["streams", id] as const,
   fields: ["fields"] as const,
+  gear: ["gear"] as const,
+  routes: ["routes"] as const,
   heatmapAll: ["heatmap"] as const,
   heatmap: (params: HeatmapParams) => ["heatmap", params] as const,
   summary: ["summary"] as const,

@@ -1,6 +1,6 @@
 import { Pencil } from "lucide-react";
 import { useState } from "react";
-import { toFieldEdits } from "@/api/adapters";
+import { toActivityGear, toFieldEdits } from "@/api/adapters";
 import { useActivityDetail } from "@/api/queries/useActivity";
 import { useEditableFields } from "@/api/queries/useEditActivity";
 import { EmptyState } from "@/components/EmptyState";
@@ -39,11 +39,14 @@ export function EditActivityDialog({ activityId }: { activityId: string }) {
           <DialogTitle>Edit activity</DialogTitle>
         </DialogHeader>
         {fields.error && <EmptyState message={fields.error.message} />}
-        {!fields.error && fields.data && row ? (
+        {!fields.error && fields.data && row && detail.data ? (
           <EditActivityForm
             row={row}
             fields={fields.data}
             edits={edits}
+            gear={toActivityGear(detail.data.gear)}
+            routeId={detail.data.route?.route_id ?? null}
+            hasGps={detail.data.has_gps}
             onSaved={() => setOpen(false)}
           />
         ) : (

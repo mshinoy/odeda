@@ -99,6 +99,26 @@ export interface ActivityRoute {
   manual: boolean;
 }
 
+/** A pair of shoes, a bike or a strap, as a list or a select needs it. */
+export interface GearItem {
+  id: number;
+  /** `shoe`, `bike`, `strap` or `other`. */
+  kind: string;
+  /** Nickname if the owner set one, else brand + model. */
+  name: string;
+  retired: boolean;
+}
+
+/** A clustered route, as the route select needs it. */
+export interface RouteOption {
+  id: number;
+  name: string;
+  /** The activity type the cluster was built from; a route select offers its own. */
+  activityType: string;
+  distanceM: number;
+  attempts: number;
+}
+
 /** Garmin's category for an exercise it could not name. */
 export const UNKNOWN_EXERCISE = "UNKNOWN";
 
@@ -137,7 +157,7 @@ export interface Activity {
   decouplingPct: number | null;
   efficiencyFactor: number | null;
   route: ActivityRoute | null;
-  gear: Schemas["ActivityGear"][];
+  gear: GearItem[];
   /** The fields the user has edited, in field order. */
   edits: FieldEdit[];
   streams: ActivityStreams;
@@ -209,6 +229,40 @@ function toExercise(raw: Schemas["Exercise"]): Exercise {
     volumeG: raw.volume_g,
     durationMs: raw.duration_ms,
   };
+}
+
+// ---------------------------------------------------------------- gear and routes
+
+/** The fields a gear row and an activity's gear have in common. */
+type GearFields = Pick<Schemas["GearItem"], "gear_id" | "kind" | "display_name" | "retired">;
+
+function toGearItem(raw: GearFields): GearItem {
+  return {
+    id: raw.gear_id,
+    kind: raw.kind,
+    name: raw.display_name,
+    retired: raw.retired === 1,
+  };
+}
+
+/** Every gear item the owner has, retired ones included (a select marks those). */
+export function toGearItems(raw: Schemas["GearList"]): GearItem[] {
+  return raw.gear.map(toGearItem);
+}
+
+/** The gear on one activity. It carries how it was attached; nothing shows that yet. */
+export function toActivityGear(gear: readonly Schemas["ActivityGear"][]): GearItem[] {
+  return gear.map(toGearItem);
+}
+
+export function toRouteOptions(raw: Schemas["RouteList"]): RouteOption[] {
+  return raw.routes.map((route) => ({
+    id: route.route_id,
+    name: route.name,
+    activityType: route.activity_type,
+    distanceM: route.distance_m,
+    attempts: route.attempts,
+  }));
 }
 
 // ---------------------------------------------------------------- streams and track
@@ -302,7 +356,7 @@ export function toActivity(
           manual: detail.route.assigned === "manual",
         }
       : null,
-    gear: detail.gear,
+    gear: toActivityGear(detail.gear),
     edits: toFieldEdits(detail.overrides),
     streams,
     track,

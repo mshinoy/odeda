@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   UNKNOWN_EXERCISE,
   toActivity,
+  toActivityGear,
   toActivityStreams,
   toActivitySummary,
   toActivityTrack,
   toEditableFields,
   toEditableValues,
+  toGearItems,
   toGymSession,
+  toRouteOptions,
 } from "@/api/adapters";
 import type { components } from "@/api/schema";
 
@@ -342,5 +345,107 @@ describe("editing", () => {
       // A field the row doesn't carry yet is empty, not an error.
       future_field: null,
     });
+  });
+});
+
+describe("gear and routes", () => {
+  const item: Schemas["GearItem"] = {
+    gear_id: 3,
+    kind: "shoe",
+    brand: "Asics",
+    model: "Novablast 4",
+    nickname: null,
+    purchase_date: "2025-04-02",
+    initial_distance_m: 0,
+    retirement_distance_m: 800000,
+    retired: 0,
+    notes: null,
+    photo_path: null,
+    source: "manual",
+    garmin_uuid: null,
+    created_at: "2025-04-02T10:00:00Z",
+    updated_at: "2025-04-02T10:00:00Z",
+    display_name: "Asics Novablast 4",
+    activity_count: 61,
+    tracked_distance_m: 512340.0,
+    total_distance_m: 512340.0,
+    total_distance_km: 512.34,
+    moving_time_s: 180000,
+    elevation_gain_m: 2100,
+    first_use: "2025-04-05",
+    last_use: "2026-09-20",
+    retirement_pct: 64.0,
+    remaining_m: 287660.0,
+    state: "ok",
+    distance_per_week_km: 7.1,
+  };
+
+  it("keeps only what a select needs, and reads the retired flag as a boolean", () => {
+    expect(
+      toGearItems({ gear: [item, { ...item, gear_id: 4, retired: 1 }], defaults: [], kinds: [] }),
+    ).toEqual([
+      { id: 3, kind: "shoe", name: "Asics Novablast 4", retired: false },
+      { id: 4, kind: "shoe", name: "Asics Novablast 4", retired: true },
+    ]);
+  });
+
+  it("reads an activity's gear the same way", () => {
+    const worn: Schemas["ActivityGear"] = {
+      gear_id: 3,
+      kind: "shoe",
+      brand: "Asics",
+      model: "Novablast 4",
+      nickname: "Novas",
+      purchase_date: null,
+      initial_distance_m: 0,
+      retirement_distance_m: null,
+      retired: 0,
+      notes: null,
+      photo_path: null,
+      source: "garmin",
+      garmin_uuid: "u1",
+      created_at: "2025-04-02T10:00:00Z",
+      updated_at: "2025-04-02T10:00:00Z",
+      assign_source: "garmin",
+      assigned_at: "2025-04-05T06:00:00Z",
+      display_name: "Novas",
+    };
+    expect(toActivityGear([worn])).toEqual([
+      { id: 3, kind: "shoe", name: "Novas", retired: false },
+    ]);
+  });
+
+  it("keeps only what a route select needs", () => {
+    const route: Schemas["RouteSummary"] = {
+      route_id: 12,
+      name: "Corniche out and back",
+      activity_type: "running",
+      distance_m: 10120.5,
+      is_loop: false,
+      pinned: true,
+      start_lat: 25.29,
+      start_lon: 51.53,
+      centroid_lat: 25.3,
+      centroid_lon: 51.54,
+      elevation_gain_m: 34.0,
+      created_at: "2025-01-01T00:00:00Z",
+      updated_at: "2026-09-20T00:00:00Z",
+      attempts: 23,
+      first_day: "2025-01-04",
+      last_day: "2026-09-20",
+      avg_moving_time_s: 3140.0,
+      best_moving_time_s: 2890.0,
+      avg_hr: 158.0,
+      distance_km: 10.12,
+    };
+    expect(toRouteOptions({ routes: [route] })).toEqual([
+      {
+        id: 12,
+        name: "Corniche out and back",
+        activityType: "running",
+        distanceM: 10120.5,
+        attempts: 23,
+      },
+    ]);
   });
 });

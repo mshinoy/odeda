@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 6 / 11 |
+| 1 Activities + gym | A: `open` | 7 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -60,7 +60,7 @@ Paste one of these into a fresh session.
 | T02 | Activity list (gym rows show sets · reps) | done | T15 | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | done | T02 | Activity editing: an Edit dialog from /api/fields that saves only what changed |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | done | T03a | Activity editing: edited fields marked, revert one field or all of them |
-| T03c | Activity editing: gear and route selects | in progress (patti, 2026-09-24) | T03a | |
+| T03c | Activity editing: gear and route selects | done | T03a | Activity editing: gear and route selects in the dialog |
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
@@ -434,10 +434,15 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Backend:** type `PUT /api/activities/{id}/gear`, `PUT /api/activities/{id}/route`,
   `GET /api/gear` (for the selects).
 - **Build:**
-  - [ ] gear select per kind (shoes for runs, bikes for rides)
-  - [ ] route select
-  - [ ] invalidate the activity, activities and gear queries
+  - [x] gear select per kind (shoes for runs, bikes for rides)
+  - [x] route select
+  - [x] invalidate the activity, activities and gear queries
 - **Done when:** a gear change shows up in the list and on the activity page.
+- **Also typed:** `GET /api/routes`, which the route select needs. T05a types the rest
+  of the route endpoints.
+- **Note:** the activity list has no gear column, so a gear change is only visible there
+  through the row's `gear_ids`; the activity page header now shows the gear and the
+  route. T12 owns showing gear.
 
 ### T16 — Gym session page
 - **Goal:** a gym session gets a page as good as a run's. The body diagram is the hero,
