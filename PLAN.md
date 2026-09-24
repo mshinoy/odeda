@@ -57,7 +57,7 @@ Paste one of these into a fresh session.
 |---|---|---|---|---|
 | T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | in progress (claude-parallel, 2026-09-24) | — | |
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
-| T02 | Activity list (gym rows show sets · reps) | todo | T15 | |
+| T02 | Activity list (gym rows show sets · reps) | in progress (garmin-analytics-04, 2026-09-24) | T15 | |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | todo | T02 | |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | todo | T03a | |
 | T03c | Activity editing: gear and route selects | todo | T03a | |
