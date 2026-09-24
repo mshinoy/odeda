@@ -65,7 +65,7 @@ Paste one of these into a fresh session.
 | T16b | Gym: relabel unlabelled (or wrong) exercises | done | T16, T03b | Gym: relabel an exercise Garmin got wrong, and revert it |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | done | — | Stream charts: a ride's axis in km/h, a swim's in /100m |
-| T19 | MapLibre: ship its worker so the no-token basemap draws | todo | — | |
+| T19 | MapLibre: ship its worker so the no-token basemap draws | in progress (patti, 2026-09-24) | — | |
 
 ### Phase 2 — Map & routes · Checkpoint B: `open`
 
