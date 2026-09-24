@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `open` | 7 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
-| 4 Settings & finish | D: `open` | 0 / 5 |
+| 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
 
@@ -96,6 +96,7 @@ Paste one of these into a fresh session.
 | T11b | Settings: sync, overrides summary, version, theme toggle | todo | — | |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | todo | T11b | |
 | T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
+| T20 | Prove the one-command install on the current image | todo | — | |
 | T14 | Cleanup and frontend README | todo | every other task | |
 
 ### Open decisions
@@ -669,6 +670,20 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - [ ] if a chart lags: add LTTB downsampling on the backend (an optional `max_points`)
   rather than in the browser
 - Record the numbers in the commit message.
+
+### T20 — Prove the one-command install
+- **Found in:** T03c. The production image has not been rebuilt since the React
+  frontend landed, so `docker compose up -d` serving the built SPA is untested. Only
+  `api-dev` and `ui-dev` have run since F4.
+- **Build:**
+  - [ ] `docker compose build app`, then `docker compose up -d`, and open the app on
+    its own port: nav, an activity page and the Edit dialog, in both themes
+  - [ ] check the image carries `garmin_analytics/ui/` (the Docker build runs
+    `npm ci && npm run build`), and that the SPA fallback serves a deep link
+  - [ ] fix what the check finds, or add a row for it if it is not a small fix
+- **Careful:** the owner's data is in that container. Don't recreate its volume, and
+  ask before stopping it.
+- **Done when:** a fresh `docker compose up -d` serves the React app.
 
 ### T14 — Cleanup and frontend README
 - [ ] `frontend/README.md`: how to run (dev, build, Docker), the folder structure, and
