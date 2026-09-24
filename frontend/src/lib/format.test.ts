@@ -13,6 +13,7 @@ import {
   formatDistance,
   formatDuration,
   formatElevation,
+  formatExerciseName,
   formatHeartRate,
   formatPace,
   formatPaceClock,
@@ -21,7 +22,9 @@ import {
   formatSpeed,
   formatSportSpeed,
   formatSwimPace,
+  formatVolume,
   formatWeekday,
+  formatWeight,
   movingSpeed,
   paceFromSpeed,
 } from "@/lib/format";
@@ -350,5 +353,39 @@ describe("formatCountRange", () => {
 
   it("renders missing input as the placeholder", () => {
     expect(formatCountRange(1, null, 10)).toBe("–");
+  });
+});
+
+describe("formatExerciseName", () => {
+  it("reads Garmin's constant as a sentence", () => {
+    expect(formatExerciseName("BARBELL_DEADLIFT")).toBe("Barbell deadlift");
+    expect(formatExerciseName("SQUAT")).toBe("Squat");
+  });
+
+  it("prefers the subcategory, which is the specific exercise", () => {
+    expect(formatExerciseName("DEADLIFT", "ROMANIAN_DEADLIFT")).toBe("Romanian deadlift");
+    expect(formatExerciseName("DEADLIFT", null)).toBe("Deadlift");
+  });
+
+  it("calls an exercise Garmin could not name unlabelled", () => {
+    expect(formatExerciseName("UNKNOWN", null)).toBe("Unlabelled");
+    expect(formatExerciseName(null, null)).toBe("Unlabelled");
+    expect(formatExerciseName("", "")).toBe("Unlabelled");
+  });
+});
+
+describe("formatWeight and formatVolume", () => {
+  it("turns Garmin's grams into kilos", () => {
+    expect(formatWeight(22500)).toBe("22.5 kg");
+    expect(formatWeight(0)).toBe("0.0 kg");
+    // Whole kilos once a plate load gets heavy enough that a tenth is noise.
+    expect(formatWeight(140000)).toBe("140 kg");
+    expect(formatWeight(null)).toBe("–");
+  });
+
+  it("shows volume in whole kilos", () => {
+    expect(formatVolume(4850000)).toBe("4,850 kg");
+    expect(formatVolume(1500)).toBe("2 kg");
+    expect(formatVolume(undefined)).toBe("–");
   });
 });

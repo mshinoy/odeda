@@ -267,6 +267,40 @@ export function formatSigned(value: MaybeNumber, digits = 1): string {
   return `${sign}${fixedDigits(digits).format(Math.abs(rounded))}`;
 }
 
+// ---------------------------------------------------------------- the gym
+
+/** What an exercise Garmin could not name is called. */
+export const UNLABELLED_EXERCISE = "Unlabelled";
+
+/**
+ * "BARBELL_DEADLIFT" → "Barbell deadlift". The subcategory names the exercise when
+ * Garmin supplies one, because it is the specific one ("Romanian deadlift", not
+ * "Deadlift"). `UNKNOWN` and a missing category both read as unlabelled.
+ */
+export function formatExerciseName(
+  category: string | null | undefined,
+  subCategory: string | null | undefined = null,
+): string {
+  const name = subCategory || category;
+  if (!name || name === "UNKNOWN") return UNLABELLED_EXERCISE;
+  const words = name.trim().toLowerCase().split(/_+/).filter(Boolean).join(" ");
+  if (!words) return UNLABELLED_EXERCISE;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** Garmin weighs in grams; people lift in kilos. "22.5 kg", and whole kilos from 100 up. */
+export function formatWeight(grams: MaybeNumber): string {
+  if (!isNumber(grams)) return MISSING;
+  const kg = grams / 1000;
+  return Math.abs(kg) >= 100 ? `${integer.format(kg)} kg` : `${oneDecimal.format(kg)} kg`;
+}
+
+/** Volume is weight × reps, so it is grams too, and it gets large: "4,850 kg". */
+export function formatVolume(grams: MaybeNumber): string {
+  if (!isNumber(grams)) return MISSING;
+  return `${integer.format(grams / 1000)} kg`;
+}
+
 /** "14 sets · 135 reps"; either part is left out when Garmin has no count for it. */
 export function formatSetsReps(sets: MaybeNumber, reps: MaybeNumber): string {
   const parts = [countOf(sets, "set", "sets"), countOf(reps, "rep", "reps")].filter(

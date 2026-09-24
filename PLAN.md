@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 7 / 11 |
+| 1 Activities + gym | A: `open` | 8 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
@@ -61,7 +61,7 @@ Paste one of these into a fresh session.
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | done | T02 | Activity editing: an Edit dialog from /api/fields that saves only what changed |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | done | T03a | Activity editing: edited fields marked, revert one field or all of them |
 | T03c | Activity editing: gear and route selects | done | T03a | Activity editing: gear and route selects in the dialog |
-| T16 | Gym session page: body diagram and exercise table | in progress (patti, 2026-09-24) | T15 | |
+| T16 | Gym session page: body diagram and exercise table | done | T15 | Gym session page: a body diagram of what was trained, and the exercises |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | todo | — | |
@@ -451,28 +451,32 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Files:** `features/activity/gym/`. `ActivityPage` picks the gym layout for any
   activity with exercises (strength, and HIIT or yoga when they have exercises).
 - **Build:**
-  - [ ] `frontend/src/lib/muscles.ts` (tested):
+  - [x] `frontend/src/lib/muscles.ts` (tested):
     - a `Muscle` type (~16 regions: chest, front / side / rear delts, biceps, triceps,
       forearms, abs, obliques, lats / upper back, traps, lower back, glutes, quads,
       hamstrings, calves)
     - a map from Garmin `category` (and `subCategory` where it changes the answer, e.g.
       `ROMANIAN_DEADLIFT`) to `{ primary, secondary }`
     - it covers every category in the real data; `UNKNOWN` maps to nothing
-  - [ ] a pure `muscleLoad(exercises)` that returns a load per muscle (primary sets × 1,
+  - [x] a pure `muscleLoad(exercises)` that returns a load per muscle (primary sets × 1,
     secondary sets × 0.5), tested
-  - [ ] `BodyDiagram.tsx`: a hand-drawn inline SVG, front and back side by side, one path
+  - [x] `BodyDiagram.tsx`: a hand-drawn inline SVG, front and back side by side, one path
     per muscle, shaded from the blue magnitude ramp in `tokens.ts`, with untrained
     muscles neutral. Light and dark. No new library.
-  - [ ] exercise table: name, sets, reps, max weight, volume. Names come through
+  - [x] exercise table: name, sets, reps, max weight, volume. Names come through
     `format.ts` (`BARBELL_DEADLIFT` → "Barbell deadlift", using the subcategory when
     present); `UNKNOWN` shows as "Unlabelled".
-  - [ ] hover sync: hovering an exercise row highlights its muscles, and hovering a
+  - [x] hover sync: hovering an exercise row highlights its muscles, and hovering a
     muscle highlights its exercises and shows its name
-  - [ ] stat cards: duration, sets, reps, total volume, avg HR. The HR chart stays if
+  - [x] stat cards: duration, sets, reps, total volume, avg HR. The HR chart stays if
     samples exist (they usually do). No map.
-  - [ ] weights and volume in kg via `format.ts`
+  - [x] weights and volume in kg via `format.ts`
 - **Done when:** three real sessions look right in both themes, including 2026-09-14
   (which has an `UNKNOWN`) and one HIIT session.
+- **Note:** the diagram sits beside the exercise table rather than full width — a figure
+  has nothing to do with the width a map wants, and the hover sync needs both on screen.
+  The old single-activity layout moved to `features/activity/EnduranceActivity.tsx`;
+  `ActivityPage` now picks between that and the gym one.
 
 ### T16b — Gym: relabel exercises
 - **Goal:** fix exercises Garmin got wrong or couldn't name, so the table and body

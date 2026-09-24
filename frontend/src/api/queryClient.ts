@@ -33,6 +33,7 @@ export const queryKeys = {
   activities: (params: ActivityListParams) => ["activities", params] as const,
   activity: (id: string) => ["activity", id] as const,
   streams: (id: string) => ["streams", id] as const,
+  exercises: (id: string) => ["exercises", id] as const,
   fields: ["fields"] as const,
   gear: ["gear"] as const,
   routes: ["routes"] as const,
