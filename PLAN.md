@@ -61,7 +61,7 @@ Paste one of these into a fresh session.
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | done | T02 | Activity editing: an Edit dialog from /api/fields that saves only what changed |
 | T03b | Activity editing: marks on edited fields, per-field revert, "revert all" | done | T03a | Activity editing: edited fields marked, revert one field or all of them |
 | T03c | Activity editing: gear and route selects | done | T03a | Activity editing: gear and route selects in the dialog |
-| T16 | Gym session page: body diagram and exercise table | todo | T15 | |
+| T16 | Gym session page: body diagram and exercise table | in progress (patti, 2026-09-24) | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
 | T17 | Status: "gym this week" | done | T15 | Status: gym sessions and sets this week against the 4-week average |
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | todo | — | |
