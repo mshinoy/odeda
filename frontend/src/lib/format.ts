@@ -83,15 +83,27 @@ export function formatPace(secondsPerKm: MaybeNumber): string {
   return `${minutesSeconds(secondsPerKm)} /km`;
 }
 
-/** Seconds per km, or null when too slow to count as moving. */
-export function paceFromSpeed(mps: MaybeNumber): number | null {
-  if (!isNumber(mps) || mps <= MIN_MOVING_SPEED_MPS) return null;
-  return 1000 / mps;
+/** A pace's m:ss without its unit, for axis ticks that carry the unit once: "5:12". */
+export function formatPaceClock(seconds: MaybeNumber): string {
+  if (!isNumber(seconds) || seconds <= 0) return MISSING;
+  return minutesSeconds(seconds);
 }
 
-export function formatSpeed(mps: MaybeNumber): string {
+/** The speed itself while moving, or null when too slow to count as moving. */
+export function movingSpeed(mps: MaybeNumber): number | null {
+  if (!isNumber(mps) || mps <= MIN_MOVING_SPEED_MPS) return null;
+  return mps;
+}
+
+/** Seconds per km, or null when too slow to count as moving. */
+export function paceFromSpeed(mps: MaybeNumber): number | null {
+  const moving = movingSpeed(mps);
+  return moving === null ? null : 1000 / moving;
+}
+
+export function formatSpeed(mps: MaybeNumber, digits = 1): string {
   if (!isNumber(mps)) return MISSING;
-  return `${oneDecimal.format(mps * 3.6)} km/h`;
+  return `${fixedDigits(digits).format(mps * 3.6)} km/h`;
 }
 
 export function formatSwimPace(mps: MaybeNumber): string {

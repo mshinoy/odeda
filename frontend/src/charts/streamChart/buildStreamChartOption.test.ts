@@ -4,6 +4,7 @@ import type { ChartOption } from "@/charts/echarts";
 import {
   buildStreamChartOption,
   formatTooltipLine,
+  formatYTick,
   streamLineColor,
   streamYScale,
 } from "@/charts/streamChart/buildStreamChartOption";
@@ -34,6 +35,7 @@ function makeStreams(n: number, overrides: Partial<ActivityStreams> = {}): Activ
     distanceM: indices.map((i) => i * 30),
     hr: indices.map((i) => 140 + (i % 10)),
     speedMps: indices.map(() => 3),
+    smoothSpeedMps: indices.map(() => 3),
     paceSPerKm: indices.map(() => 1000 / 3),
     cadenceSpm: indices.map(() => null),
     altitudeM: indices.map((i) => 100 + i),
@@ -52,7 +54,9 @@ function single<T>(value: T | T[] | undefined): T {
 }
 
 function yAxisOf(option: ChartOption) {
-  return single(option.yAxis);
+  const axis = single(option.yAxis);
+  if (axis.type !== "value") throw new Error("expected a value axis");
+  return axis;
 }
 
 function xAxisOf(option: ChartOption) {
@@ -166,6 +170,36 @@ describe("buildStreamChartOption", () => {
       showXAxisLabels: false,
     });
     expect(xAxisOf(option).axisLabel?.show).toBe(false);
+  });
+});
+
+describe("the pace axis", () => {
+  /** Calls the option's y tick formatter the way ECharts does. */
+  function yTickLabel(option: ChartOption, value: number): string {
+    const formatter = yAxisOf(option).axisLabel?.formatter;
+    if (typeof formatter !== "function") throw new Error("expected a formatter");
+    return formatter(value, 0, null);
+  }
+
+  it("says /km once, on the top tick only", () => {
+    const option = build(makeStreams(50), "pace");
+    const axis = yAxisOf(option);
+    const top = axis.min;
+    const bottom = axis.max;
+    const step = axis.interval;
+    if (typeof top !== "number" || typeof bottom !== "number" || typeof step !== "number") {
+      throw new Error("expected a fixed scale");
+    }
+    // Inverted: the smallest s/km (fastest) is drawn at the top.
+    expect(yTickLabel(option, top)).toMatch(/^\d+:\d\d \/km$/);
+    expect(yTickLabel(option, top + step)).toMatch(/^\d+:\d\d$/);
+    expect(yTickLabel(option, bottom)).toMatch(/^\d+:\d\d$/);
+  });
+
+  it("keeps the unit on every tick for other metrics", () => {
+    expect(formatYTick(metrics.hr, 150, "run", false)).toBe("150 bpm");
+    expect(formatYTick(metrics.pace, 300, "run", false)).toBe("5:00");
+    expect(formatYTick(metrics.pace, 300, "run", true)).toBe("5:00 /km");
   });
 });
 

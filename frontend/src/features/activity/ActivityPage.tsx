@@ -4,6 +4,7 @@ import { useActivity } from "@/api/queries/useActivity";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActivityCharts } from "@/features/activity/ActivityCharts";
+import { ActivityDetails } from "@/features/activity/ActivityDetails";
 import { ActivityHeader } from "@/features/activity/ActivityHeader";
 import { ActivityPageSkeleton } from "@/features/activity/ActivityPageSkeleton";
 import { ActivityStats } from "@/features/activity/ActivityStats";
@@ -48,6 +49,7 @@ export function ActivityPage() {
       )}
 
       <ActivityCharts activity={activity} />
+      <ActivityDetails activity={activity} />
     </div>
   );
 }

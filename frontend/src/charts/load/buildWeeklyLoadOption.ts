@@ -1,5 +1,11 @@
 import type { components } from "@/api/schema";
-import { axisLabelStyle, gridLineStyle, quietAxis, tooltipStyle } from "@/charts/chrome";
+import {
+  axisLabelStyle,
+  barHoverPointer,
+  gridLineStyle,
+  quietAxis,
+  tooltipStyle,
+} from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily } from "@/design/typography";
@@ -54,7 +60,7 @@ export function buildWeeklyLoadOption({
     tooltip: {
       trigger: "axis",
       ...tooltipStyle(tokens),
-      axisPointer: { type: "shadow", shadowStyle: { color: tokens.surfaceMuted, opacity: 0.6 } },
+      axisPointer: barHoverPointer(tokens),
       formatter: (params) => {
         const first = Array.isArray(params) ? params[0] : params;
         const week = first ? recent[first.dataIndex] : undefined;

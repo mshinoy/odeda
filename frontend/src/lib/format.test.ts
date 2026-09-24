@@ -14,11 +14,13 @@ import {
   formatElevation,
   formatHeartRate,
   formatPace,
+  formatPaceClock,
   formatPercent,
   formatSpeed,
   formatSportSpeed,
   formatSwimPace,
   formatWeekday,
+  movingSpeed,
   paceFromSpeed,
 } from "@/lib/format";
 
@@ -114,6 +116,30 @@ describe("formatPace", () => {
   });
 });
 
+describe("formatPaceClock", () => {
+  it("formats m:ss without a unit", () => {
+    expect(formatPaceClock(312)).toBe("5:12");
+    expect(formatPaceClock(359.6)).toBe("6:00");
+    expect(formatPaceClock(605)).toBe("10:05");
+  });
+
+  it("treats zero, negative or missing as missing", () => {
+    expect(formatPaceClock(0)).toBe(MISSING);
+    expect(formatPaceClock(-5)).toBe(MISSING);
+    for (const input of missingInputs) expect(formatPaceClock(input)).toBe(MISSING);
+  });
+});
+
+describe("movingSpeed", () => {
+  it("keeps a moving speed and drops standing still", () => {
+    expect(movingSpeed(3.2)).toBe(3.2);
+    expect(movingSpeed(0.51)).toBe(0.51);
+    expect(movingSpeed(0.5)).toBeNull();
+    expect(movingSpeed(0)).toBeNull();
+    for (const input of missingInputs) expect(movingSpeed(input)).toBeNull();
+  });
+});
+
 describe("paceFromSpeed", () => {
   it("converts m/s to seconds per km", () => {
     expect(paceFromSpeed(3.2)).toBeCloseTo(312.5);
@@ -138,6 +164,10 @@ describe("formatSpeed", () => {
     expect(formatSpeed(7.9)).toBe("28.4 km/h");
     expect(formatSpeed(0)).toBe("0.0 km/h");
     expect(formatSpeed(10)).toBe("36.0 km/h");
+  });
+
+  it("takes the number of decimals", () => {
+    expect(formatSpeed(7.9, 0)).toBe("28 km/h");
   });
 });
 

@@ -27,7 +27,7 @@ export const metrics: Record<MetricKey, MetricDefinition> = {
   pace: {
     key: "pace",
     label: "Pace",
-    scaleValues: (s) => s.speedMps,
+    scaleValues: (s) => s.smoothSpeedMps,
     plotValues: (s) => s.paceSPerKm,
     invertAxis: true,
     formatScaleValue: (mps, kind) => formatSportSpeed(mps, kind),

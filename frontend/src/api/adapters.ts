@@ -4,7 +4,8 @@
 import type { LineString } from "geojson";
 import type { components } from "@/api/schema";
 import { activityKind, type ActivityKind } from "@/lib/activityKind";
-import { paceFromSpeed } from "@/lib/format";
+import { movingSpeed, paceFromSpeed } from "@/lib/format";
+import { rollingMean } from "@/lib/smoothing";
 
 type Schemas = components["schemas"];
 
@@ -49,7 +50,12 @@ export interface ActivityStreams {
   distanceM: (number | null)[];
   hr: (number | null)[];
   speedMps: (number | null)[];
-  /** Seconds per km; null when standing still or speed is missing. */
+  /**
+   * Speed averaged over ~30 s (`SPEED_SMOOTHING_S`), null when standing still. GPS speed
+   * jitters from second to second; the pace line and the route colour read this one.
+   */
+  smoothSpeedMps: (number | null)[];
+  /** Seconds per km from `smoothSpeedMps`; null when standing still or speed is missing. */
   paceSPerKm: (number | null)[];
   cadenceSpm: (number | null)[];
   altitudeM: (number | null)[];
@@ -206,14 +212,25 @@ function toExercise(raw: Schemas["Exercise"]): Exercise {
 
 // ---------------------------------------------------------------- streams and track
 
+/** The rolling window for `smoothSpeedMps`: long enough to calm GPS, short enough for a stride. */
+export const SPEED_SMOOTHING_S = 30;
+
 export function toActivityStreams(raw: Schemas["ActivityStreams"]): ActivityStreams {
+  // Stops are left out of the mean, so the line near a traffic light shows the pace
+  // you ran at, not a slow blend of running and standing.
+  const smoothSpeedMps = rollingMean(
+    raw.speed_mps.map(movingSpeed),
+    raw.elapsed_s,
+    SPEED_SMOOTHING_S,
+  );
   return {
     length: raw.elapsed_s.length,
     elapsedS: raw.elapsed_s,
     distanceM: raw.distance_m,
     hr: raw.hr,
     speedMps: raw.speed_mps,
-    paceSPerKm: raw.speed_mps.map(paceFromSpeed),
+    smoothSpeedMps,
+    paceSPerKm: smoothSpeedMps.map(paceFromSpeed),
     cadenceSpm: raw.cadence_spm,
     altitudeM: raw.altitude_m,
     gradientPct: gradients(raw.altitude_m, raw.distance_m),

@@ -2,7 +2,11 @@
 // plus any console errors and uncaught exceptions. Used to verify a view before commit.
 //
 //   node scripts/screenshot.mjs <baseUrl> <path> <out.png> [--dark] [--width=1280] [--height=1300]
+//                               [--click=<css selector>]
 //   e.g. node scripts/screenshot.mjs http://localhost:5173 /status ~/status.png --dark
+//
+// --click clicks every element matching the selector once the page has rendered, e.g.
+// --click='[data-slot=collapsible-trigger]' opens the collapsed blocks on an activity.
 //
 // If the app has a password, pass it as GA_PASSWORD; the script signs in first.
 // Needs chromium-browser on PATH. A snap-packaged Chromium cannot write under /tmp, so
@@ -25,10 +29,12 @@ if (!base || !path || !out) {
   process.exit(2);
 }
 const dark = flags.has("--dark");
+const clickSelector = [...flags].find((f) => f.startsWith("--click="))?.slice("--click=".length);
 const width = flagValue("width", 1280);
 const height = flagValue("height", 1300);
 const password = process.env.GA_PASSWORD ?? "";
 const RENDER_WAIT_MS = 9000;
+const AFTER_CLICK_WAIT_MS = 2000;
 const port = 9300 + Math.floor(Math.random() * 500);
 
 // A fresh profile per run, so tabs from an earlier run are never restored. Not a dot-folder:
@@ -114,6 +120,14 @@ try {
 
   await send("Page.navigate", { url: `${base}${path}` });
   await sleep(RENDER_WAIT_MS);
+
+  if (clickSelector) {
+    const { result: clicked } = await send("Runtime.evaluate", {
+      expression: `(() => { const els = document.querySelectorAll(${JSON.stringify(clickSelector)}); els.forEach((el) => el.click()); return els.length; })()`,
+    });
+    console.log(`CLICKED ${clicked.value} × ${clickSelector}`);
+    await sleep(AFTER_CLICK_WAIT_MS);
+  }
 
   const { result } = await send("Runtime.evaluate", {
     expression:

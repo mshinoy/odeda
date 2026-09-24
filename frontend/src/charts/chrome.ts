@@ -29,3 +29,17 @@ export function tooltipStyle(tokens: ColorTokens) {
     extraCssText: "font-variant-numeric: tabular-nums; box-shadow: none; border-radius: 6px;",
   };
 }
+
+/** Bars get rounded tops only, so they still sit flat on the baseline. */
+export const BAR_TOP_RADIUS: [number, number, number, number] = [3, 3, 0, 0];
+
+/** The corner radius at the two ends of a single horizontal bar. */
+export const BAR_END_RADIUS = 3;
+
+/** Hovering a bar chart washes the whole category behind the bar. */
+export function barHoverPointer(tokens: ColorTokens) {
+  return {
+    type: "shadow",
+    shadowStyle: { color: tokens.surfaceMuted, opacity: 0.6 },
+  } as const;
+}

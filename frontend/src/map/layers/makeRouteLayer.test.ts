@@ -42,6 +42,7 @@ function streams(overrides: Partial<ActivityStreams> = {}): ActivityStreams {
     distanceM: empty,
     hr: [100, 120, 999, 140, null],
     speedMps: empty,
+    smoothSpeedMps: empty,
     paceSPerKm: empty,
     cadenceSpm: empty,
     altitudeM: empty,

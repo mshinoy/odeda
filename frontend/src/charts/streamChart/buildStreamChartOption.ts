@@ -16,7 +16,7 @@ import { streamXAxis, type StreamXAxis } from "@/charts/streamChart/streamXAxis"
 import type { ColorTokens } from "@/design/tokens";
 import { kindColor, metricColor } from "@/design/scales";
 import type { ActivityKind } from "@/lib/activityKind";
-import { formatPace, MISSING } from "@/lib/format";
+import { formatPace, formatPaceClock, MISSING } from "@/lib/format";
 import type { MetricDefinition, MetricKey } from "@/lib/metrics";
 import { fontFamily, fontSize } from "@/design/typography";
 
@@ -89,6 +89,20 @@ export function formatPlotValue(
 ): string {
   if (metric.key === "pace") return formatPace(value);
   return metric.formatScaleValue(value, kind);
+}
+
+/**
+ * A y-axis tick. Pace ticks are bare m:ss and only the top one says "/km", so the unit
+ * is read once instead of on every line. Other metrics keep their unit on each tick.
+ */
+export function formatYTick(
+  metric: MetricDefinition,
+  value: number,
+  kind: ActivityKind,
+  isTopTick: boolean,
+): string {
+  if (metric.key !== "pace") return formatPlotValue(metric, value, kind);
+  return isTopTick ? formatPace(value) : formatPaceClock(value);
 }
 
 /** The tooltip's one line: "5:12 /km · 3.4 km". A missing value shows as MISSING. */
@@ -172,7 +186,8 @@ export function buildStreamChartOption({
       axisLabel: {
         color: tokens.inkMuted,
         fontSize: LABEL_FONT_SIZE,
-        formatter: (value: number) => formatPlotValue(metric, value, kind),
+        formatter: (value: number) =>
+          formatYTick(metric, value, kind, isTop(value, yScale, metric.invertAxis)),
       },
     },
     tooltip: {
@@ -216,6 +231,20 @@ export function buildStreamChartOption({
       },
     ],
   };
+}
+
+/**
+ * Whether a tick is the one drawn at the top of the plot (the min on an inverted axis).
+ * Ticks sit on multiples of the step, so half a step absorbs float noise.
+ */
+function isTop(
+  value: number,
+  scale: { min: number; max: number; step: number } | null,
+  inverted: boolean,
+): boolean {
+  if (scale === null) return false;
+  const top = inverted ? scale.min : scale.max;
+  return Math.abs(value - top) < scale.step / 2;
 }
 
 /** Next to the crosshair at the top of the chart, flipping left near the right edge. */

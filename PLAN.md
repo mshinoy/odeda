@@ -29,8 +29,8 @@ Paste one of these into a fresh session.
 
 | Phase | Checkpoint | Done |
 |---|---|---|
-| 0 Foundations | — | 10 / 10 |
-| 1 Activities + gym | A: `open` | 1 / 9 |
+| 0 Foundations | — | 11 / 11 |
+| 1 Activities + gym | A: `open` | 2 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 5 |
@@ -55,7 +55,7 @@ Paste one of these into a fresh session.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | in progress (claude-parallel, 2026-09-24) | — | |
+| T01 | Activity page: splits, HR zones, best efforts, and the D1 tweaks | done | — | Activity page: splits, HR zones, best efforts; 30 s pace smoothing, /km once |
 | T15 | Gym data API: exercises from the saved activity data, and set/rep totals | done | — | Gym data API: exercises and set/rep totals from the raw payloads |
 | T02 | Activity list (gym rows show sets · reps) | in progress (garmin-analytics-04, 2026-09-24) | T15 | |
 | T03a | Activity editing: the Edit dialog, saving only dirty fields | todo | T02 | |
@@ -64,6 +64,8 @@ Paste one of these into a fresh session.
 | T16 | Gym session page: body diagram and exercise table | todo | T15 | |
 | T16b | Gym: relabel unlabelled (or wrong) exercises | todo | T16, T03b | |
 | T17 | Status: "gym this week" | in progress (garmin-analytics-04, 2026-09-24) | T15 | |
+| T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | todo | — | |
+| T19 | MapLibre: ship its worker so the no-token basemap draws | todo | — | |
 
 ### Phase 2 — Map & routes · Checkpoint B: `open`
 
@@ -350,13 +352,13 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Files:** `features/activity/`. Data comes from `Activity.splits`, `hrZones` and
   `bestEfforts` (see `api/adapters.ts`).
 - **Build:**
-  - [ ] km splits as a compact bar chart (pace per km, faster is taller) with HR in the tooltip
-  - [ ] time in HR zones as one horizontal stacked bar using `tokens.hrZones`, with zone labels
-  - [ ] best efforts as a small table
-  - [ ] ~30 s rolling smoothing for the pace line and the route colour (a pure helper
+  - [x] km splits as a compact bar chart (pace per km, faster is taller) with HR in the tooltip
+  - [x] time in HR zones as one horizontal stacked bar using `tokens.hrZones`, with zone labels
+  - [x] best efforts as a small table
+  - [x] ~30 s rolling smoothing for the pace line and the route colour (a pure helper
     in `lib/`, tested)
-  - [ ] "/km" shown once on the pace axis, not on every tick
-  - [ ] map background checked on 3+ real routes (city, park, out of town) in both themes; adjust via `design/` if it fights the route line
+  - [x] "/km" shown once on the pace axis, not on every tick
+  - [x] map background checked on 3+ real routes (city, park, out of town) in both themes; adjust via `design/` if it fights the route line
 - **Old reference:** `openDrawer` in `app.js` (splits, zones, best efforts).
 - **Done when:** the three blocks render on a real run, an indoor activity and a ride.
   Empty blocks are hidden, not shown empty.
@@ -494,6 +496,27 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - [ ] hidden when there are no gym sessions in the last 8 weeks
 - **Done when:** it shows the right numbers on real data in both themes and doesn't
   crowd the page.
+
+### T18 — Stream charts: sport-aware pace axis
+- **Found in:** T01, on the 2026-09-23 Al Daayen ride (24473027876).
+- **Problem:** the stream "Pace" chart plots s/km for every sport, so a ride's axis
+  reads "–, 5:00, 10:00" (the top tick is 0 s/km) while its header, splits and legend say km/h.
+- **Build:**
+  - [ ] rides (and other speed sports) plot km/h, higher at the top; swims plot /100m;
+    runs and walks keep s/km inverted. Reuse the units of `formatSportSpeed`.
+  - [ ] the unit shown once on the top tick, as T01 did for /km
+  - [ ] tooltip and crosshair in the same unit
+- **Done when:** a real ride, run and swim read in their own unit.
+
+### T19 — MapLibre worker
+- **Found in:** T01. Without `VITE_MAPBOX_TOKEN`, every map logs "Worker failed to load"
+  and draws the route on a blank background.
+- **Cause:** MapLibre 6 loads `maplibre-gl-worker.mjs` from next to its own chunk
+  (`import.meta.url`), and Vite neither bundles nor emits that file.
+- **Build:**
+  - [ ] import the worker with `?url` and call `setWorkerUrl` in `MaplibreBaseMap.tsx`,
+    in dev and in the build
+- **Done when:** with no Mapbox token, the CARTO basemap draws in both themes with no console error.
 
 ### T04 — Map: all-activities heatmap
 - **Goal:** `/map` shows where you have been.

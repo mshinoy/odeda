@@ -181,6 +181,22 @@ describe("toActivityStreams", () => {
     expect(streams.paceSPerKm[3]).toBeNull();
   });
 
+  it("smooths speed over ~30 s and derives pace from the smoothed speed", () => {
+    // Samples 10 s apart, so the 30 s window reaches one neighbour on each side:
+    // [2, 4, 2, 4] → [(2+4)/2, (2+4+2)/3, (4+2+4)/3, (2+4)/2].
+    const smoothed = toActivityStreams(rawStreams({ speed_mps: [2, 4, 2, 4] }));
+    expect(smoothed.speedMps).toEqual([2, 4, 2, 4]);
+    expect(smoothed.smoothSpeedMps[0]).toBeCloseTo(3);
+    expect(smoothed.smoothSpeedMps[1]).toBeCloseTo(8 / 3);
+    expect(smoothed.smoothSpeedMps[2]).toBeCloseTo(10 / 3);
+    expect(smoothed.paceSPerKm[1]).toBeCloseTo(375);
+  });
+
+  it("leaves stops out of the smoothed speed", () => {
+    // 0.2 m/s is standing still: a gap, and not part of its neighbours' means.
+    expect(streams.smoothSpeedMps).toEqual([3, 3, null, null]);
+  });
+
   it("derives percent grade between consecutive samples", () => {
     expect(streams.gradientPct[0]).toBeNull();
     expect(streams.gradientPct[1]).toBeCloseTo(10); // +3 m over 30 m
