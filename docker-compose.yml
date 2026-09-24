@@ -54,15 +54,63 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Optional, for working on the UI: the Vite dev server on this checkout's frontend/,
-  # with live reload, talking to the app above (your real data). Not part of the
-  # install; start it on its own, without touching the app container:
+  # -------------------------------------------------------------------------
+  # Development only (the `dev` profile): watch work in progress live on :5173.
+  # Neither service is part of the install, and starting them never touches `app`:
   #
-  #   docker compose --profile dev up -d --no-deps ui-dev    # then open :5173
-  #   docker compose --profile dev stop ui-dev
+  #   docker compose --profile dev up -d --no-deps api-dev ui-dev   # open :5173
+  #   docker compose --profile dev restart api-dev   # fresh copy of the real data
+  #   docker compose --profile dev stop api-dev ui-dev
   #
-  # frontend/.env (map token and styles) is read as in `npm run dev`. If the app has
-  # APP_PASSWORD set, sign in on :5173 as usual.
+  # ui-dev is Vite on this checkout's frontend/ (reloads on every edit); its /api
+  # goes to api-dev, the API from this checkout's garmin_analytics/ (restarts on
+  # every edit), which serves a COPY of the real database taken when it starts.
+  # -------------------------------------------------------------------------
+
+  # The app's own image, so the Python dependencies match production; the code comes
+  # from the checkout instead (PYTHONPATH), read-only. A new dependency in
+  # requirements.txt needs `docker compose build app` first.
+  api-dev:
+    profiles: [dev]
+    image: garmin-analytics:latest
+    container_name: garmin-analytics-api-dev
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /src
+      # The copy lives in this service's own volume. The token cache starts empty,
+      # so this backend is never signed in to Garmin and cannot sync.
+      GA_DATA_DIR: /data
+      GA_DB: /data/garmin.db
+      GA_RAW_DIR: /data/raw_archive
+      GA_TOKEN_DIR: /data/tokens
+    working_dir: /src
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /data/raw_archive /data/tokens && chmod 700 /data/tokens
+        # SQLite's online backup, reading the live file read-only (safe while app runs).
+        python -c "
+        import sqlite3
+        src = sqlite3.connect('file:/live/garmin.db?mode=ro', uri=True)
+        dst = sqlite3.connect('/data/garmin.db')
+        src.backup(dst)
+        n = dst.execute('SELECT count(*) FROM activities').fetchone()[0]
+        print(f'api-dev: fresh copy of the real database, {n} activities')
+        "
+        exec garmin-analytics serve --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./garmin_analytics:/src/garmin_analytics:ro
+      # The real data. Not mounted :ro because SQLite reads a WAL database through its
+      # shared-memory file, which a read-only mount can't hold; the copy above opens it
+      # with mode=ro, and nothing else in this service touches /live.
+      - garmin-data:/live
+      - api-dev-data:/data
+    security_opt:
+      - no-new-privileges:true
+
   ui-dev:
     profiles: [dev]
     image: node:24-bookworm-slim
@@ -76,8 +124,9 @@ services:
         [ node_modules/.package-lock.json -nt package-lock.json ] || npm ci --no-audit --no-fund
         exec npx vite --host 0.0.0.0 --port 5173 --strictPort
     environment:
-      # Wins over VITE_API_URL in frontend/.env: /api goes to the app container.
-      VITE_API_URL: http://app:8000
+      # Wins over VITE_API_URL in frontend/.env. Point it at http://app:8000 to try
+      # the UI against the running app instead.
+      VITE_API_URL: http://api-dev:8000
     ports:
       - "127.0.0.1:${GA_UI_DEV_PORT:-5173}:5173"
     volumes:
@@ -92,3 +141,4 @@ volumes:
   garmin-data:
     name: garmin-analytics-data
   ui-dev-node-modules:
+  api-dev-data:

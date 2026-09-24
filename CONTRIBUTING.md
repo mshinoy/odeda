@@ -48,6 +48,21 @@ You do not need a Garmin account to develop against this. The seeder produces
 physiologically coupled data including repeated GPS routes, which is enough to exercise
 clustering, segment analysis, gear mileage and every chart.
 
+### Live dev servers in Docker
+
+If the app already runs under compose, the `dev` profile adds two services that reload
+on every edit to this checkout, without touching the `app` container:
+
+```bash
+docker compose --profile dev up -d --no-deps api-dev ui-dev   # open http://localhost:5173
+docker compose --profile dev restart api-dev                  # a fresh copy of the data
+docker compose --profile dev stop api-dev ui-dev
+```
+
+`ui-dev` is Vite on `frontend/`; `api-dev` is `serve --reload` on `garmin_analytics/`,
+serving a copy of the real database taken when it starts, so edits made while testing
+never reach your data. See the comments in `docker-compose.yml`.
+
 ## Tests
 
 ```bash
