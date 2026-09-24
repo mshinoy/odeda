@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `open` | 11 / 11 |
+| 1 Activities + gym | A: `ready for review` | 11 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | F9 | Status page: readiness, training load, race, sync strip | `76536e0`, `dfe2285` |
 | F10 | First version of this plan, `scripts/dev-real-data.sh`, `frontend/scripts/screenshot.mjs` | `0fc53ed` |
 
-### Phase 1 — Activities + gym · Checkpoint A: `open`
+### Phase 1 — Activities + gym · Checkpoint A: `ready for review`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -154,7 +154,47 @@ until the earlier phase's checkpoint is `approved`.
 
 ### Checkpoint A — Activities + gym
 
-_Note: not written yet._
+Eleven tasks: the activity page, the activity list, editing, the gym, and two fixes
+found along the way.
+
+| | |
+|---|---|
+| `f303e09` | Activity page: splits, HR zones, best efforts; 30 s pace smoothing, /km once |
+| `c6a56cb` | Gym data API: exercises and set/rep totals from the raw payloads |
+| `99541c6` | Activity list: sort, filter and page in the URL; gym rows show sets · reps |
+| `d54f325` | Activity editing: an Edit dialog from /api/fields that saves only what changed |
+| `52c8b74` | Activity editing: edited fields marked, revert one field or all of them |
+| `3a88fef` | Activity editing: gear and route selects in the dialog |
+| `d47fc8c` | Gym session page: a body diagram of what was trained, and the exercises |
+| `0f5270a` | Gym: relabel an exercise Garmin got wrong, and revert it |
+| `cc8bb21` | Status: gym sessions and sets this week against the 4-week average |
+| `0659af6` | Stream charts: a ride's axis in km/h, a swim's in /100m |
+| `3754c9b` | MapLibre: ship its worker, so a map without a Mapbox token has a background |
+
+Also `de7e0a4` and `8b1548f`: the `ui-dev` and `api-dev` compose services this was all
+built and checked on.
+
+**To look at** (on http://localhost:5173, which is `ui-dev` on a copy of your data):
+
+- `/status` — readiness, load, the race, and the two gym cards at the bottom.
+- `/activities` — sort a column, change the dates, search, then press Back.
+- `/activities/24458669412` — a run (Sep 22). Splits, HR zones and best efforts are
+  collapsed under the charts. "Edit" opens the dialog; change the title, save, and it
+  changes in the list too; the pencil mark and "↺" revert it.
+- `/activities/24473027876` — a ride (Sep 23). Its charts and stat card now read km/h.
+- `/activities/24358923702` — a gym session (Sep 14): the body diagram, and the
+  "Unlabelled" row that can be relabelled from its own select.
+
+Screenshots of all of these, light and dark, are in `~/garmin-review/A/`.
+
+**Unsure about:**
+
+- The activity list's column is headed "Pace" and holds "19.3 km/h" on a ride's row.
+  One column, many sports; renaming it "Pace / speed" reads clumsy. Left as is.
+- The gym cards sit at the bottom of Status, after the load charts. They may want to be
+  higher on a week with no running.
+- Swims cannot be checked properly: Garmin sends lengths, not samples, so none of the 24
+  pool swims has a speed stream and their pages show heart rate alone.
 
 Owner feedback:
 
