@@ -7,10 +7,27 @@ import { cn } from "@/lib/utils";
 const cell = "px-3 py-2.5";
 const numericCell = cn(cell, "text-right whitespace-nowrap");
 
+interface ActivityRowProps {
+  row: ActivityRowView;
+  /** Ticked for comparison. */
+  selected: boolean;
+  onSelect: (id: string) => void;
+}
+
 /** One activity. The whole row opens it; the name is the link, stretched over the row. */
-export function ActivityRow({ row }: { row: ActivityRowView }) {
+export function ActivityRow({ row, selected, onSelect }: ActivityRowProps) {
   return (
     <tr className="hover:bg-muted/60 relative border-b transition-colors">
+      {/* Above the row-wide link, so ticking a row does not open it. */}
+      <td className={cn(cell, "relative z-10", cellClass("select"))}>
+        <input
+          type="checkbox"
+          className="accent-foreground size-4 align-middle"
+          aria-label={`Compare ${row.name}`}
+          checked={selected}
+          onChange={() => onSelect(row.id)}
+        />
+      </td>
       <td className={cn(cell, "text-muted-foreground", cellClass("date"))}>{row.date}</td>
       <td className={cn(cell, cellClass("name"))}>
         <Link
@@ -19,6 +36,11 @@ export function ActivityRow({ row }: { row: ActivityRowView }) {
         >
           {row.name}
         </Link>
+        {row.race && (
+          <span className="bg-muted text-muted-foreground ml-2 rounded-sm px-1.5 py-0.5 text-xs">
+            Race
+          </span>
+        )}
       </td>
       <td className={cn(cell, cellClass("type"))}>
         <KindBadge kind={row.kind} label={row.typeLabel} />

@@ -1290,6 +1290,13 @@ export interface components {
              */
             rpe: number | null;
             /**
+             * Race
+             * @description 0/1, resolved at the response boundary: the user's flag if they set one, else
+             *     Garmin's `eventType` in the raw payload, else 0. Garmin tagged 1 of ~487
+             *     activities as a race, so this is mostly the user's to set (see `api/gym.py`).
+             */
+            race: number;
+            /**
              * Private
              * @description 0/1 flag, or null when never set.
              */
@@ -1392,6 +1399,55 @@ export interface components {
              * @description Standard label ("1 k", "5 k", "HM", ...), or null for any other distance.
              */
             label: string | null;
+        };
+        /**
+         * CompareActivity
+         * @description The headline numbers shown beside a compared track.
+         */
+        CompareActivity: {
+            /** Activity Id */
+            activity_id: string;
+            /** Day */
+            day: string;
+            /**
+             * Activity Type
+             * @description Added at the response boundary: the compare view needs the sport to know
+             *     whether a pace reads in /km or km/h.
+             */
+            activity_type: string;
+            /** Activity Name */
+            activity_name: string | null;
+            /** Distance M */
+            distance_m: number | null;
+            /** Moving Time S */
+            moving_time_s: number | null;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Avg Speed Mps */
+            avg_speed_mps: number | null;
+            /** Elevation Gain M */
+            elevation_gain_m: number | null;
+        };
+        /** CompareAttempt */
+        CompareAttempt: {
+            activity: components["schemas"]["CompareActivity"];
+            /**
+             * @description The samples that carry a position, columnar and named exactly as
+             *     `/api/activities/{id}/streams` names them, so the browser adapts a compared
+             *     activity the same way it adapts one on its own page. An indoor activity has none
+             *     and compares as an empty track.
+             */
+            streams: components["schemas"]["ActivityStreams"];
+        };
+        /**
+         * CompareTracks
+         * @description `GET /api/routes/compare/tracks`: two to five activities overlaid.
+         */
+        CompareTracks: {
+            /** Count */
+            count: number;
+            /** Attempts */
+            attempts: components["schemas"]["CompareAttempt"][];
         };
         /**
          * DailyRow
@@ -3685,6 +3741,7 @@ export interface operations {
                 route_id?: number | null;
                 edited?: boolean | null;
                 has_gps?: boolean | null;
+                race?: boolean | null;
                 sort?: string;
                 order?: string;
             };
@@ -4689,7 +4746,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["CompareTracks"];
                 };
             };
             /** @description Validation Error */

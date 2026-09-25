@@ -1,7 +1,7 @@
 import type { SortColumn } from "@/features/activities/listState";
 
 export interface Column {
-  id: SortColumn | "name";
+  id: SortColumn | "name" | "select";
   label: string;
   /** Null for a column the API cannot sort by. */
   sort: SortColumn | null;
@@ -12,6 +12,9 @@ export interface Column {
 
 // Distance and pace sit side by side, so a gym row's sets · reps cell can span both.
 export const columns: readonly Column[] = [
+  // The compare picker. Its header is blank: a column heading over a checkbox would
+  // be the only word in the row that is not a value.
+  { id: "select", label: "", sort: null, numeric: false, className: "w-8" },
   { id: "date", label: "Date", sort: "date", numeric: false, className: "whitespace-nowrap" },
   { id: "name", label: "Name", sort: null, numeric: false, className: "w-full" },
   {

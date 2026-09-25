@@ -22,6 +22,9 @@ export interface ResultsPage {
 interface ActivityResultsProps {
   /** Undefined until the first page arrives. */
   results: ResultsPage | undefined;
+  /** The ticked activities, for the compare picker. */
+  selected: ReadonlySet<string>;
+  onSelect: (id: string) => void;
   error: Error | null;
   stale: boolean;
   sort: SortColumn;
@@ -35,6 +38,8 @@ interface ActivityResultsProps {
 /** The table and pager, or skeleton rows while loading, or the empty state. */
 export function ActivityResults({
   results,
+  selected,
+  onSelect,
   error,
   stale,
   sort,
@@ -51,7 +56,14 @@ export function ActivityResults({
     <div className="flex flex-col gap-4">
       <ActivityTable sort={sort} order={order} onSort={onSort} stale={stale}>
         {results
-          ? results.rows.map((row) => <ActivityRow key={row.id} row={row} />)
+          ? results.rows.map((row) => (
+              <ActivityRow
+                key={row.id}
+                row={row}
+                selected={selected.has(row.id)}
+                onSelect={onSelect}
+              />
+            ))
           : skeletonKeys.map((key) => <ActivityRowSkeleton key={key} />)}
       </ActivityTable>
       {results && (

@@ -63,6 +63,7 @@ from .schemas import (
     ActivityRouteRequest,
     ActivityRouteResult,
     ActivityStreams,
+    CompareTracks,
     ExerciseRelabelRequest,
     FieldsResponse,
     GarminStatus,
@@ -510,6 +511,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         route_id: int | None = None,
         edited: bool | None = None,
         has_gps: bool | None = None,
+        race: bool | None = None,
         sort: str = Query("day"),
         order: str = Query("desc", pattern="^(asc|desc)$"),
     ) -> dict[str, Any]:
@@ -544,13 +546,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             clause = "EXISTS (SELECT 1 FROM activity_samples s WHERE s.activity_id = " \
                      "v_activities.activity_id AND s.lat IS NOT NULL)"
             where.append(clause if has_gps else f"NOT {clause}")
+        if race is not None:
+            where.append(f"{gym_mod.RACE_SQL} = {1 if race else 0}")
         clause = (" WHERE " + " AND ".join(where)) if where else ""
 
         with store() as st:
-            total = st.scalar(f"SELECT COUNT(*) FROM v_activities{clause}", params)
-            rows = st.query(
-                f"{gym_mod.ROWS_SQL}{clause} "
-                f"ORDER BY {sort} {order.upper()}, activity_id DESC LIMIT ? OFFSET ?",
+            total = st.scalar(f"{gym_mod.COUNT_SQL}{clause}", params)
+            rows = gym_mod.activity_rows(
+                st,
+                f"{clause} ORDER BY {sort} {order.upper()}, activity_id DESC "
+                "LIMIT ? OFFSET ?",
                 [*params, limit, offset],
             )
             types = [
@@ -960,14 +965,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
-    @app.get("/api/routes/compare/tracks")
-    def api_route_compare(ids: str = Query(..., description="comma-separated activity ids")):
+    @app.get("/api/routes/compare/tracks", response_model=CompareTracks)
+    def api_route_compare(
+        ids: str = Query(..., description="comma-separated activity ids"),
+    ) -> dict[str, Any]:
         """Two (or more) attempts overlaid, for the comparison view."""
         wanted = [i.strip() for i in ids.split(",") if i.strip()]
         if not 1 <= len(wanted) <= 5:
             raise HTTPException(400, "give between 1 and 5 activity ids")
         with store() as st:
-            return routes_mod.compare(st, wanted)
+            return _columnar_compare(st, routes_mod.compare(st, wanted))
 
     @app.get("/api/heatmap", response_model=Heatmap)
     def api_heatmap(
@@ -1151,6 +1158,50 @@ def _race(st: Store) -> dict[str, Any]:
         source = next(b for b in bests if b["distance_m"] == proj["from_distance_m"])
         race["projection"] = {**proj, "from_seconds": source["seconds"]}
     return race
+
+
+def _columnar_compare(store: Store, result: dict[str, Any]) -> dict[str, Any]:
+    """Compare tracks reshaped into `/streams`' columns, with each activity's type.
+
+    A compared activity then arrives in the browser in exactly the shape one on its
+    own page does, so the same adapter derives its smoothed pace and its GeoJSON line.
+    The type is not in `routes.compare`'s own select and the view needs it to know
+    whether a pace reads in /km or km/h, so it is looked up here.
+    """
+    ids = [a["activity"]["activity_id"] for a in result["attempts"]]
+    types = _activity_types(store, ids)
+    return {
+        "count": result["count"],
+        "attempts": [
+            {
+                "activity": {
+                    **attempt["activity"],
+                    "activity_type": types.get(attempt["activity"]["activity_id"], "other"),
+                },
+                "streams": _track_streams(attempt["track"]),
+            }
+            for attempt in result["attempts"]
+        ],
+    }
+
+
+def _activity_types(store: Store, ids: Sequence[str]) -> dict[str, str]:
+    if not ids:
+        return {}
+    placeholders = ",".join("?" for _ in ids)
+    rows = store.query(
+        f"SELECT activity_id, activity_type FROM v_activities "
+        f"WHERE activity_id IN ({placeholders})",
+        list(ids),
+    )
+    return {r["activity_id"]: r["activity_type"] for r in rows}
+
+
+def _track_streams(track: dict[str, Any]) -> dict[str, Any]:
+    """One `activity_track` turned columnar. `fields` names the tuple's positions."""
+    points: list[Sequence[Any]] = track["points"]
+    columns = {name: [p[i] for p in points] for i, name in enumerate(track["fields"])}
+    return {"activity_id": track["activity_id"], "sample_count": len(points), **columns}
 
 
 def _polyline(points: Sequence[Sequence[Any]]) -> dict[str, list[Any]]:

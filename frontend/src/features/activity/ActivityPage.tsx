@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ActivityHeader } from "@/features/activity/ActivityHeader";
 import { ActivityPageSkeleton } from "@/features/activity/ActivityPageSkeleton";
 import { EditActivityDialog } from "@/features/activity/edit/EditActivityDialog";
+import { CompareRacesLink } from "@/features/compare/CompareRacesLink";
 import { EnduranceActivity } from "@/features/activity/EnduranceActivity";
 import { GymActivity } from "@/features/activity/gym/GymActivity";
 import { isGymSession } from "@/features/activity/gym/gymSession";
@@ -23,7 +24,12 @@ export function ActivityPage() {
         edits={activity.edits}
         gear={activity.gear}
         route={activity.route}
-        actions={<EditActivityDialog activityId={activity.summary.id} />}
+        actions={
+          <div className="flex items-center gap-2">
+            {activity.summary.race && <CompareRacesLink summary={activity.summary} />}
+            <EditActivityDialog activityId={activity.summary.id} />
+          </div>
+        }
       />
       {isGymSession(activity.summary) ? (
         <GymActivity activity={activity} />

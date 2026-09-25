@@ -21,6 +21,8 @@ export interface ListState {
   end: string | null;
   /** Name search, already trimmed; "" for none. */
   q: string;
+  /** Races only. Off means every activity, not "not a race". */
+  race: boolean;
   sort: SortColumn;
   order: SortOrder;
   /** 1-based. */
@@ -82,6 +84,7 @@ export function parseListState(params: URLSearchParams, defaultRange: DateRange)
     start: parseBound(params.get("start"), defaultRange.start),
     end: parseBound(params.get("end"), defaultRange.end),
     q: (params.get("q") ?? "").trim(),
+    race: params.get("race") === "1",
     sort,
     order: isSortOrder(orderParam) ? orderParam : SORTS[sort].firstOrder,
     page: parsePage(params.get("page")),
@@ -95,6 +98,7 @@ export function serializeListState(state: ListState, defaultRange: DateRange): U
   if (state.start !== defaultRange.start) params.set("start", state.start ?? "");
   if (state.end !== defaultRange.end) params.set("end", state.end ?? "");
   if (state.q) params.set("q", state.q);
+  if (state.race) params.set("race", "1");
   if (state.sort !== DEFAULT_SORT) params.set("sort", state.sort);
   if (state.order !== SORTS[state.sort].firstOrder) params.set("order", state.order);
   if (state.page > 1) params.set("page", String(state.page));
@@ -114,6 +118,7 @@ export function toApiParams(state: ListState): ActivityListParams {
   if (state.start) params.start = state.start;
   if (state.end) params.end = state.end;
   if (state.q) params.q = state.q;
+  if (state.race) params.race = true;
   return params;
 }
 
@@ -127,20 +132,33 @@ export function toggleSort(state: ListState, column: SortColumn): ListState {
   return { ...state, sort: column, order, page: 1 };
 }
 
-export type FilterPatch = Partial<Pick<ListState, "type" | "start" | "end" | "q">>;
+export type FilterPatch = Partial<Pick<ListState, "type" | "start" | "end" | "q" | "race">>;
 
-/** A filter change; it always goes back to the first page. */
+/**
+ * A filter change; it always goes back to the first page.
+ *
+ * Switching Races on also drops the date bounds. Races are rare — the owner marks them
+ * by hand — so "races in the default last 30 days" is almost always empty, which reads
+ * as a broken filter rather than as a true answer.
+ */
 export function withFilters(state: ListState, patch: FilterPatch): ListState {
-  return { ...state, ...patch, page: 1 };
+  const next: ListState = { ...state, ...patch, page: 1 };
+  return patch.race === true ? { ...next, start: null, end: null } : next;
 }
 
 /** Every activity, of every type, with no search; the sort is kept. */
 export function clearFilters(state: ListState): ListState {
-  return withFilters(state, { type: null, start: null, end: null, q: "" });
+  return withFilters(state, { type: null, start: null, end: null, q: "", race: false });
 }
 
 export function hasFilters(state: ListState): boolean {
-  return state.type !== null || state.start !== null || state.end !== null || state.q !== "";
+  return (
+    state.type !== null ||
+    state.start !== null ||
+    state.end !== null ||
+    state.q !== "" ||
+    state.race
+  );
 }
 
 /** The number of pages `total` rows fill; at least 1. */

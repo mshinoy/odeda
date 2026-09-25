@@ -165,6 +165,15 @@ FIELDS: tuple[EditableField, ...] = (
         help="1 = trivial, 10 = maximal. Your own read, not the watch's.",
     ),
     EditableField(
+        name="race",
+        type="bool",
+        base_column=None,
+        label="Race",
+        editor="bool",
+        help="Garmin tagged one of ~487 activities as a race, so this is yours to set. "
+        "Left unset, it falls back to whatever the raw payload's eventType says.",
+    ),
+    EditableField(
         name="private",
         type="bool",
         base_column=None,

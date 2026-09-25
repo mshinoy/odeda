@@ -33,6 +33,8 @@ export interface ActivitySummary {
   gearIds: number[];
   isPrivate: boolean;
   excludedFromStats: boolean;
+  /** Marked a race by the owner, or by Garmin's `eventType` where they have not said. */
+  race: boolean;
   edited: boolean;
   /** Gym totals; null for activities without exercise data. */
   totalSets: number | null;
@@ -281,6 +283,7 @@ export function toActivitySummary(row: Schemas["ActivityRow"]): ActivitySummary 
     gearIds: parseGearIds(row.gear_ids),
     isPrivate: row.private === 1,
     excludedFromStats: row.excluded_from_stats === 1,
+    race: row.race === 1,
     edited: row.override_count > 0,
     totalSets: row.total_sets,
     totalReps: row.total_reps,
@@ -450,6 +453,53 @@ export function toRouteSegments(raw: Schemas["RouteSegments"]): RouteSegment[] {
       path: toCoordinates(segment.path),
     }))
     .filter((segment) => segment.path.length >= 2);
+}
+
+/** One of the activities on the compare view, as its row and its legend need it. */
+export interface ComparedActivity {
+  id: string;
+  day: string;
+  name: string;
+  kind: ActivityKind;
+  distanceM: number | null;
+  movingTimeS: number | null;
+  avgHr: number | null;
+  avgSpeedMps: number | null;
+  elevationGainM: number | null;
+}
+
+/** An activity being compared: its headline row, and the same streams its own page uses. */
+export interface ComparedAttempt {
+  activity: ComparedActivity;
+  streams: ActivityStreams;
+  /** Null for an activity with no usable GPS; it still has charts. */
+  track: ActivityTrack | null;
+}
+
+/**
+ * The compared activities, in the order the API returns them (the order they were
+ * asked for). The streams go through the single-activity adapter, so a compared
+ * activity carries the same smoothed pace as it does on its own page.
+ */
+export function toCompare(raw: Schemas["CompareTracks"]): ComparedAttempt[] {
+  return raw.attempts.map((attempt) => {
+    const streams = toActivityStreams(attempt.streams);
+    return {
+      activity: {
+        id: attempt.activity.activity_id,
+        day: attempt.activity.day,
+        name: attempt.activity.activity_name ?? "",
+        kind: activityKind(attempt.activity.activity_type),
+        distanceM: attempt.activity.distance_m,
+        movingTimeS: attempt.activity.moving_time_s,
+        avgHr: attempt.activity.avg_hr,
+        avgSpeedMps: attempt.activity.avg_speed_mps,
+        elevationGainM: attempt.activity.elevation_gain_m,
+      },
+      streams,
+      track: toActivityTrack(streams),
+    };
+  });
 }
 
 // ---------------------------------------------------------------- heatmap

@@ -14,27 +14,62 @@ entry out of the file is left undone: every synced activity has its own payload.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import date, timedelta
 from typing import Any
 
 from ..db.store import Store
 from ..edits import exercises as relabels_mod
 
-#: Every `ActivityRow` the API returns: `v_activities` plus the set and rep totals.
-#: `json_extract` keeps the activity list one query; both are null when absent.
+#: `race` as the API reports it: the user's flag if they set one, else Garmin's own
+#: `eventType`, else 0. Garmin tagged 1 of ~487 activities as a race, so the user's
+#: answer wins and the payload only fills in for activities they have not looked at.
+#: Shared by `ROWS_SQL` and the list's `race` filter so the two cannot disagree.
+RACE_SQL = (
+    "COALESCE(v_activities.race, "
+    "json_extract(raw.payload, '$.eventType.typeKey') = 'race', 0)"
+)
+
+#: The name `RACE_SQL` is selected under. The view already has a `race` column (the
+#: raw override) and sqlite3.Row returns the first of two same-named columns, so the
+#: resolved value needs a name of its own and `_resolved` puts it back.
+_RACE_ALIAS = "effective_race"
+
+#: Every `ActivityRow` the API returns: `v_activities` plus the set and rep totals and
+#: the resolved race flag. `json_extract` keeps the activity list one query.
+#: The join every one of those reads from. `raw.id` is a primary key, so the LEFT JOIN
+#: can never multiply a row: `COUNT_SQL` counts activities, not payloads.
+FROM_SQL = (
+    "FROM v_activities LEFT JOIN raw_documents raw ON raw.id = v_activities.raw_id"
+)
+
 ROWS_SQL = (
     "SELECT v_activities.*, "
     "json_extract(raw.payload, '$.totalSets') AS total_sets, "
-    "json_extract(raw.payload, '$.totalReps') AS total_reps "
-    "FROM v_activities "
-    "LEFT JOIN raw_documents raw "
-    "ON raw.id = v_activities.raw_id"
+    "json_extract(raw.payload, '$.totalReps') AS total_reps, "
+    f"{RACE_SQL} AS {_RACE_ALIAS} "
+    f"{FROM_SQL}"
 )
+
+#: The matching count, for the list's `total`. Same FROM, so the same filters apply.
+COUNT_SQL = f"SELECT COUNT(*) {FROM_SQL}"
+
+
+def resolved(row: dict[str, Any]) -> dict[str, Any]:
+    """A `ROWS_SQL` row as the API returns it: the resolved race flag under `race`."""
+    out = dict(row)
+    out["race"] = out.pop(_RACE_ALIAS)
+    return out
+
+
+def activity_rows(st: Store, where: str = "", params: Sequence[Any] = ()) -> list[dict[str, Any]]:
+    """`ROWS_SQL` rows, resolved. `where` carries any clause and ORDER BY/LIMIT."""
+    return [resolved(r) for r in st.query(f"{ROWS_SQL}{where}", params)]
 
 
 def activity_row(st: Store, activity_id: str) -> dict[str, Any] | None:
-    """One activity as `ActivityRow`: edits applied, gym totals attached."""
-    rows = st.query(f"{ROWS_SQL} WHERE v_activities.activity_id = ?", (activity_id,))
+    """One activity as `ActivityRow`: edits applied, gym totals and race attached."""
+    rows = activity_rows(st, " WHERE v_activities.activity_id = ?", (activity_id,))
     return rows[0] if rows else None
 
 

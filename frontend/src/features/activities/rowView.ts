@@ -26,6 +26,8 @@ export interface ActivityRowView {
   measure: RowMeasure;
   time: string;
   hr: string;
+  /** Marked a race by the owner, or by Garmin's `eventType` where they have not. */
+  race: boolean;
 }
 
 export function toRowView(summary: ActivitySummary, today: Date = new Date()): ActivityRowView {
@@ -41,6 +43,7 @@ export function toRowView(summary: ActivitySummary, today: Date = new Date()): A
     measure: measureOf(summary),
     time: formatDuration(summary.movingTimeS ?? summary.durationS),
     hr: formatHeartRate(summary.avgHr),
+    race: summary.race,
   };
 }
 

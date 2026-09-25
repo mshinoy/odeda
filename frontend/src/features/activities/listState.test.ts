@@ -18,6 +18,7 @@ const defaults: ListState = {
   start: "2026-08-26",
   end: "2026-09-24",
   q: "",
+  race: false,
   sort: "date",
   order: "desc",
   page: 1,
@@ -34,12 +35,15 @@ describe("parseListState", () => {
 
   it("reads every parameter", () => {
     expect(
-      parse("type=running&start=2026-01-01&end=2026-03-31&q=tempo&sort=distance&order=asc&page=3"),
+      parse(
+        "type=running&start=2026-01-01&end=2026-03-31&q=tempo&race=1&sort=distance&order=asc&page=3",
+      ),
     ).toEqual({
       type: "running",
       start: "2026-01-01",
       end: "2026-03-31",
       q: "tempo",
+      race: true,
       sort: "distance",
       order: "asc",
       page: 3,
@@ -79,6 +83,7 @@ describe("serializeListState", () => {
       start: "2026-01-01",
       end: range.end,
       q: "legs",
+      race: false,
       sort: "pace",
       order: "desc",
       page: 2,
@@ -188,5 +193,38 @@ describe("pageCount", () => {
     expect(pageCount(50)).toBe(1);
     expect(pageCount(51)).toBe(2);
     expect(pageCount(488)).toBe(10);
+  });
+});
+
+describe("the races filter", () => {
+  it("round-trips through the URL", () => {
+    const races = withFilters(defaults, { race: true });
+    expect(serializeListState(races, range).get("race")).toBe("1");
+    expect(parseListState(serializeListState(races, range), range).race).toBe(true);
+  });
+
+  it("asks the API for races only, and for nothing when it is off", () => {
+    expect(toApiParams(withFilters(defaults, { race: true })).race).toBe(true);
+    expect(toApiParams(defaults).race).toBeUndefined();
+  });
+
+  it("drops the date bounds when switched on, so it is not empty by default", () => {
+    const races = withFilters(defaults, { race: true });
+    expect([races.start, races.end]).toEqual([null, null]);
+  });
+
+  it("leaves the dates alone when switched off again", () => {
+    const dated = { ...defaults, start: "2026-01-01", end: "2026-06-30", race: true };
+    expect(withFilters(dated, { race: false })).toMatchObject({
+      start: "2026-01-01",
+      end: "2026-06-30",
+      race: false,
+    });
+  });
+
+  it("counts as a filter, and Clear filters turns it off", () => {
+    const races = withFilters(defaults, { race: true });
+    expect(hasFilters(races)).toBe(true);
+    expect(clearFilters(races).race).toBe(false);
   });
 });

@@ -31,6 +31,9 @@ DROPPED_BEST_EFFORT_KEYS = {"time", "pace"}
 DROPPED_KM_SPLIT_KEYS = {"pace"}
 #: Keys added to every activity row on purpose (T15), read from the raw payload.
 ADDED_ROW_KEYS = ["total_sets", "total_reps"]
+#: Columns the view holds raw and the API resolves at the boundary (T07): `race` is
+#: the user's override falling back to the payload's eventType, so it is never null.
+RESOLVED_ROW_KEYS = ["race"]
 
 
 @pytest.fixture
@@ -78,9 +81,11 @@ def _as_json(value: Any) -> Any:
 
 def _with_gym_totals(row: dict[str, Any] | None) -> dict[str, Any]:
     """A view row as the API returns it. The seeded payloads carry no exercise data,
-    so the totals are null here; tests/test_gym.py covers the filled-in case."""
+    so the totals are null here; tests/test_gym.py covers the filled-in case. `race`
+    resolves to 0 for the same reason: no seeded payload carries an eventType."""
     assert row is not None
-    return {**row, **{k: None for k in ADDED_ROW_KEYS}}
+    resolved = {k: int(bool(row[k])) for k in RESOLVED_ROW_KEYS}
+    return {**row, **resolved, **{k: None for k in ADDED_ROW_KEYS}}
 
 
 def _old_detail(st: Store, activity_id: str) -> dict[str, Any]:
@@ -626,3 +631,77 @@ class TestRoutes:
         assert ref("/api/routes/{route_id}", "delete") == "RouteDeleteResult"
         assert ref("/api/routes/recluster", "post") == "ReclusterResult"
         assert "/api/activities/{activity_id}/track" not in spec["paths"]
+
+
+class TestRaceAndCompare:
+    """T07: the `race` field resolved at the boundary, and compare's columnar tracks."""
+
+    def test_race_defaults_to_zero_and_the_user_can_set_it(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM activities LIMIT 1")
+        assert rw_client.get(f"/api/activities/{aid}").json()["activity"]["race"] == 0
+
+        assert rw_client.patch(f"/api/activities/{aid}", json={"race": True}).status_code == 200
+        assert rw_client.get(f"/api/activities/{aid}").json()["activity"]["race"] == 1
+        # It is a user-only field, so reverting clears it back to the fallback.
+        rw_client.delete(f"/api/activities/{aid}/overrides/race")
+        assert rw_client.get(f"/api/activities/{aid}").json()["activity"]["race"] == 0
+
+    def test_garmins_event_type_fills_in_for_an_activity_the_user_has_not_marked(
+        self, rw_client, rw_store
+    ):
+        aid = _pick(rw_store, "SELECT activity_id FROM activities WHERE raw_id IS NOT NULL LIMIT 1")
+        raw_id = _pick(rw_store, f"SELECT raw_id FROM activities WHERE activity_id = '{aid}'")
+        rw_store.conn.execute(
+            "UPDATE raw_documents SET payload = ? WHERE id = ?",
+            (json.dumps({"eventType": {"typeKey": "race"}}), raw_id),
+        )
+        rw_store.conn.commit()
+        assert rw_client.get(f"/api/activities/{aid}").json()["activity"]["race"] == 1
+
+        # And the user's answer still wins over it, in both directions.
+        rw_client.patch(f"/api/activities/{aid}", json={"race": False})
+        assert rw_client.get(f"/api/activities/{aid}").json()["activity"]["race"] == 0
+
+    def test_the_race_filter_agrees_with_the_rows(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM activities LIMIT 1")
+        rw_client.patch(f"/api/activities/{aid}", json={"race": True})
+
+        races = rw_client.get("/api/activities?race=true&limit=1000").json()
+        assert [r["activity_id"] for r in races["rows"]] == [aid]
+        assert races["total"] == 1
+        assert all(r["race"] == 1 for r in races["rows"])
+
+        rest = rw_client.get("/api/activities?race=false&limit=1000").json()
+        assert aid not in {r["activity_id"] for r in rest["rows"]}
+        assert rest["total"] + races["total"] == rw_client.get("/api/activities").json()["total"]
+
+    def test_compare_tracks_are_columnar(self, rw_client, rw_store):
+        ids = [r["activity_id"] for r in rw_store.query(
+            "SELECT DISTINCT s.activity_id FROM activity_samples s "
+            "WHERE s.lat IS NOT NULL LIMIT 2")]
+        assert len(ids) == 2
+        body = rw_client.get(f"/api/routes/compare/tracks?ids={','.join(ids)}").json()
+        assert body["count"] == 2
+
+        for attempt, aid in zip(body["attempts"], ids):
+            track = routes_mod.activity_track(rw_store, aid)
+            streams = attempt["streams"]
+            assert streams["activity_id"] == aid
+            assert streams["sample_count"] == track["point_count"]
+            for i, name in enumerate(track["fields"]):
+                assert streams[name] == [p[i] for p in track["points"]], name
+            # The same column names the single-activity streams endpoint uses.
+            assert set(streams) == set(schemas.ActivityStreams.model_fields)
+
+    def test_compare_bounds_are_unchanged(self, rw_client):
+        assert rw_client.get("/api/routes/compare/tracks?ids=").status_code == 400
+        assert rw_client.get(
+            "/api/routes/compare/tracks?ids=a,b,c,d,e,f").status_code == 400
+
+    def test_the_new_models_are_in_the_spec(self, rw_settings):
+        spec = TestClient(create_app(rw_settings)).get("/openapi.json").json()
+        assert spec["paths"]["/api/routes/compare/tracks"]["get"]["responses"]["200"][
+            "content"]["application/json"]["schema"]["$ref"].endswith("CompareTracks")
+        assert "race" in spec["components"]["schemas"]["ActivityRow"]["properties"]
+        params = {p["name"] for p in spec["paths"]["/api/activities"]["get"]["parameters"]}
+        assert "race" in params

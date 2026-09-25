@@ -47,6 +47,8 @@ export const queryKeys = {
   routeSegments: (id: number) => ["route-segments", id] as const,
   heatmapAll: ["heatmap"] as const,
   heatmap: (params: HeatmapParams) => ["heatmap", params] as const,
+  /** Keyed on the ids in the order asked for: the colours follow that order. */
+  compare: (ids: readonly string[]) => ["compare", ids.join(",")] as const,
   summary: ["summary"] as const,
   load: ["load"] as const,
   garminStatus: ["garmin-status"] as const,

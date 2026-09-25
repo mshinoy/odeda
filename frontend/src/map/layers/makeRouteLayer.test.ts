@@ -78,6 +78,7 @@ function activity(overrides: Partial<Activity> = {}): Activity {
       gearIds: [],
       isPrivate: false,
       excludedFromStats: false,
+      race: false,
       edited: false,
       totalSets: null,
       totalReps: null,

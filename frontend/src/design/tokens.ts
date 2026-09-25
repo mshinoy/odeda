@@ -46,6 +46,18 @@ export interface ColorTokens {
   /** HR zones 1-5, the same hue as the metric ramp, stepped for ordinal reading. */
   hrZones: readonly [string, string, string, string, string];
 
+  /**
+   * Up to five things of the same sort side by side: the compared activities' tracks
+   * and their chart lines. Separate from `kind`, because comparing five runs would
+   * otherwise be five orange lines.
+   *
+   * Checked by `palette.test.ts`: every pair stays apart under protanopia,
+   * deuteranopia and tritanopia, and every colour stays off its theme's surface. Five
+   * colours cannot hold the three `kind` colours' margin — that is the geometry of
+   * colour-blind vision, not a shortcut — so the series also carry a legend.
+   */
+  series: readonly [string, string, string, string, string];
+
   status: {
     good: string;
     warning: string;
@@ -92,6 +104,7 @@ export const colorTokens: Record<Theme, ColorTokens> = {
     },
     metricRamp: ["#86b6ef", "#6da7ec", "#5598e7", "#3987e5", "#2a78d6", "#1c5cab", "#104281"],
     hrZones: ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"],
+    series: ["#08306b", "#d95f02", "#2ca25f", "#c051a5", "#8ec4dd"],
     status,
     deltaGood: "#006300",
     deltaBad: "#d03b3b",
@@ -118,6 +131,7 @@ export const colorTokens: Record<Theme, ColorTokens> = {
     },
     metricRamp: ["#184f95", "#256abf", "#2a78d6", "#3987e5", "#6da7ec", "#9ec5f4", "#cde2fb"],
     hrZones: ["#184f95", "#256abf", "#3987e5", "#6da7ec", "#9ec5f4"],
+    series: ["#3b82f6", "#f97316", "#22c55e", "#e879c9", "#bfe4f8"],
     status,
     deltaGood: "#0ca30c",
     deltaBad: "#e66767",

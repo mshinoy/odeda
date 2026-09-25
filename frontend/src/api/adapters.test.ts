@@ -45,6 +45,7 @@ function row(overrides: Partial<Schemas["ActivityRow"]> = {}): Schemas["Activity
     raw_id: 7,
     notes: null,
     rpe: null,
+    race: 0,
     private: 0,
     excluded_from_stats: 1,
     override_count: 2,

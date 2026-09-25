@@ -89,6 +89,10 @@ class ActivityRow(_Model):
     notes: str | None
     rpe: int | None
     """Perceived effort, 1..10."""
+    race: int
+    """0/1, resolved at the response boundary: the user's flag if they set one, else
+    Garmin's `eventType` in the raw payload, else 0. Garmin tagged 1 of ~487
+    activities as a race, so this is mostly the user's to set (see `api/gym.py`)."""
     private: int | None
     """0/1 flag, or null when never set."""
     excluded_from_stats: int | None
@@ -699,6 +703,38 @@ class ReclusterRequest(_Model):
     threshold: float | None = None
     """How similar two tracks must be to count as the same route, 0-1; the
     clusterer's own default when not given."""
+
+
+class CompareActivity(_Model):
+    """The headline numbers shown beside a compared track."""
+
+    activity_id: str
+    day: str
+    activity_type: str
+    """Added at the response boundary: the compare view needs the sport to know
+    whether a pace reads in /km or km/h."""
+    activity_name: str | None
+    distance_m: float | None
+    moving_time_s: float | None
+    avg_hr: float | None
+    avg_speed_mps: float | None
+    elevation_gain_m: float | None
+
+
+class CompareAttempt(_Model):
+    activity: CompareActivity
+    streams: ActivityStreams
+    """The samples that carry a position, columnar and named exactly as
+    `/api/activities/{id}/streams` names them, so the browser adapts a compared
+    activity the same way it adapts one on its own page. An indoor activity has none
+    and compares as an empty track."""
+
+
+class CompareTracks(_Model):
+    """`GET /api/routes/compare/tracks`: two to five activities overlaid."""
+
+    count: int
+    attempts: list[CompareAttempt]
 
 
 class ReclusterResult(_Model):

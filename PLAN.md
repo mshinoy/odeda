@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 5 / 6 |
+| 2 Map & routes | B: `open` | 6 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -76,7 +76,7 @@ Paste one of these into a fresh session.
 | T05b | Routes: route detail (segment-coloured map, attempts) | done | T05a | Routes: a route's page, coloured by where you speed up and slow down |
 | T05c | Routes: rename / merge / split dialogs | done | T05b | Routes: rename, merge and split from the route's own page |
 | T06 | Route playback (TripsLayer) | done | T05b | Route playback: replay an activity, with the charts following |
-| T07 | Races and Compare 2–5 activities | in progress (patti, 2026-09-25) | T05b | |
+| T07 | Races and Compare 2–5 activities | done | T05b | Races you mark yourself, and 2–5 activities compared |
 
 ### Phase 3 — Health & trends · Checkpoint C: `open`
 
@@ -724,17 +724,41 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T07 — Races and Compare
 - **Races (D3):** Garmin tagged only 1 of ~487 activities as a race
   (`eventType.typeKey == "race"` in the raw payload), so races have to be marked by the owner.
-  - [ ] a user-only editable field `race` (bool) in `db/fields.py`, like notes and RPE.
+  - [x] a user-only editable field `race` (bool) in `db/fields.py`, like notes and RPE.
     When it isn't set, it falls back to the raw `eventType` at the response boundary.
-  - [ ] a "Race" toggle in the Edit dialog, and a "Races" filter on the activity list
+  - [x] a "Race" toggle in the Edit dialog, and a "Races" filter on the activity list
 - **Compare:**
   - Backend: type `GET /api/routes/compare/tracks` and make its tracks columnar.
-  - [ ] select 2–5 activities in the list (`selectedActivityIds` in the store)
-  - [ ] `/compare` overlays their tracks, one colour each
-  - [ ] pace and HR charts on a shared distance axis; hover syncs across all of them
-  - [ ] "compare races at this distance" from a race's page
+  - [x] select 2–5 activities in the list (`selectedActivityIds` in the store)
+  - [x] `/compare` overlays their tracks, one colour each
+  - [x] pace and HR charts on a shared distance axis; hover syncs across all of them
+  - [x] "compare races at this distance" from a race's page
 - **Colours:** more than 3 series needs a validated categorical palette. Check it against
   `tokens.ts` and the palette validator before adding colours.
+- **Notes:**
+  - The Edit dialog's Race toggle is generated from `/api/fields`, as the registry
+    promises: adding the field to `db/fields.py` was the whole UI change.
+  - `race` is resolved in `api/gym.py` (`RACE_SQL`), shared by the row query and the
+    list's `race` filter so the two cannot disagree. The view's own `race` column stays
+    the raw override; the resolved one is selected under another name because
+    `sqlite3.Row` returns the **first** of two same-named columns.
+  - Switching the Races filter on also drops the date bounds. Races are rare, so
+    "races in the default last 30 days" is empty and reads as a broken filter.
+  - Compare's tracks are columnar and named exactly as `/streams` names them, so a
+    compared activity goes through the single-activity adapter and arrives with the same
+    smoothed pace it has on its own page. `activity_type` is added at the boundary: the
+    view needs the sport to know whether a pace reads in /km or km/h.
+  - Every compared activity is **interpolated onto one grid of 600 x values**
+    (`compareChart/resample.ts`). Without it the series sat on their own x values, and
+    ECharts' axis tooltip named one activity out of four at the crosshair.
+  - **The five series colours are new** (`tokens.series`), and `design/palette.test.ts`
+    is the validator the token comments refer to: it simulates protanopia, deuteranopia
+    and tritanopia (Machado 2009) and measures CIE76 distance. Five colours cannot hold
+    the three kind colours' margin — that is the geometry of colour-blind vision — so
+    the kinds are asserted above 25 and the series above 18, and the series always carry
+    the table as a legend.
+  - Adding `race` to the registry changes the `v_activities` fingerprint, so the owner's
+    running container rebuilds the view when it next starts. Nothing to do by hand.
 
 ### T08 — Health
 - **Backend:** type `GET /api/trends` and `/api/daily`; `/api/readiness/history` is typed.
