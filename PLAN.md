@@ -72,7 +72,7 @@ Paste one of these into a fresh session.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T04 | Map: all-activities heatmap | done | — | Map: an all-activities heatmap on /map, filtered by type and dates |
-| T05a | Routes: type the endpoints, plus the route list | todo | T04 | |
+| T05a | Routes: type the endpoints, plus the route list | in progress (patti, 2026-09-25) | T04 | |
 | T05b | Routes: route detail (segment-coloured map, attempts) | todo | T05a | |
 | T05c | Routes: rename / merge / split dialogs | todo | T05b | |
 | T06 | Route playback (TripsLayer) | todo | T05b | |
