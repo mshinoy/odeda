@@ -30,7 +30,7 @@ Paste one of these into a fresh session.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
-| 1 Activities + gym | A: `ready for review` | 11 / 11 |
+| 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `open` | 0 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | F9 | Status page: readiness, training load, race, sync strip | `76536e0`, `dfe2285` |
 | F10 | First version of this plan, `scripts/dev-real-data.sh`, `frontend/scripts/screenshot.mjs` | `0fc53ed` |
 
-### Phase 1 — Activities + gym · Checkpoint A: `ready for review`
+### Phase 1 — Activities + gym · Checkpoint A: `approved`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -196,7 +196,10 @@ Screenshots of all of these, light and dark, are in `~/garmin-review/A/`.
 - Swims cannot be checked properly: Garmin sends lengths, not samples, so none of the 24
   pool swims has a speed stream and their pages show heart rate alone.
 
-Owner feedback:
+Owner feedback: approved as-is on 2026-09-25, no changes requested. The three "Unsure
+about" items were left as they are: the "Pace" column still shows km/h on a ride's row,
+the gym cards stay at the bottom of Status, and swims remain unverifiable (Garmin sends
+lengths, not samples). Raise them again if they grate in use.
 
 ### Checkpoint B — Map & routes
 
