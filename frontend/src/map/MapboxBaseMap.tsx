@@ -1,6 +1,6 @@
 // The Mapbox basemap. Loaded lazily by BaseMap, so mapbox-gl is only downloaded when a
 // Mapbox token is configured.
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import {
@@ -8,14 +8,16 @@ import {
   Map as MapboxMap,
   NavigationControl,
   useControl,
+  useMap,
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEnv } from "@/map/basemap";
-import { FIT_PADDING_PX, type ProviderMapProps } from "@/map/types";
+import { FIT_PADDING_PX, type MapBounds, type ProviderMapProps } from "@/map/types";
 
 export function MapboxBaseMap({
   layers,
   initialBounds,
+  fitBounds,
   onHover,
   onLeave,
   cursor,
@@ -40,8 +42,27 @@ export function MapboxBaseMap({
       <AttributionControl position="bottom-right" compact />
       <NavigationControl position="top-right" showCompass={false} />
       <DeckOverlay layers={layers} onHover={onHover} />
+      <FitBounds bounds={fitBounds} />
     </MapboxMap>
   );
+}
+
+// Flies to a new box when the data under the map moves. The first fit is the map's own
+// `initialViewState`, so this skips the box it mounted with. Same as the MapLibre
+// module's, but each library's `useMap` only works under its own <Map>.
+function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
+  const { current: map } = useMap();
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (map && bounds) map.fitBounds(bounds, { padding: FIT_PADDING_PX });
+  }, [map, bounds]);
+
+  return null;
 }
 
 interface DeckOverlayProps {

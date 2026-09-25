@@ -10,6 +10,7 @@ import {
   toEditableValues,
   toGearItems,
   toGymSession,
+  toHeatmap,
   toRouteOptions,
 } from "@/api/adapters";
 import type { components } from "@/api/schema";
@@ -461,5 +462,44 @@ describe("gear and routes", () => {
         attempts: 23,
       },
     ]);
+  });
+});
+
+describe("toHeatmap", () => {
+  it("zips the three columns into one object per cell, lon before lat", () => {
+    expect(
+      toHeatmap({
+        precision: 4,
+        cells: 2,
+        max_count: 426,
+        lat: [25.2979, 25.3015],
+        lon: [51.4975, 51.4944],
+        count: [426, 420],
+      }),
+    ).toEqual({
+      precision: 4,
+      maxCount: 426,
+      cells: [
+        { lon: 51.4975, lat: 25.2979, count: 426 },
+        { lon: 51.4944, lat: 25.3015, count: 420 },
+      ],
+    });
+  });
+
+  it("gives an empty grid no cells", () => {
+    const empty = { precision: 4, cells: 0, max_count: 0, lat: [], lon: [], count: [] };
+    expect(toHeatmap(empty).cells).toEqual([]);
+  });
+
+  it("drops a cell whose columns do not line up rather than inventing a coordinate", () => {
+    const ragged = {
+      precision: 4,
+      cells: 2,
+      max_count: 5,
+      lat: [25.3],
+      lon: [51.5],
+      count: [5, 3],
+    };
+    expect(toHeatmap(ragged).cells).toEqual([{ lon: 51.5, lat: 25.3, count: 5 }]);
   });
 });

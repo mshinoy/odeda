@@ -315,7 +315,7 @@ class TestOpenApi:
                      "FieldsResponse", "EditableFieldInfo", "GearList", "GearItem",
                      "GearDefaultRule", "ActivityGearResult", "ActivityGearRequest",
                      "RouteList", "RouteSummary", "ActivityRouteResult",
-                     "ActivityRouteRequest"):
+                     "ActivityRouteRequest", "Heatmap"):
             assert name in comps, name
         assert set(comps["ActivityRow"]["properties"]) == set(schemas.ActivityRow.model_fields)
         assert "pace" not in comps["KmSplit"]["properties"]
@@ -421,3 +421,56 @@ class TestGearAndRoute:
         aid = _pick(rw_store, "SELECT activity_id FROM route_members LIMIT 1")
         assert rw_client.put(f"/api/activities/{aid}/route",
                              json={"route_id": 999999}).status_code == 404
+
+
+class TestHeatmap:
+    """T04's `GET /api/heatmap`: the same grid `analytics/routes` builds, columnar."""
+
+    def test_columns_are_the_stores_points_transposed(self, rw_client, rw_store):
+        body = rw_client.get("/api/heatmap").json()
+        grid = _as_json(routes_mod.heatmap(rw_store))
+
+        assert body["cells"] > 0, "the seeded database should have GPS points"
+        for key in ("precision", "cells", "max_count"):
+            _strict_equal(body[key], grid[key], key)
+        _strict_equal(
+            list(zip(body["lat"], body["lon"], body["count"])),
+            [tuple(p) for p in grid["points"]],
+            "$.columns",
+        )
+
+    def test_every_column_is_as_long_as_the_grid(self, rw_client):
+        body = rw_client.get("/api/heatmap").json()
+        assert len(body["lat"]) == len(body["lon"]) == len(body["count"]) == body["cells"]
+        assert max(body["count"]) == body["max_count"]
+
+    def test_an_empty_grid_is_three_empty_columns(self, rw_client):
+        # A day with nothing on it: the transpose has no rows to unzip.
+        body = rw_client.get("/api/heatmap?start=1970-01-01&end=1970-01-02").json()
+        assert body == {"precision": 4, "cells": 0, "max_count": 0,
+                        "lat": [], "lon": [], "count": []}
+
+    def test_filters_and_precision_reach_the_query(self, rw_client, rw_store):
+        coarse = rw_client.get("/api/heatmap?precision=2").json()
+        fine = rw_client.get("/api/heatmap?precision=5").json()
+        # A coarser grid merges cells, so there are fewer of them and each holds more.
+        assert coarse["cells"] < fine["cells"]
+        assert coarse["max_count"] > fine["max_count"]
+
+        runs = rw_client.get("/api/heatmap?type=running").json()
+        assert runs["count"] == [p[2] for p in routes_mod.heatmap(rw_store, "running")["points"]]
+        assert 0 < runs["cells"] < rw_client.get("/api/heatmap").json()["cells"]
+
+    def test_precision_is_bounded(self, rw_client):
+        # The bound is what keeps `precision` out of the f-string it is interpolated into.
+        assert rw_client.get("/api/heatmap?precision=1").status_code == 422
+        assert rw_client.get("/api/heatmap?precision=7").status_code == 422
+
+    def test_the_response_is_the_typed_model(self, rw_settings):
+        spec = TestClient(create_app(rw_settings)).get("/openapi.json").json()
+        ref = spec["paths"]["/api/heatmap"]["get"]["responses"]["200"]["content"][
+            "application/json"]["schema"]["$ref"]
+        assert ref.rsplit("/", 1)[-1] == "Heatmap"
+        props = spec["components"]["schemas"]["Heatmap"]["properties"]
+        assert props["count"]["items"]["type"] == "integer"
+        assert "points" not in props

@@ -512,6 +512,29 @@ class ActivityRouteResult(_Model):
     """A move by hand is always manual, never a match score."""
 
 
+class Heatmap(_Model):
+    """`GET /api/heatmap`: every recorded GPS point, snapped to a grid and counted.
+
+    Columnar, like `/streams`: index i of `lat`, `lon` and `count` is the same cell,
+    and every list has `cells` entries. Densest cell first.
+
+    The aggregation is server-side because the browser cannot usefully draw millions
+    of raw points; the grid is capped, so a query that hits the cap returns the
+    busiest part of it rather than all of it.
+    """
+
+    precision: int
+    """Decimal places the coordinates were rounded to: the grid's fineness."""
+    cells: int
+    """How many grid cells each column holds."""
+    max_count: int
+    """The densest cell's count; 0 when there are no points at all."""
+    lat: list[float]
+    lon: list[float]
+    count: list[int]
+    """Samples recorded in the cell."""
+
+
 # ---------------------------------------------------------------------------
 # Status: summary, training load, readiness, race, health, Garmin and sync
 # ---------------------------------------------------------------------------

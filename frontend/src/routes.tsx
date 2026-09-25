@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ActivitiesPage } from "@/features/activities/ActivitiesPage";
 import { ActivityPage } from "@/features/activity/ActivityPage";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { MapPage } from "@/features/map/MapPage";
 import { AppShell } from "@/features/shell/AppShell";
 import { NotBuiltYet } from "@/features/shell/NotBuiltYet";
 import { RouteError } from "@/features/shell/RouteError";
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
           { path: "status", element: <StatusPage /> },
           { path: "activities", element: <ActivitiesPage /> },
           { path: "activities/:id", element: <ActivityPage /> },
+          { path: "map", element: <MapPage /> },
           { path: "*", element: <NotBuiltYet /> },
         ],
       },

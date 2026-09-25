@@ -273,6 +273,38 @@ export function toRouteOptions(raw: Schemas["RouteList"]): RouteOption[] {
   }));
 }
 
+// ---------------------------------------------------------------- heatmap
+
+/** One cell of the lifetime heatmap grid, at the API's chosen precision. */
+export interface HeatmapCell {
+  lon: number;
+  lat: number;
+  /** Recorded samples that fell in this cell. */
+  count: number;
+}
+
+export interface Heatmap {
+  /** Decimal places the coordinates were snapped to: the grid's fineness. */
+  precision: number;
+  /** The densest cell's count; 0 when there are no points at all. */
+  maxCount: number;
+  cells: HeatmapCell[];
+}
+
+/** The API's three columns become one object per cell, which is what a deck.gl layer reads. */
+export function toHeatmap(raw: Schemas["Heatmap"]): Heatmap {
+  const cells: HeatmapCell[] = [];
+
+  raw.count.forEach((count, i) => {
+    const lon = raw.lon[i];
+    const lat = raw.lat[i];
+    if (lon === undefined || lat === undefined) return;
+    cells.push({ lon, lat, count });
+  });
+
+  return { precision: raw.precision, maxCount: raw.max_count, cells };
+}
+
 // ---------------------------------------------------------------- streams and track
 
 /** The rolling window for `smoothSpeedMps`: long enough to calm GPS, short enough for a stride. */

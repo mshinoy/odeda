@@ -31,6 +31,8 @@ export const queryClient = new QueryClient({
 export const queryKeys = {
   activitiesAll: ["activities"] as const,
   activities: (params: ActivityListParams) => ["activities", params] as const,
+  /** Under `activities` so a sync invalidates it too; a string, so no params key collides. */
+  activityTypes: ["activities", "types"] as const,
   activity: (id: string) => ["activity", id] as const,
   streams: (id: string) => ["streams", id] as const,
   exercises: (id: string) => ["exercises", id] as const,

@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 0 / 6 |
+| 2 Map & routes | B: `open` | 1 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -71,7 +71,7 @@ Paste one of these into a fresh session.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T04 | Map: all-activities heatmap | in progress (patti, 2026-09-25) | — | |
+| T04 | Map: all-activities heatmap | done | — | Map: an all-activities heatmap on /map, filtered by type and dates |
 | T05a | Routes: type the endpoints, plus the route list | todo | T04 | |
 | T05b | Routes: route detail (segment-coloured map, attempts) | todo | T05a | |
 | T05c | Routes: rename / merge / split dialogs | todo | T05b | |
@@ -603,14 +603,29 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Backend:** type `GET /api/heatmap` (`type`, `start`, `end`, `precision`). It returns
   `points: [lat, lon, n][]`; a columnar or object shape is fine if that's cleaner.
 - **Build:**
-  - [ ] deck.gl `HeatmapLayer` from a pure `makeHeatmapLayer(...)`, weighted by
+  - [x] deck.gl `HeatmapLayer` from a pure `makeHeatmapLayer(...)`, weighted by
     `log1p(n)`, with colours from `tokens.metricRamp`
-  - [ ] filters: type and time range
-  - [ ] fit the view to the data
-  - [ ] dark basemap in dark mode
+  - [x] filters: type and time range
+  - [x] fit the view to the data
+  - [x] dark basemap in dark mode
 - **Old reference:** `HeatLayer` in `map.js`, `loadHeatmap` in `app.js`.
 - **Done when:** the heatmap renders for all activities and for filtered subsets, and
   panning stays smooth (note the frame rate in the commit).
+- **Notes:**
+  - The response is **columnar** (`lat`, `lon`, `count`), not `[lat, lon, n]` triples.
+    openapi-fetch widens a tuple to `number[]` on the way through its response type, so
+    the triples would have arrived in the app untyped; columnar also matches `/streams`
+    and drops ~10% of the payload. The transpose is `_columnar_heatmap` in `server.py`,
+    at the response boundary; `analytics/routes.heatmap` is unchanged.
+  - Filters live in the URL (`/map?type=running&start=…`), defaulting to **all time**,
+    not the store's 30-day range: the view is about where you have been, not this month.
+  - `BaseMap` grew an optional `fitBounds`, because a filter can send the data to
+    another city and the opening `initialBounds` is read once. The activity map does not
+    pass it, so nothing there moves.
+  - The frame rate could not be measured on this box: a drag costs ~233 ms/frame under
+    headless SwiftShader whether the map carries the 10,853-cell heatmap, one route, or
+    nothing at all — that is the basemap on a software rasteriser, not the layer. T13
+    owns the real measurement, on a GPU.
 
 ### T05a — Routes: endpoints and list
 - **Goal:** your recurring loops.

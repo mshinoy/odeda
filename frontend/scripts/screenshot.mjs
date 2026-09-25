@@ -2,7 +2,7 @@
 // plus any console errors and uncaught exceptions. Used to verify a view before commit.
 //
 //   node scripts/screenshot.mjs <baseUrl> <path> <out.png> [--dark] [--width=1280] [--height=1300]
-//                               [--click=<css selector>]
+//                               [--click=<css selector>] [--wait=9000]
 //   e.g. node scripts/screenshot.mjs http://localhost:5173 /status ~/status.png --dark
 //
 // --click clicks every element matching the selector once the page has rendered, e.g.
@@ -33,7 +33,9 @@ const clickSelector = [...flags].find((f) => f.startsWith("--click="))?.slice("-
 const width = flagValue("width", 1280);
 const height = flagValue("height", 1300);
 const password = process.env.GA_PASSWORD ?? "";
-const RENDER_WAIT_MS = 9000;
+// A map page needs longer than a chart page: in dev, Vite transforms deck.gl and the
+// map library on the first request for them, which no amount of app speed avoids.
+const RENDER_WAIT_MS = flagValue("wait", 9000);
 const AFTER_CLICK_WAIT_MS = 2000;
 const port = 9300 + Math.floor(Math.random() * 500);
 

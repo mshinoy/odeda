@@ -66,6 +66,7 @@ from .schemas import (
     GarminStatus,
     GearList,
     Health,
+    Heatmap,
     RacePanel,
     Readiness,
     ReadinessHistory,
@@ -957,7 +958,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return routes_mod.compare(st, wanted)
 
-    @app.get("/api/heatmap")
+    @app.get("/api/heatmap", response_model=Heatmap)
     def api_heatmap(
         type: str | None = None,
         start: str | None = None,
@@ -970,7 +971,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return cached(
                 settings,
                 key,
-                lambda: routes_mod.heatmap(st, type, start, end, precision),
+                lambda: _columnar_heatmap(routes_mod.heatmap(st, type, start, end, precision)),
             )
 
     @app.post("/api/routes/recluster")
@@ -1138,6 +1139,23 @@ def _race(st: Store) -> dict[str, Any]:
         source = next(b for b in bests if b["distance_m"] == proj["from_distance_m"])
         race["projection"] = {**proj, "from_seconds": source["seconds"]}
     return race
+
+
+def _columnar_heatmap(grid: dict[str, Any]) -> dict[str, Any]:
+    """`[lat, lon, n]` triples become three equal-length columns, as `/streams` does.
+
+    Tens of thousands of two-element arrays cost far more JSON than three arrays of
+    numbers, and the browser reads a column straight into a typed loop.
+    """
+    lat, lon, count = zip(*grid["points"]) if grid["points"] else ((), (), ())
+    return {
+        "precision": grid["precision"],
+        "cells": grid["cells"],
+        "max_count": grid["max_count"],
+        "lat": list(lat),
+        "lon": list(lon),
+        "count": list(count),
+    }
 
 
 def _splits(samples: list[dict[str, Any]], split_m: float = 1000.0) -> list[dict[str, Any]]:
