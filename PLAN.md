@@ -82,7 +82,7 @@ Paste one of these into a fresh session.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T08 | Health: sleep, HRV, resting HR, Body Battery | todo | — | |
+| T08 | Health: sleep, HRV, resting HR, Body Battery | in progress (Patti, 2026-09-25) | — | |
 | T09 | Trends: performance (PBs, decoupling, EF, VO2max) | todo | — | |
 | T10a | Trends: totals, year over year, distance by month | todo | T09 | |
 | T10b | Trends: distributions, day × hour pattern | todo | T10a | |
