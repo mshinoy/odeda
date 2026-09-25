@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Pencil, Route as RouteIcon, Tag } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { ActivityRoute, ActivitySummary, FieldEdit, GearItem } from "@/api/adapters";
 import { KindBadge } from "@/components/KindBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,7 +31,14 @@ export function ActivityHeader({ summary, edits, gear, route, actions }: Activit
               {gear.map((item) => item.name).join(", ")}
             </Mark>
           )}
-          {route && <Mark icon={<RouteIcon className="size-3" aria-hidden />}>{route.name}</Mark>}
+          {route && (
+            <Mark icon={<RouteIcon className="size-3" aria-hidden />}>
+              {/* The list, not this route's own page: that is T05b's. */}
+              <Link to="/routes" className="hover:text-foreground underline underline-offset-4">
+                {route.name}
+              </Link>
+            </Mark>
+          )}
           {edits.length > 0 && <EditedMark edits={edits} />}
         </div>
       </div>

@@ -16,8 +16,10 @@ up everywhere at once.
 from __future__ import annotations
 
 import json
+import statistics
 import threading
 import time
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any, Callable
 
@@ -68,11 +70,22 @@ from .schemas import (
     Health,
     Heatmap,
     RacePanel,
+    ReclusterRequest,
+    ReclusterResult,
     Readiness,
     ReadinessHistory,
     RevertAllResult,
     RevertFieldResult,
+    RouteDeleteResult,
+    RouteDetail,
     RouteList,
+    RouteMergeRequest,
+    RouteMergeResult,
+    RouteRenameRequest,
+    RouteRenameResult,
+    RouteSegments,
+    RouteSplitRequest,
+    RouteSplitResult,
     Summary,
     SyncStartRequest,
     SyncStarted,
@@ -688,13 +701,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return entry
         raise HTTPException(404, f"activity {activity_id!r} has no exercise {index}")
 
-    @app.get("/api/activities/{activity_id}/track")
-    def api_activity_track(activity_id: str) -> dict[str, Any]:
-        """The GPS stream for the map. `has_gps: false` for indoor activities."""
-        with store() as st:
-            if not ov_mod.activity_exists(st, activity_id):
-                raise HTTPException(404, f"no activity {activity_id!r}")
-            return routes_mod.activity_track(st, activity_id)
+    # `GET /api/activities/{id}/track` was dropped in T05a: `/streams` carries the same
+    # samples columnar, the route assignment is on the activity detail, and the map
+    # computes its own bounds. `routes.activity_track` stays; the comparison view uses it.
 
     # -- editing -------------------------------------------------------------
 
@@ -883,58 +892,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/routes", response_model=RouteList)
     def api_routes(type: str | None = None) -> dict[str, Any]:
         with store() as st:
-            return {"routes": routes_mod.list_routes(st, type)}
+            rows = routes_mod.list_routes(st, type)
+            medians = _route_median_times(st)
+            for row in rows:
+                row["median_moving_time_s"] = medians.get(int(row["route_id"]))
+            return {"routes": rows}
 
-    @app.get("/api/routes/{route_id}")
+    @app.get("/api/routes/{route_id}", response_model=RouteDetail)
     def api_route(route_id: int) -> dict[str, Any]:
         with store() as st:
             try:
-                return routes_mod.route_detail(st, route_id)
+                return _columnar_route_detail(routes_mod.route_detail(st, route_id))
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
-    @app.get("/api/routes/{route_id}/segments")
+    @app.get("/api/routes/{route_id}/segments", response_model=RouteSegments)
     def api_route_segments(route_id: int) -> dict[str, Any]:
         """Where you speed up and slow down, across every attempt at this route."""
         with store() as st:
             try:
-                return routes_mod.segment_profile(st, route_id)
+                return _columnar_segments(routes_mod.segment_profile(st, route_id))
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
-    @app.patch("/api/routes/{route_id}")
-    def api_route_rename(route_id: int, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.patch("/api/routes/{route_id}", response_model=RouteRenameResult)
+    def api_route_rename(
+        route_id: int, payload: RouteRenameRequest = Body(...)
+    ) -> dict[str, Any]:
         with store() as st:
             try:
-                return routes_mod.rename(st, route_id, str(payload.get("name") or ""))
+                return routes_mod.rename(st, route_id, payload.name)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
             except ValueError as exc:
                 raise HTTPException(400, str(exc)) from exc
 
-    @app.post("/api/routes/{route_id}/merge")
-    def api_route_merge(route_id: int, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/routes/{route_id}/merge", response_model=RouteMergeResult)
+    def api_route_merge(route_id: int, payload: RouteMergeRequest = Body(...)) -> dict[str, Any]:
         with store() as st:
             try:
-                return routes_mod.merge(
-                    st, route_id, [int(r) for r in payload.get("route_ids") or []]
-                )
+                return routes_mod.merge(st, route_id, payload.route_ids)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
-    @app.post("/api/routes/{route_id}/split")
-    def api_route_split(route_id: int, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/routes/{route_id}/split", response_model=RouteSplitResult)
+    def api_route_split(route_id: int, payload: RouteSplitRequest = Body(...)) -> dict[str, Any]:
         with store() as st:
             try:
-                return routes_mod.split(
-                    st, route_id, payload.get("activity_ids") or [], payload.get("name")
-                )
+                return routes_mod.split(st, route_id, payload.activity_ids, payload.name)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
             except ValueError as exc:
                 raise HTTPException(400, str(exc)) from exc
 
-    @app.delete("/api/routes/{route_id}")
+    @app.delete("/api/routes/{route_id}", response_model=RouteDeleteResult)
     def api_route_delete(route_id: int) -> dict[str, Any]:
         with store() as st:
             return {"deleted": routes_mod.delete_route(st, route_id)}
@@ -974,13 +985,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 lambda: _columnar_heatmap(routes_mod.heatmap(st, type, start, end, precision)),
             )
 
-    @app.post("/api/routes/recluster")
-    def api_recluster(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    @app.post("/api/routes/recluster", response_model=ReclusterResult)
+    def api_recluster(
+        payload: ReclusterRequest = Body(default_factory=ReclusterRequest),
+    ) -> dict[str, Any]:
         """Re-run clustering. Routes the user has pinned are left alone."""
+        threshold = routes_mod.MATCH_THRESHOLD if payload.threshold is None else payload.threshold
         with store() as st:
-            return routes_mod.cluster_all(
-                st, threshold=float(payload.get("threshold", routes_mod.MATCH_THRESHOLD))
-            )
+            return routes_mod.cluster_all(st, threshold=threshold)
 
     # -- sync ----------------------------------------------------------------
 
@@ -1139,6 +1151,62 @@ def _race(st: Store) -> dict[str, Any]:
         source = next(b for b in bests if b["distance_m"] == proj["from_distance_m"])
         race["projection"] = {**proj, "from_seconds": source["seconds"]}
     return race
+
+
+def _polyline(points: Sequence[Sequence[Any]]) -> dict[str, list[Any]]:
+    """`[lat, lon, ...]` points become columns, for the reason `_columnar_heatmap` does."""
+    return {"lat": [p[0] for p in points], "lon": [p[1] for p in points]}
+
+
+def _columnar_route_detail(detail: dict[str, Any]) -> dict[str, Any]:
+    """A route's `[lat, lon, altitude_m, cumulative_m]` polyline, columnar."""
+    route = detail["route"]
+    points = route["points"]
+    return {
+        **detail,
+        "route": {
+            **route,
+            "points": {
+                **_polyline(points),
+                "altitude_m": [p[2] for p in points],
+                "distance_m": [p[3] for p in points],
+            },
+        },
+    }
+
+
+def _columnar_segments(profile: dict[str, Any]) -> dict[str, Any]:
+    """Each segment's slice of the polyline, columnar.
+
+    `fastest_segments` and `slowest_segments` hold the same dicts as `segments`, so
+    each list is rebuilt rather than edited: converting twice would be a bug.
+    """
+    def columnar(segment: dict[str, Any]) -> dict[str, Any]:
+        return {**segment, "path": _polyline(segment["path"])}
+
+    return {
+        **profile,
+        "segments": [columnar(s) for s in profile["segments"]],
+        "fastest_segments": [columnar(s) for s in profile.get("fastest_segments", [])],
+        "slowest_segments": [columnar(s) for s in profile.get("slowest_segments", [])],
+    }
+
+
+def _route_median_times(store: Store) -> dict[int, float]:
+    """Each route's median moving time, over the attempts that count.
+
+    SQLite has no median aggregate, so the times come back in one grouped read and
+    the median is taken here. Same source as `list_routes`' best and average, so the
+    three numbers in a row always describe the same set of attempts.
+    """
+    times: dict[int, list[float]] = {}
+    for row in store.query(
+        "SELECT m.route_id, v.moving_time_s FROM route_members m "
+        "JOIN v_activities_included v ON v.activity_id = m.activity_id "
+        "WHERE v.moving_time_s IS NOT NULL AND v.moving_time_s > 0"
+    ):
+        times.setdefault(int(row["route_id"]), []).append(float(row["moving_time_s"]))
+    return {rid: round(statistics.median(values), 1) for rid, values in times.items()}
 
 
 def _columnar_heatmap(grid: dict[str, Any]) -> dict[str, Any]:

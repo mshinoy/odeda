@@ -518,26 +518,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/activities/{activity_id}/track": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Api Activity Track
-         * @description The GPS stream for the map. `has_gps: false` for indoor activities.
-         */
-        get: operations["api_activity_track"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/fields": {
         parameters: {
             query?: never;
@@ -2004,6 +1984,21 @@ export interface components {
             /** Activity Id */
             activity_id: string;
         };
+        /**
+         * Polyline
+         * @description A path, columnar: index i of `lat` and `lon` is the same point, and the two
+         *     lists are the same length.
+         *
+         *     Columnar rather than `[lat, lon]` pairs for the reason `/api/heatmap` is: a tuple
+         *     does not survive into the frontend's generated types, and two arrays of numbers
+         *     cost less JSON than an array of two-element arrays.
+         */
+        Polyline: {
+            /** Lat */
+            lat: number[];
+            /** Lon */
+            lon: number[];
+        };
         /** RaceInfo */
         RaceInfo: {
             /** Name */
@@ -2218,6 +2213,41 @@ export interface components {
             /** Rhr */
             rhr: number;
         };
+        /**
+         * ReclusterRequest
+         * @description `POST /api/routes/recluster` body. Routes the user pinned are left alone.
+         */
+        ReclusterRequest: {
+            /**
+             * Threshold
+             * @description How similar two tracks must be to count as the same route, 0-1; the
+             *     clusterer's own default when not given.
+             */
+            threshold?: number | null;
+        };
+        /**
+         * ReclusterResult
+         * @description What a re-run of the clustering did, counted by what happened to each activity.
+         */
+        ReclusterResult: {
+            /** Activities */
+            activities: number;
+            /**
+             * Routes
+             * @description How many routes exist afterwards.
+             */
+            routes: number;
+            /** Created */
+            created: number;
+            /** Joined */
+            joined: number;
+            /** No Gps */
+            no_gps: number;
+            /** Too Short */
+            too_short: number;
+            /** Kept Manual */
+            kept_manual: number;
+        };
         /** ReportTotals */
         ReportTotals: {
             /** Activities */
@@ -2284,6 +2314,50 @@ export interface components {
             reverted: true;
         };
         /**
+         * Route
+         * @description One clustered route's own record: the geometry, not the attempts.
+         *
+         *     `signature` (the clusterer's internal match key) is deliberately not serialised.
+         */
+        Route: {
+            /** Route Id */
+            route_id: number;
+            /** Name */
+            name: string;
+            /** Activity Type */
+            activity_type: string;
+            /** Distance M */
+            distance_m: number;
+            /** Distance Km */
+            distance_km: number;
+            /** Elevation Gain M */
+            elevation_gain_m: number | null;
+            /** Is Loop */
+            is_loop: boolean;
+            /**
+             * Pinned
+             * @description True once the user renamed, merged or split it: reclustering leaves it alone.
+             */
+            pinned: boolean;
+            /** Start Lat */
+            start_lat: number;
+            /** Start Lon */
+            start_lon: number;
+            /** End Lat */
+            end_lat: number;
+            /** End Lon */
+            end_lon: number;
+            /** Centroid Lat */
+            centroid_lat: number;
+            /** Centroid Lon */
+            centroid_lon: number;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            points: components["schemas"]["RoutePolyline"];
+        };
+        /**
          * RouteAssignment
          * @description The route an activity has been filed under.
          */
@@ -2303,10 +2377,274 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * RouteAttempt
+         * @description One activity filed on a route. Values are the user's edits where they made any.
+         */
+        RouteAttempt: {
+            /** Activity Id */
+            activity_id: string;
+            /** Day */
+            day: string;
+            /** Start Time Local */
+            start_time_local: string | null;
+            /** Activity Name */
+            activity_name: string | null;
+            /** Distance M */
+            distance_m: number | null;
+            /** Moving Time S */
+            moving_time_s: number | null;
+            /** Duration S */
+            duration_s: number | null;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Max Hr */
+            max_hr: number | null;
+            /** Avg Speed Mps */
+            avg_speed_mps: number | null;
+            /** Elevation Gain M */
+            elevation_gain_m: number | null;
+            /** Avg Cadence Spm */
+            avg_cadence_spm: number | null;
+            /** Rpe */
+            rpe: number | null;
+            /**
+             * Excluded From Stats
+             * @description 1 when the user excluded it; `stats` below then leaves it out. Null is
+             *     "not excluded": it is a user-only field, unset until someone sets it.
+             */
+            excluded_from_stats: number | null;
+            /**
+             * Match Score
+             * @description How well the clusterer matched the track, 0-1; null once filed by hand.
+             */
+            match_score: number | null;
+            /**
+             * Assigned
+             * @enum {string}
+             */
+            assigned: "auto" | "manual";
+        };
+        /** RouteDeleteResult */
+        RouteDeleteResult: {
+            /**
+             * Deleted
+             * @description False when there was no such route. Either way its activities are only
+             *     unclustered, never deleted.
+             */
+            deleted: boolean;
+        };
+        /**
+         * RouteDetail
+         * @description `GET /api/routes/{id}`: the geometry, every attempt, and the trend across them.
+         */
+        RouteDetail: {
+            route: components["schemas"]["Route"];
+            /** Attempts */
+            attempts: components["schemas"]["RouteAttempt"][];
+            /** Attempt Count */
+            attempt_count: number;
+            /**
+             * Counted Count
+             * @description Attempts not excluded from stats: the ones `stats` is computed over.
+             */
+            counted_count: number;
+            stats: components["schemas"]["RouteStats"];
+            best_attempt: components["schemas"]["RouteAttempt"] | null;
+            worst_attempt: components["schemas"]["RouteAttempt"] | null;
+        };
         /** RouteList */
         RouteList: {
             /** Routes */
             routes: components["schemas"]["RouteSummary"][];
+        };
+        /**
+         * RouteMergeRequest
+         * @description `POST /api/routes/{id}/merge` body: the routes to fold into this one.
+         */
+        RouteMergeRequest: {
+            /** Route Ids */
+            route_ids: number[];
+        };
+        /** RouteMergeResult */
+        RouteMergeResult: {
+            /**
+             * Route Id
+             * @description The route that survived; the others are gone.
+             */
+            route_id: number;
+            /** Merged */
+            merged: number[];
+            /** Moved Activities */
+            moved_activities: number;
+        };
+        /**
+         * RoutePolyline
+         * @description The route's representative polyline: `Polyline`, plus what the elevation
+         *     profile and the segment boundaries are measured against.
+         */
+        RoutePolyline: {
+            /** Lat */
+            lat: number[];
+            /** Lon */
+            lon: number[];
+            /**
+             * Altitude M
+             * @description All null for a route whose attempts carried no altitude.
+             */
+            altitude_m: (number | null)[];
+            /**
+             * Distance M
+             * @description Cumulative metres from the start of the route.
+             */
+            distance_m: number[];
+        };
+        /**
+         * RouteRenameRequest
+         * @description `PATCH /api/routes/{id}` body.
+         */
+        RouteRenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** RouteRenameResult */
+        RouteRenameResult: {
+            /** Route Id */
+            route_id: number;
+            /** Name */
+            name: string;
+            /**
+             * Pinned
+             * @description Naming a route pins it: the clusterer stops second-guessing it.
+             * @constant
+             */
+            pinned: true;
+        };
+        /**
+         * RouteSegmentProfile
+         * @description One fixed-length stretch of a route, aggregated over every attempt at it.
+         */
+        RouteSegmentProfile: {
+            /** Seg Index */
+            seg_index: number;
+            /** Start M */
+            start_m: number;
+            /** End M */
+            end_m: number;
+            /** Attempts */
+            attempts: number;
+            /** Median Speed Mps */
+            median_speed_mps: number | null;
+            /** Median Pace S Per Km */
+            median_pace_s_per_km: number | null;
+            /** Fastest Speed Mps */
+            fastest_speed_mps: number | null;
+            /** Slowest Speed Mps */
+            slowest_speed_mps: number | null;
+            /**
+             * Speed Cv Pct
+             * @description Coefficient of variation across attempts, %: how consistent this stretch is.
+             */
+            speed_cv_pct: number | null;
+            /**
+             * Relative Speed
+             * @description Median of (this stretch's speed / that attempt's own average speed). Below 1
+             *     is ground you are consistently slower on, whichever day you ran it.
+             */
+            relative_speed: number | null;
+            /** Median Hr */
+            median_hr: number | null;
+            /** Median Cadence Spm */
+            median_cadence_spm: number | null;
+            /** Median Gradient Pct */
+            median_gradient_pct: number | null;
+            /** Median Seconds */
+            median_seconds: number | null;
+            /**
+             * @description The slice of the route's polyline this stretch covers; empty when the polyline
+             *     does not resolve two points inside it.
+             */
+            path: components["schemas"]["Polyline"];
+        };
+        /**
+         * RouteSegments
+         * @description `GET /api/routes/{id}/segments`: where you speed up and where you slow down.
+         *
+         *     A route with no computed efforts (every attempt too short, or a fresh split)
+         *     comes back with `segments` empty, `segment_m` null and no name.
+         */
+        RouteSegments: {
+            /** Route Id */
+            route_id: number;
+            /** Name */
+            name?: string | null;
+            /**
+             * Segment M
+             * @description The stretch length every segment shares, metres.
+             */
+            segment_m: number | null;
+            /** Attempts */
+            attempts: number;
+            /** Segments */
+            segments: components["schemas"]["RouteSegmentProfile"][];
+            /**
+             * Fastest Segments
+             * @description The three stretches with the highest `relative_speed`, fastest first.
+             */
+            fastest_segments?: components["schemas"]["RouteSegmentProfile"][];
+            /** Slowest Segments */
+            slowest_segments?: components["schemas"]["RouteSegmentProfile"][];
+        };
+        /**
+         * RouteSplitRequest
+         * @description `POST /api/routes/{id}/split` body: the attempts to pull out into a new route.
+         */
+        RouteSplitRequest: {
+            /** Activity Ids */
+            activity_ids: string[];
+            /**
+             * Name
+             * @description The new route's name; "<old name> (split)" when not given.
+             */
+            name?: string | null;
+        };
+        /** RouteSplitResult */
+        RouteSplitResult: {
+            /**
+             * Route Id
+             * @description The new route.
+             */
+            route_id: number;
+            /** From Route Id */
+            from_route_id: number;
+            /** Moved */
+            moved: number;
+        };
+        /**
+         * RouteStats
+         * @description Headline numbers over the attempts that count (excluded ones are left out).
+         */
+        RouteStats: {
+            /** Best Time S */
+            best_time_s: number | null;
+            /** Worst Time S */
+            worst_time_s: number | null;
+            /** Median Time S */
+            median_time_s: number | null;
+            /** Avg Pace S Per Km */
+            avg_pace_s_per_km: number | null;
+            /** Best Pace S Per Km */
+            best_pace_s_per_km: number | null;
+            /**
+             * Improvement S
+             * @description First counted attempt's time minus the last one's: positive means faster now.
+             *     Null with fewer than two timed attempts.
+             */
+            improvement_s: number | null;
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
         };
         /**
          * RouteSummary
@@ -2356,6 +2694,12 @@ export interface components {
             avg_moving_time_s: number | null;
             /** Best Moving Time S */
             best_moving_time_s: number | null;
+            /**
+             * Median Moving Time S
+             * @description Typical time on this route. SQLite has no median aggregate, so it is taken at
+             *     the response boundary over the same attempts the other times come from.
+             */
+            median_moving_time_s: number | null;
             /** Avg Hr */
             avg_hr: number | null;
             /** Distance Km */
@@ -3568,39 +3912,6 @@ export interface operations {
             };
         };
     };
-    api_activity_track: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     api_fields: {
         parameters: {
             query?: never;
@@ -4144,9 +4455,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RouteDetail"];
                 };
             };
             /** @description Validation Error */
@@ -4177,9 +4486,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RouteDeleteResult"];
                 };
             };
             /** @description Validation Error */
@@ -4204,9 +4511,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["RouteRenameRequest"];
             };
         };
         responses: {
@@ -4216,9 +4521,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RouteRenameResult"];
                 };
             };
             /** @description Validation Error */
@@ -4249,9 +4552,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RouteSegments"];
                 };
             };
             /** @description Validation Error */
@@ -4276,9 +4577,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["RouteMergeRequest"];
             };
         };
         responses: {
@@ -4288,9 +4587,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RouteMergeResult"];
                 };
             };
             /** @description Validation Error */
@@ -4315,9 +4612,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["RouteSplitRequest"];
             };
         };
         responses: {
@@ -4327,9 +4622,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RouteSplitResult"];
                 };
             };
             /** @description Validation Error */
@@ -4453,9 +4746,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ReclusterRequest"];
             };
         };
         responses: {
@@ -4465,9 +4756,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReclusterResult"];
                 };
             };
             /** @description Validation Error */

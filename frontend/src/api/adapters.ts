@@ -119,6 +119,19 @@ export interface RouteOption {
   attempts: number;
 }
 
+/** A clustered route, as the route list shows it: `RouteOption` plus how it has gone. */
+export interface RouteListItem extends RouteOption {
+  kind: ActivityKind;
+  isLoop: boolean;
+  /** True once the user renamed, merged or split it; reclustering leaves it alone. */
+  pinned: boolean;
+  /** Seconds, over the attempts that count; null when none of them was timed. */
+  bestTimeS: number | null;
+  medianTimeS: number | null;
+  firstDay: string | null;
+  lastDay: string | null;
+}
+
 /** Garmin's category for an exercise it could not name. */
 export const UNKNOWN_EXERCISE = "UNKNOWN";
 
@@ -263,13 +276,31 @@ export function toActivityGear(gear: readonly Schemas["ActivityGear"][]): GearIt
   return gear.map(toGearItem);
 }
 
-export function toRouteOptions(raw: Schemas["RouteList"]): RouteOption[] {
-  return raw.routes.map((route) => ({
+function toRouteOption(route: Schemas["RouteSummary"]): RouteOption {
+  return {
     id: route.route_id,
     name: route.name,
     activityType: route.activity_type,
     distanceM: route.distance_m,
     attempts: route.attempts,
+  };
+}
+
+export function toRouteOptions(raw: Schemas["RouteList"]): RouteOption[] {
+  return raw.routes.map(toRouteOption);
+}
+
+/** Every route, busiest first — the API's order, which is the order the list wants. */
+export function toRouteList(raw: Schemas["RouteList"]): RouteListItem[] {
+  return raw.routes.map((route) => ({
+    ...toRouteOption(route),
+    kind: activityKind(route.activity_type),
+    isLoop: route.is_loop,
+    pinned: route.pinned,
+    bestTimeS: route.best_moving_time_s,
+    medianTimeS: route.median_moving_time_s,
+    firstDay: route.first_day,
+    lastDay: route.last_day,
   }));
 }
 

@@ -491,12 +491,227 @@ class RouteSummary(_Model):
     last_day: str | None
     avg_moving_time_s: float | None
     best_moving_time_s: float | None
+    median_moving_time_s: float | None
+    """Typical time on this route. SQLite has no median aggregate, so it is taken at
+    the response boundary over the same attempts the other times come from."""
     avg_hr: float | None
     distance_km: float
 
 
 class RouteList(_Model):
     routes: list[RouteSummary]
+
+
+class Polyline(_Model):
+    """A path, columnar: index i of `lat` and `lon` is the same point, and the two
+    lists are the same length.
+
+    Columnar rather than `[lat, lon]` pairs for the reason `/api/heatmap` is: a tuple
+    does not survive into the frontend's generated types, and two arrays of numbers
+    cost less JSON than an array of two-element arrays.
+    """
+
+    lat: list[float]
+    lon: list[float]
+
+
+class RoutePolyline(Polyline):
+    """The route's representative polyline: `Polyline`, plus what the elevation
+    profile and the segment boundaries are measured against."""
+
+    altitude_m: list[float | None]
+    """All null for a route whose attempts carried no altitude."""
+    distance_m: list[float]
+    """Cumulative metres from the start of the route."""
+
+
+class Route(_Model):
+    """One clustered route's own record: the geometry, not the attempts.
+
+    `signature` (the clusterer's internal match key) is deliberately not serialised.
+    """
+
+    route_id: int
+    name: str
+    activity_type: str
+    distance_m: float
+    distance_km: float
+    elevation_gain_m: float | None
+    is_loop: bool
+    pinned: bool
+    """True once the user renamed, merged or split it: reclustering leaves it alone."""
+    start_lat: float
+    start_lon: float
+    end_lat: float
+    end_lon: float
+    centroid_lat: float
+    centroid_lon: float
+    created_at: str
+    updated_at: str
+    points: RoutePolyline
+
+
+class RouteAttempt(_Model):
+    """One activity filed on a route. Values are the user's edits where they made any."""
+
+    activity_id: str
+    day: str
+    start_time_local: str | None
+    activity_name: str | None
+    distance_m: float | None
+    moving_time_s: float | None
+    duration_s: float | None
+    avg_hr: float | None
+    max_hr: float | None
+    avg_speed_mps: float | None
+    elevation_gain_m: float | None
+    avg_cadence_spm: float | None
+    rpe: Number | None
+    excluded_from_stats: int | None
+    """1 when the user excluded it; `stats` below then leaves it out. Null is
+    "not excluded": it is a user-only field, unset until someone sets it."""
+    match_score: float | None
+    """How well the clusterer matched the track, 0-1; null once filed by hand."""
+    assigned: Literal["auto", "manual"]
+
+
+class RouteStats(_Model):
+    """Headline numbers over the attempts that count (excluded ones are left out)."""
+
+    best_time_s: float | None
+    worst_time_s: float | None
+    median_time_s: float | None
+    avg_pace_s_per_km: float | None
+    best_pace_s_per_km: float | None
+    improvement_s: float | None
+    """First counted attempt's time minus the last one's: positive means faster now.
+    Null with fewer than two timed attempts."""
+    first_day: str | None
+    last_day: str | None
+
+
+class RouteDetail(_Model):
+    """`GET /api/routes/{id}`: the geometry, every attempt, and the trend across them."""
+
+    route: Route
+    attempts: list[RouteAttempt]
+    attempt_count: int
+    counted_count: int
+    """Attempts not excluded from stats: the ones `stats` is computed over."""
+    stats: RouteStats
+    best_attempt: RouteAttempt | None
+    worst_attempt: RouteAttempt | None
+
+
+class RouteSegmentProfile(_Model):
+    """One fixed-length stretch of a route, aggregated over every attempt at it."""
+
+    seg_index: int
+    start_m: float
+    end_m: float
+    attempts: int
+    median_speed_mps: float | None
+    median_pace_s_per_km: float | None
+    fastest_speed_mps: float | None
+    slowest_speed_mps: float | None
+    speed_cv_pct: float | None
+    """Coefficient of variation across attempts, %: how consistent this stretch is."""
+    relative_speed: float | None
+    """Median of (this stretch's speed / that attempt's own average speed). Below 1
+    is ground you are consistently slower on, whichever day you ran it."""
+    median_hr: float | None
+    median_cadence_spm: float | None
+    median_gradient_pct: float | None
+    median_seconds: float | None
+    path: Polyline
+    """The slice of the route's polyline this stretch covers; empty when the polyline
+    does not resolve two points inside it."""
+
+
+class RouteSegments(_Model):
+    """`GET /api/routes/{id}/segments`: where you speed up and where you slow down.
+
+    A route with no computed efforts (every attempt too short, or a fresh split)
+    comes back with `segments` empty, `segment_m` null and no name.
+    """
+
+    route_id: int
+    name: str | None = None
+    segment_m: float | None
+    """The stretch length every segment shares, metres."""
+    attempts: int
+    segments: list[RouteSegmentProfile]
+    fastest_segments: list[RouteSegmentProfile] = Field(default_factory=list)
+    """The three stretches with the highest `relative_speed`, fastest first."""
+    slowest_segments: list[RouteSegmentProfile] = Field(default_factory=list)
+
+
+class RouteRenameRequest(_Model):
+    """`PATCH /api/routes/{id}` body."""
+
+    name: str
+
+
+class RouteRenameResult(_Model):
+    route_id: int
+    name: str
+    pinned: Literal[True]
+    """Naming a route pins it: the clusterer stops second-guessing it."""
+
+
+class RouteMergeRequest(_Model):
+    """`POST /api/routes/{id}/merge` body: the routes to fold into this one."""
+
+    route_ids: list[int]
+
+
+class RouteMergeResult(_Model):
+    route_id: int
+    """The route that survived; the others are gone."""
+    merged: list[int]
+    moved_activities: int
+
+
+class RouteSplitRequest(_Model):
+    """`POST /api/routes/{id}/split` body: the attempts to pull out into a new route."""
+
+    activity_ids: list[str]
+    name: str | None = None
+    """The new route's name; "<old name> (split)" when not given."""
+
+
+class RouteSplitResult(_Model):
+    route_id: int
+    """The new route."""
+    from_route_id: int
+    moved: int
+
+
+class RouteDeleteResult(_Model):
+    deleted: bool
+    """False when there was no such route. Either way its activities are only
+    unclustered, never deleted."""
+
+
+class ReclusterRequest(_Model):
+    """`POST /api/routes/recluster` body. Routes the user pinned are left alone."""
+
+    threshold: float | None = None
+    """How similar two tracks must be to count as the same route, 0-1; the
+    clusterer's own default when not given."""
+
+
+class ReclusterResult(_Model):
+    """What a re-run of the clustering did, counted by what happened to each activity."""
+
+    activities: int
+    routes: int
+    """How many routes exist afterwards."""
+    created: int
+    joined: int
+    no_gps: int
+    too_short: int
+    kept_manual: int
 
 
 class ActivityRouteRequest(_Model):

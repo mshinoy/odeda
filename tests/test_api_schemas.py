@@ -365,10 +365,15 @@ class TestGearAndRoute:
         assert all(g["retired"] == 0 for g in shoes)
 
     def test_routes_equal_the_store(self, rw_client, rw_store):
-        _strict_equal(rw_client.get("/api/routes").json(),
-                      _as_json({"routes": routes_mod.list_routes(rw_store)}))
+        # `median_moving_time_s` is added at the boundary (T05a); TestRoutes covers it.
+        def without_median(rows):
+            return [{k: v for k, v in r.items() if k != "median_moving_time_s"} for r in rows]
+
+        _strict_equal(without_median(rw_client.get("/api/routes").json()["routes"]),
+                      _as_json(routes_mod.list_routes(rw_store)))
         running = rw_client.get("/api/routes?type=running").json()
-        _strict_equal(running, _as_json({"routes": routes_mod.list_routes(rw_store, "running")}))
+        _strict_equal(without_median(running["routes"]),
+                      _as_json(routes_mod.list_routes(rw_store, "running")))
         assert running["routes"], "the seeded database should have running routes"
 
     def test_assigning_one_item_replaces_that_kind_only(self, rw_client, rw_store):
@@ -474,3 +479,150 @@ class TestHeatmap:
         props = spec["components"]["schemas"]["Heatmap"]["properties"]
         assert props["count"]["items"]["type"] == "integer"
         assert "points" not in props
+
+
+class TestRoutes:
+    """T05a: every route endpoint typed, and the two shapes the UI reads columnar."""
+
+    @pytest.fixture
+    def route_id(self, rw_store):
+        return int(_pick(rw_store, (
+            "SELECT route_id FROM route_members GROUP BY route_id "
+            "ORDER BY COUNT(*) DESC LIMIT 1")))
+
+    def test_list_carries_a_median_beside_the_best(self, rw_client, rw_store):
+        rows = rw_client.get("/api/routes").json()["routes"]
+        listed = {r["route_id"]: r for r in rows}
+        _strict_equal(
+            [{k: v for k, v in r.items() if k != "median_moving_time_s"} for r in rows],
+            _as_json(routes_mod.list_routes(rw_store)),
+        )
+        # The median is over the same attempts as best and average, so it sits between.
+        timed = [r for r in rows if r["median_moving_time_s"] is not None]
+        assert timed, "the seeded database should have timed attempts"
+        for r in timed:
+            assert r["best_moving_time_s"] <= r["median_moving_time_s"]
+
+        # And it agrees with the detail endpoint's own median, computed differently.
+        for rid, row in list(listed.items())[:3]:
+            detail = rw_client.get(f"/api/routes/{rid}").json()
+            assert detail["stats"]["median_time_s"] == row["median_moving_time_s"]
+
+    def test_detail_polyline_is_columnar(self, rw_client, rw_store, route_id):
+        body = rw_client.get(f"/api/routes/{route_id}").json()
+        points = json.loads(_pick(rw_store,
+                                  f"SELECT points FROM routes WHERE route_id = {route_id}"))
+        columns = body["route"]["points"]
+        assert [columns["lat"], columns["lon"], columns["altitude_m"],
+                columns["distance_m"]] == [[p[i] for p in points] for i in range(4)]
+        assert "signature" not in body["route"], "the clusterer's match key is not the UI's"
+
+    def test_detail_attempts_and_stats_are_unchanged(self, rw_client, rw_store, route_id):
+        body = rw_client.get(f"/api/routes/{route_id}").json()
+        expected = _as_json(routes_mod.route_detail(rw_store, route_id))
+        for key in ("attempts", "attempt_count", "counted_count", "stats",
+                    "best_attempt", "worst_attempt"):
+            _strict_equal(body[key], expected[key], key)
+        assert body["attempt_count"] >= 2
+
+    def test_detail_404s_for_an_unknown_route(self, rw_client):
+        assert rw_client.get("/api/routes/999999").status_code == 404
+
+    def test_segment_paths_are_columnar(self, rw_client, rw_store, route_id):
+        body = rw_client.get(f"/api/routes/{route_id}/segments").json()
+        expected = _as_json(routes_mod.segment_profile(rw_store, route_id))
+        assert body["segments"], "the busiest seeded route should have segments"
+        for got, want in zip(body["segments"], expected["segments"]):
+            _strict_equal({k: v for k, v in got.items() if k != "path"},
+                          {k: v for k, v in want.items() if k != "path"})
+            assert got["path"]["lat"] == [p[0] for p in want["path"]]
+            assert got["path"]["lon"] == [p[1] for p in want["path"]]
+        # The rankings hold the same segments, converted once each, not twice.
+        assert [s["seg_index"] for s in body["fastest_segments"]] == \
+               [s["seg_index"] for s in expected["fastest_segments"]]
+        assert all(isinstance(s["path"]["lat"], list) for s in body["slowest_segments"])
+
+    def test_a_route_with_no_computed_segments_still_answers(self, rw_client, rw_store):
+        rid = int(_pick(rw_store, "SELECT route_id FROM routes LIMIT 1"))
+        rw_store.conn.execute("DELETE FROM route_segment_efforts WHERE route_id = ?", (rid,))
+        rw_store.conn.commit()
+        body = rw_client.get(f"/api/routes/{rid}/segments").json()
+        assert body == {"route_id": rid, "name": None, "segment_m": None,
+                        "attempts": 0, "segments": [],
+                        "fastest_segments": [], "slowest_segments": []}
+
+    def test_rename_pins_the_route(self, rw_client, rw_store, route_id):
+        res = rw_client.patch(f"/api/routes/{route_id}", json={"name": "Corniche loop"})
+        assert res.json() == {"route_id": route_id, "name": "Corniche loop", "pinned": True}
+        assert int(_pick(rw_store, f"SELECT pinned FROM routes WHERE route_id = {route_id}")) == 1
+
+    def test_rename_rejects_an_empty_name_and_a_missing_one(self, rw_client, route_id):
+        assert rw_client.patch(f"/api/routes/{route_id}", json={"name": "  "}).status_code == 400
+        # The body model makes a missing name a 422 rather than the 400 it used to be.
+        assert rw_client.patch(f"/api/routes/{route_id}", json={}).status_code == 422
+        assert rw_client.patch("/api/routes/999999", json={"name": "x"}).status_code == 404
+
+    def test_split_then_merge_moves_the_attempts_back(self, rw_client, rw_store, route_id):
+        members = [r["activity_id"] for r in rw_store.query(
+            "SELECT activity_id FROM route_members WHERE route_id = ? ORDER BY activity_id",
+            (route_id,))]
+        assert len(members) >= 3
+
+        split = rw_client.post(f"/api/routes/{route_id}/split",
+                               json={"activity_ids": members[:1], "name": "Wrong day"}).json()
+        assert split["from_route_id"] == route_id and split["moved"] == 1
+        new_id = split["route_id"]
+        assert _pick(rw_store, f"SELECT name FROM routes WHERE route_id = {new_id}") == "Wrong day"
+
+        merged = rw_client.post(f"/api/routes/{route_id}/merge",
+                                json={"route_ids": [new_id]}).json()
+        assert merged == {"route_id": route_id, "merged": [new_id], "moved_activities": 1}
+        assert rw_store.conn.execute(
+            "SELECT 1 FROM routes WHERE route_id = ?", (new_id,)).fetchone() is None
+
+    def test_split_errors_are_unchanged(self, rw_client, route_id):
+        assert rw_client.post(f"/api/routes/{route_id}/split",
+                              json={"activity_ids": ["nope"]}).status_code == 400
+        assert rw_client.post("/api/routes/999999/split",
+                              json={"activity_ids": ["a"]}).status_code == 404
+        assert rw_client.post(f"/api/routes/{route_id}/merge",
+                              json={"route_ids": [1]}).status_code in (200, 404)
+
+    def test_delete_unclusters_rather_than_deleting_activities(self, rw_client, rw_store):
+        rid = int(_pick(rw_store, "SELECT route_id FROM route_members LIMIT 1"))
+        aid = _pick(rw_store, f"SELECT activity_id FROM route_members WHERE route_id = {rid}")
+        assert rw_client.delete(f"/api/routes/{rid}").json() == {"deleted": True}
+        assert rw_client.delete(f"/api/routes/{rid}").json() == {"deleted": False}
+        assert rw_client.get(f"/api/activities/{aid}").json()["route"] is None
+
+    def test_recluster_counts_what_it_did(self, rw_client):
+        body = rw_client.post("/api/routes/recluster", json={}).json()
+        assert set(body) == {"activities", "routes", "created", "joined", "no_gps",
+                             "too_short", "kept_manual"}
+        assert body["activities"] == sum(
+            body[k] for k in ("created", "joined", "no_gps", "too_short", "kept_manual"))
+        # An empty body is allowed and means the clusterer's own threshold.
+        assert rw_client.post("/api/routes/recluster").status_code == 200
+        assert rw_client.post("/api/routes/recluster",
+                              json={"threshold": "tight"}).status_code == 422
+
+    def test_the_track_endpoint_is_gone(self, rw_client, rw_store):
+        aid = _pick(rw_store, "SELECT activity_id FROM activities LIMIT 1")
+        assert rw_client.get(f"/api/activities/{aid}/track").status_code == 404
+
+    def test_typed_route_paths_reference_their_models(self, rw_settings):
+        spec = TestClient(create_app(rw_settings)).get("/openapi.json").json()
+
+        def ref(path: str, method: str) -> str:
+            schema = spec["paths"][path][method]["responses"]["200"]["content"][
+                "application/json"]["schema"]
+            return schema["$ref"].rsplit("/", 1)[-1]
+
+        assert ref("/api/routes/{route_id}", "get") == "RouteDetail"
+        assert ref("/api/routes/{route_id}/segments", "get") == "RouteSegments"
+        assert ref("/api/routes/{route_id}", "patch") == "RouteRenameResult"
+        assert ref("/api/routes/{route_id}/merge", "post") == "RouteMergeResult"
+        assert ref("/api/routes/{route_id}/split", "post") == "RouteSplitResult"
+        assert ref("/api/routes/{route_id}", "delete") == "RouteDeleteResult"
+        assert ref("/api/routes/recluster", "post") == "ReclusterResult"
+        assert "/api/activities/{activity_id}/track" not in spec["paths"]

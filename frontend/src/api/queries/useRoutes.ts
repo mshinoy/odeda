@@ -1,18 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toRouteOptions } from "@/api/adapters";
+import { toRouteList, toRouteOptions } from "@/api/adapters";
 import { api, unwrap } from "@/api/client";
 import { queryKeys } from "@/api/queryClient";
 
-/**
- * Every clustered route. Unfiltered, so one fetch serves any activity's select; skipped
- * for an activity that cannot be on one (`enabled`).
- */
+// Unfiltered, so one fetch serves every reader of it. The payload is what is cached and
+// `select` is what differs, because the two readers want different shapes of the same
+// rows and a second queryFn under this key would fight the first over the cache.
+const routesQuery = { queryKey: queryKeys.routes, queryFn: fetchRoutes } as const;
+
+async function fetchRoutes() {
+  return unwrap(await api.GET("/api/routes"));
+}
+
+/** Every clustered route as a select's options; skipped for an activity that cannot be on one. */
 export function useRoutes(enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.routes,
-    queryFn: async () => toRouteOptions(unwrap(await api.GET("/api/routes"))),
-    enabled,
-  });
+  return useQuery({ ...routesQuery, select: toRouteOptions, enabled });
+}
+
+/** Every clustered route as the route list shows it, busiest first. */
+export function useRouteList() {
+  return useQuery({ ...routesQuery, select: toRouteList });
 }
 
 /** Refiles an activity onto another route, by hand. */

@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 1 / 6 |
+| 2 Map & routes | B: `open` | 2 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -72,7 +72,7 @@ Paste one of these into a fresh session.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T04 | Map: all-activities heatmap | done | — | Map: an all-activities heatmap on /map, filtered by type and dates |
-| T05a | Routes: type the endpoints, plus the route list | in progress (patti, 2026-09-25) | T04 | |
+| T05a | Routes: type the endpoints, plus the route list | done | T04 | Routes: every route endpoint typed, and /routes lists your loops |
 | T05b | Routes: route detail (segment-coloured map, attempts) | todo | T05a | |
 | T05c | Routes: rename / merge / split dialogs | todo | T05b | |
 | T06 | Route playback (TripsLayer) | todo | T05b | |
@@ -637,9 +637,26 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - Make `/api/activities/{id}/track` columnar like `/streams`, or drop it if `/streams`
     covers it.
 - **Build:**
-  - [ ] route list: name, attempts, distance, best and median time
-  - [ ] reachable from the Map view and from an activity's route link
+  - [x] route list: name, attempts, distance, best and median time
+  - [x] reachable from the Map view and from an activity's route link
 - **Old reference:** `renderRoutes` in `app.js`.
+- **Notes:**
+  - `/api/activities/{id}/track` was **dropped**: `/streams` carries the same samples
+    columnar, the route assignment is already on the activity detail, and the map works
+    out its own bounds. `analytics/routes.activity_track` stays — T07's compare uses it.
+  - The route polyline and each segment's path are **columnar** (`lat`, `lon`, …), for
+    the reason T04's heatmap is. `signature`, the clusterer's match key, is not serialised.
+  - `median_moving_time_s` is new on `/api/routes`, taken at the response boundary
+    (`_route_median_times`): SQLite has no median aggregate, and `list_routes` belongs to
+    `analytics/`. It agrees with `/api/routes/{id}`'s `stats.median_time_s`, which is
+    computed a different way — a test pins that.
+  - `PATCH /api/routes/{id}` with no `name` is now a **422**, not the 400 it was: the
+    body is a model. An empty or blank name is still a 400.
+  - The list's rows do not link anywhere yet; `/routes/:id` is T05b's. The Map view and
+    an activity's route chip both link to the list.
+  - 49 of the owner's 67 routes have one or two attempts — not loops, just activities
+    the clusterer had nothing to pair with. The list is busiest-first so they sit at the
+    bottom, but a "repeated only" filter may be worth it. Left for the owner to judge.
 
 ### T05b — Routes: detail
 - **Build:**

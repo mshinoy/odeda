@@ -11,6 +11,7 @@ import {
   toGearItems,
   toGymSession,
   toHeatmap,
+  toRouteList,
   toRouteOptions,
 } from "@/api/adapters";
 import type { components } from "@/api/schema";
@@ -431,29 +432,7 @@ describe("gear and routes", () => {
   });
 
   it("keeps only what a route select needs", () => {
-    const route: Schemas["RouteSummary"] = {
-      route_id: 12,
-      name: "Corniche out and back",
-      activity_type: "running",
-      distance_m: 10120.5,
-      is_loop: false,
-      pinned: true,
-      start_lat: 25.29,
-      start_lon: 51.53,
-      centroid_lat: 25.3,
-      centroid_lon: 51.54,
-      elevation_gain_m: 34.0,
-      created_at: "2025-01-01T00:00:00Z",
-      updated_at: "2026-09-20T00:00:00Z",
-      attempts: 23,
-      first_day: "2025-01-04",
-      last_day: "2026-09-20",
-      avg_moving_time_s: 3140.0,
-      best_moving_time_s: 2890.0,
-      avg_hr: 158.0,
-      distance_km: 10.12,
-    };
-    expect(toRouteOptions({ routes: [route] })).toEqual([
+    expect(toRouteOptions({ routes: [routeSummary()] })).toEqual([
       {
         id: 12,
         name: "Corniche out and back",
@@ -463,7 +442,60 @@ describe("gear and routes", () => {
       },
     ]);
   });
+
+  it("gives the route list how the route has gone, on top of that", () => {
+    expect(toRouteList({ routes: [routeSummary()] })).toEqual([
+      {
+        id: 12,
+        name: "Corniche out and back",
+        activityType: "running",
+        distanceM: 10120.5,
+        attempts: 23,
+        kind: "run",
+        isLoop: false,
+        pinned: true,
+        bestTimeS: 2890.0,
+        medianTimeS: 3050.0,
+        firstDay: "2025-01-04",
+        lastDay: "2026-09-20",
+      },
+    ]);
+  });
+
+  it("keeps the API's order, which is busiest first", () => {
+    const rows = toRouteList({
+      routes: [routeSummary({ route_id: 1, attempts: 9 }), routeSummary({ route_id: 2 })],
+    });
+    expect(rows.map((r) => r.id)).toEqual([1, 2]);
+  });
 });
+
+function routeSummary(overrides: Partial<Schemas["RouteSummary"]> = {}): Schemas["RouteSummary"] {
+  return {
+    route_id: 12,
+    name: "Corniche out and back",
+    activity_type: "running",
+    distance_m: 10120.5,
+    is_loop: false,
+    pinned: true,
+    start_lat: 25.29,
+    start_lon: 51.53,
+    centroid_lat: 25.3,
+    centroid_lon: 51.54,
+    elevation_gain_m: 34.0,
+    created_at: "2025-01-01T00:00:00Z",
+    updated_at: "2026-09-20T00:00:00Z",
+    attempts: 23,
+    first_day: "2025-01-04",
+    last_day: "2026-09-20",
+    avg_moving_time_s: 3140.0,
+    best_moving_time_s: 2890.0,
+    median_moving_time_s: 3050.0,
+    avg_hr: 158.0,
+    distance_km: 10.12,
+    ...overrides,
+  };
+}
 
 describe("toHeatmap", () => {
   it("zips the three columns into one object per cell, lon before lat", () => {
