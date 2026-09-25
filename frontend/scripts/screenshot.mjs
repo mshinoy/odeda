@@ -12,7 +12,7 @@
 // Needs chromium-browser on PATH. A snap-packaged Chromium cannot write under /tmp, so
 // keep <out.png> under $HOME. No npm dependencies: DevTools protocol over Node's WebSocket.
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -39,9 +39,13 @@ const RENDER_WAIT_MS = flagValue("wait", 9000);
 const AFTER_CLICK_WAIT_MS = 2000;
 const port = 9300 + Math.floor(Math.random() * 500);
 
-// A fresh profile per run, so tabs from an earlier run are never restored. Not a dot-folder:
-// snap-packaged Chromium may not write into hidden folders under $HOME.
-const profile = mkdtempSync(join(homedir(), "ga-screenshot-profile-"));
+// A fresh profile per run, so tabs from an earlier run are never restored. It lives under
+// ~/garmin-work/chrome-profiles, not straight in $HOME: snap-packaged Chromium cannot write
+// under /tmp and may not write into hidden folders, but an ordinary visible subdirectory is
+// fine — and one parent folder beats stranding 50 loose profiles in the home directory.
+const profileRoot = join(homedir(), "garmin-work", "chrome-profiles");
+mkdirSync(profileRoot, { recursive: true });
+const profile = mkdtempSync(join(profileRoot, "p-"));
 const chrome = spawn(
   "chromium-browser",
   [
@@ -59,9 +63,29 @@ const chrome = spawn(
   { stdio: "ignore" },
 );
 
+// Chromium keeps rewriting its profile while it shuts down, so deleting straight after
+// kill() loses the race and strands the directory — which is how 50 of them accumulated.
+// Retry for up to two seconds, and clean up on a signal too, so a killed run leaves nothing.
+const sleepSync = (ms) =>
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+let cleanedUp = false;
 function cleanUp() {
+  if (cleanedUp) return;
+  cleanedUp = true;
   chrome.kill();
-  rmSync(profile, { recursive: true, force: true });
+  for (let attempt = 0; attempt < 20; attempt++) {
+    rmSync(profile, { recursive: true, force: true });
+    if (!existsSync(profile)) return;
+    sleepSync(100);
+  }
+}
+
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(signal, () => {
+    cleanUp();
+    process.exit(130);
+  });
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
