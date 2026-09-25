@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 6 / 6 |
+| 2 Map & routes | B: `ready for review` | 6 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -67,7 +67,7 @@ Paste one of these into a fresh session.
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | done | — | Stream charts: a ride's axis in km/h, a swim's in /100m |
 | T19 | MapLibre: ship its worker so the no-token basemap draws | done | — | MapLibre: ship its worker, so a map without a Mapbox token has a background |
 
-### Phase 2 — Map & routes · Checkpoint B: `open`
+### Phase 2 — Map & routes · Checkpoint B: `ready for review`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -203,7 +203,61 @@ lengths, not samples). Raise them again if they grate in use.
 
 ### Checkpoint B — Map & routes
 
-_Note: not written yet._
+Six tasks: the heatmap, the route list and page, the route edits, route playback, and
+races plus compare.
+
+| | |
+|---|---|
+| `d228b4d` | Map: an all-activities heatmap on /map, filtered by type and dates |
+| `38fec83` | Routes: every route endpoint typed, and /routes lists your loops |
+| `7e51d6c` | Routes: a route's page, coloured by where you speed up and slow down |
+| `dbd3170` | Routes: rename, merge and split from the route's own page |
+| `0ccbe5f` | Route playback: replay an activity, with the charts following |
+| `ad6fd1a` | Races you mark yourself, and 2–5 activities compared |
+
+**To look at** (on http://localhost:5173):
+
+- `/map` — every GPS point you have recorded. It opens on Qatar-to-Malaysia because
+  your data really does span that; the type and date filters are how you zoom in.
+  Try `2026-09-01` → `2026-09-24`, where the routes read as heat lines over Doha.
+- `/routes` — 67 routes, busiest first. `/routes/31` is the 5.0 km loop with 65
+  attempts: the map is coloured by where you are consistently fast or slow on it
+  (hover a stretch), and every attempt is under it with its gap behind your best.
+  "Rename", "Merge" and "Split" are on that page.
+- `/activities/24458669412` — a run (Sep 22). New: a play button under the map. The
+  trail, the clock and both charts' crosshairs move together. The route name in the
+  header now opens `/routes/53`.
+- `/activities` — rows have a tick box. Tick 2–5 and press Compare. "Races" filters
+  to races and clears the dates when you switch it on.
+- `/activities/13984719031` — the Ooredoo Marathon 10K, the one activity Garmin
+  tagged as a race. "Race" is now a toggle in the Edit dialog, so you can mark the
+  rest; mark a second 10 km and a "Compare races" button appears on this page.
+- `/compare?ids=24375228851,24288179680,24275617434,24264030099` — four attempts at
+  the 5.0 km loop overlaid, with pace and HR on a shared distance axis.
+
+Screenshots of all of these, light and dark, are in `~/garmin-review/B/`.
+
+**Unsure about:**
+
+- **49 of your 67 routes have one or two attempts.** They are not loops, just
+  activities the clusterer had nothing to pair with. The list is busiest-first so they
+  sit at the bottom, but a "repeated only" filter might be worth it.
+- **Long routes look stitched together.** A route's stored polyline is 100 points
+  however long the route is, so on the 27.7 km ride (`/routes/67`, 500 m segments)
+  some stretches hold fewer than two points and cannot be drawn. There is now a faint
+  line under the segments so it reads as a route rather than as holes, but the cause is
+  the resampling in `analytics/routes.py`, which is yours to say yes to.
+- **Nothing here could be checked for smoothness.** This box has no GPU, so a drag
+  costs ~233 ms a frame whether the map carries the 10,853-cell heatmap, one route, or
+  nothing at all, and the replay runs at ~2 fps. T13 owns the real numbers.
+- **The five compare colours clear a lower bar than the three sport colours.** Run,
+  ride and swim stay 25 apart under every kind of colour blindness; five categorical
+  colours cannot — see `design/palette.test.ts`, which is now the validator — so they
+  clear 18 and always come with the table as a legend.
+- `PATCH /api/routes/{id}` with no name now answers 422 instead of 400, because the
+  body is a typed model. Nothing in the app sends that, but it is an API change.
+- Adding `race` to the field registry changes the `v_activities` fingerprint, so your
+  running container will rebuild the view the next time it starts. Nothing to do.
 
 Owner feedback:
 
