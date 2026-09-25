@@ -74,7 +74,7 @@ Paste one of these into a fresh session.
 | T04 | Map: all-activities heatmap | done | — | Map: an all-activities heatmap on /map, filtered by type and dates |
 | T05a | Routes: type the endpoints, plus the route list | done | T04 | Routes: every route endpoint typed, and /routes lists your loops |
 | T05b | Routes: route detail (segment-coloured map, attempts) | done | T05a | Routes: a route's page, coloured by where you speed up and slow down |
-| T05c | Routes: rename / merge / split dialogs | todo | T05b | |
+| T05c | Routes: rename / merge / split dialogs | in progress (patti, 2026-09-25) | T05b | |
 | T06 | Route playback (TripsLayer) | todo | T05b | |
 | T07 | Races and Compare 2–5 activities | todo | T05b | |
 
