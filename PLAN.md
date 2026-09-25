@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 3 / 6 |
+| 2 Map & routes | B: `open` | 4 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -74,7 +74,7 @@ Paste one of these into a fresh session.
 | T04 | Map: all-activities heatmap | done | — | Map: an all-activities heatmap on /map, filtered by type and dates |
 | T05a | Routes: type the endpoints, plus the route list | done | T04 | Routes: every route endpoint typed, and /routes lists your loops |
 | T05b | Routes: route detail (segment-coloured map, attempts) | done | T05a | Routes: a route's page, coloured by where you speed up and slow down |
-| T05c | Routes: rename / merge / split dialogs | in progress (patti, 2026-09-25) | T05b | |
+| T05c | Routes: rename / merge / split dialogs | done | T05b | Routes: rename, merge and split from the route's own page |
 | T06 | Route playback (TripsLayer) | todo | T05b | |
 | T07 | Races and Compare 2–5 activities | todo | T05b | |
 
@@ -682,10 +682,19 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 
 ### T05c — Routes: rename, merge, split
 - **Build:**
-  - [ ] rename, merge and split as shadcn dialogs (the old UI used `window.prompt` and
+  - [x] rename, merge and split as shadcn dialogs (the old UI used `window.prompt` and
     never had a split button)
-  - [ ] invalidate the routes queries
+  - [x] invalidate the routes queries
 - **Done when:** each works on the real-data copy.
+- **Notes:**
+  - Merge offers only routes of the same activity type, which is the split the clusterer
+    already keeps; split refuses to empty a route and says so before the request, because
+    the server answers that with a 400.
+  - Delete is deliberately not built: T05c asks for rename, merge and split, and
+    `DELETE /api/routes/{id}` is typed and tested without a button of its own yet.
+  - Every one of the three invalidates the route list, **every** route detail and
+    segment profile, and the activity list: a merge deletes routes and a split makes
+    one, so no route's cached page survives either.
 
 ### T06 — Route playback
 - **Goal:** replay an activity on its map (the one allowed decorative animation).

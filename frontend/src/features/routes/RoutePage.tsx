@@ -5,6 +5,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { KindBadge } from "@/components/KindBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttemptsTable } from "@/features/routes/AttemptsTable";
+import { MergeRoutesDialog } from "@/features/routes/MergeRoutesDialog";
+import { RenameRouteDialog } from "@/features/routes/RenameRouteDialog";
+import { SplitRouteDialog } from "@/features/routes/SplitRouteDialog";
 import { toAttemptRows } from "@/features/routes/attemptRowView";
 import { RouteStats } from "@/features/routes/RouteStats";
 import { activityTypeLabel } from "@/lib/activityKind";
@@ -39,17 +42,24 @@ export function RoutePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">{detail.route.name}</h1>
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <KindBadge
-            kind={detail.route.kind}
-            label={activityTypeLabel(detail.route.activityType)}
-          />
-          <span>{detail.route.isLoop ? "Loop" : "Out and back"}</span>
-          <Link to="/routes" className="hover:text-foreground underline underline-offset-4">
-            All routes
-          </Link>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold tracking-tight">{detail.route.name}</h1>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <KindBadge
+              kind={detail.route.kind}
+              label={activityTypeLabel(detail.route.activityType)}
+            />
+            <span>{detail.route.isLoop ? "Loop" : "Out and back"}</span>
+            <Link to="/routes" className="hover:text-foreground underline underline-offset-4">
+              All routes
+            </Link>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <RenameRouteDialog routeId={detail.route.id} currentName={detail.route.name} />
+          <MergeRoutesDialog routeId={detail.route.id} activityType={detail.route.activityType} />
+          <SplitRouteDialog routeId={detail.route.id} attempts={detail.attempts} />
         </div>
       </div>
 

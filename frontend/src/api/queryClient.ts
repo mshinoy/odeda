@@ -39,8 +39,11 @@ export const queryKeys = {
   fields: ["fields"] as const,
   gear: ["gear"] as const,
   routes: ["routes"] as const,
+  /** Every route detail: a merge or a split changes more routes than the one it names. */
+  routeAll: ["route"] as const,
   route: (id: number) => ["route", id] as const,
   /** Apart from the route: only a re-cluster recomputes a segment profile. */
+  routeSegmentsAll: ["route-segments"] as const,
   routeSegments: (id: number) => ["route-segments", id] as const,
   heatmapAll: ["heatmap"] as const,
   heatmap: (params: HeatmapParams) => ["heatmap", params] as const,
