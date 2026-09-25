@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `ready for review` | 6 / 6 |
+| 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -67,7 +67,7 @@ Paste one of these into a fresh session.
 | T18 | Stream charts: sport-aware pace axis (km/h for rides, /100m for swims) | done | — | Stream charts: a ride's axis in km/h, a swim's in /100m |
 | T19 | MapLibre: ship its worker so the no-token basemap draws | done | — | MapLibre: ship its worker, so a map without a Mapbox token has a background |
 
-### Phase 2 — Map & routes · Checkpoint B: `ready for review`
+### Phase 2 — Map & routes · Checkpoint B: `approved`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -259,7 +259,11 @@ Screenshots of all of these, light and dark, are in `~/garmin-review/B/`.
 - Adding `race` to the field registry changes the `v_activities` fingerprint, so your
   running container will rebuild the view the next time it starts. Nothing to do.
 
-Owner feedback:
+Owner feedback: approved as-is on 2026-09-25, no changes requested. Two things stay open
+rather than fixed, and should be raised again if they grate in use: the route polyline is
+still resampled to 100 points regardless of length (so long routes read as stitched, see
+`/routes/67`), and there is still no "repeated only" filter to hide the 49 routes with one
+or two attempts.
 
 ### Checkpoint C — Health & trends
 
