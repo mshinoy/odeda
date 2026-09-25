@@ -76,7 +76,7 @@ Paste one of these into a fresh session.
 | T05b | Routes: route detail (segment-coloured map, attempts) | done | T05a | Routes: a route's page, coloured by where you speed up and slow down |
 | T05c | Routes: rename / merge / split dialogs | done | T05b | Routes: rename, merge and split from the route's own page |
 | T06 | Route playback (TripsLayer) | done | T05b | Route playback: replay an activity, with the charts following |
-| T07 | Races and Compare 2–5 activities | todo | T05b | |
+| T07 | Races and Compare 2–5 activities | in progress (patti, 2026-09-25) | T05b | |
 
 ### Phase 3 — Health & trends · Checkpoint C: `open`
 
