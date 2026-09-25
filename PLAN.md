@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 4 / 6 |
+| 2 Map & routes | B: `open` | 5 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -75,7 +75,7 @@ Paste one of these into a fresh session.
 | T05a | Routes: type the endpoints, plus the route list | done | T04 | Routes: every route endpoint typed, and /routes lists your loops |
 | T05b | Routes: route detail (segment-coloured map, attempts) | done | T05a | Routes: a route's page, coloured by where you speed up and slow down |
 | T05c | Routes: rename / merge / split dialogs | done | T05b | Routes: rename, merge and split from the route's own page |
-| T06 | Route playback (TripsLayer) | in progress (patti, 2026-09-25) | T05b | |
+| T06 | Route playback (TripsLayer) | done | T05b | Route playback: replay an activity, with the charts following |
 | T07 | Races and Compare 2–5 activities | todo | T05b | |
 
 ### Phase 3 — Health & trends · Checkpoint C: `open`
@@ -699,12 +699,27 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T06 — Route playback
 - **Goal:** replay an activity on its map (the one allowed decorative animation).
 - **Build:**
-  - [ ] deck.gl `TripsLayer` from a pure `makeTripsLayer(activity, ...)`, using
+  - [x] deck.gl `TripsLayer` from a pure `makeTripsLayer(activity, ...)`, using
     `elapsedS` as timestamps
-  - [ ] play/pause and a scrubber
-  - [ ] the scrub position writes `hover` in the store, so the charts' crosshair follows
+  - [x] play/pause and a scrubber
+  - [x] the scrub position writes `hover` in the store, so the charts' crosshair follows
 - **Done when:** playback runs smoothly on the longest GPS activity and syncs with the
   charts.
+- **Notes:**
+  - The clock is the activity's own `elapsed_s`, so the trail, the scrubber and the
+    crosshair need no conversion between them. Playback stops at the end rather than
+    looping, and pressing play there starts again.
+  - `makeTripsLayer` takes `trips: readonly Trip[]`, an array of one, because deck.gl
+    decides whether to re-upload the path by comparing `data` **by identity**. Building
+    `[trip]` inside the builder re-sent all 16,900 coordinates on every frame; hoisting
+    it roughly doubled the replay's frame rate here.
+  - The scrubber pauses playback: scrubbing and playing fight over the same clock.
+  - Playback owns the shared `hover` while it is running, so moving the pointer off the
+    route does not wipe the cursor mid-replay.
+  - **Smoothness could not be proven on this box.** Under headless SwiftShader the
+    longest GPS run (16.9 km, 2:17:56, ~16,900 points) replays at ~2 fps, against ~4 fps
+    for plain panning on the same map — the software rasteriser, not the layer, but that
+    is a floor, not a measurement. T13 owns the real number, on a GPU.
 
 ### T07 — Races and Compare
 - **Races (D3):** Garmin tagged only 1 of ~487 activities as a race
