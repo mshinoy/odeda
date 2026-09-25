@@ -29,3 +29,10 @@ export interface ProviderMapProps extends BaseMapProps {
 }
 
 export const FIT_PADDING_PX = 32;
+
+/**
+ * How far from a layer deck.gl still counts a pointer as on it. A route is drawn a few
+ * pixels wide, and asking someone to land on exactly those pixels to read a segment
+ * makes the hover detail unusable.
+ */
+export const PICKING_RADIUS_PX = 5;

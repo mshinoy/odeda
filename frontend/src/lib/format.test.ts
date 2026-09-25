@@ -5,6 +5,7 @@ import {
   formatDays,
   formatDecimal,
   formatInteger,
+  formatRelative,
   formatSigned,
   MISSING,
   formatDate,
@@ -310,6 +311,18 @@ describe("formatDecimal and formatSigned", () => {
     expect(formatSigned(3.24)).toBe("+3.2");
     expect(formatSigned(-4.9)).toBe("−4.9");
     expect(formatSigned(-0.04)).toBe("0.0");
+  });
+});
+
+describe("formatRelative", () => {
+  it("reads a ratio as how far it is from its baseline", () => {
+    expect(formatRelative(1.12)).toBe("+12%");
+    expect(formatRelative(0.92)).toBe("\u22128%");
+    expect(formatRelative(1)).toBe("0%");
+  });
+
+  it("is a dash when there is no ratio", () => {
+    expect(formatRelative(null)).toBe(MISSING);
   });
 });
 

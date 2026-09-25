@@ -11,8 +11,10 @@ import {
   toGearItems,
   toGymSession,
   toHeatmap,
+  toRouteDetail,
   toRouteList,
   toRouteOptions,
+  toRouteSegments,
 } from "@/api/adapters";
 import type { components } from "@/api/schema";
 
@@ -533,5 +535,170 @@ describe("toHeatmap", () => {
       count: [5, 3],
     };
     expect(toHeatmap(ragged).cells).toEqual([{ lon: 51.5, lat: 25.3, count: 5 }]);
+  });
+});
+
+describe("toRouteDetail", () => {
+  function detail(overrides: Partial<Schemas["RouteDetail"]> = {}): Schemas["RouteDetail"] {
+    return {
+      route: {
+        route_id: 31,
+        name: "5.0 km loop #31",
+        activity_type: "running",
+        distance_m: 5071.3,
+        distance_km: 5.07,
+        elevation_gain_m: 29.7,
+        is_loop: true,
+        pinned: false,
+        start_lat: 25.301,
+        start_lon: 51.495,
+        end_lat: 25.301,
+        end_lon: 51.495,
+        centroid_lat: 25.299,
+        centroid_lon: 51.495,
+        created_at: "2026-09-23T12:01:12Z",
+        updated_at: "2026-09-24T07:46:39Z",
+        points: {
+          lat: [25.3, 25.31],
+          lon: [51.49, 51.5],
+          altitude_m: [12.0, null],
+          distance_m: [0, 1200],
+        },
+      },
+      attempts: [attempt("old", "2024-01-18"), attempt("best", "2026-09-15")],
+      attempt_count: 2,
+      counted_count: 2,
+      stats: {
+        best_time_s: 1722.9,
+        worst_time_s: 3344,
+        median_time_s: 2526.6,
+        avg_pace_s_per_km: 506.7,
+        best_pace_s_per_km: 447.2,
+        improvement_s: -662.9,
+        first_day: "2024-01-18",
+        last_day: "2026-09-15",
+      },
+      best_attempt: attempt("best", "2026-09-15"),
+      worst_attempt: attempt("old", "2024-01-18"),
+      ...overrides,
+    };
+  }
+
+  function attempt(id: string, day: string): Schemas["RouteAttempt"] {
+    return {
+      activity_id: id,
+      day,
+      start_time_local: `${day}T06:10:00`,
+      activity_name: "Doha Running",
+      distance_m: 5047.7,
+      moving_time_s: 2499.9,
+      duration_s: 2500.9,
+      avg_hr: 145,
+      max_hr: 165,
+      avg_speed_mps: 2.018,
+      elevation_gain_m: 29.7,
+      avg_cadence_spm: 144.2,
+      rpe: null,
+      excluded_from_stats: null,
+      match_score: 0.96,
+      assigned: "auto",
+    };
+  }
+
+  it("turns the columnar polyline into [lon, lat] points", () => {
+    expect(toRouteDetail(detail()).route.path).toEqual([
+      [51.49, 25.3],
+      [51.5, 25.31],
+    ]);
+  });
+
+  it("keeps the API's units and names the fastest attempt", () => {
+    const result = toRouteDetail(detail());
+    expect(result.route.kind).toBe("run");
+    expect(result.stats).toEqual({
+      bestTimeS: 1722.9,
+      medianTimeS: 2526.6,
+      worstTimeS: 3344,
+      improvementS: -662.9,
+      firstDay: "2024-01-18",
+      lastDay: "2026-09-15",
+    });
+    expect(result.bestActivityId).toBe("best");
+  });
+
+  it("reads a null excluded_from_stats as not excluded", () => {
+    expect(toRouteDetail(detail()).attempts.every((a) => !a.excluded)).toBe(true);
+  });
+
+  it("has no best attempt for a route whose attempts are all untimed", () => {
+    expect(toRouteDetail(detail({ best_attempt: null })).bestActivityId).toBeNull();
+  });
+});
+
+describe("toRouteSegments", () => {
+  function segment(
+    overrides: Partial<Schemas["RouteSegmentProfile"]> = {},
+  ): Schemas["RouteSegmentProfile"] {
+    return {
+      seg_index: 0,
+      start_m: 0,
+      end_m: 200,
+      attempts: 63,
+      median_speed_mps: 2.1868,
+      median_pace_s_per_km: 457.3,
+      fastest_speed_mps: 2.8985,
+      slowest_speed_mps: 0.2285,
+      speed_cv_pct: 20.75,
+      relative_speed: 1.046,
+      median_hr: 104.6,
+      median_cadence_spm: 71.7,
+      median_gradient_pct: -2.75,
+      median_seconds: 94,
+      path: { lat: [25.3, 25.31], lon: [51.49, 51.5] },
+      ...overrides,
+    };
+  }
+
+  it("keeps the units and turns each path into [lon, lat] points", () => {
+    expect(
+      toRouteSegments({
+        route_id: 31,
+        name: "x",
+        segment_m: 200,
+        attempts: 63,
+        segments: [segment()],
+        fastest_segments: [],
+        slowest_segments: [],
+      }),
+    ).toEqual([
+      {
+        index: 0,
+        startM: 0,
+        endM: 200,
+        attempts: 63,
+        relativeSpeed: 1.046,
+        medianSpeedMps: 2.1868,
+        medianHr: 104.6,
+        medianSeconds: 94,
+        medianGradientPct: -2.75,
+        path: [
+          [51.49, 25.3],
+          [51.5, 25.31],
+        ],
+      },
+    ]);
+  });
+
+  it("drops a stretch the polyline cannot draw, rather than sending deck.gl a point", () => {
+    const rows = toRouteSegments({
+      route_id: 31,
+      name: "x",
+      segment_m: 500,
+      attempts: 1,
+      segments: [segment({ seg_index: 1, path: { lat: [25.3], lon: [51.49] } }), segment()],
+      fastest_segments: [],
+      slowest_segments: [],
+    });
+    expect(rows.map((r) => r.index)).toEqual([0]);
   });
 });

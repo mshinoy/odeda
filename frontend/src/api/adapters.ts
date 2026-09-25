@@ -132,6 +132,78 @@ export interface RouteListItem extends RouteOption {
   lastDay: string | null;
 }
 
+/** A route on its own page: what it is, and the geometry the map draws. */
+export interface Route {
+  id: number;
+  name: string;
+  activityType: string;
+  kind: ActivityKind;
+  distanceM: number;
+  elevationGainM: number | null;
+  isLoop: boolean;
+  /** True once the user renamed, merged or split it; reclustering leaves it alone. */
+  pinned: boolean;
+  /** The representative polyline, `[lon, lat]` as deck.gl and GeoJSON both want it. */
+  path: [number, number][];
+}
+
+/** One activity filed on a route, as the attempts table shows it. */
+export interface RouteAttempt {
+  activityId: string;
+  day: string;
+  startLocal: string | null;
+  name: string | null;
+  distanceM: number | null;
+  movingTimeS: number | null;
+  avgHr: number | null;
+  avgSpeedMps: number | null;
+  /** Left out of the route's stats by the user. */
+  excluded: boolean;
+  /** The user filed it on this route by hand, rather than the clusterer matching it. */
+  manual: boolean;
+}
+
+/** A route's headline numbers, over the attempts that count. */
+export interface RouteStats {
+  bestTimeS: number | null;
+  medianTimeS: number | null;
+  worstTimeS: number | null;
+  /** First counted attempt's time minus the last one's: positive means faster now. */
+  improvementS: number | null;
+  firstDay: string | null;
+  lastDay: string | null;
+}
+
+export interface RouteDetail {
+  route: Route;
+  attempts: RouteAttempt[];
+  /** Attempts not excluded from stats: the ones `stats` describes. */
+  countedCount: number;
+  stats: RouteStats;
+  /** The fastest counted attempt, for marking it in the table. */
+  bestActivityId: string | null;
+}
+
+/** One stretch of a route, aggregated over every attempt at it. */
+export interface RouteSegment {
+  index: number;
+  startM: number;
+  endM: number;
+  attempts: number;
+  /**
+   * Median of (this stretch's speed ÷ that attempt's own average speed). Below 1 is
+   * ground you are consistently slower on, whichever day you ran it. Null when no
+   * attempt recorded a speed here.
+   */
+  relativeSpeed: number | null;
+  medianSpeedMps: number | null;
+  medianHr: number | null;
+  medianSeconds: number | null;
+  medianGradientPct: number | null;
+  /** The slice of the route this stretch covers, `[lon, lat]` as deck.gl wants it. */
+  path: [number, number][];
+}
+
 /** Garmin's category for an exercise it could not name. */
 export const UNKNOWN_EXERCISE = "UNKNOWN";
 
@@ -290,9 +362,8 @@ export function toRouteOptions(raw: Schemas["RouteList"]): RouteOption[] {
   return raw.routes.map(toRouteOption);
 }
 
-/** Every route, busiest first — the API's order, which is the order the list wants. */
-export function toRouteList(raw: Schemas["RouteList"]): RouteListItem[] {
-  return raw.routes.map((route) => ({
+function toRouteListItem(route: Schemas["RouteSummary"]): RouteListItem {
+  return {
     ...toRouteOption(route),
     kind: activityKind(route.activity_type),
     isLoop: route.is_loop,
@@ -301,7 +372,84 @@ export function toRouteList(raw: Schemas["RouteList"]): RouteListItem[] {
     medianTimeS: route.median_moving_time_s,
     firstDay: route.first_day,
     lastDay: route.last_day,
-  }));
+  };
+}
+
+/** Every route, busiest first — the API's order, which is the order the list wants. */
+export function toRouteList(raw: Schemas["RouteList"]): RouteListItem[] {
+  return raw.routes.map(toRouteListItem);
+}
+
+/** `[lon, lat]` coordinates from two columns, skipping any point that is missing one. */
+function toCoordinates(path: Schemas["Polyline"]): [number, number][] {
+  const coordinates: [number, number][] = [];
+  path.lat.forEach((lat, i) => {
+    const lon = path.lon[i];
+    if (lon !== undefined) coordinates.push([lon, lat]);
+  });
+  return coordinates;
+}
+
+export function toRouteDetail(raw: Schemas["RouteDetail"]): RouteDetail {
+  const route = raw.route;
+
+  return {
+    route: {
+      id: route.route_id,
+      name: route.name,
+      activityType: route.activity_type,
+      kind: activityKind(route.activity_type),
+      distanceM: route.distance_m,
+      elevationGainM: route.elevation_gain_m,
+      isLoop: route.is_loop,
+      pinned: route.pinned,
+      path: toCoordinates(route.points),
+    },
+    attempts: raw.attempts.map(toRouteAttempt),
+    countedCount: raw.counted_count,
+    stats: {
+      bestTimeS: raw.stats.best_time_s,
+      medianTimeS: raw.stats.median_time_s,
+      worstTimeS: raw.stats.worst_time_s,
+      improvementS: raw.stats.improvement_s,
+      firstDay: raw.stats.first_day,
+      lastDay: raw.stats.last_day,
+    },
+    bestActivityId: raw.best_attempt?.activity_id ?? null,
+  };
+}
+
+function toRouteAttempt(raw: Schemas["RouteAttempt"]): RouteAttempt {
+  return {
+    activityId: raw.activity_id,
+    day: raw.day,
+    startLocal: raw.start_time_local,
+    name: raw.activity_name,
+    distanceM: raw.distance_m,
+    movingTimeS: raw.moving_time_s,
+    avgHr: raw.avg_hr,
+    avgSpeedMps: raw.avg_speed_mps,
+    excluded: raw.excluded_from_stats === 1,
+    manual: raw.assigned === "manual",
+  };
+}
+
+/** The segment profile, in route order; segments the polyline cannot place are dropped. */
+export function toRouteSegments(raw: Schemas["RouteSegments"]): RouteSegment[] {
+  return raw.segments
+    .map((segment) => ({
+      index: segment.seg_index,
+      startM: segment.start_m,
+      endM: segment.end_m,
+      attempts: segment.attempts,
+      relativeSpeed: segment.relative_speed,
+      medianSpeedMps: segment.median_speed_mps,
+      medianHr: segment.median_hr,
+      medianSeconds: segment.median_seconds,
+      medianGradientPct: segment.median_gradient_pct,
+      path: toCoordinates(segment.path),
+    }))
+    .filter((segment) => segment.path.length >= 2);
 }
 
 // ---------------------------------------------------------------- heatmap

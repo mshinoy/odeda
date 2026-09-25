@@ -31,7 +31,7 @@ Paste one of these into a fresh session.
 |---|---|---|
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
-| 2 Map & routes | B: `open` | 2 / 6 |
+| 2 Map & routes | B: `open` | 3 / 6 |
 | 3 Health & trends | C: `open` | 0 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
@@ -73,7 +73,7 @@ Paste one of these into a fresh session.
 |---|---|---|---|---|
 | T04 | Map: all-activities heatmap | done | — | Map: an all-activities heatmap on /map, filtered by type and dates |
 | T05a | Routes: type the endpoints, plus the route list | done | T04 | Routes: every route endpoint typed, and /routes lists your loops |
-| T05b | Routes: route detail (segment-coloured map, attempts) | in progress (patti, 2026-09-25) | T05a | |
+| T05b | Routes: route detail (segment-coloured map, attempts) | done | T05a | Routes: a route's page, coloured by where you speed up and slow down |
 | T05c | Routes: rename / merge / split dialogs | todo | T05b | |
 | T06 | Route playback (TripsLayer) | todo | T05b | |
 | T07 | Races and Compare 2–5 activities | todo | T05b | |
@@ -660,11 +660,25 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 
 ### T05b — Routes: detail
 - **Build:**
-  - [ ] `/routes/:id`: the route map coloured by the segments' relative speed ("where
+  - [x] `/routes/:id`: the route map coloured by the segments' relative speed ("where
     you speed up or slow down")
-  - [ ] attempts table, best/median time, improvement
+  - [x] attempts table, best/median time, improvement
 - **Old reference:** `openRoute` in `app.js`.
 - **Done when:** a real route shows its segments and attempts.
+- **Notes:**
+  - A segment's colour is its `relative_speed` on the blue magnitude ramp; the legend
+    reads it as a percentage against your own average on that route (`formatRelative`).
+    Hovering a stretch gives its distance, pace, that percentage and its HR.
+  - "Improvement" is labelled **First to last**, because that is what the backend's
+    `improvement_s` is: two single attempts, not a trend.
+  - The route's own polyline is drawn faintly under the segments. The stored polyline is
+    100 points however long the route is, so on a long route (500 m or 1 km segments)
+    some stretches hold fewer than two points and cannot be drawn; without the outline
+    the route looked like it had holes in it. Fixing the cause means resampling in
+    `analytics/routes.py`, which is the owner's call — see Checkpoint B.
+  - `MetricLegend` and the heatmap's `DensityLegend` now share `map/RampLegend.tsx`.
+  - deck.gl picks within `PICKING_RADIUS_PX` (5) of a layer. A 6 px path you had to land
+    on exactly made the hover detail unusable; the activity map gets this too.
 
 ### T05c — Routes: rename, merge, split
 - **Build:**

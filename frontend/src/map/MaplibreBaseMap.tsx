@@ -13,7 +13,12 @@ import {
 import { setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { FIT_PADDING_PX, type MapBounds, type ProviderMapProps } from "@/map/types";
+import {
+  FIT_PADDING_PX,
+  PICKING_RADIUS_PX,
+  type MapBounds,
+  type ProviderMapProps,
+} from "@/map/types";
 
 // MapLibre looks for its worker next to its own chunk (`import.meta.url`), which is not
 // where a bundler puts it, so without this every map logs "Worker failed to load" and
@@ -78,7 +83,9 @@ interface DeckOverlayProps {
 // the map's camera by MapboxOverlay, which works with MapLibre too. Same as the Mapbox
 // module's, but each library's `useControl` only works under its own <Map>.
 function DeckOverlay({ layers, onHover }: DeckOverlayProps) {
-  const overlay = useControl(() => new MapboxOverlay({ interleaved: false }));
+  const overlay = useControl(
+    () => new MapboxOverlay({ interleaved: false, pickingRadius: PICKING_RADIUS_PX }),
+  );
 
   useEffect(() => {
     overlay.setProps({ layers, onHover });

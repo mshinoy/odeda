@@ -6,6 +6,7 @@ import { formatDate, formatDistance, formatDuration, formatInteger } from "@/lib
 
 export interface RouteRowView {
   id: number;
+  href: string;
   name: string;
   kind: ActivityKind;
   typeLabel: string;
@@ -22,6 +23,7 @@ export interface RouteRowView {
 export function toRouteRowView(route: RouteListItem, today: Date = new Date()): RouteRowView {
   return {
     id: route.id,
+    href: `/routes/${route.id}`,
     name: route.name,
     kind: route.kind,
     typeLabel: activityTypeLabel(route.activityType),

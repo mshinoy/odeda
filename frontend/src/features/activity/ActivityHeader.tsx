@@ -33,8 +33,10 @@ export function ActivityHeader({ summary, edits, gear, route, actions }: Activit
           )}
           {route && (
             <Mark icon={<RouteIcon className="size-3" aria-hidden />}>
-              {/* The list, not this route's own page: that is T05b's. */}
-              <Link to="/routes" className="hover:text-foreground underline underline-offset-4">
+              <Link
+                to={`/routes/${route.id}`}
+                className="hover:text-foreground underline underline-offset-4"
+              >
                 {route.name}
               </Link>
             </Mark>

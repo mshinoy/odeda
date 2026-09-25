@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { KindBadge } from "@/components/KindBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RouteRowView } from "@/features/routes/routeRowView";
@@ -42,8 +43,15 @@ export function RouteTable({ rows }: { rows: RouteRowView[] | undefined }) {
 
 function RouteRow({ row }: { row: RouteRowView }) {
   return (
-    <tr className="hover:bg-muted/60 border-b transition-colors">
-      <td className={cn(cell, "font-medium")}>{row.name}</td>
+    <tr className="hover:bg-muted/60 relative border-b transition-colors">
+      <td className={cn(cell, "font-medium")}>
+        <Link
+          to={row.href}
+          className="focus-visible:after:ring-ring after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset"
+        >
+          {row.name}
+        </Link>
+      </td>
       <td className={cell}>
         <KindBadge kind={row.kind} label={row.typeLabel} />
       </td>

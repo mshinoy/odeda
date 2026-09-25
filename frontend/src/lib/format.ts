@@ -285,6 +285,15 @@ export function formatSigned(value: MaybeNumber, digits = 1): string {
   return `${sign}${fixedDigits(digits).format(Math.abs(rounded))}`;
 }
 
+/**
+ * A ratio against a baseline of 1, as the percentage it differs by: 1.12 → "+12%".
+ * Used for a route segment's speed against your own average on that route.
+ */
+export function formatRelative(ratio: MaybeNumber, digits = 0): string {
+  if (!isNumber(ratio)) return MISSING;
+  return `${formatSigned((ratio - 1) * 100, digits)}%`;
+}
+
 // ---------------------------------------------------------------- the gym
 
 /** What an exercise Garmin could not name is called. */

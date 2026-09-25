@@ -3,6 +3,7 @@ import { ActivitiesPage } from "@/features/activities/ActivitiesPage";
 import { ActivityPage } from "@/features/activity/ActivityPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
+import { RoutePage } from "@/features/routes/RoutePage";
 import { RoutesPage } from "@/features/routes/RoutesPage";
 import { AppShell } from "@/features/shell/AppShell";
 import { NotBuiltYet } from "@/features/shell/NotBuiltYet";
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
           { path: "activities/:id", element: <ActivityPage /> },
           { path: "map", element: <MapPage /> },
           { path: "routes", element: <RoutesPage /> },
+          { path: "routes/:id", element: <RoutePage /> },
           { path: "*", element: <NotBuiltYet /> },
         ],
       },

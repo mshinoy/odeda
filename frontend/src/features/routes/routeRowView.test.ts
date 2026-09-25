@@ -27,6 +27,7 @@ describe("toRouteRowView", () => {
   it("formats every cell through format.ts", () => {
     expect(toRouteRowView(route(), today)).toEqual({
       id: 31,
+      href: "/routes/31",
       name: "5.0 km loop #31",
       kind: "run",
       typeLabel: "Trail running",

@@ -12,7 +12,12 @@ import {
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEnv } from "@/map/basemap";
-import { FIT_PADDING_PX, type MapBounds, type ProviderMapProps } from "@/map/types";
+import {
+  FIT_PADDING_PX,
+  PICKING_RADIUS_PX,
+  type MapBounds,
+  type ProviderMapProps,
+} from "@/map/types";
 
 export function MapboxBaseMap({
   layers,
@@ -74,7 +79,9 @@ interface DeckOverlayProps {
 // the map's camera by MapboxOverlay. Same as the MapLibre module's, but each library's
 // `useControl` only works under its own <Map>.
 function DeckOverlay({ layers, onHover }: DeckOverlayProps) {
-  const overlay = useControl(() => new MapboxOverlay({ interleaved: false }));
+  const overlay = useControl(
+    () => new MapboxOverlay({ interleaved: false, pickingRadius: PICKING_RADIUS_PX }),
+  );
 
   useEffect(() => {
     overlay.setProps({ layers, onHover });
