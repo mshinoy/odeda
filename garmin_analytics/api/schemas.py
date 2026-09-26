@@ -1044,6 +1044,79 @@ class Trends(_Model):
     """|z| at or above which a metric is flagged."""
 
 
+# --- Fitbit connection -----------------------------------------------------------------
+
+
+class FitbitStatus(_Model):
+    """`GET /api/fitbit/status`. Deliberately makes no network call: Fitbit allows 150
+    requests an hour and a Settings page that asks it anything spends one per open."""
+
+    connected: bool
+    credentials_configured: bool
+    """Whether FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET are in the environment. Until
+    they are, there is nothing to connect *with* and the panel says so."""
+    user_id: str
+    last_synced_day: str | None = None
+    weigh_ins: int
+    first_day: str | None = None
+    last_day: str | None = None
+    redirect_uri: str
+    """What has to be registered at dev.fitbit.com, character for character."""
+
+
+class FitbitAuthorizeUrl(_Model):
+    """The consent URL to open. The PKCE verifier behind it stays on the server."""
+
+    url: str
+    redirect_uri: str
+    expires_in_s: int
+
+
+class FitbitConnectRequest(_Model):
+    """The address bar the browser landed on, or just the code out of it."""
+
+    redirect: str
+
+
+class FitbitConnected(FitbitStatus):
+    status: str
+
+
+class FitbitDisconnected(FitbitStatus):
+    status: str
+    removed_files: int
+
+
+class FitbitSyncResult(_Model):
+    """What a sync did. `state` is `done`, `rate_limited` or `stopped`."""
+
+    endpoint: str
+    start_day: str
+    end_day: str
+    windows: int
+    windows_done: int
+    days_written: int
+    state: str
+    retry_after_s: int | None = None
+    """Seconds until Fitbit's hourly budget resets, when that is why it stopped."""
+
+
+class FitbitImportRequest(_Model):
+    """A path on the server to a Fitbit export ZIP from Google Takeout."""
+
+    path: str
+
+
+class FitbitImportResult(_Model):
+    zip: str
+    members_scanned: int
+    written: int
+    units_found: list[str]
+    """`kg`, `lb`, or both — the export does not say, so it is inferred and reported."""
+    unrecognised_count: int
+    undecodable_count: int
+
+
 # --- body composition ----------------------------------------------------------------
 
 

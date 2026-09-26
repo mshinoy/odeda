@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 7 / 8 |
+| 5 Fitbit body composition | E: `open` | 8 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -116,7 +116,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | done | T22 | Body composition: the trend, not the morning |
 | T27 | Health: the body-composition section | done | T26 | Health: what the scale says, once the noise is out of it |
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
-| T29 | Settings: connect Fitbit, import an export, sync body composition | in progress (fitbit, 2026-09-26) | T24, T25 | |
+| T29 | Settings: connect Fitbit, import an export, sync body composition | done | T24, T25 | Settings: connect the scale, or import it from a ZIP |
 
 ### Open decisions
 
@@ -1716,10 +1716,10 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Goal:** the owner can connect the account tomorrow without reading any of this.
 - **Files:** `frontend/src/features/settings/`, `garmin_analytics/api/server.py`.
 - **Build:**
-  - [ ] a Fitbit panel beside the Garmin one: authorize link, paste the redirect URL,
+  - [x] a Fitbit panel beside the Garmin one: authorize link, paste the redirect URL,
     connected state, disconnect
-  - [ ] import an export ZIP by path, for the offline route
-  - [ ] the `fitbit_body` watermark in the sync panel
+  - [x] import an export ZIP by path, for the offline route
+  - [x] the `fitbit_body` watermark in the sync panel
 - **Notes:**
   - Measured on eighteen seeded months: the scale moves 0.62 kg day to day, a
     7-reading trailing mean moves 0.099 kg — a factor of **6.2**. That ratio is the
@@ -1738,3 +1738,38 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     remainder — so over eighteen months fat mass falls 4.3 kg while lean mass rises
     0.7 kg. Before this the fat percentage was a straight line with noise on it and the
     two masses fell in parallel.
+- **Notes:**
+  - **The panel has three states and says which one you are in.** No app registered,
+    registered but not authorised, and connected are three different problems needing
+    three different things; a disabled button would leave the owner guessing. The
+    first state prints the exact redirect URL that has to be registered at
+    dev.fitbit.com, because Fitbit matches it byte for byte.
+  - **The PKCE verifier never reaches the browser.** `GET /api/fitbit/authorize-url`
+    returns the URL and nothing else; the verifier and the state are held in memory on
+    the server, keyed by state, and looked up when the code comes back. A test asserts
+    `code_verifier` is not in the response. Held in memory rather than on disk for the
+    same reason the Garmin MFA challenge is: it is an auth context, and a restart
+    mid-flow costs one click.
+  - **Two ways in, because the redirect may not come back here.** `GET
+    /api/fitbit/callback` completes the flow automatically when the registered redirect
+    does point at this app — and that is a setting at dev.fitbit.com that nothing in
+    this repo controls, so pasting the address bar into the panel does the same thing.
+    The callback renders one escaped sentence of HTML: Fitbit lands a *browser* there,
+    not the app, so a failure has to be readable, and `error` arrives in a query string.
+  - **The sync is synchronous, deliberately.** A three-year backfill is ~36 requests
+    paced a second apart — under a minute, which is short enough to answer in a request
+    and not worth a background job with its own status row. A rate-limited run reports
+    what it got and when to come back; the copy is tested for not reading as a failure,
+    because it is not one.
+  - The export importer takes a **path**, not an upload: the archive is hundreds of
+    megabytes, this app is single-tenant on the owner's own machine, and streaming a
+    multipart upload through it to write it straight back to disk is work for no gain.
+  - The sync panel needed no change — `WatermarkTable` renders every row of
+    `sync_watermark` whatever wrote it, so `fitbit_body` and `fitbit_export` appear the
+    first time they run. Its comment said "each Garmin endpoint"; that is now true
+    again by being correct rather than by being narrowed.
+  - **The import was exercised end to end against a running server**, with a ZIP built
+    for the purpose: 168.4 lb came back as 76.38 kg, the unit inference reported `lb`,
+    and `/api/body` picked the rows up. The consent and exchange were not — that needs
+    the credential.
+

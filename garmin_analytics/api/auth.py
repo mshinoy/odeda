@@ -277,3 +277,118 @@ def garmin_disconnect(settings) -> dict[str, Any]:
 
     removed = connect_mod.logout(Path(settings.token_dir))
     return {"status": "ok", "removed_files": removed, **garmin_status(settings)}
+
+
+# ---------------------------------------------------------------------------
+# Fitbit connection
+# ---------------------------------------------------------------------------
+#
+# Fitbit's OAuth needs one thing Garmin's does not: state that survives between two
+# HTTP requests. The PKCE verifier is generated when the consent URL is built and is
+# not sent until the code comes back, minutes later, from a different request — so it
+# is held here, in memory, exactly like an MFA challenge and for the same reason. It is
+# an auth context with no business being written to disk, and a restart mid-flow costs
+# one click.
+
+#: state -> (expires_at, PendingAuthorization). Fitbit's authorization codes live ten
+#: minutes; this is generous against that and still short.
+_FITBIT_PENDING: dict[str, tuple[float, Any]] = {}
+FITBIT_PENDING_TTL_S = 900.0
+
+
+def _purge_pending() -> None:
+    now = time.monotonic()
+    for key in [k for k, (exp, _) in _FITBIT_PENDING.items() if exp < now]:
+        _FITBIT_PENDING.pop(key, None)
+
+
+def fitbit_status(settings) -> dict[str, Any]:
+    """Whether Fitbit is connected, and how much it has given us. No network call."""
+    from ..ingest import fitbit_sync
+
+    with Store.open(settings) as store:
+        state = fitbit_sync.status(store, Path(settings.token_dir))
+    state["redirect_uri"] = _fitbit_redirect()
+    return state
+
+
+def _fitbit_redirect() -> str:
+    from ..ingest import fitbit as fitbit_mod
+
+    return fitbit_mod.redirect_uri()
+
+
+def fitbit_authorize_url(settings) -> dict[str, Any]:
+    """Build the consent URL and remember the PKCE verifier behind it.
+
+    The verifier and the state are returned to nobody: the browser gets only the URL,
+    and the exchange later looks the pair up by the `state` Fitbit echoes back. That is
+    what makes the anti-forgery check mean something.
+    """
+    from ..ingest import fitbit as fitbit_mod
+
+    _purge_pending()
+    creds = fitbit_mod.Credentials.from_env()
+    pending = fitbit_mod.begin_authorization(creds.client_id)
+    _FITBIT_PENDING[pending.state] = (time.monotonic() + FITBIT_PENDING_TTL_S, pending)
+    return {
+        "url": pending.url,
+        "redirect_uri": pending.redirect_uri,
+        "expires_in_s": int(FITBIT_PENDING_TTL_S),
+    }
+
+
+def fitbit_connect(settings, pasted: str) -> dict[str, Any]:
+    """Finish the flow from whatever the browser landed on.
+
+    Takes the whole redirect URL or the bare code, for the same reason the Garmin
+    ticket route does: telling someone their URL is the wrong shape helps nobody.
+
+    With no `state` in the pasted text there is nothing to match, so the most recent
+    pending authorization is used — the single-tenant case, where there is only ever
+    one. When a `state` *is* present it must match, and a mismatch is refused.
+    """
+    from ..ingest import fitbit as fitbit_mod
+
+    _purge_pending()
+    if not pasted or not pasted.strip():
+        raise ValueError("paste the address bar you landed on, or the code from it")
+
+    pending = _match_pending(pasted)
+    if pending is None:
+        raise LookupError(
+            "that sign-in attempt has expired or was already used. Press Connect again."
+        )
+
+    creds = fitbit_mod.Credentials.from_env()
+    code = fitbit_mod.extract_code(pasted, pending.state)
+    tokens = fitbit_mod.exchange_code(creds, pending, code, fitbit_mod.UrllibTransport())
+    fitbit_mod.save_tokens(tokens, Path(settings.token_dir))
+    _FITBIT_PENDING.pop(pending.state, None)
+    return {"status": "ok", "user_id": tokens.user_id, **fitbit_status(settings)}
+
+
+def _match_pending(pasted: str) -> Any:
+    """The pending authorization this redirect belongs to, or None."""
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(pasted.strip())
+    params = urllib.parse.parse_qs(parsed.query or parsed.fragment)
+    state = (params.get("state") or [""])[0]
+    if state:
+        entry = _FITBIT_PENDING.get(state)
+        return None if entry is None else entry[1]
+    if not _FITBIT_PENDING:
+        return None
+    # Newest first: an abandoned attempt from ten minutes ago should not win over the
+    # one the user is in the middle of.
+    newest = max(_FITBIT_PENDING.values(), key=lambda item: item[0])
+    return newest[1]
+
+
+def fitbit_disconnect(settings) -> dict[str, Any]:
+    from ..ingest import fitbit as fitbit_mod
+
+    removed = fitbit_mod.forget_tokens(Path(settings.token_dir))
+    _FITBIT_PENDING.clear()
+    return {"status": "ok", "removed_files": removed, **fitbit_status(settings)}

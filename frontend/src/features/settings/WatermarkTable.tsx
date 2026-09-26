@@ -18,7 +18,13 @@ function tone(status: Watermark["status"]): "good" | "warning" | "critical" | "n
   return "neutral";
 }
 
-/** How far each Garmin endpoint has been synced. */
+/**
+ * How far each endpoint has been synced.
+ *
+ * Every row in `sync_watermark`, whichever source wrote it: the Garmin endpoints, and
+ * `fitbit_body` and `fitbit_export` since Phase 5. It takes no filter, so a new source
+ * appears here the first time it runs without anything in this table changing.
+ */
 export function WatermarkTable({ watermarks }: { watermarks: readonly Watermark[] }) {
   if (watermarks.length === 0) {
     return <p className="text-muted-foreground text-sm">No endpoint has synced yet.</p>;

@@ -257,7 +257,7 @@ def _run_fitbit(args: argparse.Namespace) -> int:
         )
     print(
         f"{result['state']}: {result['windows_done']}/{result['windows']} windows, "
-        f"{result['days_written']} weigh-ins, {result['from']} → {result['to']}"
+        f"{result['days_written']} weigh-ins, {result['start_day']} → {result['end_day']}"
     )
     if result["state"] == "rate_limited":
         print(f"  Fitbit's hourly budget is spent. Re-run in {result['retry_after_s']} s; "

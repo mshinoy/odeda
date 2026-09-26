@@ -376,3 +376,129 @@ class TestTheCommand:
         args = cli.build_parser().parse_args(["fitbit", "connect"])
         assert cli.cmd_fitbit(args) == 1
         assert "dev.fitbit.com" in capsys.readouterr().err
+
+
+class TestTheApi:
+    """The Fitbit routes. Nothing here reaches Fitbit: the exchange is the one call
+    that would, and the tests that need it drive it through the fake transport in
+    `test_fitbit_auth.py`."""
+
+    @pytest.fixture
+    def app_client(self, settings, tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from garmin_analytics.api import auth as auth_mod
+        from garmin_analytics.api.server import create_app
+
+        monkeypatch.setenv("GA_TOKEN_DIR", str(tmp_path / "tokens"))
+        auth_mod._FITBIT_PENDING.clear()
+        from garmin_analytics.config import load_settings
+
+        with TestClient(create_app(load_settings())) as client:
+            yield client
+        auth_mod._FITBIT_PENDING.clear()
+
+    def test_status_says_nothing_is_set_up_yet(self, app_client, monkeypatch):
+        monkeypatch.delenv("FITBIT_CLIENT_ID", raising=False)
+        monkeypatch.delenv("FITBIT_CLIENT_SECRET", raising=False)
+        body = app_client.get("/api/fitbit/status").json()
+        assert body["connected"] is False
+        assert body["credentials_configured"] is False
+        assert body["weigh_ins"] == 0
+        # What has to be registered at dev.fitbit.com, so the panel can show it.
+        assert body["redirect_uri"].endswith("/api/fitbit/callback")
+
+    def test_asking_for_a_url_without_credentials_is_a_409_not_a_500(
+        self, app_client, monkeypatch
+    ):
+        """A missing client id is a setup step the user has not done, not a fault."""
+        monkeypatch.delenv("FITBIT_CLIENT_ID", raising=False)
+        monkeypatch.delenv("FITBIT_CLIENT_SECRET", raising=False)
+        res = app_client.get("/api/fitbit/authorize-url")
+        assert res.status_code == 409
+        assert "dev.fitbit.com" in res.json()["detail"]
+
+    def test_the_authorize_url_keeps_the_verifier_on_the_server(
+        self, app_client, monkeypatch
+    ):
+        """PKCE is worthless if the secret half is handed to the browser."""
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "cid")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "csecret")
+        body = app_client.get("/api/fitbit/authorize-url").json()
+
+        assert body["url"].startswith(F.AUTHORIZE_URL)
+        assert "code_challenge=" in body["url"]
+        assert "code_verifier" not in body["url"]
+        assert set(body) == {"url", "redirect_uri", "expires_in_s"}
+
+    def test_connecting_without_a_pending_attempt_is_a_410(self, app_client, monkeypatch):
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "cid")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "csecret")
+        res = app_client.post("/api/fitbit/connect", json={"redirect": "?code=abc123&state=x"})
+        assert res.status_code == 410
+
+    def test_an_empty_paste_says_what_to_paste(self, app_client, monkeypatch):
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "cid")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "csecret")
+        app_client.get("/api/fitbit/authorize-url")
+        res = app_client.post("/api/fitbit/connect", json={"redirect": "  "})
+        assert res.status_code == 400
+        assert "address bar" in res.json()["detail"]
+
+    def test_a_redirect_from_another_attempt_is_refused(self, app_client, monkeypatch):
+        """The anti-forgery check, over HTTP. A state the server never issued has no
+        pending authorization to match, so there is nothing to exchange."""
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "cid")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "csecret")
+        app_client.get("/api/fitbit/authorize-url")
+        res = app_client.post(
+            "/api/fitbit/connect", json={"redirect": "?code=abc123&state=forged"}
+        )
+        assert res.status_code == 410
+
+    def test_the_callback_renders_a_page_rather_than_a_stack_trace(
+        self, app_client, monkeypatch
+    ):
+        """Fitbit lands a browser here, not the app, so a failure has to be readable."""
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "cid")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "csecret")
+        res = app_client.get("/api/fitbit/callback?error=access_denied")
+        assert res.status_code == 400
+        assert res.headers["content-type"].startswith("text/html")
+        assert "access_denied" in res.text
+
+    def test_the_callback_escapes_what_fitbit_sent(self, app_client):
+        """`error` is a query string and reaches the page as text."""
+        res = app_client.get("/api/fitbit/callback?error=<script>alert(1)</script>")
+        assert "<script>" not in res.text
+        assert "&lt;script&gt;" in res.text
+
+    def test_disconnect_is_idempotent(self, app_client):
+        first = app_client.post("/api/fitbit/disconnect").json()
+        assert first["removed_files"] == 0
+        assert first["connected"] is False
+
+    def test_syncing_before_connecting_is_a_409(self, app_client):
+        res = app_client.post("/api/fitbit/sync")
+        assert res.status_code == 409
+        assert "fitbit connect" in res.json()["detail"]
+
+    def test_importing_a_missing_archive_is_a_404(self, app_client):
+        res = app_client.post("/api/fitbit/import", json={"path": "/nowhere/takeout.zip"})
+        assert res.status_code == 404
+
+    def test_importing_an_export_writes_weigh_ins(self, app_client, tmp_path):
+        from test_fitbit_export import build_zip, metric_record, weight_json
+
+        path = build_zip(
+            tmp_path,
+            {
+                "Takeout/Fitbit/Global Export Data/weight-2019-03.json": weight_json(
+                    metric_record("03/01/19", 76.4), metric_record("03/08/19", 76.0)
+                )
+            },
+        )
+        body = app_client.post("/api/fitbit/import", json={"path": str(path)}).json()
+        assert body["written"] == 2
+        assert body["units_found"] == ["kg"]
+        assert app_client.get("/api/fitbit/status").json()["weigh_ins"] == 2

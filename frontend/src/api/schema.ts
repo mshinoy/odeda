@@ -163,6 +163,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fitbit/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fitbit Status */
+        get: operations["fitbit_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fitbit/authorize-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fitbit Authorize Url
+         * @description The consent URL to open. The PKCE verifier behind it never leaves the server.
+         */
+        get: operations["fitbit_authorize_url"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fitbit/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fitbit Connect
+         * @description Finish the flow from the address bar the browser landed on.
+         */
+        post: operations["fitbit_connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fitbit/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fitbit Callback
+         * @description Where Fitbit sends the browser back to.
+         *
+         *     This exists so the common case is one click: the redirect lands here, the
+         *     exchange happens, and the user is told to go back to Settings. It is not the
+         *     only way in — `POST /api/fitbit/connect` takes a pasted URL — because this
+         *     route only works if the registered redirect actually points at this app, and
+         *     whether it does is a setting at dev.fitbit.com that nothing here controls.
+         */
+        get: operations["fitbit_callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fitbit/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fitbit Disconnect */
+        post: operations["fitbit_disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fitbit/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fitbit Sync Now
+         * @description Pull weigh-ins. Synchronous, and that is a considered choice.
+         *
+         *     A three-year backfill is ~36 requests paced a second apart, so the whole job is
+         *     under a minute — short enough to answer in a request, and not worth the
+         *     machinery of a background job with its own status row. If Fitbit's budget runs
+         *     out it returns `rate_limited` with its place kept, and running it again resumes.
+         */
+        post: operations["fitbit_sync_now"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fitbit/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fitbit Import
+         * @description Load a Google Takeout export from a path on this machine. No credential.
+         */
+        post: operations["fitbit_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -2135,6 +2280,165 @@ export interface components {
              * @description Activities of this type, before any other filter.
              */
             n: number;
+        };
+        /**
+         * FitbitAuthorizeUrl
+         * @description The consent URL to open. The PKCE verifier behind it stays on the server.
+         */
+        FitbitAuthorizeUrl: {
+            /** Url */
+            url: string;
+            /** Redirect Uri */
+            redirect_uri: string;
+            /** Expires In S */
+            expires_in_s: number;
+        };
+        /**
+         * FitbitConnectRequest
+         * @description The address bar the browser landed on, or just the code out of it.
+         */
+        FitbitConnectRequest: {
+            /** Redirect */
+            redirect: string;
+        };
+        /** FitbitConnected */
+        FitbitConnected: {
+            /** Connected */
+            connected: boolean;
+            /**
+             * Credentials Configured
+             * @description Whether FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET are in the environment. Until
+             *     they are, there is nothing to connect *with* and the panel says so.
+             */
+            credentials_configured: boolean;
+            /** User Id */
+            user_id: string;
+            /** Last Synced Day */
+            last_synced_day?: string | null;
+            /** Weigh Ins */
+            weigh_ins: number;
+            /** First Day */
+            first_day?: string | null;
+            /** Last Day */
+            last_day?: string | null;
+            /**
+             * Redirect Uri
+             * @description What has to be registered at dev.fitbit.com, character for character.
+             */
+            redirect_uri: string;
+            /** Status */
+            status: string;
+        };
+        /** FitbitDisconnected */
+        FitbitDisconnected: {
+            /** Connected */
+            connected: boolean;
+            /**
+             * Credentials Configured
+             * @description Whether FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET are in the environment. Until
+             *     they are, there is nothing to connect *with* and the panel says so.
+             */
+            credentials_configured: boolean;
+            /** User Id */
+            user_id: string;
+            /** Last Synced Day */
+            last_synced_day?: string | null;
+            /** Weigh Ins */
+            weigh_ins: number;
+            /** First Day */
+            first_day?: string | null;
+            /** Last Day */
+            last_day?: string | null;
+            /**
+             * Redirect Uri
+             * @description What has to be registered at dev.fitbit.com, character for character.
+             */
+            redirect_uri: string;
+            /** Status */
+            status: string;
+            /** Removed Files */
+            removed_files: number;
+        };
+        /**
+         * FitbitImportRequest
+         * @description A path on the server to a Fitbit export ZIP from Google Takeout.
+         */
+        FitbitImportRequest: {
+            /** Path */
+            path: string;
+        };
+        /** FitbitImportResult */
+        FitbitImportResult: {
+            /** Zip */
+            zip: string;
+            /** Members Scanned */
+            members_scanned: number;
+            /** Written */
+            written: number;
+            /**
+             * Units Found
+             * @description `kg`, `lb`, or both — the export does not say, so it is inferred and reported.
+             */
+            units_found: string[];
+            /** Unrecognised Count */
+            unrecognised_count: number;
+            /** Undecodable Count */
+            undecodable_count: number;
+        };
+        /**
+         * FitbitStatus
+         * @description `GET /api/fitbit/status`. Deliberately makes no network call: Fitbit allows 150
+         *     requests an hour and a Settings page that asks it anything spends one per open.
+         */
+        FitbitStatus: {
+            /** Connected */
+            connected: boolean;
+            /**
+             * Credentials Configured
+             * @description Whether FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET are in the environment. Until
+             *     they are, there is nothing to connect *with* and the panel says so.
+             */
+            credentials_configured: boolean;
+            /** User Id */
+            user_id: string;
+            /** Last Synced Day */
+            last_synced_day?: string | null;
+            /** Weigh Ins */
+            weigh_ins: number;
+            /** First Day */
+            first_day?: string | null;
+            /** Last Day */
+            last_day?: string | null;
+            /**
+             * Redirect Uri
+             * @description What has to be registered at dev.fitbit.com, character for character.
+             */
+            redirect_uri: string;
+        };
+        /**
+         * FitbitSyncResult
+         * @description What a sync did. `state` is `done`, `rate_limited` or `stopped`.
+         */
+        FitbitSyncResult: {
+            /** Endpoint */
+            endpoint: string;
+            /** Start Day */
+            start_day: string;
+            /** End Day */
+            end_day: string;
+            /** Windows */
+            windows: number;
+            /** Windows Done */
+            windows_done: number;
+            /** Days Written */
+            days_written: number;
+            /** State */
+            state: string;
+            /**
+             * Retry After S
+             * @description Seconds until Fitbit's hourly budget resets, when that is why it stopped.
+             */
+            retry_after_s?: number | null;
         };
         /**
          * GarminConnected
@@ -4830,6 +5134,196 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GarminDisconnected"];
+                };
+            };
+        };
+    };
+    fitbit_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitbitStatus"];
+                };
+            };
+        };
+    };
+    fitbit_authorize_url: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitbitAuthorizeUrl"];
+                };
+            };
+        };
+    };
+    fitbit_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FitbitConnectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitbitConnected"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fitbit_callback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fitbit_disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitbitDisconnected"];
+                };
+            };
+        };
+    };
+    fitbit_sync_now: {
+        parameters: {
+            query?: {
+                since?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitbitSyncResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fitbit_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FitbitImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitbitImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

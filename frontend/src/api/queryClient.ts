@@ -65,6 +65,8 @@ export const queryKeys = {
   /** Body composition, on the same window as the rest of Health. */
   body: (days: number) => ["body", days] as const,
   garminStatus: ["garmin-status"] as const,
+  /** Read off disk, so opening Settings never spends one of Fitbit's 150 an hour. */
+  fitbitStatus: ["fitbit-status"] as const,
   syncStatus: ["sync-status"] as const,
   syncEstimate: ["sync-estimate"] as const,
   /** The count of the user's edits; an edit anywhere moves it. */

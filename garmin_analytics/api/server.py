@@ -27,6 +27,7 @@ from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import (
     FileResponse,
+    HTMLResponse,
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
@@ -69,6 +70,14 @@ from .schemas import (
     ActivityRouteResult,
     ActivityStreams,
     BodyComposition,
+    FitbitAuthorizeUrl,
+    FitbitConnectRequest,
+    FitbitConnected,
+    FitbitDisconnected,
+    FitbitImportRequest,
+    FitbitImportResult,
+    FitbitStatus,
+    FitbitSyncResult,
     CompareTracks,
     DailyList,
     ExerciseRelabelRequest,
@@ -195,6 +204,22 @@ class BackgroundJob:
             return False
         self._stop.set()
         return True
+
+
+def _fitbit_page(message: str) -> str:
+    """The one HTML page this API serves that is not the SPA.
+
+    Fitbit's redirect lands a *browser* here, not the app, so it has to render on its
+    own. Deliberately one sentence with no styling and no link back: it is a dead end
+    the user closes, and anything more would be a second UI to keep in step with the
+    real one. The message is escaped because `error` comes from a query string.
+    """
+    from html import escape
+
+    return (
+        "<!doctype html><html><head><meta charset='utf-8'><title>Fitbit</title></head>"
+        f"<body><p>{escape(message)}</p></body></html>"
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -362,6 +387,105 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/garmin/disconnect", response_model=GarminDisconnected)
     def garmin_disconnect() -> dict[str, Any]:
         return auth_mod.garmin_disconnect(settings)
+
+    # -- Fitbit connection (the scale) ---------------------------------------
+    #
+    # Fitbit is the second data source and the only one that knows what the owner
+    # weighs. None of this has ever run against Fitbit's servers; see HANDOVER-FITBIT.md.
+
+    @app.get("/api/fitbit/status", response_model=FitbitStatus)
+    def fitbit_status() -> dict[str, Any]:
+        return auth_mod.fitbit_status(settings)
+
+    @app.get("/api/fitbit/authorize-url", response_model=FitbitAuthorizeUrl)
+    def fitbit_authorize_url() -> dict[str, Any]:
+        """The consent URL to open. The PKCE verifier behind it never leaves the server."""
+        from ..ingest import fitbit as fitbit_mod
+
+        try:
+            return auth_mod.fitbit_authorize_url(settings)
+        except fitbit_mod.NotConnected as exc:
+            # No client id and secret yet. That is a setup step, not a failure.
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.post("/api/fitbit/connect", response_model=FitbitConnected)
+    def fitbit_connect(payload: FitbitConnectRequest = Body(...)) -> dict[str, Any]:
+        """Finish the flow from the address bar the browser landed on."""
+        from ..ingest import fitbit as fitbit_mod
+
+        try:
+            return auth_mod.fitbit_connect(settings, payload.redirect)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except LookupError as exc:
+            raise HTTPException(410, str(exc)) from exc
+        except fitbit_mod.NeedsReauthorization as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except fitbit_mod.FitbitError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @app.get("/api/fitbit/callback", response_class=HTMLResponse)
+    def fitbit_callback(code: str = "", state: str = "", error: str = "") -> HTMLResponse:
+        """Where Fitbit sends the browser back to.
+
+        This exists so the common case is one click: the redirect lands here, the
+        exchange happens, and the user is told to go back to Settings. It is not the
+        only way in — `POST /api/fitbit/connect` takes a pasted URL — because this
+        route only works if the registered redirect actually points at this app, and
+        whether it does is a setting at dev.fitbit.com that nothing here controls.
+        """
+        from ..ingest import fitbit as fitbit_mod
+
+        if error:
+            return HTMLResponse(_fitbit_page(f"Fitbit returned “{error}”."), status_code=400)
+        try:
+            auth_mod.fitbit_connect(settings, f"?code={code}&state={state}")
+        except (ValueError, LookupError, fitbit_mod.FitbitError) as exc:
+            return HTMLResponse(_fitbit_page(str(exc)), status_code=400)
+        return HTMLResponse(_fitbit_page("Fitbit connected. You can close this tab."))
+
+    @app.post("/api/fitbit/disconnect", response_model=FitbitDisconnected)
+    def fitbit_disconnect() -> dict[str, Any]:
+        return auth_mod.fitbit_disconnect(settings)
+
+    @app.post("/api/fitbit/sync", response_model=FitbitSyncResult)
+    def fitbit_sync_now(since: str | None = None) -> dict[str, Any]:
+        """Pull weigh-ins. Synchronous, and that is a considered choice.
+
+        A three-year backfill is ~36 requests paced a second apart, so the whole job is
+        under a minute — short enough to answer in a request, and not worth the
+        machinery of a background job with its own status row. If Fitbit's budget runs
+        out it returns `rate_limited` with its place kept, and running it again resumes.
+        """
+        from ..ingest import fitbit as fitbit_mod
+        from ..ingest import fitbit_sync as fitbit_sync_mod
+
+        try:
+            client = fitbit_mod.FitbitClient.resume(settings.token_dir)
+            start = date.fromisoformat(since) if since else None
+            with store() as st:
+                return fitbit_sync_mod.sync_body(st, client, start=start)
+        except ValueError as exc:
+            raise HTTPException(400, f"not a date: {since}") from exc
+        except fitbit_mod.NotConnected as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except fitbit_mod.NeedsReauthorization as exc:
+            raise HTTPException(401, str(exc)) from exc
+        except fitbit_mod.FitbitError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @app.post("/api/fitbit/import", response_model=FitbitImportResult)
+    def fitbit_import(payload: FitbitImportRequest = Body(...)) -> dict[str, Any]:
+        """Load a Google Takeout export from a path on this machine. No credential."""
+        from ..ingest import fitbit_export
+
+        try:
+            with store() as st:
+                return fitbit_export.import_fitbit_export(st, payload.path)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, f"no such file: {payload.path}") from exc
+        except OSError as exc:
+            raise HTTPException(400, f"could not read that archive: {exc}") from exc
 
     # -- meta ----------------------------------------------------------------
 

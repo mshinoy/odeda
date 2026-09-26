@@ -134,8 +134,8 @@ def sync_body(
 
     result: dict[str, Any] = {
         "endpoint": ENDPOINT,
-        "from": begin.isoformat(),
-        "to": end.isoformat(),
+        "start_day": begin.isoformat(),
+        "end_day": end.isoformat(),
         "windows": len(spans),
         "windows_done": 0,
         "days_written": 0,
