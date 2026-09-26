@@ -98,7 +98,7 @@ Paste one of these into a fresh session.
 | T13 | Performance check: largest activity, heatmap, bundle size | done | T04, T10c | Performance: the build was never compressed, and what a hover really costs |
 | T20 | Prove the one-command install on the current image | done | — | Prove the one-command install: build the image, run it clean, restart it |
 | T21 | Activity list: an "edited" filter, so Settings can link to it | done | — | Activity list: an Edited filter, and the Settings link that wanted it |
-| T14 | Cleanup and frontend README | todo | every other task | |
+| T14 | Cleanup and frontend README | in progress (Patti, 2026-09-26) | every other task | |
 
 ### Open decisions
 
