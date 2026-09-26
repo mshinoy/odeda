@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `ready for review` | 5 / 5 |
+| 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -78,7 +78,7 @@ Paste one of these into a fresh session.
 | T06 | Route playback (TripsLayer) | done | T05b | Route playback: replay an activity, with the charts following |
 | T07 | Races and Compare 2–5 activities | done | T05b | Races you mark yourself, and 2–5 activities compared |
 
-### Phase 3 — Health & trends · Checkpoint C: `ready for review`
+### Phase 3 — Health & trends · Checkpoint C: `approved`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -340,7 +340,10 @@ Screenshots of all of these, light and dark, are in `~/garmin-review/C/`.
 
 960 backend tests, 606 frontend tests.
 
-Owner feedback:
+Owner feedback: approved by instruction on 2026-09-26, without walking the screenshots
+or the pages. That is the owner's call, and it is recorded here rather than implied: the
+five "Unsure about" items were not ruled on, so they stay as they are. The gear filter
+(the fifth) stops being invisible when T12 creates gear. `~/garmin-review/C/` deleted.
 
 ### Checkpoint D — Settings & finish
 
