@@ -46,3 +46,6 @@ htmlcov/
 *.swp
 .idea/
 .vscode/
+
+# Local agent/editor settings — may contain absolute paths
+.claude/

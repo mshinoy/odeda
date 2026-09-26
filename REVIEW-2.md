@@ -27,10 +27,14 @@ volumes touched.
 
 ### 1. `34f41f8` — Scrub the owner's path and name
 
-- `PLAN.md:459,478` — `/home/shinzy/garmin-analytics` → `<main-worktree>` in the
-  parallel-mode worktree instructions.
+- `PLAN.md:459,478` — an absolute path under the owner's home directory →
+  `<main-worktree>` in the parallel-mode worktree instructions.
 - `tests/test_login_transport.py:56`, `tests/test_ticket_login.py:76,97` —
-  `display_name="shinoy"` → `"test-athlete"`, assertion updated to match.
+  a `display_name` fixture carrying the owner's name → `"test-athlete"`,
+  assertion updated to match.
+
+(Deliberately paraphrased: spelling out the strings here would have undone the
+scrub in the very file that documents it.)
 
 I also swept the rest of the tree for both strings. The only other hit is
 `.claude/settings.local.json`, which is untracked — excluded via `.git/info/exclude`,
