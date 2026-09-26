@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 1 / 8 |
+| 5 Fitbit body composition | E: `open` | 2 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -110,7 +110,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | done | — | Seeder: a weigh-in series worth smoothing |
-| T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | in progress (fitbit, 2026-09-26) | — | |
+| T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | done | — | Fitbit OAuth, proved without a Fitbit account |
 | T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | todo | T23 | |
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | todo | — | |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | todo | T22 | |
@@ -1489,13 +1489,37 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   arrives tomorrow, so nothing here may depend on having one to be correct.
 - **Files:** new `garmin_analytics/ingest/fitbit.py`, `tests/test_fitbit_auth.py`.
 - **Build:**
-  - [ ] PKCE verifier/challenge, state, and the authorize URL (scope `weight`)
-  - [ ] code → token, refresh rotation (a refresh returns a *new* refresh token; losing
+  - [x] PKCE verifier/challenge, state, and the authorize URL (scope `weight`)
+  - [x] code → token, refresh rotation (a refresh returns a *new* refresh token; losing
     it means re-authorising), 401 → refresh → retry once
-  - [ ] token cache on the data volume, 0600 in a 0700 directory, like Garmin's
-  - [ ] client id/secret from the environment, never from the database, never logged
-  - [ ] a one-method injectable transport, and tests over handcrafted payloads —
+  - [x] token cache on the data volume, 0600 in a 0700 directory, like Garmin's
+  - [x] client id/secret from the environment, never from the database, never logged
+  - [x] a one-method injectable transport, and tests over handcrafted payloads —
     including Google's `UNAUTHENTICATED` error shape, which is what 401 looks like now
+- **Notes:**
+  - **Nothing here has touched Fitbit's servers.** Every path is driven through an
+    injected transport over payloads written from Fitbit's own documentation: the
+    exchange, the rotation, the surprise 401, the 429, and both error envelopes. What
+    is proven is that given those payloads this code is right; what is unproven is that
+    Fitbit sends them. See `HANDOVER-FITBIT.md`.
+  - **The refresh path is not an annual event here.** A PKCE access token lasts eight
+    hours and Fitbit rejects any other `expires_in`, so almost every sync refreshes. And
+    Fitbit *rotates* the refresh token — the old one dies the moment a new one is
+    issued — so `FitbitClient` holds the token directory, not just the tokens, and
+    writes the rotation before it does anything else with it. A rotation used for the
+    current run and not written down fails hours later with nothing to point at.
+  - `Accept-Language: en_GB` is sent on every data request. The default follows the
+    account's locale, and a silent switch to pounds would write a number three digits
+    wrong into a column called `weight_kg`.
+  - The cache is created with `O_CREAT, 0o600` rather than written and then chmod-ed:
+    between those two steps a world-readable refresh token is on disk.
+  - `Credentials` and `Tokens` both override `__repr__`. A secret in a traceback is a
+    secret in a log.
+  - The redirect URI is one constant (`http://localhost:8000/api/fitbit/callback`) with
+    one override, `GA_FITBIT_REDIRECT_URI`. Fitbit matches it byte for byte and it is
+    sent twice — in the consent URL and in the exchange — so the exchange takes it from
+    the pending authorization rather than re-reading the environment, where an edit
+    between the two calls would break it invisibly.
 
 ### T24 — Fitbit ingest: weigh-ins by date range
 - **Goal:** years of history inside a 150 requests/hour budget, raw-first and resumable.
