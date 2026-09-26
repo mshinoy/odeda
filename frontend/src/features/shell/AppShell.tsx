@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react";
+import { Footprints, Settings } from "lucide-react";
 import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -29,10 +29,18 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
+          {/* The nav stays five items; Gear and Settings sit in the corner. */}
+          <NavLink
+            to="/gear"
+            aria-label="Gear"
+            className={(state) => cn(navLinkClass(state), "ml-auto px-2")}
+          >
+            <Footprints className="size-4" />
+          </NavLink>
           <NavLink
             to="/settings"
             aria-label="Settings"
-            className={(state) => cn(navLinkClass(state), "ml-auto px-2")}
+            className={(state) => cn(navLinkClass(state), "px-2")}
           >
             <Settings className="size-4" />
           </NavLink>

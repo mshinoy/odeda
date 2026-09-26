@@ -8,7 +8,7 @@ import {
   toActivityTrack,
   toEditableFields,
   toEditableValues,
-  toGearItems,
+  toGearCollection,
   toGymSession,
   toHeatmap,
   toRouteDetail,
@@ -399,13 +399,33 @@ describe("gear and routes", () => {
     distance_per_week_km: 7.1,
   };
 
-  it("keeps only what a select needs, and reads the retired flag as a boolean", () => {
-    expect(
-      toGearItems({ gear: [item, { ...item, gear_id: 4, retired: 1 }], defaults: [], kinds: [] }),
-    ).toEqual([
-      { id: 3, kind: "shoe", name: "Asics Novablast 4", retired: false },
-      { id: 4, kind: "shoe", name: "Asics Novablast 4", retired: true },
+  it("reads the retired flag as a boolean, and keeps the mileage beside it", () => {
+    const collection = toGearCollection({
+      gear: [item, { ...item, gear_id: 4, retired: 1 }],
+      defaults: [
+        {
+          activity_type: "running",
+          gear_id: 3,
+          kind: "shoe",
+          brand: "Asics",
+          model: "Novablast 4",
+          nickname: null,
+          display_name: "Asics Novablast 4",
+        },
+      ],
+      kinds: ["shoe", "bike"],
+    });
+
+    expect(collection.gear.map((g) => [g.id, g.name, g.retired])).toEqual([
+      [3, "Asics Novablast 4", false],
+      [4, "Asics Novablast 4", true],
     ]);
+    expect(collection.gear[0]?.totalDistanceM).toBe(item.total_distance_m);
+    expect(collection.gear[0]?.state).toBe("ok");
+    expect(collection.defaults).toEqual([
+      { activityType: "running", gearId: 3, name: "Asics Novablast 4", kind: "shoe" },
+    ]);
+    expect(collection.kinds).toEqual(["shoe", "bike"]);
   });
 
   it("reads an activity's gear the same way", () => {

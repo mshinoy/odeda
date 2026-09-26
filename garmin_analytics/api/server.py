@@ -70,6 +70,7 @@ from .schemas import (
     DailyList,
     ExerciseRelabelRequest,
     FieldsResponse,
+    ActivityGearRemoved,
     AppConfig,
     GarminConnected,
     GarminDisconnected,
@@ -79,6 +80,7 @@ from .schemas import (
     GarminSigninUrl,
     GarminStatus,
     GarminTicketRequest,
+    GearItem,
     GearList,
     Health,
     Heatmap,
@@ -102,6 +104,15 @@ from .schemas import (
     RouteSplitRequest,
     RouteSplitResult,
     Summary,
+    GearBulkAssignRequest,
+    GearBulkAssignResult,
+    GearCreateRequest,
+    GearDefaultCleared,
+    GearDefaultRequest,
+    GearDefaultsResult,
+    GearDeleted,
+    GearDetail,
+    GearWriteRequest,
     OverridesSummary,
     SyncEstimate,
     SyncStartRequest,
@@ -814,18 +825,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "kinds": list(gear_mod.GEAR_KINDS),
             }
 
-    @app.post("/api/gear")
-    def api_gear_create(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/gear", response_model=GearItem)
+    def api_gear_create(payload: GearCreateRequest = Body(...)) -> dict[str, Any]:
         with store() as st:
             try:
-                attrs = gear_mod.clean_attrs(payload, gear_mod.CREATABLE)
+                attrs = gear_mod.clean_attrs(
+                    payload.model_dump(exclude_unset=True), gear_mod.CREATABLE
+                )
                 return gear_mod.create(st, **attrs)
             except gear_mod.GearError as exc:
                 raise HTTPException(400, str(exc)) from exc
             except (TypeError, ValueError) as exc:
                 raise HTTPException(400, f"bad gear payload: {exc}") from exc
 
-    @app.get("/api/gear/{gear_id}")
+    @app.get("/api/gear/{gear_id}", response_model=GearDetail)
     def api_gear_get(gear_id: int) -> dict[str, Any]:
         with store() as st:
             try:
@@ -841,11 +854,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             return {"gear": item, "activities": activities}
 
-    @app.patch("/api/gear/{gear_id}")
-    def api_gear_update(gear_id: int, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.patch("/api/gear/{gear_id}", response_model=GearItem)
+    def api_gear_update(
+        gear_id: int, payload: GearWriteRequest = Body(...)
+    ) -> dict[str, Any]:
         with store() as st:
             try:
-                attrs = gear_mod.clean_attrs(payload, gear_mod._EDITABLE)
+                # exclude_unset, not exclude_none: "clear the nickname" is a null the
+                # caller sent on purpose, and dropping it would make the field
+                # unclearable.
+                attrs = gear_mod.clean_attrs(
+                    payload.model_dump(exclude_unset=True), gear_mod._EDITABLE
+                )
                 return gear_mod.update(st, gear_id, **attrs)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
@@ -854,7 +874,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except (TypeError, ValueError) as exc:
                 raise HTTPException(400, f"bad gear payload: {exc}") from exc
 
-    @app.delete("/api/gear/{gear_id}")
+    @app.delete("/api/gear/{gear_id}", response_model=GearDeleted)
     def api_gear_delete(gear_id: int) -> dict[str, Any]:
         with store() as st:
             return {"deleted": gear_mod.delete(st, gear_id)}
@@ -874,41 +894,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
-    @app.delete("/api/activities/{activity_id}/gear/{gear_id}")
+    @app.delete(
+        "/api/activities/{activity_id}/gear/{gear_id}",
+        response_model=ActivityGearRemoved,
+    )
     def api_unassign_gear(activity_id: str, gear_id: int) -> dict[str, Any]:
         with store() as st:
             return {"removed": gear_mod.unassign(st, activity_id, gear_id)}
 
-    @app.post("/api/gear/{gear_id}/bulk-assign")
-    def api_gear_bulk(gear_id: int, payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    @app.post("/api/gear/{gear_id}/bulk-assign", response_model=GearBulkAssignResult)
+    def api_gear_bulk(
+        gear_id: int,
+        payload: GearBulkAssignRequest = Body(default_factory=GearBulkAssignRequest),
+    ) -> dict[str, Any]:
         """Apply gear across a filtered date range — for importing gear-less history."""
         with store() as st:
             try:
                 return gear_mod.bulk_assign(
                     st,
                     gear_id,
-                    start=payload.get("start"),
-                    end=payload.get("end"),
-                    activity_type=payload.get("activity_type"),
-                    only_unassigned=bool(payload.get("only_unassigned", False)),
-                    dry_run=bool(payload.get("dry_run", False)),
+                    start=payload.start,
+                    end=payload.end,
+                    activity_type=payload.activity_type,
+                    only_unassigned=payload.only_unassigned,
+                    dry_run=payload.dry_run,
                 )
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
-    @app.post("/api/gear/defaults")
-    def api_gear_default(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/gear/defaults", response_model=GearDefaultsResult)
+    def api_gear_default(payload: GearDefaultRequest = Body(...)) -> dict[str, Any]:
         with store() as st:
             try:
-                return gear_mod.set_default(
-                    st, str(payload["activity_type"]), int(payload["gear_id"])
-                )
+                return gear_mod.set_default(st, payload.activity_type, payload.gear_id)
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
-            except (KeyError, TypeError, ValueError) as exc:
-                raise HTTPException(400, f"need activity_type and gear_id: {exc}") from exc
 
-    @app.delete("/api/gear/defaults/{activity_type}/{gear_id}")
+    @app.delete(
+        "/api/gear/defaults/{activity_type}/{gear_id}",
+        response_model=GearDefaultCleared,
+    )
     def api_gear_default_clear(activity_type: str, gear_id: int) -> dict[str, Any]:
         with store() as st:
             return {"cleared": gear_mod.clear_default(st, activity_type, gear_id)}

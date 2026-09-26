@@ -39,6 +39,9 @@ export const queryKeys = {
   exercises: (id: string) => ["exercises", id] as const,
   fields: ["fields"] as const,
   gear: ["gear"] as const,
+  /** Every gear item's own page: a bulk assign moves more than the item it names. */
+  gearDetailAll: ["gear-detail"] as const,
+  gearDetail: (id: number) => ["gear-detail", id] as const,
   routes: ["routes"] as const,
   /** Every route detail: a merge or a split changes more routes than the one it names. */
   routeAll: ["route"] as const,

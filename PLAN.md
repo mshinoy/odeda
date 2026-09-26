@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 2 / 7 |
+| 4 Settings & finish | D: `open` | 3 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -94,7 +94,7 @@ Paste one of these into a fresh session.
 |---|---|---|---|---|
 | T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | done | — | Settings: connect a Garmin account, by password, by code or through a browser |
 | T11b | Settings: sync, overrides summary, version, theme toggle | done | — | Settings: what a sync would cost, what you have edited, and a theme you pick |
-| T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | in progress (Patti, 2026-09-26) | T11b | |
+| T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | done | T11b | Gear: what you run in, how far it has gone, and switching it after the fact |
 | T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
 | T20 | Prove the one-command install on the current image | todo | — | |
 | T21 | Activity list: an "edited" filter, so Settings can link to it | todo | — | |
@@ -1173,12 +1173,47 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T12 — Gear
 - **Backend:** type the remaining `/api/gear*` endpoints (CRUD, `bulk-assign`, `defaults`).
 - **Build:**
-  - [ ] gear cards with a wear bar against the retirement distance, and a "show retired"
+  - [x] gear cards with a wear bar against the retirement distance, and a "show retired"
     toggle
-  - [ ] add/edit dialogs (the old UI used seven chained `window.prompt`s)
-  - [ ] retire / delete
-  - [ ] bulk reassign with a dry-run preview
-  - [ ] default gear per activity type
+  - [x] add/edit dialogs (the old UI used seven chained `window.prompt`s)
+  - [x] retire / delete
+  - [x] bulk reassign with a dry-run preview
+  - [x] default gear per activity type
+- **Notes:**
+  - `/gear` sits beside `/settings` behind the corner icon, as the nav rule asks. Two
+    small icons rather than a menu: a dropdown would be a new shadcn component for two
+    links.
+  - **Assigning replaces gear of the same kind, so a bulk assign is also the
+    correction.** Put the Nimbus on every run, then put the Novablast on the 2026 runs,
+    and those runs change shoes rather than wearing both. That is the whole of
+    "retroactively switch a pair of shoes across a range".
+  - **Nothing is applied until the preview has been seen.** The preview is the
+    backend's own `dry_run`, so the count is the same query the apply will run, not a
+    guess made in the browser; changing any filter clears the count again. A dry run
+    deliberately does **not** invalidate the caches — it changed nothing.
+  - **Retire and delete are different, and the dialog says so.** Retiring keeps the
+    history and takes the item out of the selects; deleting drops its assignments with
+    it, and the confirm names how many.
+  - **A null in a PATCH is a clear, not an omission.** The handler passes
+    `exclude_unset`, so `{"notes": null}` empties the notes and a field left out is
+    untouched — `test_a_patch_can_clear_a_field` pins it. A blank distance field means
+    "no limit", so it goes as null rather than 0.
+  - **`useGear` and `useGearCollection` share one key and one fetch.** Two query
+    functions on `["gear"]` would race and hand one caller the other's shape; the
+    select narrows it for the Edit dialog, which wants only the items.
+  - **`POST /api/gear` and `PATCH /api/gear/{id}` take different models.** `source`
+    and `garmin_uuid` are creatable only: an item imported from Garmin does not become
+    a manual one by being edited. Both bodies `forbid` extra keys, which is why an
+    unknown or mistyped field is now a **422** naming the key rather than the 400 it
+    was — `test_bad_gear_payload_is_a_client_error` pins the split, and a body the
+    model accepts and `create` then refuses is still a 400.
+  - **The wear bar's colour always comes with its word.** "In use" / "Near its limit" /
+    "Past its limit" / "Retired", because amber against green is not a reading.
+  - Cards are ordered by what needs attention: over the limit, near it, then by
+    mileage, retired last however far they ran.
+  - **The Trends gear filter appeared on its own**, as T10c said it would:
+    `/api/aggregate/filters` now returns the three items and the select renders.
+    Filtering the page to one pair of shoes gives 207 activities and 1,115.6 km.
 
 ### T13 — Performance check
 - [ ] time the largest activity page and the all-activities heatmap (frame budget under

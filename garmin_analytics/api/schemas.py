@@ -443,6 +443,126 @@ class GearList(_Model):
     kinds: list[GearKind]
 
 
+class GearActivityRow(_Model):
+    """One activity on a gear item's page. Fewer columns than `ActivityRow`: this
+    list answers "what has it been worn for", not "what happened that day"."""
+
+    activity_id: str
+    day: str
+    activity_name: str | None
+    activity_type: str
+    distance_m: float | None
+    moving_time_s: float | None
+
+
+class GearDetail(_Model):
+    """`GET /api/gear/{id}`: the item, and the 500 most recent activities on it."""
+
+    gear: GearItem
+    activities: list[GearActivityRow]
+
+
+class GearWriteRequest(_Model):
+    """`PATCH /api/gear/{id}` body, and the shared half of `POST /api/gear`.
+
+    Every field is optional so a PATCH can send one; `create` refuses a body with no
+    nickname, brand or model. A null a caller sends is a *clear*, not an omission:
+    the handler passes `exclude_unset`, so `{"notes": null}` empties the notes and a
+    field left out is untouched.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: GearKind | None = None
+    brand: str | None = None
+    model: str | None = None
+    nickname: str | None = None
+    purchase_date: str | None = None
+    initial_distance_m: float | None = Field(None, ge=0)
+    """Mileage the item already had before it was tracked here."""
+    retirement_distance_m: float | None = Field(None, ge=0)
+    retired: bool | None = None
+    notes: str | None = None
+    photo_path: str | None = None
+
+
+class GearCreateRequest(GearWriteRequest):
+    """`POST /api/gear` body: everything editable, plus the two provenance fields
+    that can only be set when the item is made. An item imported from Garmin does
+    not become a manual one by being edited, so `PATCH` does not take them."""
+
+    source: str | None = None
+    garmin_uuid: str | None = None
+    """Unique; posting an item Garmin already supplied is a 400, not a duplicate."""
+
+
+class GearDeleted(_Model):
+    deleted: bool
+    """False when there was no such item."""
+
+
+class GearBulkAssignRequest(_Model):
+    """`POST /api/gear/{id}/bulk-assign` body: which activities to put it on.
+
+    An empty body means every activity ever, which is almost never meant, so the UI
+    always sends a filter. `dry_run` answers with the count and changes nothing.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    start: str | None = None
+    end: str | None = None
+    activity_type: str | None = None
+    only_unassigned: bool = False
+    """Skip activities that already carry gear of this item's kind."""
+    dry_run: bool = False
+
+
+class GearBulkAssignFilters(_Model):
+    start: str | None
+    end: str | None
+    activity_type: str | None
+    only_unassigned: bool
+
+
+class GearBulkAssignResult(_Model):
+    """What a bulk assign did, or would have done. On a dry run `applied` is 0 and
+    `gear` and `filters` are absent, because nothing was applied."""
+
+    gear_id: int
+    matched: int
+    applied: int
+    dry_run: bool
+    gear: str | None = None
+    """The item's display name; absent on a dry run."""
+    filters: GearBulkAssignFilters | None = None
+
+
+class GearDefaultRequest(_Model):
+    """`POST /api/gear/defaults` body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    activity_type: str
+    gear_id: int
+
+
+class GearDefaultsResult(_Model):
+    """Every default rule after the change, not only the one just set: one default
+    per (activity_type, kind), so setting one can displace another."""
+
+    activity_type: str
+    defaults: list[GearDefaultRule]
+
+
+class GearDefaultCleared(_Model):
+    cleared: bool
+
+
+class ActivityGearRemoved(_Model):
+    removed: bool
+
+
 class ActivityGearRequest(_Model):
     """`PUT /api/activities/{id}/gear` body.
 

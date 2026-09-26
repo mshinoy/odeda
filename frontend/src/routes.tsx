@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ActivitiesPage } from "@/features/activities/ActivitiesPage";
 import { ActivityPage } from "@/features/activity/ActivityPage";
 import { ComparePage } from "@/features/compare/ComparePage";
+import { GearPage } from "@/features/gear/GearPage";
 import { HealthPage } from "@/features/health/HealthPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
           { path: "compare", element: <ComparePage /> },
           { path: "trends", element: <TrendsPage /> },
           { path: "settings", element: <SettingsPage /> },
+          { path: "gear", element: <GearPage /> },
           { path: "*", element: <NotBuiltYet /> },
         ],
       },

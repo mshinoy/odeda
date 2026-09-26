@@ -1148,6 +1148,11 @@ export interface components {
              */
             display_name: string;
         };
+        /** ActivityGearRemoved */
+        ActivityGearRemoved: {
+            /** Removed */
+            removed: boolean;
+        };
         /**
          * ActivityGearRequest
          * @description `PUT /api/activities/{id}/gear` body.
@@ -2124,6 +2129,136 @@ export interface components {
             ticket: string;
         };
         /**
+         * GearActivityRow
+         * @description One activity on a gear item's page. Fewer columns than `ActivityRow`: this
+         *     list answers "what has it been worn for", not "what happened that day".
+         */
+        GearActivityRow: {
+            /** Activity Id */
+            activity_id: string;
+            /** Day */
+            day: string;
+            /** Activity Name */
+            activity_name: string | null;
+            /** Activity Type */
+            activity_type: string;
+            /** Distance M */
+            distance_m: number | null;
+            /** Moving Time S */
+            moving_time_s: number | null;
+        };
+        /** GearBulkAssignFilters */
+        GearBulkAssignFilters: {
+            /** Start */
+            start: string | null;
+            /** End */
+            end: string | null;
+            /** Activity Type */
+            activity_type: string | null;
+            /** Only Unassigned */
+            only_unassigned: boolean;
+        };
+        /**
+         * GearBulkAssignRequest
+         * @description `POST /api/gear/{id}/bulk-assign` body: which activities to put it on.
+         *
+         *     An empty body means every activity ever, which is almost never meant, so the UI
+         *     always sends a filter. `dry_run` answers with the count and changes nothing.
+         */
+        GearBulkAssignRequest: {
+            /** Start */
+            start?: string | null;
+            /** End */
+            end?: string | null;
+            /** Activity Type */
+            activity_type?: string | null;
+            /**
+             * Only Unassigned
+             * @description Skip activities that already carry gear of this item's kind.
+             * @default false
+             */
+            only_unassigned: boolean;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+        };
+        /**
+         * GearBulkAssignResult
+         * @description What a bulk assign did, or would have done. On a dry run `applied` is 0 and
+         *     `gear` and `filters` are absent, because nothing was applied.
+         */
+        GearBulkAssignResult: {
+            /** Gear Id */
+            gear_id: number;
+            /** Matched */
+            matched: number;
+            /** Applied */
+            applied: number;
+            /** Dry Run */
+            dry_run: boolean;
+            /**
+             * Gear
+             * @description The item's display name; absent on a dry run.
+             */
+            gear?: string | null;
+            filters?: components["schemas"]["GearBulkAssignFilters"] | null;
+        };
+        /**
+         * GearCreateRequest
+         * @description `POST /api/gear` body: everything editable, plus the two provenance fields
+         *     that can only be set when the item is made. An item imported from Garmin does
+         *     not become a manual one by being edited, so `PATCH` does not take them.
+         */
+        GearCreateRequest: {
+            /** Kind */
+            kind?: ("shoe" | "bike" | "strap" | "other") | null;
+            /** Brand */
+            brand?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /**
+             * Initial Distance M
+             * @description Mileage the item already had before it was tracked here.
+             */
+            initial_distance_m?: number | null;
+            /** Retirement Distance M */
+            retirement_distance_m?: number | null;
+            /** Retired */
+            retired?: boolean | null;
+            /** Notes */
+            notes?: string | null;
+            /** Photo Path */
+            photo_path?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Garmin Uuid
+             * @description Unique; posting an item Garmin already supplied is a 400, not a duplicate.
+             */
+            garmin_uuid?: string | null;
+        };
+        /** GearDefaultCleared */
+        GearDefaultCleared: {
+            /** Cleared */
+            cleared: boolean;
+        };
+        /**
+         * GearDefaultRequest
+         * @description `POST /api/gear/defaults` body.
+         */
+        GearDefaultRequest: {
+            /** Activity Type */
+            activity_type: string;
+            /** Gear Id */
+            gear_id: number;
+        };
+        /**
          * GearDefaultRule
          * @description A `gear_defaults` row: the gear newly-synced activities of a type get.
          */
@@ -2145,6 +2280,34 @@ export interface components {
             nickname: string | null;
             /** Display Name */
             display_name: string;
+        };
+        /**
+         * GearDefaultsResult
+         * @description Every default rule after the change, not only the one just set: one default
+         *     per (activity_type, kind), so setting one can displace another.
+         */
+        GearDefaultsResult: {
+            /** Activity Type */
+            activity_type: string;
+            /** Defaults */
+            defaults: components["schemas"]["GearDefaultRule"][];
+        };
+        /** GearDeleted */
+        GearDeleted: {
+            /**
+             * Deleted
+             * @description False when there was no such item.
+             */
+            deleted: boolean;
+        };
+        /**
+         * GearDetail
+         * @description `GET /api/gear/{id}`: the item, and the 500 most recent activities on it.
+         */
+        GearDetail: {
+            gear: components["schemas"]["GearItem"];
+            /** Activities */
+            activities: components["schemas"]["GearActivityRow"][];
         };
         /**
          * GearItem
@@ -2258,6 +2421,40 @@ export interface components {
             defaults: components["schemas"]["GearDefaultRule"][];
             /** Kinds */
             kinds: ("shoe" | "bike" | "strap" | "other")[];
+        };
+        /**
+         * GearWriteRequest
+         * @description `PATCH /api/gear/{id}` body, and the shared half of `POST /api/gear`.
+         *
+         *     Every field is optional so a PATCH can send one; `create` refuses a body with no
+         *     nickname, brand or model. A null a caller sends is a *clear*, not an omission:
+         *     the handler passes `exclude_unset`, so `{"notes": null}` empties the notes and a
+         *     field left out is untouched.
+         */
+        GearWriteRequest: {
+            /** Kind */
+            kind?: ("shoe" | "bike" | "strap" | "other") | null;
+            /** Brand */
+            brand?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /**
+             * Initial Distance M
+             * @description Mileage the item already had before it was tracked here.
+             */
+            initial_distance_m?: number | null;
+            /** Retirement Distance M */
+            retirement_distance_m?: number | null;
+            /** Retired */
+            retired?: boolean | null;
+            /** Notes */
+            notes?: string | null;
+            /** Photo Path */
+            photo_path?: string | null;
         };
         /**
          * GymThisWeek
@@ -5221,9 +5418,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["GearCreateRequest"];
             };
         };
         responses: {
@@ -5233,9 +5428,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearItem"];
                 };
             };
             /** @description Validation Error */
@@ -5266,9 +5459,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearDetail"];
                 };
             };
             /** @description Validation Error */
@@ -5299,9 +5490,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearDeleted"];
                 };
             };
             /** @description Validation Error */
@@ -5326,9 +5515,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["GearWriteRequest"];
             };
         };
         responses: {
@@ -5338,9 +5525,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearItem"];
                 };
             };
             /** @description Validation Error */
@@ -5407,9 +5592,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ActivityGearRemoved"];
                 };
             };
             /** @description Validation Error */
@@ -5434,9 +5617,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["GearBulkAssignRequest"];
             };
         };
         responses: {
@@ -5446,9 +5627,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearBulkAssignResult"];
                 };
             };
             /** @description Validation Error */
@@ -5471,9 +5650,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["GearDefaultRequest"];
             };
         };
         responses: {
@@ -5483,9 +5660,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearDefaultsResult"];
                 };
             };
             /** @description Validation Error */
@@ -5517,9 +5692,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GearDefaultCleared"];
                 };
             };
             /** @description Validation Error */

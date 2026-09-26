@@ -341,9 +341,83 @@ function toGearItem(raw: GearFields): GearItem {
   };
 }
 
-/** Every gear item the owner has, retired ones included (a select marks those). */
-export function toGearItems(raw: Schemas["GearList"]): GearItem[] {
-  return raw.gear.map(toGearItem);
+/** A gear item with its mileage, for the Gear page's cards. */
+export interface GearRecord extends GearItem {
+  brand: string | null;
+  model: string | null;
+  nickname: string | null;
+  purchaseDate: string | null;
+  notes: string | null;
+  /** Mileage the item had before it was tracked here; included in `totalDistanceM`. */
+  initialDistanceM: number;
+  /** The threshold it is worn against; null means it has no retirement distance. */
+  retirementDistanceM: number | null;
+  totalDistanceM: number;
+  /** Distance of the activities carrying it, without `initialDistanceM`. */
+  trackedDistanceM: number;
+  movingTimeS: number;
+  elevationGainM: number;
+  activityCount: number;
+  firstUse: string | null;
+  lastUse: string | null;
+  /** `totalDistanceM` against the threshold; null without one. */
+  retirementPct: number | null;
+  remainingM: number | null;
+  /** `ok`, `warn`, `over` or `retired`, as the backend judges it. */
+  state: Schemas["GearItem"]["state"];
+  distancePerWeekKm: number | null;
+}
+
+export function toGearRecord(raw: Schemas["GearItem"]): GearRecord {
+  return {
+    ...toGearItem(raw),
+    brand: raw.brand,
+    model: raw.model,
+    nickname: raw.nickname,
+    purchaseDate: raw.purchase_date,
+    notes: raw.notes,
+    initialDistanceM: raw.initial_distance_m,
+    retirementDistanceM: raw.retirement_distance_m,
+    totalDistanceM: raw.total_distance_m,
+    trackedDistanceM: raw.tracked_distance_m,
+    movingTimeS: raw.moving_time_s,
+    elevationGainM: raw.elevation_gain_m,
+    activityCount: raw.activity_count,
+    firstUse: raw.first_use,
+    lastUse: raw.last_use,
+    retirementPct: raw.retirement_pct,
+    remainingM: raw.remaining_m,
+    state: raw.state,
+    distancePerWeekKm: raw.distance_per_week_km,
+  };
+}
+
+/** The gear a newly-synced activity of a type gets, one rule per row. */
+export interface GearDefaultRule {
+  activityType: string;
+  gearId: number;
+  name: string;
+  kind: string;
+}
+
+export interface GearCollection {
+  gear: GearRecord[];
+  defaults: GearDefaultRule[];
+  /** The kinds the backend will accept, so the editor's select is never stale. */
+  kinds: string[];
+}
+
+export function toGearCollection(raw: Schemas["GearList"]): GearCollection {
+  return {
+    gear: raw.gear.map(toGearRecord),
+    defaults: raw.defaults.map((rule) => ({
+      activityType: rule.activity_type,
+      gearId: rule.gear_id,
+      name: rule.display_name,
+      kind: rule.kind,
+    })),
+    kinds: [...raw.kinds],
+  };
 }
 
 /** The gear on one activity. It carries how it was attached; nothing shows that yet. */
