@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `open` | 5 / 5 |
+| 3 Health & trends | C: `ready for review` | 5 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -78,7 +78,7 @@ Paste one of these into a fresh session.
 | T06 | Route playback (TripsLayer) | done | T05b | Route playback: replay an activity, with the charts following |
 | T07 | Races and Compare 2–5 activities | done | T05b | Races you mark yourself, and 2–5 activities compared |
 
-### Phase 3 — Health & trends · Checkpoint C: `open`
+### Phase 3 — Health & trends · Checkpoint C: `ready for review`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -267,7 +267,78 @@ or two attempts.
 
 ### Checkpoint C — Health & trends
 
-_Note: not written yet._
+Five tasks: the Health view, and the four blocks of Trends.
+
+| | |
+|---|---|
+| `c820d73` | Health: your nights, your resting heart rate, and what sits off baseline |
+| `f07d1a4` | Trends: your records, and whether your long runs hold together |
+| `a95dda4` | Trends: what you have done, by month and by year |
+| `3094fdf` | Trends: the shape of the history, and the week it happens in |
+| `3c3357a` | Trends: how consistent you have been, and one filter over all of it |
+
+Every remaining endpoint on these two views is now typed: `/api/trends`, `/api/daily`,
+`/api/aggregate` and its two helpers, and `/api/reports`.
+
+**To look at** (on http://localhost:5173):
+
+- `/health` — the cards first, then sleep, resting HR, Body Battery and readiness.
+  Change the window (90 days / 6 months / 1 year / 2 years); everything moves together
+  and the URL follows. Sep 22 has no sleep bar because you recorded none.
+- `/trends` — totals, distance by month, year over year, the three distributions, time
+  in zones, the week grid, streaks, records, then the running block from T09.
+- `/trends?type=running` — the same page for one sport. The "mixed sports" note leaves
+  the Average pace card and a Pace column appears in the year table: 8:51 → 8:12 →
+  8:25 → 8:54 /km. This is the view worth judging the page on.
+- `/trends?start=2027-01-01` — a filter that matches nothing, which offers to clear
+  itself.
+- `/activities/24473027876` — the Sep 23 ride, which is the "Fastest average pace"
+  record; `/activities/24458669412` is the Sep 22 run.
+
+Screenshots of all of these, light and dark, are in `~/garmin-review/C/`.
+
+**Three things about your data, not about the app:**
+
+- **You have no HRV, ever.** All 1,402 raw `hrv` payloads are `{}`, so `hrv_daily` is
+  empty, the Health card and chart never draw, and the readiness score is permanently
+  missing one of its four components. Sleep score is nearly as bad: six days in four
+  years, all from Oct–Nov 2023. Nothing was dropped on the way in; the watch does not
+  send them.
+- **Two pool swims carry 61 h and 47 h of moving time** (`/activities/` on 2025-10-20
+  and 2025-11-03 — a watch left running). They are about 108 of the 409 hours on the
+  Trends "Moving time" card, they own two rows of the records table, and they are why
+  the duration distribution is not drawn at all: eighteen buckets collapse into one.
+  Excluding an activity from statistics is your call, and the tick box is on its page.
+- **Readiness holds a flat ~84 "prime" from 2026-07-22 to 2026-08-15.** Sleep, HRV and
+  resting HR are all missing there, so the score falls back to form alone, which decays
+  smoothly when nothing is being trained. Visible on `/health` and on `/status`. The
+  chart draws what `/api/readiness/history` returns; whether that endpoint should answer
+  at all on one component is `analytics/readiness.py`'s question, and yours.
+
+**Unsure about:**
+
+- **The year-over-year table has no Pace column until you pick a sport.** Across sports
+  that number measures the sport mix, not speed (2025 reads 30:30 /km because it held
+  long walks and gym work). Making the column appear with the filter seemed better than
+  showing a number with a warning, but it does mean the default view is quieter than
+  the old tab's.
+- **2023 shows ▲ 14,153% on 2022**, because 2022 is one 2.6 km activity on December 27.
+  It is arithmetically right and the row below explains it, but it is the loudest thing
+  on the page. Say if you want the first partial year suppressed.
+- **The sleep chart at "2 years" is 730 bars in about 1,060 px** and reads as texture
+  rather than composition. It still shows where the gaps are, and the control is honest
+  about what was asked for. The old UI capped that chart at 120 nights whatever the
+  range, which lies about the window instead.
+- **The Trends filter does not reach the running block** (records, decoupling,
+  efficiency, VO₂max). `/api/performance` takes no parameters, and giving it any means
+  teaching `analytics/performance` to filter. The block is labelled "all running, not
+  filtered" when a filter is on; say if it should be taught.
+- **The gear filter is invisible** because you have no gear. T12 creates it.
+- T08's claim on 2026-09-25 was stale — that session left an uncommitted worktree and no
+  commit. The work in it was reviewed, merged onto the current branch, and the worktree
+  and its `task/T08` branch are gone.
+
+960 backend tests, 606 frontend tests.
 
 Owner feedback:
 
