@@ -93,7 +93,7 @@ Paste one of these into a fresh session.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | done | — | Settings: connect a Garmin account, by password, by code or through a browser |
-| T11b | Settings: sync, overrides summary, version, theme toggle | todo | — | |
+| T11b | Settings: sync, overrides summary, version, theme toggle | in progress (Patti, 2026-09-26) | — | |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | todo | T11b | |
 | T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
 | T20 | Prove the one-command install on the current image | todo | — | |
