@@ -95,7 +95,7 @@ Paste one of these into a fresh session.
 | T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | done | — | Settings: connect a Garmin account, by password, by code or through a browser |
 | T11b | Settings: sync, overrides summary, version, theme toggle | done | — | Settings: what a sync would cost, what you have edited, and a theme you pick |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | done | T11b | Gear: what you run in, how far it has gone, and switching it after the fact |
-| T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
+| T13 | Performance check: largest activity, heatmap, bundle size | in progress (Patti, 2026-09-26) | T04, T10c | |
 | T20 | Prove the one-command install on the current image | todo | — | |
 | T21 | Activity list: an "edited" filter, so Settings can link to it | todo | — | |
 | T14 | Cleanup and frontend README | todo | every other task | |
