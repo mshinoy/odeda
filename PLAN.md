@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 8 / 8 |
+| 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -101,7 +101,7 @@ Paste one of these into a fresh session.
 | T21 | Activity list: an "edited" filter, so Settings can link to it | done | — | Activity list: an Edited filter, and the Settings link that wanted it |
 | T14 | Cleanup and frontend README | done | every other task | A README for the frontend, and the leftovers of a rebuild that is over |
 
-### Phase 5 — Fitbit body composition · Checkpoint E: `open`
+### Phase 5 — Fitbit body composition · Checkpoint E: `ready for review`
 
 A second data source. The Aria scale writes to Fitbit, not Garmin, so weight has never
 reached this app — `body_composition` exists, is joined into `v_daily`, and holds zero
@@ -461,7 +461,94 @@ it. The five "Unsure about" items above are still open questions for the owner.
 
 ### Checkpoint E — Fitbit body composition
 
-Written when T22–T29 are done.
+Eight tasks: a second data source, from OAuth to two charts. The Aria scale writes to
+Fitbit, so `body_composition` had a schema, a join into `v_daily`, and zero rows.
+
+| | |
+|---|---|
+| `530c4e4` | Seeder: a weigh-in series worth smoothing |
+| `e9d017a` | Fitbit OAuth, proved without a Fitbit account |
+| `1624aa6` | Fitbit ingest: three years of weigh-ins in 36 requests |
+| `979beb3` | The Fitbit export: a decade of weigh-ins with no credential |
+| `af6ff7a` | Body composition: the trend, not the morning |
+| `d89d027` | Health: what the scale says, once the noise is out of it |
+| `56b7d27` | Trends: bodyweight against the training that moved it |
+| `3aeef52` | Settings: connect the scale, or import it from a ZIP |
+
+**Read `HANDOVER-FITBIT.md` first.** It is the five minutes of clicking at
+dev.fitbit.com, two lines in `.env`, and one command — plus the honest list of what has
+never met Fitbit's servers.
+
+**The three that matter most.**
+
+- **Nothing here has made a single request to Fitbit**, because the credential did not
+  exist while it was written. What that bought is that the whole flow is driven through
+  an injected transport over payloads written from Fitbit's documentation — the
+  exchange, the refresh rotation, a surprise 401 that refreshes once and retries, a
+  second 401 that stops instead of looping, a 429 that carries when to come back, and
+  both error envelopes, since the auth layer is Google's now. 41 tests, none of which
+  have met Fitbit. The export importer *was* run end to end against a live server with
+  a ZIP built for it: 168.4 lb came back as 76.38 kg.
+- **The range endpoint is the difference between a backfill that finishes and one that
+  does not.** 150 requests an hour; three years day-by-day is 1,096 requests. The
+  31-day range form of the weight log makes it **36**, and a test asserts that number,
+  because if that form is ever withdrawn the fallback is not "slower", it is the
+  Takeout import.
+- **A scale reading is mostly hydration, and the whole section is built on saying so.**
+  0.62 kg day to day against 0.099 kg for a 7-reading mean, measured on the seeded
+  series. The trend is the line; the mornings are faint dots behind it.
+
+**To look at** (on http://localhost:5173, once there are weigh-ins — today there are
+none, and both sections correctly draw nothing):
+
+- `/health` — six cards, the weight trend, fat against lean, and the Doha projection.
+- `/trends`, at the bottom — weight through the block against CTL, run speed against
+  weight, and W/kg.
+- `/settings` — the Fitbit panel under the Garmin one. It says which of three states
+  you are in and prints the exact redirect URL to register.
+
+Screenshots, light and dark, are in `~/garmin-review/E/`. They are taken against
+**seeded** data on a throwaway backend, because the real database has no weigh-ins
+yet; `health-real-no-weight.png` is the real one, showing the section correctly absent.
+
+**Three judgements I made rather than building to order:**
+
+- **"Pace per kg" was rejected on merit.** Running's metabolic cost is already roughly
+  proportional to bodyweight, so speed is mass-normalised to begin with and dividing it
+  by mass again produces a number with no meaning. Run speed and weight are shown as
+  two indices instead, leaving the comparison to the reader. W/kg for *rides* is built,
+  because there it is real physiology.
+- **Weight and CTL are two stacked panels, not two lines.** Kilograms and a load index
+  are not the same quantity and a single axis over both either flattens the weight or
+  scales one against an axis nobody can see. Twin axes are the usual answer and are not
+  allowed (Rules) — for exactly that reason.
+- **The pace benefit per kilogram is a rule of thumb** and says so in the field name,
+  the model's docstring, and the sentence under the chart. A test asserts those words
+  are still there.
+
+**Unsure about:**
+
+- **Whether registration at dev.fitbit.com still issues a working client secret.** The
+  auth layer moved to Google; the data endpoints are unchanged but the sign-up is the
+  part I could not exercise. If it fails, the Takeout import needs none of it.
+- **The 31-day range form.** Fitbit's current doc page shows only the single-date form;
+  the range form is long-standing, and an unauthenticated probe answers 401 before
+  routing, so it proves nothing. A withdrawal shows up as a clear 400 and the fix is
+  one constant and one path.
+- **The `/api/fitbit/callback` route works only if the registered redirect really
+  points at this app.** That is a setting at dev.fitbit.com that nothing here controls,
+  which is why pasting the address bar does the same job.
+- **The real shape of an Aria record.** Written from documented fields, handling the
+  cases I know of. Anything unexpected is archived verbatim, so a fix is a re-parse and
+  never a re-fetch.
+- **Three commits' worth of chart defects were found by looking at screenshots, not by
+  tests** — a fat/lean chart that was two flat parallel lines, a training-load axis
+  running to −50, and a load line that was the same colour as the weight line in dark
+  mode. All three now have tests. It is worth noting that the tests did not find them.
+
+1,141 backend tests, 706 frontend tests across 59 files.
+
+Owner feedback:
 
 ---
 

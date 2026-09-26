@@ -48,6 +48,15 @@ docker compose exec app garmin-analytics backfill
 Your Garmin password is used once to obtain a token and is never stored. If Garmin
 refuses the login, see [Signing in to Garmin](#signing-in-to-garmin).
 
+**A scale that writes to Fitbit** — an Aria, say — is a second source, and the only
+one that knows what you weigh. Register a Personal app at
+[dev.fitbit.com/apps](https://dev.fitbit.com/apps), put its client ID and secret in the
+environment as `FITBIT_CLIENT_ID` and `FITBIT_CLIENT_SECRET`, and connect it from
+Settings or with `garmin-analytics fitbit connect`. There is also an offline route that
+needs no app at all: `garmin-analytics import-fitbit <takeout.zip>` reads a Fitbit
+export from Google Takeout. Either way the weigh-ins land in `body_composition` and
+turn into the body-composition section on Health and the bodyweight charts on Trends.
+
 No Python or Node on the host, no database to provision.
 
 <details>
