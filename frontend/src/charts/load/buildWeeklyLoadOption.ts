@@ -2,6 +2,7 @@ import type { components } from "@/api/schema";
 import {
   axisLabelStyle,
   barHoverPointer,
+  chartGrid,
   gridLineStyle,
   quietAxis,
   tooltipStyle,
@@ -39,7 +40,7 @@ export function buildWeeklyLoadOption({
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: { left: 40, right: 12, top: 12, bottom: 24 },
+    grid: chartGrid({ left: 40, right: 12 }),
     xAxis: {
       type: "category",
       data: recent.map((w) => w.start),

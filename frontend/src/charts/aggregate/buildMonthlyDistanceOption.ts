@@ -6,6 +6,7 @@ import {
   axisLabelStyle,
   BAR_TOP_RADIUS,
   barHoverPointer,
+  chartGrid,
   gridLineStyle,
   quietAxis,
   tooltipStyle,
@@ -56,7 +57,7 @@ export function buildMonthlyDistanceOption({ points, tokens }: MonthlyDistanceIn
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: { left: 48, right: 16, top: 12, bottom: 24 },
+    grid: chartGrid({ left: 48, right: 16 }),
     xAxis: {
       type: "category",
       data: points.map((point) => point.period),

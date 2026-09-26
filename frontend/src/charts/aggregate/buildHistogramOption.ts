@@ -5,6 +5,7 @@ import {
   axisLabelStyle,
   BAR_TOP_RADIUS,
   barHoverPointer,
+  chartGrid,
   gridLineStyle,
   quietAxis,
   tooltipStyle,
@@ -37,7 +38,7 @@ export function buildHistogramOption({ buckets, spec, tokens }: HistogramInput):
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: { left: 40, right: 16, top: 12, bottom: 24 },
+    grid: chartGrid({ left: 40, right: 16 }),
     xAxis: {
       type: "category",
       // The bucket's low edge is the category; its width is in the tooltip.

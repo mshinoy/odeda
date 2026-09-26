@@ -1,6 +1,6 @@
 // Chrome shared by the four Health charts, which all plot one point per calendar day
 // over the same window: the same x-axis, and the same four date labels along it.
-import { axisLabelStyle, gridLineStyle, quietAxis } from "@/charts/chrome";
+import { axisLabelStyle, chartGrid, gridLineStyle, quietAxis } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import type { ColorTokens } from "@/design/tokens";
 import { formatDate } from "@/lib/format";
@@ -8,7 +8,8 @@ import { formatDate } from "@/lib/format";
 /** Enough labels to place a point in the year, few enough to stay readable. */
 const X_LABELS = 4;
 
-export const HEALTH_CHART_GRID = { left: 44, right: 56, top: 12, bottom: 24 } as const;
+/** The right gutter is wide to leave room for the baseline series' `endLabel`. */
+export const HEALTH_CHART_GRID = chartGrid({ left: 44, right: 56 });
 
 type CategoryAxis = Extract<ChartOption["xAxis"], { type?: "category" }>;
 type ValueAxis = Extract<ChartOption["yAxis"], { type?: "value" }>;

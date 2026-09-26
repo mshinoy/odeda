@@ -10,6 +10,15 @@ export function gridLineStyle(tokens: ColorTokens) {
   return { show: true, lineStyle: { color: tokens.gridline, width: 1 } };
 }
 
+/**
+ * A chart's plot area. Only the side gutters vary between charts, because only they
+ * depend on how wide that chart's y-axis labels run; the space above the top gridline
+ * and below the x-axis labels is chrome, and is the same everywhere.
+ */
+export function chartGrid(gutters: { left: number; right: number }) {
+  return { ...gutters, top: 12, bottom: 24 } as const;
+}
+
 /** Axis line, ticks and vertical gridlines all off: the data and the labels carry it. */
 export const quietAxis = {
   axisLine: { show: false },

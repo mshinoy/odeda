@@ -2,7 +2,7 @@
 // value, not a per-session one, so a continuous line is honest: it is the estimate
 // Garmin held on that day, and it holds between runs.
 import { decimalStep, padded, snapToStep } from "@/charts/axisScale";
-import { axisLabelStyle, gridLineStyle, quietAxis, tooltipStyle } from "@/charts/chrome";
+import { axisLabelStyle, chartGrid, gridLineStyle, quietAxis, tooltipStyle } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import type { components } from "@/api/schema";
 import type { ColorTokens } from "@/design/tokens";
@@ -47,7 +47,7 @@ export function buildVo2maxOption({ series, tokens, today }: Vo2maxChartInput): 
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: { left: 44, right: 16, top: 12, bottom: 24 },
+    grid: chartGrid({ left: 44, right: 16 }),
     xAxis: {
       type: "time",
       ...quietAxis,
