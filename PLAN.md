@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 2 / 8 |
+| 5 Fitbit body composition | E: `open` | 3 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -111,7 +111,7 @@ rows. This phase fills it and makes it mean something against the training data.
 |---|---|---|---|---|
 | T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | done | — | Seeder: a weigh-in series worth smoothing |
 | T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | done | — | Fitbit OAuth, proved without a Fitbit account |
-| T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | in progress (fitbit, 2026-09-26) | T23 | |
+| T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | done | T23 | Fitbit ingest: three years of weigh-ins in 36 requests |
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | todo | — | |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | todo | T22 | |
 | T27 | Health: the body-composition section | todo | T26 | |
@@ -1523,16 +1523,42 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 
 ### T24 — Fitbit ingest: weigh-ins by date range
 - **Goal:** years of history inside a 150 requests/hour budget, raw-first and resumable.
-- **Files:** `garmin_analytics/ingest/fitbit.py`, `garmin_analytics/cli.py`,
-  `tests/test_fitbit_ingest.py`.
+- **Files:** new `garmin_analytics/ingest/fitbit_sync.py`, `garmin_analytics/ingest/normalize.py`,
+  `garmin_analytics/cli.py`, `tests/test_fitbit_ingest.py`.
 - **Build:**
-  - [ ] the date-range form of `body/log/weight` (31-day maximum per call), so a
+  - [x] the date-range form of `body/log/weight` (31-day maximum per call), so a
     three-year backfill is ~36 calls, not ~1,100
-  - [ ] raw-first: every response archived under its own endpoint before normalising
-  - [ ] normalise to `body_composition`, idempotent by day, earliest reading wins (D5)
-  - [ ] a `fitbit_body` watermark, and a resumable backfill that stops on 429 with the
+  - [x] raw-first: every response archived under its own endpoint before normalising
+  - [x] normalise to `body_composition`, idempotent by day, earliest reading wins (D5)
+  - [x] a `fitbit_body` watermark, and a resumable backfill that stops on 429 with the
     window it got to rather than losing the run
-  - [ ] `garmin-analytics fitbit` CLI: `connect`, `sync`, `status`, `disconnect`
+  - [x] `garmin-analytics fitbit` CLI: `connect`, `sync`, `status`, `disconnect`
+- **Notes:**
+  - **The window size is the whole design.** Three years day by day is 1,096 requests
+    against a budget of 150 an hour — an eight-hour job that is mostly sleeping. The
+    31-day range form of the same endpoint returns every reading in the window, with
+    body fat and BMI, and makes it **36 requests**. A test asserts that number, because
+    if the range form ever stops working the fallback is not "slower", it is "no".
+  - The normaliser lives in `normalize.py` beside Garmin's, not in the Fitbit module,
+    and takes both `{"weight": [...]}` and a bare list — so T25's export importer and
+    the API path are the same function and cannot drift about what a kilogram is.
+  - **A manual entry is not a late-evening weigh-in.** Fitbit writes `time` as
+    `23:59:59` when an entry was logged without one, which sorts as the last reading of
+    the day and would beat the real 07:00 one under D5. It is ordered last instead, and
+    only wins when it is alone.
+  - Body fat is left `None` when Fitbit does not send one, rather than defaulting to
+    zero: a 0 % reading would draw a lean-mass line through the athlete's whole body
+    weight on the Health page.
+  - A 429 **stops** the run with its watermark intact instead of raising — losing 30
+    completed windows because the 31st hit the limit would be worse than useless — and
+    the run stops on its own ten requests short of the budget, because the budget is
+    shared with the rest of the app.
+  - A re-sync re-reads 45 days behind the watermark. Fitbit lets a weigh-in be edited
+    or back-dated after the fact; the upsert is keyed by day, so re-reading is free and
+    not re-reading is a wrong number that never corrects itself.
+  - `fitbit status` makes no network call. A Settings page that has to ask Fitbit
+    anything spends one of 150 requests every time it is opened.
+
 
 ### T25 — Fitbit export importer (Google Takeout)
 - **Goal:** the no-credentials path. It is the fallback if Google retires the API and

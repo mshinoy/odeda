@@ -427,6 +427,71 @@ def normalize_weight(payload: Mapping[str, Any], day: str | None = None) -> list
     return out
 
 
+# ---------------------------------------------------------------------------
+# Fitbit
+# ---------------------------------------------------------------------------
+
+#: A weight log record carries `time` as HH:mm:ss, set to 23:59:59 when the entry was
+#: made without one. That sentinel is a manual entry, not a 23:59 weigh-in, and sorting
+#: it as one would put it after every real reading of the day.
+MANUAL_ENTRY_TIME = "23:59:59"
+
+
+def _weight_log_sort_key(record: Mapping[str, Any]) -> tuple[int, str]:
+    """Order a day's readings: real times first and in order, undated entries last."""
+    clock = str(pick(record, "time") or "")
+    return (1, "") if clock in ("", MANUAL_ENTRY_TIME) else (0, clock)
+
+
+def normalize_fitbit_weight(payload: Any, day: str | None = None) -> list[dict[str, Any]]:
+    """Fitbit weight logs -> one row per day, in kilograms.
+
+    Takes `{"weight": [...]}` or a bare list, so the API response and the record array
+    lifted out of an export both go through here. That is deliberate: the two paths
+    must never disagree about what a kilogram is, and the only way to guarantee that is
+    for there to be one function.
+
+    **A day with several weigh-ins keeps the earliest** (D5). `body_composition` is
+    keyed by day and a morning reading before food and water is the comparable one;
+    keeping the last would mix a 07:00 reading with a 21:00 one and call the difference
+    a trend. Every reading of the day survives in `raw_documents` regardless.
+
+    `day` is accepted and ignored, for the same reason `normalize_weight` accepts it:
+    the sync loop calls every normaliser with the same signature and these records
+    carry their own dates.
+    """
+    records = payload.get("weight") if isinstance(payload, Mapping) else payload
+    if not isinstance(records, list):
+        return []
+
+    by_day: dict[str, list[Mapping[str, Any]]] = {}
+    for record in records:
+        if not isinstance(record, Mapping):
+            continue
+        when = pick(record, "date", "dateTime")
+        if not when:
+            continue
+        by_day.setdefault(str(when)[:10], []).append(record)
+
+    out: list[dict[str, Any]] = []
+    for when in sorted(by_day):
+        first = sorted(by_day[when], key=_weight_log_sort_key)[0]
+        kg = as_float(pick(first, "weight", "value"))
+        if kg is None:
+            continue
+        out.append(
+            {
+                "day": when,
+                "weight_kg": round(kg, 2),
+                # Fitbit calls it `fat` and only sends it when the scale measured one;
+                # a manual weight entry has no body fat and must not invent a zero.
+                "body_fat_pct": as_float(pick(first, "fat")),
+                "bmi": as_float(pick(first, "bmi")),
+            }
+        )
+    return out
+
+
 def merge_daily(rows: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
     """Merge partial per-day dicts (from different endpoints) into one row per day.
 

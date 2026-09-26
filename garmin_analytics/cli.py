@@ -1,8 +1,13 @@
-"""Command line: login | sync | import-zip | import-fit | seed | serve | doctor | report.
+"""Command line: login | sync | fitbit | import-zip | import-fit | seed | serve | doctor | report.
 
 Credential handling rule, enforced here: the password is read with `getpass` from a tty
 and passed straight to the Garmin client. It is never an argument, never an environment variable
 read by this program, never echoed, and never written anywhere.
+
+Fitbit never asks for a password at all: `fitbit connect` prints a consent URL, the
+owner approves it in their own browser, and pastes back a code that is single-use and
+expires in ten minutes. The app's own client id and secret are read from the
+environment at the point of use.
 """
 
 from __future__ import annotations
@@ -180,6 +185,85 @@ def cmd_import_fit(args: argparse.Namespace) -> int:
             print(f"  skipped {r['file']}: {r.get('reason')}")
     _emit(results, args.json)
     return 0 if ok else 1
+
+
+def cmd_fitbit(args: argparse.Namespace) -> int:
+    """Connect the Fitbit account and pull the weigh-ins the Aria scale writes.
+
+    `connect` is deliberately two steps with a human in the middle: this process opens
+    nothing and captures nothing. It prints a URL, the owner approves in a browser they
+    already trust, and pastes the address bar back. The authorization code is single-use
+    and lives ten minutes, so there is nothing here worth intercepting — and no reason
+    for this program to ever see a Fitbit password.
+    """
+    from .ingest import fitbit as fitbit_mod
+
+    try:
+        return _run_fitbit(args)
+    except fitbit_mod.FitbitError as exc:
+        # Every one of these already says what to do about it. A traceback on top of
+        # "your credentials are not set" helps nobody.
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
+def _run_fitbit(args: argparse.Namespace) -> int:
+    from .ingest import fitbit as fitbit_mod
+    from .ingest import fitbit_sync
+
+    settings = load_settings()
+    token_dir = settings.token_dir
+
+    if args.action == "status":
+        with _store() as st:
+            state = fitbit_sync.status(st, token_dir)
+        print(f"  credentials configured  {'yes' if state['credentials_configured'] else 'no'}")
+        print(f"  connected               {'yes' if state['connected'] else 'no'}"
+              + (f"  (user {state['user_id']})" if state["user_id"] else ""))
+        print(f"  last synced day         {state['last_synced_day'] or '—'}")
+        print(f"  weigh-ins stored        {state['weigh_ins']}"
+              + (f"  ({state['first_day']} → {state['last_day']})" if state["weigh_ins"] else ""))
+        _emit(state, args.json)
+        return 0
+
+    if args.action == "disconnect":
+        removed = fitbit_mod.forget_tokens(token_dir)
+        print("Fitbit disconnected." if removed else "Fitbit was not connected.")
+        _emit({"removed": removed}, args.json)
+        return 0
+
+    if args.action == "connect":
+        creds = fitbit_mod.Credentials.from_env()
+        pending = fitbit_mod.begin_authorization(creds.client_id, args.redirect)
+        print("Open this and approve the `weight` permission:\n")
+        print(f"  {pending.url}\n")
+        pasted = args.code or input("Then paste the address bar you land on: ")
+        code = fitbit_mod.extract_code(pasted, pending.state)
+        tokens = fitbit_mod.exchange_code(creds, pending, code, fitbit_mod.UrllibTransport())
+        fitbit_mod.save_tokens(tokens, token_dir)
+        client = fitbit_mod.FitbitClient(creds, tokens, token_dir)
+        print(f"Connected as {client.display_name() or tokens.user_id}.")
+        _emit({"connected": True, "user_id": tokens.user_id}, args.json)
+        return 0
+
+    # sync
+    client = fitbit_mod.FitbitClient.resume(token_dir)
+    start = date.fromisoformat(args.since) if args.since else None
+    end = date.fromisoformat(args.end) if args.end else None
+    with _store() as st:
+        result = fitbit_sync.sync_body(
+            st, client, start=start, end=end,
+            echo=None if args.quiet else print,
+        )
+    print(
+        f"{result['state']}: {result['windows_done']}/{result['windows']} windows, "
+        f"{result['days_written']} weigh-ins, {result['from']} → {result['to']}"
+    )
+    if result["state"] == "rate_limited":
+        print(f"  Fitbit's hourly budget is spent. Re-run in {result['retry_after_s']} s; "
+              f"it resumes from the watermark.")
+    _emit(result, args.json)
+    return 0
 
 
 def cmd_seed(args: argparse.Namespace) -> int:
@@ -433,6 +517,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--end", help="last day, ISO date (default today)")
     sp.add_argument("--estimate", action="store_true",
                     help="report the size of the job and exit without fetching")
+
+    sp = add("fitbit", cmd_fitbit, "connect Fitbit and pull the scale's weigh-ins")
+    sp.add_argument("action", choices=("connect", "sync", "status", "disconnect"))
+    sp.add_argument("--code", help="the redirect URL you landed on, instead of being "
+                                   "prompted for it (connect)")
+    sp.add_argument("--redirect", help="override the registered redirect URI (connect)")
+    sp.add_argument("--since", help="earliest day to pull, ISO date (sync)")
+    sp.add_argument("--end", help="last day to pull, ISO date, default today (sync)")
+    sp.add_argument("--quiet", action="store_true")
 
     sp = add("cluster", cmd_cluster, "(re)group GPS activities into routes")
     sp.add_argument("--threshold", type=float, default=None,
