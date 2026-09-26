@@ -92,7 +92,7 @@ Paste one of these into a fresh session.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | todo | — | |
+| T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | in progress (Patti, 2026-09-26) | — | |
 | T11b | Settings: sync, overrides summary, version, theme toggle | todo | — | |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | todo | T11b | |
 | T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
