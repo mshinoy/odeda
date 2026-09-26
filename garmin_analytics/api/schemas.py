@@ -1150,6 +1150,74 @@ class Summary(_Model):
     """Null when there was no gym session in the last eight weeks (this one included)."""
 
 
+# ---------------------------------------------------------------------------
+# Performance: bests, decoupling, efficiency, VO2max
+# ---------------------------------------------------------------------------
+
+
+class DecouplingPoint(_Model):
+    """One run long enough to drift (over `DECOUPLING_MIN_DURATION_S`).
+
+    `distance_km` is not the app's usual `*_m`: it is what `analytics.performance`
+    computes, and `analytics/` is not reshaped to suit the UI. The name carries the
+    unit, so nothing has to guess.
+    """
+
+    activity_id: str
+    day: str
+    name: str | None
+    """The activity's name; null when Garmin sent none."""
+    distance_km: float
+    duration_s: float | None
+    """Moving time."""
+    decoupling_pct: float | None
+    """Percent drift in speed:HR from the first half to the second. Positive means
+    the second half cost more heartbeats per metre. Null without usable HR."""
+    efficiency_factor: float | None
+    """Metres per minute per bpm over the whole run. Null without an average HR."""
+    aerobically_durable: bool
+    """True when `decoupling_pct` is at or under Friel's 5 %."""
+
+
+class EfficiencyPoint(_Model):
+    """`efficiency_factor` alone, for the runs that have one."""
+
+    day: str
+    ef: float
+
+
+class Vo2maxPoint(_Model):
+    day: str
+    vo2max_run: float
+    """Garmin's running VO2max estimate for the day, ml/kg/min."""
+
+
+class Performance(_Model):
+    """`GET /api/performance`.
+
+    The bests come from `best_efforts`, restricted to foot-borne sports
+    (`performance.BEST_EFFORT_TYPES`): a bike covers 5 km in nine minutes, so an
+    unfiltered list is a list of rides labelled in min/km.
+    """
+
+    personal_bests: list[PersonalBest]
+    """One per standard distance ever covered, fastest first effort at each."""
+    recent_bests_90d: list[PersonalBest]
+    """The same, over the 90 days ending on the last activity."""
+    decoupling: list[DecouplingPoint]
+    """Every qualifying run, oldest first."""
+    decoupling_recent: list[DecouplingPoint]
+    """The last twelve of `decoupling`."""
+    vo2max: list[Vo2maxPoint]
+    """Daily, oldest first; days Garmin had no estimate for are absent."""
+    efficiency_trend: list[EfficiencyPoint]
+
+
+# ---------------------------------------------------------------------------
+# Health, Garmin and sync
+# ---------------------------------------------------------------------------
+
+
 class Health(_Model):
     status: Literal["ok"]
     version: str

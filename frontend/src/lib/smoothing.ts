@@ -43,3 +43,23 @@ export function rollingMean(
   }
   return result;
 }
+
+/**
+ * The mean of the `window` values centred on each one, for a series whose x spacing
+ * carries no meaning: one point per session, not one per second, so `rollingMean`'s
+ * time window has nothing to measure. The two ends average what is there rather than
+ * going null, so the line spans the data instead of starting part-way in.
+ *
+ * An even `window` takes one more value from the older side; that has to be decided
+ * somewhere, and it keeps the window exactly `window` long.
+ */
+export function centredMean(values: readonly number[], window: number): number[] {
+  const before = Math.floor(window / 2);
+  return values.map((_, i) => {
+    const lo = Math.max(i - before, 0);
+    const hi = Math.min(i + (window - before), values.length);
+    let sum = 0;
+    for (let j = lo; j < hi; j++) sum += values[j] ?? 0;
+    return sum / (hi - lo);
+  });
+}

@@ -70,6 +70,7 @@ from .schemas import (
     GearList,
     Health,
     Heatmap,
+    Performance,
     RacePanel,
     ReclusterRequest,
     ReclusterResult,
@@ -428,7 +429,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return {"days": days, "series": ready_mod.readiness_history(st, days)}
 
-    @app.get("/api/performance")
+    @app.get("/api/performance", response_model=Performance)
     def api_performance() -> dict[str, Any]:
         with store() as st:
             return cached(settings, "performance", lambda: perf.compute_performance(st))

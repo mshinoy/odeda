@@ -10,6 +10,7 @@ import { AppShell } from "@/features/shell/AppShell";
 import { NotBuiltYet } from "@/features/shell/NotBuiltYet";
 import { RouteError } from "@/features/shell/RouteError";
 import { StatusPage } from "@/features/status/StatusPage";
+import { TrendsPage } from "@/features/trends/TrendsPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage />, errorElement: <RouteError /> },
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
           { path: "routes", element: <RoutesPage /> },
           { path: "routes/:id", element: <RoutePage /> },
           { path: "compare", element: <ComparePage /> },
+          { path: "trends", element: <TrendsPage /> },
           { path: "*", element: <NotBuiltYet /> },
         ],
       },

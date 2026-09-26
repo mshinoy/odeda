@@ -286,6 +286,27 @@ export function formatSigned(value: MaybeNumber, digits = 1): string {
 }
 
 /**
+ * A percentage whose direction is the point, not its size: aerobic decoupling of
+ * 12.46 reads "+12.5%" (the second half cost more beats), -3.1 reads "−3.1%".
+ */
+export function formatSignedPercent(pct: MaybeNumber, digits = 1): string {
+  if (!isNumber(pct)) return MISSING;
+  return `${formatSigned(pct, digits)}%`;
+}
+
+/** Efficiency factor: metres per minute per beat per minute. "0.89 m/min/bpm". */
+export function formatEfficiencyFactor(value: MaybeNumber): string {
+  if (!isNumber(value)) return MISSING;
+  return `${fixedDigits(2).format(value)} m/min/bpm`;
+}
+
+/** Garmin's running VO2max estimate: "46.0 ml/kg/min". */
+export function formatVo2max(value: MaybeNumber): string {
+  if (!isNumber(value)) return MISSING;
+  return `${oneDecimal.format(value)} ml/kg/min`;
+}
+
+/**
  * A ratio against a baseline of 1, as the percentage it differs by: 1.12 → "+12%".
  * Used for a route segment's speed against your own average on that route.
  */

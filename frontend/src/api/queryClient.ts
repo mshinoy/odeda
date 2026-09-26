@@ -51,6 +51,7 @@ export const queryKeys = {
   compare: (ids: readonly string[]) => ["compare", ids.join(",")] as const,
   summary: ["summary"] as const,
   load: ["load"] as const,
+  performance: ["performance"] as const,
   garminStatus: ["garmin-status"] as const,
   syncStatus: ["sync-status"] as const,
 };

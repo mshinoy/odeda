@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `open` | 0 / 5 |
+| 3 Health & trends | C: `open` | 1 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -83,7 +83,7 @@ Paste one of these into a fresh session.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T08 | Health: sleep, HRV, resting HR, Body Battery | in progress (Patti, 2026-09-25) | — | |
-| T09 | Trends: performance (PBs, decoupling, EF, VO2max) | in progress (Patti, 2026-09-25) | — | |
+| T09 | Trends: performance (PBs, decoupling, EF, VO2max) | done | — | Trends: your records, and whether your long runs hold together |
 | T10a | Trends: totals, year over year, distance by month | todo | T09 | |
 | T10b | Trends: distributions, day × hour pattern | todo | T10a | |
 | T10c | Trends: streaks, records, filters | todo | T10a | |
@@ -833,11 +833,43 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T09 — Trends: performance
 - **Backend:** type `GET /api/performance`. Drop the preformatted `time`/`pace` strings.
 - **Build:**
-  - [ ] personal bests table
-  - [ ] aerobic decoupling as a scatter plus a rolling mean, with the 5% line as a `markLine`
-  - [ ] efficiency factor trend
-  - [ ] VO2max trend
+  - [x] personal bests table
+  - [x] aerobic decoupling as a scatter plus a rolling mean, with the 5% line as a `markLine`
+  - [x] efficiency factor trend
+  - [x] VO2max trend
 - **Old reference:** `renderPerformance`.
+- **Notes:**
+  - **Your 1 k and 1 mile records are one treadmill run and should probably not count.**
+    Both come from 2023-02-02 (`/activities/10430340737`), 1.7 km indoors, and read
+    4:34/km and 4:43/km. Your fastest kilometre outdoors is 5:55, and your 5 k best is
+    7:15/km — a 1 k at 4:34 projects a 5 k around 26 minutes, not 36:16. Treadmill
+    distance is the watch's own estimate, not GPS, and you have only five treadmill
+    runs for it to calibrate against. Nothing was filtered: `BEST_EFFORT_TYPES` lists
+    `treadmill_running` on purpose and changing `analytics/` to suit a view is not this
+    task's to do. Dropping it is one word in that tuple if you want it gone.
+  - The type filter is provably earning its keep. The four fastest 1 k efforts in your
+    database are all **cycling** — the quickest is 1:51 — and none of them reaches the
+    table.
+  - There is no half-marathon or marathon row because no single activity has ever
+    covered 21.1 km. Distances never covered are left out rather than shown empty.
+  - **Sessions are dots, never a joined line.** Your long runs are weeks apart, so a
+    line between consecutive ones would draw a slope across a gap you did not run. The
+    dots are the sessions and a 10-session centred mean (`centredMean` in `lib/`) is the
+    trend. VO2max is the exception and is drawn as a line: it is a daily value Garmin
+    holds between runs, not a per-session one.
+  - **Only 18 % of your long runs come in under Friel's 5 %** (26 of 143); the median is
+    +12.5 %. The threshold line sits below most of the cloud, which is the honest
+    picture, not a scaling mistake.
+  - The two session charts use a **time** x-axis, not the category axis the load charts
+    use: the runs are irregularly spaced and a category axis would draw 2023 and 2026 at
+    the same density.
+  - `decoupling_recent` (the last twelve) stays in the response although the app slices
+    `decoupling` itself; it was already public and costs twelve rows.
+  - `distance_km` on a decoupling row keeps its `_km` name rather than becoming `_m`.
+    It is what `analytics.performance` computes, the name carries the unit, and
+    reshaping `analytics/` output at the boundary for tidiness is churn.
+  - `ScatterChart` and `MarkLineComponent` are now registered in `charts/echarts.ts`.
+    T13's bundle check should note the scatter; the markLine is a few kB.
 
 ### T10a — Trends: totals and year over year
 - **Backend:**

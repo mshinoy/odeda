@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rollingMean } from "@/lib/smoothing";
+import { centredMean, rollingMean } from "@/lib/smoothing";
 
 const seconds = (n: number, step = 1) => Array.from({ length: n }, (_, i) => i * step);
 
@@ -48,5 +48,34 @@ describe("rollingMean", () => {
 
   it("handles an empty stream", () => {
     expect(rollingMean([], [], 30)).toEqual([]);
+  });
+});
+
+describe("centredMean", () => {
+  it("averages the window centred on each value", () => {
+    // Window 3 at index 2: (3 + 4 + 5) / 3 = 4.
+    expect(centredMean([1, 2, 3, 4, 5], 3)).toEqual([1.5, 2, 3, 4, 4.5]);
+  });
+
+  it("takes one more from the older side for an even window", () => {
+    // Window 4 at index 3: indices 1..4 (two before, one after), (2 + 3 + 4 + 5) / 4 = 3.5.
+    expect(centredMean([1, 2, 3, 4, 5], 4)).toEqual([1.5, 2, 2.5, 3.5, 4]);
+  });
+
+  it("averages what is there at the ends rather than going null", () => {
+    // Index 0 of a window of 5 sees indices 0..2 only: (10 + 20 + 30) / 3 = 20.
+    expect(centredMean([10, 20, 30, 40, 50], 5)[0]).toBe(20);
+  });
+
+  it("is the mean of everything once the window covers the series", () => {
+    expect(centredMean([2, 4, 6], 99)).toEqual([4, 4, 4]);
+  });
+
+  it("is the identity for a window of one", () => {
+    expect(centredMean([3, 1, 2], 1)).toEqual([3, 1, 2]);
+  });
+
+  it("handles an empty series", () => {
+    expect(centredMean([], 10)).toEqual([]);
   });
 });

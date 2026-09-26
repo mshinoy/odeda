@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lastNDays, toIsoDate } from "@/lib/time";
+import { dayToMs, lastNDays, msToDay, toIsoDate } from "@/lib/time";
 
 // Dates are built from local y/m/d so the tests hold in any timezone.
 describe("toIsoDate", () => {
@@ -10,6 +10,24 @@ describe("toIsoDate", () => {
 
   it("ignores the time of day", () => {
     expect(toIsoDate(new Date(2026, 8, 23, 0, 0, 1))).toBe("2026-09-23");
+  });
+});
+
+describe("dayToMs and msToDay", () => {
+  it("places a day at its UTC midnight", () => {
+    expect(dayToMs("1970-01-02")).toBe(86_400_000);
+    expect(dayToMs("2026-09-23")).toBe(Date.UTC(2026, 8, 23));
+  });
+
+  it("round-trips every day of a leap year's February", () => {
+    for (let day = 1; day <= 29; day++) {
+      const iso = `2028-02-${String(day).padStart(2, "0")}`;
+      expect(msToDay(dayToMs(iso))).toBe(iso);
+    }
+  });
+
+  it("orders days as their timestamps", () => {
+    expect(dayToMs("2023-05-11")).toBeLessThan(dayToMs("2026-09-22"));
   });
 });
 

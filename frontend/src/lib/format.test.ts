@@ -3,10 +3,13 @@ import {
   formatAgo,
   formatCountRange,
   formatDays,
+  formatEfficiencyFactor,
   formatDecimal,
   formatInteger,
   formatRelative,
   formatSigned,
+  formatSignedPercent,
+  formatVo2max,
   MISSING,
   formatDate,
   formatDateTime,
@@ -311,6 +314,43 @@ describe("formatDecimal and formatSigned", () => {
     expect(formatSigned(3.24)).toBe("+3.2");
     expect(formatSigned(-4.9)).toBe("−4.9");
     expect(formatSigned(-0.04)).toBe("0.0");
+  });
+});
+
+describe("formatSignedPercent", () => {
+  it("keeps the sign, because the direction is the point", () => {
+    expect(formatSignedPercent(12.46)).toBe("+12.5%");
+    expect(formatSignedPercent(-3.14)).toBe("\u22123.1%");
+    expect(formatSignedPercent(0)).toBe("0.0%");
+  });
+
+  it("takes the digits asked for", () => {
+    expect(formatSignedPercent(12.46, 0)).toBe("+12%");
+  });
+
+  it("is a dash when there is no value", () => {
+    expect(formatSignedPercent(null)).toBe(MISSING);
+  });
+});
+
+describe("formatEfficiencyFactor", () => {
+  it("carries its unit at two decimals", () => {
+    expect(formatEfficiencyFactor(0.892)).toBe("0.89 m/min/bpm");
+    expect(formatEfficiencyFactor(1)).toBe("1.00 m/min/bpm");
+  });
+
+  it("is a dash when there is no value", () => {
+    expect(formatEfficiencyFactor(undefined)).toBe(MISSING);
+  });
+});
+
+describe("formatVo2max", () => {
+  it("carries its unit at one decimal", () => {
+    expect(formatVo2max(46)).toBe("46.0 ml/kg/min");
+  });
+
+  it("is a dash when there is no value", () => {
+    expect(formatVo2max(null)).toBe(MISSING);
   });
 });
 

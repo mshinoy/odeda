@@ -152,11 +152,25 @@ class TestPerformance:
         assert body["personal_bests"]
         assert body["vo2max"]
         for pb in body["personal_bests"]:
-            assert pb["time"] and pb["pace"] and pb["day"]
+            assert pb["seconds"] > 0 and pb["day"] and pb["activity_id"]
+
+    def test_preformatted_strings_are_not_serialised(self, client):
+        """`time` and `pace` were "1:21:59" and "8:12/km"; the app formats `seconds`."""
+        pb = client.get("/api/performance").json()["personal_bests"][0]
+        assert "time" not in pb and "pace" not in pb
 
     def test_bests_are_ordered_by_distance(self, client):
         dists = [p["distance_m"] for p in client.get("/api/performance").json()["personal_bests"]]
         assert dists == sorted(dists)
+
+    def test_decoupling_and_efficiency_are_typed(self, client):
+        body = client.get("/api/performance").json()
+        assert body["decoupling_recent"] == body["decoupling"][-12:]
+        for point in body["decoupling"]:
+            assert point["activity_id"] and point["day"]
+            assert isinstance(point["aerobically_durable"], bool)
+        for point in body["efficiency_trend"]:
+            assert point["ef"] > 0
 
 
 class TestRace:
