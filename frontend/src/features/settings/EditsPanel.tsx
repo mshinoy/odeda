@@ -3,6 +3,7 @@ import { useOverridesSummary } from "@/api/queries/useSettings";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/StatCard";
+import { EDITED_ACTIVITIES_QUERY } from "@/features/activities/listState";
 import { toEditCounts } from "@/features/settings/editSummary";
 import { formatInteger } from "@/lib/format";
 
@@ -45,6 +46,12 @@ export function EditsPanel() {
                 </li>
               ))}
             </ul>
+
+            <div>
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/activities${EDITED_ACTIVITIES_QUERY}`}>See the edited activities</Link>
+              </Button>
+            </div>
           </div>
         ))}
     </section>

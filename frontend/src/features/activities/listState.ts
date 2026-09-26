@@ -23,6 +23,8 @@ export interface ListState {
   q: string;
   /** Races only. Off means every activity, not "not a race". */
   race: boolean;
+  /** Activities you have corrected. Off means every activity, not "untouched". */
+  edited: boolean;
   sort: SortColumn;
   order: SortOrder;
   /** 1-based. */
@@ -85,6 +87,7 @@ export function parseListState(params: URLSearchParams, defaultRange: DateRange)
     end: parseBound(params.get("end"), defaultRange.end),
     q: (params.get("q") ?? "").trim(),
     race: params.get("race") === "1",
+    edited: params.get("edited") === "1",
     sort,
     order: isSortOrder(orderParam) ? orderParam : SORTS[sort].firstOrder,
     page: parsePage(params.get("page")),
@@ -99,6 +102,7 @@ export function serializeListState(state: ListState, defaultRange: DateRange): U
   if (state.end !== defaultRange.end) params.set("end", state.end ?? "");
   if (state.q) params.set("q", state.q);
   if (state.race) params.set("race", "1");
+  if (state.edited) params.set("edited", "1");
   if (state.sort !== DEFAULT_SORT) params.set("sort", state.sort);
   if (state.order !== SORTS[state.sort].firstOrder) params.set("order", state.order);
   if (state.page > 1) params.set("page", String(state.page));
@@ -119,6 +123,7 @@ export function toApiParams(state: ListState): ActivityListParams {
   if (state.end) params.end = state.end;
   if (state.q) params.q = state.q;
   if (state.race) params.race = true;
+  if (state.edited) params.edited = true;
   return params;
 }
 
@@ -132,23 +137,33 @@ export function toggleSort(state: ListState, column: SortColumn): ListState {
   return { ...state, sort: column, order, page: 1 };
 }
 
-export type FilterPatch = Partial<Pick<ListState, "type" | "start" | "end" | "q" | "race">>;
+export type FilterPatch = Partial<
+  Pick<ListState, "type" | "start" | "end" | "q" | "race" | "edited">
+>;
 
 /**
  * A filter change; it always goes back to the first page.
  *
- * Switching Races on also drops the date bounds. Races are rare — the owner marks them
- * by hand — so "races in the default last 30 days" is almost always empty, which reads
- * as a broken filter rather than as a true answer.
+ * Switching Races or Edited on also drops the date bounds, for the same reason: both
+ * are rare and scattered across the whole history, so "in the default last 30 days"
+ * is almost always empty, which reads as a broken filter rather than as a true answer.
  */
 export function withFilters(state: ListState, patch: FilterPatch): ListState {
   const next: ListState = { ...state, ...patch, page: 1 };
-  return patch.race === true ? { ...next, start: null, end: null } : next;
+  const widened = patch.race === true || patch.edited === true;
+  return widened ? { ...next, start: null, end: null } : next;
 }
 
 /** Every activity, of every type, with no search; the sort is kept. */
 export function clearFilters(state: ListState): ListState {
-  return withFilters(state, { type: null, start: null, end: null, q: "", race: false });
+  return withFilters(state, {
+    type: null,
+    start: null,
+    end: null,
+    q: "",
+    race: false,
+    edited: false,
+  });
 }
 
 export function hasFilters(state: ListState): boolean {
@@ -157,9 +172,20 @@ export function hasFilters(state: ListState): boolean {
     state.start !== null ||
     state.end !== null ||
     state.q !== "" ||
-    state.race
+    state.race ||
+    state.edited
   );
 }
+
+/**
+ * The link another view uses to open the edited activities.
+ *
+ * The empty bounds are load-bearing: a missing `start`/`end` means the store's
+ * default range, so `?edited=1` alone would land on "edited in the last 30 days"
+ * and usually show nothing. Clicking the toggle in the list drops the bounds for
+ * the same reason (`withFilters`); a link has to say so itself.
+ */
+export const EDITED_ACTIVITIES_QUERY = "?edited=1&start=&end=";
 
 /** The number of pages `total` rows fill; at least 1. */
 export function pageCount(total: number): number {

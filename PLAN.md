@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 5 / 7 |
+| 4 Settings & finish | D: `open` | 6 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -97,7 +97,7 @@ Paste one of these into a fresh session.
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | done | T11b | Gear: what you run in, how far it has gone, and switching it after the fact |
 | T13 | Performance check: largest activity, heatmap, bundle size | done | T04, T10c | Performance: the build was never compressed, and what a hover really costs |
 | T20 | Prove the one-command install on the current image | done | — | Prove the one-command install: build the image, run it clean, restart it |
-| T21 | Activity list: an "edited" filter, so Settings can link to it | in progress (Patti, 2026-09-26) | — | |
+| T21 | Activity list: an "edited" filter, so Settings can link to it | done | — | Activity list: an Edited filter, and the Settings link that wanted it |
 | T14 | Cleanup and frontend README | todo | every other task | |
 
 ### Open decisions
@@ -1319,11 +1319,21 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   it is counting, and cannot: `/api/activities` takes an `edited` filter, but the
   list's URL state does not.
 - **Build:**
-  - [ ] `edited` in `listState.ts` (URL `edited=1`, like `race=1`), a control in
+  - [x] `edited` in `listState.ts` (URL `edited=1`, like `race=1`), a control in
     `ActivityFilters`, and `clearFilters` clearing it
-  - [ ] the Settings edits panel links to it
+  - [x] the Settings edits panel links to it
 - **Done when:** the filter survives Back, and the link from Settings lands on the
   edited activities.
+- **Notes:**
+  - **Switching it on drops the date bounds, as Races does**, and for the same
+    reason: edits are rare and scattered across four years, so "edited in the last
+    30 days" reads as a broken filter rather than as a true answer.
+  - **The link from Settings has to say that itself.** A missing `start`/`end` in the
+    URL means the store's default range, so `/activities?edited=1` would land on the
+    last 30 days and usually show nothing — the bug was visible the first time the
+    link was followed. The query is now one exported constant,
+    `EDITED_ACTIVITIES_QUERY`, and a test asserts it parses to exactly the state the
+    toggle produces, so the link and the control cannot drift apart.
 
 ### T14 — Cleanup and frontend README
 - [ ] `frontend/README.md`: how to run (dev, build, Docker), the folder structure, and

@@ -12,7 +12,7 @@ interface ActivityFiltersProps {
   onSearch: (q: string) => void;
 }
 
-/** Type, date range, races-only and name search, in one row above the list. */
+/** Type, date range, races, edited and name search, in one row above the list. */
 export function ActivityFilters({ state, types, onChange, onSearch }: ActivityFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -25,6 +25,14 @@ export function ActivityFilters({ state, types, onChange, onSearch }: ActivityFi
         aria-label="Races only"
       >
         Races
+      </Toggle>
+      <Toggle
+        variant="outline"
+        pressed={state.edited}
+        onPressedChange={(edited) => onChange({ edited })}
+        aria-label="Edited only"
+      >
+        Edited
       </Toggle>
       <div className="ml-auto">
         <SearchInput value={state.q} onCommit={onSearch} />

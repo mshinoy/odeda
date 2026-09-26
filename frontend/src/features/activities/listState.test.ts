@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clearFilters,
+  EDITED_ACTIVITIES_QUERY,
   hasFilters,
   pageCount,
   parseListState,
@@ -19,6 +20,7 @@ const defaults: ListState = {
   end: "2026-09-24",
   q: "",
   race: false,
+  edited: false,
   sort: "date",
   order: "desc",
   page: 1,
@@ -44,6 +46,7 @@ describe("parseListState", () => {
       end: "2026-03-31",
       q: "tempo",
       race: true,
+      edited: false,
       sort: "distance",
       order: "asc",
       page: 3,
@@ -84,6 +87,7 @@ describe("serializeListState", () => {
       end: range.end,
       q: "legs",
       race: false,
+      edited: false,
       sort: "pace",
       order: "desc",
       page: 2,
@@ -193,6 +197,40 @@ describe("pageCount", () => {
     expect(pageCount(50)).toBe(1);
     expect(pageCount(51)).toBe(2);
     expect(pageCount(488)).toBe(10);
+  });
+});
+
+describe("the edited filter", () => {
+  it("round-trips through the URL", () => {
+    const edited = withFilters(defaults, { edited: true });
+    expect(serializeListState(edited, range).get("edited")).toBe("1");
+    expect(parseListState(serializeListState(edited, range), range).edited).toBe(true);
+  });
+
+  it("asks the API for edited only, and for nothing when it is off", () => {
+    expect(toApiParams(withFilters(defaults, { edited: true })).edited).toBe(true);
+    expect(toApiParams(defaults).edited).toBeUndefined();
+  });
+
+  it("drops the date bounds when switched on, like Races and for the same reason", () => {
+    const edited = withFilters(defaults, { edited: true });
+    expect([edited.start, edited.end]).toEqual([null, null]);
+  });
+
+  it("the link other views use lands on every edited activity, not the last 30 days", () => {
+    // A missing start/end means the store's default range, so `?edited=1` alone
+    // would usually show nothing.
+    const linked = parse(EDITED_ACTIVITIES_QUERY);
+    expect(linked.edited).toBe(true);
+    expect([linked.start, linked.end]).toEqual([null, null]);
+    // And it is the same state the toggle produces, so the two cannot drift.
+    expect(linked).toEqual(withFilters(defaults, { edited: true }));
+  });
+
+  it("is cleared by Clear filters, and counts as a filter until it is", () => {
+    const edited = withFilters(defaults, { edited: true });
+    expect(hasFilters(edited)).toBe(true);
+    expect(clearFilters(edited).edited).toBe(false);
   });
 });
 
