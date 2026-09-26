@@ -110,7 +110,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | done | — | Seeder: a weigh-in series worth smoothing |
-| T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | todo | — | |
+| T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | in progress (fitbit, 2026-09-26) | — | |
 | T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | todo | T23 | |
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | todo | — | |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | todo | T22 | |
