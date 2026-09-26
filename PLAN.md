@@ -34,6 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
+| 5 Fitbit body composition | E: `open` | 0 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -100,6 +101,23 @@ Paste one of these into a fresh session.
 | T21 | Activity list: an "edited" filter, so Settings can link to it | done | — | Activity list: an Edited filter, and the Settings link that wanted it |
 | T14 | Cleanup and frontend README | done | every other task | A README for the frontend, and the leftovers of a rebuild that is over |
 
+### Phase 5 — Fitbit body composition · Checkpoint E: `open`
+
+A second data source. The Aria scale writes to Fitbit, not Garmin, so weight has never
+reached this app — `body_composition` exists, is joined into `v_daily`, and holds zero
+rows. This phase fills it and makes it mean something against the training data.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | todo | — | |
+| T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | todo | — | |
+| T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | todo | T23 | |
+| T25 | Fitbit export importer (Google Takeout), no credentials needed | todo | — | |
+| T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | todo | T22 | |
+| T27 | Health: the body-composition section | todo | T26 | |
+| T28 | Trends: weight against training load, and pace per kg | todo | T26 | |
+| T29 | Settings: connect Fitbit, import an export, sync body composition | todo | T24, T25 | |
+
 ### Open decisions
 
 None yet. When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets
@@ -115,6 +133,10 @@ its task to `needs decision: <question>`.
 | D1 | The current design (tokens, activity page, Status page) is the starting point, not a freeze. The owner will keep adjusting it at checkpoints. T01 applies the three tweaks: ~30 s pace smoothing, "/km" once on the axis, and checking the map background on real routes. | 2026-09-24 |
 | D2 | Login stays off (`APP_PASSWORD` unset). There is no task to re-enable it. Keep the Login page code. | 2026-09-24 |
 | D3 | "Events" in the brief means **races**. Gym sessions must also be shown properly: exercises, sets, reps and the muscles trained (T15–T17). | 2026-09-24 |
+| D4 | `body_composition` keeps its shape. Every Fitbit field has a home in it (`weight_kg`, `body_fat_pct`, `bmi`); the ones that do not — time of day, the device name, the log id — are already kept verbatim in `raw_documents`, which is where provenance belongs. No migration. | 2026-09-26 |
+| D5 | A day with several weigh-ins keeps the **earliest** one. The table is keyed by day and a morning reading before food and water is the comparable one; taking the last reading would mix a 07:00 measurement with a 21:00 one and call the difference a trend. The whole day's readings stay in `raw_documents`. | 2026-09-26 |
+| D6 | Body composition gets no nav item — the nav stays at five (Rules). The trend, the fat/lean split, weigh-in consistency and the race-day projection go on **Health**, next to the other daily measurements; weight against training load and pace per kg go on **Trends**, next to the performance work they qualify. | 2026-09-26 |
+| D7 | The Fitbit client uses **stdlib `urllib.request`** behind a one-method transport, not a new HTTP library. It is four calls against a documented JSON API, and an injectable transport is what makes the whole OAuth flow testable without an account (T23). No new Python or npm dependency in this phase. | 2026-09-26 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -433,7 +455,13 @@ something to show — you own no gear, and had no edits. They disappear the mome
 
 965 backend tests, 645 frontend tests.
 
-Owner feedback:
+Owner feedback: still unreviewed. Phase 5 was authorised on top of it on 2026-09-26
+without a ruling on D, so D stays `ready for review` and nothing in Phase 5 depends on
+it. The five "Unsure about" items above are still open questions for the owner.
+
+### Checkpoint E — Fitbit body composition
+
+Written when T22–T29 are done.
 
 ---
 
@@ -1440,3 +1468,98 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - The root README's rebuild banner is gone; the paragraph in its place names the
     views that exist and points at `PLAN.md` as the history rather than the plan.
     `CONTRIBUTING.md` now points at `frontend/README.md` for day-to-day work.
+
+---
+
+### T22 — Seeder: a weigh-in series worth smoothing
+- **Goal:** every analytic in this phase is demonstrable tonight, against seeded data,
+  with no Fitbit account. The seeder already writes `body_composition`; what it writes
+  has to look like a real scale.
+- **Files:** `garmin_analytics/seed/synthetic.py`, `tests/test_seed.py`.
+- **Build:**
+  - [ ] hydration noise on every reading, so a single day is never a trend
+  - [ ] weigh-ins cluster and gap the way a person does — runs of daily mornings, then
+    a week away — rather than an even 60 % coin flip
+  - [ ] body fat follows the weight it came from, so fat mass and lean mass separate
+  - [ ] a test that pins the noise-to-drift ratio: the 7-day trend moves less than the
+    day-to-day spread
+
+### T23 — Fitbit OAuth: authorize → code → token → refresh
+- **Goal:** the whole Authorization Code + PKCE flow, offline-testable. The credential
+  arrives tomorrow, so nothing here may depend on having one to be correct.
+- **Files:** new `garmin_analytics/ingest/fitbit.py`, `tests/test_fitbit_auth.py`.
+- **Build:**
+  - [ ] PKCE verifier/challenge, state, and the authorize URL (scope `weight`)
+  - [ ] code → token, refresh rotation (a refresh returns a *new* refresh token; losing
+    it means re-authorising), 401 → refresh → retry once
+  - [ ] token cache on the data volume, 0600 in a 0700 directory, like Garmin's
+  - [ ] client id/secret from the environment, never from the database, never logged
+  - [ ] a one-method injectable transport, and tests over handcrafted payloads —
+    including Google's `UNAUTHENTICATED` error shape, which is what 401 looks like now
+
+### T24 — Fitbit ingest: weigh-ins by date range
+- **Goal:** years of history inside a 150 requests/hour budget, raw-first and resumable.
+- **Files:** `garmin_analytics/ingest/fitbit.py`, `garmin_analytics/cli.py`,
+  `tests/test_fitbit_ingest.py`.
+- **Build:**
+  - [ ] the date-range form of `body/log/weight` (31-day maximum per call), so a
+    three-year backfill is ~36 calls, not ~1,100
+  - [ ] raw-first: every response archived under its own endpoint before normalising
+  - [ ] normalise to `body_composition`, idempotent by day, earliest reading wins (D5)
+  - [ ] a `fitbit_body` watermark, and a resumable backfill that stops on 429 with the
+    window it got to rather than losing the run
+  - [ ] `garmin-analytics fitbit` CLI: `connect`, `sync`, `status`, `disconnect`
+
+### T25 — Fitbit export importer (Google Takeout)
+- **Goal:** the no-credentials path. It is the fallback if Google retires the API and
+  the fastest way to load history without touching the rate limit.
+- **Files:** new `garmin_analytics/ingest/fitbit_export.py`, `tests/test_fitbit_export.py`.
+- **Build:**
+  - [ ] route by shape, not by path, the way `export_zip.py` does — Takeout's layout
+    moves and a renamed directory must cost nothing
+  - [ ] both shapes Fitbit exports weight in: the JSON logs and the CSV
+  - [ ] raw-first, then the same normaliser the API path uses, so the two cannot drift
+  - [ ] tested against a ZIP the test builds itself
+
+### T26 — Body analytics and `/api/body`
+- **Goal:** the analytics the owner asked for, as pure functions with hand-derived
+  tests, behind one typed endpoint.
+- **Files:** new `garmin_analytics/analytics/body.py`, `garmin_analytics/api/schemas.py`,
+  `garmin_analytics/api/server.py`, `tests/test_body.py`.
+- **Build:**
+  - [ ] EWMA trend over the raw weigh-ins, gap-aware — a 10-day gap must not let one
+    reading jump the trend
+  - [ ] fat mass and lean mass from weight × body-fat %
+  - [ ] weigh-in consistency: readings per week, longest gap, coverage of the window
+  - [ ] race-day projection for 2027-01-15 from the recent trend slope, with a plain
+    statement of the window it was fitted over
+  - [ ] weight trend aligned to CTL, and a per-kg performance series
+  - [ ] `GET /api/body`, Pydantic models, then `npm run gen:api`
+
+### T27 — Health: the body-composition section
+- **Goal:** the headline is the trend, not the reading.
+- **Files:** `frontend/src/features/health/`, `frontend/src/charts/body/`.
+- **Build:**
+  - [ ] the trend line as the primary series, raw weigh-ins as faint points behind it
+  - [ ] fat mass vs lean mass over time
+  - [ ] cards: current trend weight, change over the window, weigh-in consistency,
+    projected race-day weight
+  - [ ] the section hides itself when nothing has ever been weighed
+
+### T28 — Trends: weight against training load, and pace per kg
+- **Goal:** the two analytics that need the activity data, where the activity data lives.
+- **Files:** `frontend/src/features/trends/`, `frontend/src/charts/body/`.
+- **Build:**
+  - [ ] weight trend and CTL on one chart, one y-axis (Rules), so a build block's cost
+    in bodyweight is visible
+  - [ ] pace per kg over time, so improvement is not confounded by weight change
+  - [ ] both hidden when there are no weigh-ins
+
+### T29 — Settings: connect Fitbit
+- **Goal:** the owner can connect the account tomorrow without reading any of this.
+- **Files:** `frontend/src/features/settings/`, `garmin_analytics/api/server.py`.
+- **Build:**
+  - [ ] a Fitbit panel beside the Garmin one: authorize link, paste the redirect URL,
+    connected state, disconnect
+  - [ ] import an export ZIP by path, for the offline route
+  - [ ] the `fitbit_body` watermark in the sync panel
