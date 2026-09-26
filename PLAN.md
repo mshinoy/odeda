@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 5 / 8 |
+| 5 Fitbit body composition | E: `open` | 6 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -114,7 +114,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | done | T23 | Fitbit ingest: three years of weigh-ins in 36 requests |
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | done | — | The Fitbit export: a decade of weigh-ins with no credential |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | done | T22 | Body composition: the trend, not the morning |
-| T27 | Health: the body-composition section | in progress (fitbit, 2026-09-26) | T26 | |
+| T27 | Health: the body-composition section | done | T26 | Health: what the scale says, once the noise is out of it |
 | T28 | Trends: weight against training load, and pace per kg | todo | T26 | |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | todo | T24, T25 | |
 
@@ -1644,11 +1644,37 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Goal:** the headline is the trend, not the reading.
 - **Files:** `frontend/src/features/health/`, `frontend/src/charts/body/`.
 - **Build:**
-  - [ ] the trend line as the primary series, raw weigh-ins as faint points behind it
-  - [ ] fat mass vs lean mass over time
-  - [ ] cards: current trend weight, change over the window, weigh-in consistency,
+  - [x] the trend line as the primary series, raw weigh-ins as faint points behind it
+  - [x] fat mass vs lean mass over time
+  - [x] cards: current trend weight, change over the window, weigh-in consistency,
     projected race-day weight
-  - [ ] the section hides itself when nothing has ever been weighed
+  - [x] the section hides itself when nothing has ever been weighed
+- **Notes:**
+  - **The fat/lean chart was wrong the first time and the screenshot is what showed it.**
+    Drawn as levels, lean sits near 63 kg and fat near 11, so one axis over both spans
+    50 kg and the 3 kg that actually moved over a year is a pixel: two flat parallel
+    lines, which is exactly the failure the chart was added to avoid. Two y-axes would
+    fix it and are not allowed. It plots **change** from the start of the window
+    instead — both series begin at zero, so the only thing to read is the divergence,
+    which is the question. The levels are on the cards above, where a single number
+    belongs, and in the tooltip.
+  - The weight chart is a **scatter plus a line**, not two lines. A line through the raw
+    readings would read as a second, equally valid answer to the same question.
+  - The axis is bounded to the *readings*, not to the trend: fitting to the trend would
+    clip the dots the chart exists to show alongside it.
+  - Six cards. The first is the trend with the last reading as its small caption, which
+    is the section's argument in one control. Fat down is green and lean down is red —
+    the same kilogram, opposite verdicts.
+  - The race card carries the window it was fitted over and **never a time**. A card is
+    one number and a label, and a time estimate on a card is the fastest way for a rule
+    of thumb to be read as a forecast. The seconds live in the note below, in the same
+    sentence as the words that qualify them, and a test asserts those words are there.
+  - The whole section returns null when nothing has ever been weighed. On the owner's
+    real database that is the case today, and the Health page is unchanged — verified
+    on :5173 as well as on seeded data.
+  - Looked at in both themes at `/health?days=365`; screenshots in `~/garmin-review/E/`.
+    No console errors from the app in either.
+
 
 ### T28 — Trends: weight against training load, and pace per kg
 - **Goal:** the two analytics that need the activity data, where the activity data lives.

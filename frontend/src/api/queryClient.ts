@@ -62,6 +62,8 @@ export const queryKeys = {
   trends: (days: number) => ["trends", days] as const,
   daily: (days: number) => ["daily", days] as const,
   readinessHistory: (days: number) => ["readiness-history", days] as const,
+  /** Body composition, on the same window as the rest of Health. */
+  body: (days: number) => ["body", days] as const,
   garminStatus: ["garmin-status"] as const,
   syncStatus: ["sync-status"] as const,
   syncEstimate: ["sync-estimate"] as const,

@@ -1,7 +1,9 @@
+import { useBody } from "@/api/queries/useBody";
 import { useDaily, useReadinessHistory, useTrends } from "@/api/queries/useHealth";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
 import { BaselineCards } from "@/features/health/BaselineCards";
+import { BodyPanel } from "@/features/health/BodyPanel";
 import { BodyBatteryChart } from "@/features/health/BodyBatteryChart";
 import {
   CARD_METRICS,
@@ -19,21 +21,29 @@ import { useHealthRange } from "@/features/health/useHealthRange";
 
 const WIDEST_RANGE = HEALTH_RANGES[HEALTH_RANGES.length - 1] ?? HEALTH_RANGES[0];
 
-/** Sleep, HRV, resting heart rate and Body Battery, each against its own baseline. */
+/**
+ * Sleep, HRV, resting heart rate and Body Battery, each against its own baseline — and
+ * body composition, which belongs here for the same reason: it is a daily measurement
+ * of the athlete rather than of a session.
+ */
 export function HealthPage() {
   const { days, setDays } = useHealthRange();
   const trends = useTrends(days);
   const daily = useDaily(days);
   const readiness = useReadinessHistory(days);
+  const body = useBody(days);
 
-  if (trends.isPending || daily.isPending || readiness.isPending) return <HealthPageSkeleton />;
+  if (trends.isPending || daily.isPending || readiness.isPending || body.isPending)
+    return <HealthPageSkeleton />;
   if (trends.error) return <EmptyState message={trends.error.message} />;
   if (daily.error) return <EmptyState message={daily.error.message} />;
   if (readiness.error) return <EmptyState message={readiness.error.message} />;
+  if (body.error) return <EmptyState message={body.error.message} />;
 
   const charted = recordedMetrics(CHART_METRICS, trends.data);
   const missing = missingMetrics(CARD_METRICS, trends.data);
-  const nothingRecorded = missing.length === CARD_METRICS.length;
+  // Weighing in is recording something, even when the watch was in a drawer all month.
+  const nothingRecorded = missing.length === CARD_METRICS.length && !body.data.has_data;
 
   return (
     <div className="flex flex-col gap-10">
@@ -51,6 +61,7 @@ export function HealthPage() {
       ) : (
         <>
           <BaselineCards trends={trends.data} />
+          <BodyPanel body={body.data} />
           <SleepStagesChart rows={daily.data.rows} />
           <div className="grid gap-8 lg:grid-cols-2">
             {charted.map(({ metric, trend }) => (
