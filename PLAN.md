@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 4 / 7 |
+| 4 Settings & finish | D: `open` | 5 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -96,7 +96,7 @@ Paste one of these into a fresh session.
 | T11b | Settings: sync, overrides summary, version, theme toggle | done | — | Settings: what a sync would cost, what you have edited, and a theme you pick |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | done | T11b | Gear: what you run in, how far it has gone, and switching it after the fact |
 | T13 | Performance check: largest activity, heatmap, bundle size | done | T04, T10c | Performance: the build was never compressed, and what a hover really costs |
-| T20 | Prove the one-command install on the current image | todo | — | |
+| T20 | Prove the one-command install on the current image | done | — | Prove the one-command install: build the image, run it clean, restart it |
 | T21 | Activity list: an "edited" filter, so Settings can link to it | todo | — | |
 | T14 | Cleanup and frontend README | todo | every other task | |
 
@@ -1271,14 +1271,48 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   frontend landed, so `docker compose up -d` serving the built SPA is untested. Only
   `api-dev` and `ui-dev` have run since F4.
 - **Build:**
-  - [ ] `docker compose build app`, then `docker compose up -d`, and open the app on
+  - [x] `docker compose build app`, then `docker compose up -d`, and open the app on
     its own port: nav, an activity page and the Edit dialog, in both themes
-  - [ ] check the image carries `garmin_analytics/ui/` (the Docker build runs
+  - [x] check the image carries `garmin_analytics/ui/` (the Docker build runs
     `npm ci && npm run build`), and that the SPA fallback serves a deep link
-  - [ ] fix what the check finds, or add a row for it if it is not a small fix
+  - [x] fix what the check finds, or add a row for it if it is not a small fix
 - **Careful:** the owner's data is in that container. Don't recreate its volume, and
   ask before stopping it.
 - **Done when:** a fresh `docker compose up -d` serves the React app.
+- **It works.** `docker compose up -d` serves the React app from the image, and the
+  README's claim is now something that has been run rather than something written.
+- **Notes:**
+  - **The owner's `app` container did not exist at all** — only `api-dev` and `ui-dev`
+    have run since F4, exactly as this card said. Nothing had to be stopped, and
+    `garmin-analytics-data` was never mounted: the check ran as its own compose
+    project on its own empty volume (`garmin-t20-data`) and its own port (8099), from
+    an override file, so it was a genuine first-time install rather than a restart of
+    a populated one. Both are gone again; the owner's volume is untouched (139.7 MB,
+    still dated 2026-09-24) and the dev pair stayed up throughout.
+  - **What was checked, on the built image and not on Vite:**
+    - the image carries `garmin_analytics/ui/`: `index.html`, 22 JS and 3 CSS assets
+      under `assets/`, installed into site-packages by the wheel;
+    - a first run on an **empty** volume comes up healthy and draws `/status` with no
+      errors — dashes, "Not enough data to judge", "Garmin not connected" — rather
+      than a broken page;
+    - a first run with `GA_SEED_DEMO=1` seeds 1,153 synthetic activities and serves
+      `/status`, `/activities`, `/trends`, `/health` and `/map` with **no console
+      errors on any of them**;
+    - the activity page (`/activities/seed-001150`) in light: Mapbox basemap, the
+      route coloured by pace, gear chips, the route link, the playback control and
+      both charts. The Edit dialog in dark: every field, the two gear selects and the
+      route select;
+    - the SPA fallback serves a deep link (`/activities/<id>` → 200 `text/html`) and
+      a missing asset still 404s;
+    - **assets are compressed** — the main chunk arrives as 390,208 bytes rather than
+      1,221,703, so T13's fix is in the image;
+    - **a restart keeps the data**: an edited title, an RPE and a gear item created
+      through the API were all there afterwards, with the day range unchanged.
+  - **Nothing had to be fixed.** The only defect the check could have found had
+    already been found by T13 an hour earlier, and the image was built after it.
+  - The image is 368 MB and the build took about four minutes on this box. Free disk
+    went from 9.3 GB to 8.0 GB, which is above the 6 GB the cache-prune automation
+    watches for. No image or volume belonging to another project was touched.
 
 ### T21 — Activity list: an "edited" filter
 - **Found in:** T11b. The Settings "Your edits" panel wants to link to the activities
