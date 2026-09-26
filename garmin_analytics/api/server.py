@@ -64,6 +64,7 @@ from .schemas import (
     ActivityRouteResult,
     ActivityStreams,
     CompareTracks,
+    DailyList,
     ExerciseRelabelRequest,
     FieldsResponse,
     GarminStatus,
@@ -94,6 +95,7 @@ from .schemas import (
     SyncStatus,
     SyncStopResult,
     TrainingLoad,
+    Trends,
 )
 
 CACHE_TTL_S = 30.0
@@ -406,7 +408,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return load_mod.compute_load(st, start, end)
             return cached(settings, "load", lambda: load_mod.compute_load(st))
 
-    @app.get("/api/trends")
+    # exclude_unset: an empty database has no baseline to describe, so
+    # `compute_trends` returns neither `baseline_days` nor `z_threshold`.
+    @app.get("/api/trends", response_model=Trends, response_model_exclude_unset=True)
     def api_trends(
         days: int = Query(180, ge=7, le=2000),
         metrics: str | None = Query(None, description="comma-separated metric names"),
@@ -444,10 +448,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return cached(settings, "reports", lambda: reports_mod.compute_reports(st))
 
-    @app.get("/api/daily")
+    @app.get("/api/daily", response_model=DailyList)
     def api_daily(days: int = Query(400, ge=1, le=3000)) -> dict[str, Any]:
         with store() as st:
-            rows = st.query("SELECT * FROM v_daily ORDER BY day")
+            # `light_s` is joined on here rather than added to `v_daily`: the view feeds
+            # the trend engine, and a sleep-stage chart is the only thing that needs it.
+            rows = st.query(
+                "SELECT v.*, s.light_s AS light_s"
+                " FROM v_daily v LEFT JOIN sleep s ON s.day = v.day"
+                " ORDER BY v.day"
+            )
             return {"days": len(rows[-days:]), "rows": rows[-days:]}
 
     # -- aggregates ----------------------------------------------------------

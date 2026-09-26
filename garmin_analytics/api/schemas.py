@@ -852,6 +852,25 @@ class DailyRow(_Model):
     weight_kg: float | None
 
 
+class DailySleepRow(DailyRow):
+    """A `/api/daily` row: `v_daily`, plus the sleep stage the view leaves out.
+
+    The view carries deep and REM but not light, and a sleep-stage chart needs all
+    three. It is read from `sleep` at the response boundary rather than by widening
+    the view, which the trend engine also reads.
+    """
+
+    light_s: float | None
+
+
+class DailyList(_Model):
+    """`GET /api/daily`: the last `days` days on record, oldest first."""
+
+    days: int
+    """How many rows came back: the window asked for, or all there are."""
+    rows: list[DailySleepRow]
+
+
 class TrendFlag(_Model):
     """A recovery metric whose latest value is at least `z_threshold` sigma off its
     own trailing baseline."""
@@ -859,6 +878,50 @@ class TrendFlag(_Model):
     metric: TrendMetric
     z: float
     verdict: Literal["better than baseline", "worse than baseline"]
+
+
+#: `trends.series_trend`: how the latest value reads against its own baseline.
+TrendVerdict = Literal[
+    "insufficient data", "normal", "better than baseline", "worse than baseline"
+]
+
+
+class MetricTrend(_Model):
+    """One metric's daily series, its rolling means, and today against its baseline.
+
+    `values`, `roll7`, `roll28` and `roll90` are parallel to `days`, with a null on
+    every day that has no reading. Units are as stored: bpm, ms, seconds, 0..100.
+    """
+
+    metric: TrendMetric
+    days: list[str]
+    values: list[float | None]
+    roll7: list[float | None]
+    """Trailing 7-day mean of the days that have a reading."""
+    roll28: list[float | None]
+    roll90: list[float | None]
+    latest: float | None
+    """The last day's value; null when that day has no reading."""
+    baseline_mean: float | None
+    baseline_sd: float | None
+    z: float | None
+    """Sigma from the trailing baseline, which excludes the day being scored; null
+    when the baseline is too short or has no spread."""
+    flagged: bool
+    verdict: TrendVerdict
+
+
+class Trends(_Model):
+    """`GET /api/trends`. On an empty database `metrics` and `flags` are empty and
+    the two constants behind them are absent."""
+
+    metrics: dict[TrendMetric, MetricTrend]
+    """Keyed by metric name; only the metrics asked for when `metrics=` is given."""
+    flags: list[TrendFlag]
+    baseline_days: int | None = None
+    """Length of the trailing baseline each `z` is measured against."""
+    z_threshold: float | None = None
+    """|z| at or above which a metric is flagged."""
 
 
 class ReadinessComponents(_Model):

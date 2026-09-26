@@ -52,6 +52,10 @@ export const queryKeys = {
   summary: ["summary"] as const,
   load: ["load"] as const,
   performance: ["performance"] as const,
+  /** Health's three queries, keyed by the window the shared range control asks for. */
+  trends: (days: number) => ["trends", days] as const,
+  daily: (days: number) => ["daily", days] as const,
+  readinessHistory: (days: number) => ["readiness-history", days] as const,
   garminStatus: ["garmin-status"] as const,
   syncStatus: ["sync-status"] as const,
 };

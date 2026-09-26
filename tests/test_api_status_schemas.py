@@ -45,6 +45,9 @@ ADDED_SUMMARY_RACE_KEYS = {"distance_m"}
 ADDED_SUMMARY_KEYS = {"gym"}
 #: The "0:01:30" rendering of `eta_s`.
 DROPPED_SYNC_STATUS_KEYS = {"eta"}
+#: Light sleep, joined onto each `/api/daily` row from `sleep` (T08). `v_daily` carries
+#: deep and REM but not light, and a sleep-stage chart stacks all three.
+ADDED_DAILY_KEYS = {"light_s"}
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +140,11 @@ def _old_summary(st: Store) -> dict[str, Any]:
     }
 
 
+def _old_daily(st: Store, days: int = 400) -> dict[str, Any]:
+    rows = st.query("SELECT * FROM v_daily ORDER BY day")
+    return {"days": len(rows[-days:]), "rows": rows[-days:]}
+
+
 def _old_health(st: Store, settings) -> dict[str, Any]:
     """Minus `server_time`, which is the clock and is checked on its own."""
     lo, hi = st.day_range()
@@ -209,6 +217,32 @@ class TestPayloadsUnchangedExceptDrops:
     def test_readiness_history(self, client, st):
         _strict_equal(client.get("/api/readiness/history?days=45").json(),
                       _as_json({"days": 45, "series": ready_mod.readiness_history(st, 45)}))
+
+    def test_trends(self, client, st):
+        _strict_equal(client.get("/api/trends?days=90").json(),
+                      _as_json(trends_mod.compute_trends(st, days=90)))
+
+    def test_trends_for_a_subset_of_metrics(self, client, st):
+        new = client.get("/api/trends?days=90&metrics=hrv,resting_hr").json()
+        # An empty database answers `{}` whatever was asked for.
+        assert set(new["metrics"]) in ({"hrv", "resting_hr"}, set())
+        _strict_equal(new, _as_json(
+            trends_mod.compute_trends(st, days=90, metrics=["hrv", "resting_hr"])))
+
+    def test_daily_is_unchanged_but_for_light_sleep(self, client, st):
+        old = _as_json(_old_daily(st, 45))
+        new = client.get("/api/daily?days=45").json()
+        assert new["days"] == old["days"]
+        assert [set(n) - set(o) for n, o in zip(new["rows"], old["rows"])] \
+            == [ADDED_DAILY_KEYS] * len(old["rows"])
+        _strict_equal([_drop(r, ADDED_DAILY_KEYS) for r in new["rows"]], old["rows"])
+
+    def test_daily_light_sleep_comes_from_the_sleep_table(self, client, st):
+        """The stage the view leaves out, read back per day exactly as stored."""
+        stored = {r["day"]: r["light_s"]
+                  for r in st.query("SELECT day, light_s FROM sleep")}
+        rows = client.get("/api/daily?days=3000").json()["rows"]
+        assert [r["light_s"] for r in rows] == [stored.get(r["day"]) for r in rows]
 
     def test_race(self, client, st):
         old = _as_json(_old_race(st))
@@ -339,6 +373,12 @@ class TestEmptyShapes:
     def test_history_is_empty(self, empty):
         assert empty.get("/api/readiness/history").json() == {"days": 90, "series": []}
 
+    def test_trends_leave_the_baseline_constants_out(self, empty):
+        assert empty.get("/api/trends").json() == {"metrics": {}, "flags": []}
+
+    def test_daily_is_empty(self, empty):
+        assert empty.get("/api/daily").json() == {"days": 0, "rows": []}
+
     def test_race_has_no_projection(self, empty):
         body = empty.get("/api/race").json()
         assert body["projection"] is None and body["recent_bests"] == []
@@ -397,6 +437,25 @@ class TestClosedSets:
             cols = [d[0] for d in st.conn.execute("SELECT * FROM v_daily LIMIT 0").description]
         assert list(schemas.DailyRow.model_fields) == cols, (
             "v_daily changed shape: declare the new column on DailyRow")
+
+    def test_daily_sleep_row_adds_only_light_sleep(self):
+        assert (set(schemas.DailySleepRow.model_fields)
+                - set(schemas.DailyRow.model_fields)) == ADDED_DAILY_KEYS
+
+    def test_trend_verdicts(self):
+        """Every verdict `series_trend` can reach, from a baseline with no spread
+        (insufficient data) to one 3 sigma either side of it."""
+        days = [f"2026-01-{d:02d}" for d in range(1, 12)]
+        flat = [50.0] * 10
+        produced = {
+            trends_mod.series_trend(days, [*flat, latest], "resting_hr")["verdict"]
+            for latest in (None, 50.0, 40.0, 60.0)
+        }
+        produced |= {
+            trends_mod.series_trend(days, [*flat[:9], 52.0, latest], "resting_hr")["verdict"]
+            for latest in (50.0, 40.0, 60.0)
+        }
+        assert produced == set(get_args(schemas.TrendVerdict))
 
     def test_integer_distances_stay_integers(self, rw_settings):
         """Standard distances mix ints and floats; `Number` keeps each as it was."""
@@ -489,6 +548,8 @@ class TestOpenApi:
         ("/api/load", "get", "TrainingLoad"),
         ("/api/readiness", "get", "Readiness"),
         ("/api/readiness/history", "get", "ReadinessHistory"),
+        ("/api/trends", "get", "Trends"),
+        ("/api/daily", "get", "DailyList"),
         ("/api/race", "get", "RacePanel"),
         ("/api/health", "get", "Health"),
         ("/api/garmin/status", "get", "GarminStatus"),

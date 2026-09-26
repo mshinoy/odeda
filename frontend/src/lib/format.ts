@@ -276,6 +276,13 @@ export function formatDecimal(value: MaybeNumber, digits = 1): string {
   return fixedDigits(digits).format(value);
 }
 
+/** "48 ms", "7.7 h", or the number alone when the metric carries no unit: "72". */
+export function formatWithUnit(value: MaybeNumber, unit: string, digits = 0): string {
+  if (!isNumber(value)) return MISSING;
+  const number = fixedDigits(digits).format(value);
+  return unit === "" ? number : `${number} ${unit}`;
+}
+
 /** "+3.2" / "−4.9" (a true minus sign), for values whose sign is the point, like form. */
 export function formatSigned(value: MaybeNumber, digits = 1): string {
   if (!isNumber(value)) return MISSING;

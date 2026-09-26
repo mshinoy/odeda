@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ActivitiesPage } from "@/features/activities/ActivitiesPage";
 import { ActivityPage } from "@/features/activity/ActivityPage";
 import { ComparePage } from "@/features/compare/ComparePage";
+import { HealthPage } from "@/features/health/HealthPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
 import { RoutePage } from "@/features/routes/RoutePage";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
           { path: "activities", element: <ActivitiesPage /> },
           { path: "activities/:id", element: <ActivityPage /> },
           { path: "map", element: <MapPage /> },
+          { path: "health", element: <HealthPage /> },
           { path: "routes", element: <RoutesPage /> },
           { path: "routes/:id", element: <RoutePage /> },
           { path: "compare", element: <ComparePage /> },

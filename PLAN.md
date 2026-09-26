@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `open` | 1 / 5 |
+| 3 Health & trends | C: `open` | 2 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -82,7 +82,7 @@ Paste one of these into a fresh session.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T08 | Health: sleep, HRV, resting HR, Body Battery | in progress (Patti, 2026-09-26) | — | |
+| T08 | Health: sleep, HRV, resting HR, Body Battery | done | — | Health: your nights, your resting heart rate, and what sits off baseline |
 | T09 | Trends: performance (PBs, decoupling, EF, VO2max) | done | — | Trends: your records, and whether your long runs hold together |
 | T10a | Trends: totals, year over year, distance by month | todo | T09 | |
 | T10b | Trends: distributions, day × hour pattern | todo | T10a | |
@@ -821,14 +821,50 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T08 — Health
 - **Backend:** type `GET /api/trends` and `/api/daily`; `/api/readiness/history` is typed.
 - **Build:**
-  - [ ] sleep stages (stacked bars: deep, REM, light)
-  - [ ] sleep score, HRV and resting HR, each with its 28-day rolling baseline
-  - [ ] Body Battery high/low
-  - [ ] baseline flags as stat-card deltas
-  - [ ] readiness over 90 days
-  - [ ] one metric per chart, and a shared time-range control
+  - [x] sleep stages (stacked bars: deep, REM, light)
+  - [x] sleep score, HRV and resting HR, each with its 28-day rolling baseline
+  - [x] Body Battery high/low
+  - [x] baseline flags as stat-card deltas
+  - [x] readiness over 90 days
+  - [x] one metric per chart, and a shared time-range control
 - **Old reference:** `renderRecovery` in `app.js`. It drew the stacked bars as three
   overlapping series; use real stacking.
+- **Notes:**
+  - **You have no HRV at all, and six sleep scores.** All 1,402 raw `hrv` payloads are
+    `{}` and every `sleepScores` in the raw sleep payloads is `null`, so `hrv_daily` is
+    empty and `sleep.sleep_score` has six rows, all from Oct–Nov 2023. Both charts are
+    therefore built and unit-tested but have never drawn on your data; the page names
+    them under "Not recorded in this range" rather than showing two empty frames. This
+    is your watch, not the ingest: nothing was dropped on the way in.
+  - **Light sleep is served, not inferred.** `v_daily` carries deep and REM but not
+    light, and the old UI reconstructed it as `total - deep - rem`. `/api/daily` now
+    joins `sleep` at the response boundary and returns `light_s` as stored
+    (`DailySleepRow`). The three stages sum to `total_sleep_s` on all 703 of your
+    nights, so the old arithmetic was right — but it was arithmetic, and now it is not.
+  - The window (90 days / 6 months / 1 year / 2 years) lives in the URL, as the map's
+    filters do, not in the store's `timeRange`: it is one number of days, which is what
+    all three endpoints take, and it belongs to this page rather than across views.
+  - Sleep stages take three steps of the one magnitude ramp, deep at the strong end —
+    they are ordinal, like HR zones, not three categories. Every other chart here tells
+    its two lines apart by weight and an end label, as the fitness curve does.
+  - **A metric's card takes a colour only when the backend flagged it** (|z| ≥ 1.5).
+    Inside that, the difference from baseline is shown in plain grey: colouring a
+    normal day reads as news when there is none. Nothing of yours is flagged today, so
+    the good/bad tones are proven by test and not by a screenshot.
+  - The 28-day baseline line now breaks where the daily line does. A trailing 28-day
+    mean goes null only after 28 blank days, so joining across it would draw a baseline
+    for a month the watch was off. Your longest resting-HR gap is 26 days, so this
+    changes nothing you can see today.
+  - **Readiness holds a flat line through a month with nothing behind it.** From
+    2026-07-22 to 2026-08-15 `/api/readiness/history` returns ~84 "prime" every day,
+    because sleep, HRV and resting HR are all missing and the score falls back to form
+    alone, which decays smoothly when you are not training. The chart draws what the
+    endpoint says. Whether a readiness score built on one component should be returned
+    at all is `analytics/readiness.py`'s to answer, and yours to ask for.
+  - At 2 years the sleep chart is 730 bars in ~1,060 px and reads as texture. It still
+    shows where the gaps are, and the control is explicit about what was asked for, so
+    it was left alone; the old UI capped that chart at 120 nights regardless of the
+    range, which lies about the window instead.
 
 ### T09 — Trends: performance
 - **Backend:** type `GET /api/performance`. Drop the preformatted `time`/`pace` strings.
