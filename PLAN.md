@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 7 / 7 |
+| 4 Settings & finish | D: `ready for review` | 7 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -88,7 +88,7 @@ Paste one of these into a fresh session.
 | T10b | Trends: distributions, day × hour pattern | done | T10a | Trends: the shape of the history, and the week it happens in |
 | T10c | Trends: streaks, records, filters | done | T10a | Trends: how consistent you have been, and one filter over all of it |
 
-### Phase 4 — Settings & finish · Checkpoint D: `open`
+### Phase 4 — Settings & finish · Checkpoint D: `ready for review`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -348,7 +348,90 @@ five "Unsure about" items were not ruled on, so they stay as they are. The gear 
 
 ### Checkpoint D — Settings & finish
 
-_Note: not written yet._
+Seven tasks: Settings, Gear, the performance check, and proving the install. The last
+phase, so this is also the end of the rebuild.
+
+| | |
+|---|---|
+| `cc812ec` | Settings: connect a Garmin account, by password, by code or through a browser |
+| `4e99e15` | Settings: what a sync would cost, what you have edited, and a theme you pick |
+| `7883004` | Gear: what you run in, how far it has gone, and switching it after the fact |
+| `0a3be19` | Performance: the build was never compressed, and what a hover really costs |
+| `40158c1` | Prove the one-command install: build the image, run it clean, restart it |
+| `39d949c` | Activity list: an Edited filter, and the Settings link that wanted it |
+| `c3024b9` | A README for the frontend, and the leftovers of a rebuild that is over |
+
+**The two that matter most.**
+
+- **`docker compose up -d` works.** The production image had not been built since the
+  React frontend landed, so the README was claiming something nobody had run. It was
+  built and run from a genuinely clean state — its own compose project, its own empty
+  volume, its own port, so your `garmin-analytics-data` was never mounted and the dev
+  pair on 5173 never stopped. An empty first run comes up healthy and draws a calm
+  `/status` rather than a broken page; with `GA_SEED_DEMO=1` it serves every view with
+  no console errors; the activity page, the Edit dialog, the gear selects and the
+  Mapbox basemap all work from the image; a deep link falls back correctly; and a
+  restart keeps an edited title, an RPE and a gear item. Nothing had to be fixed.
+- **Gear is the thing you asked for first, and the Nimbus → Novablast case works.**
+  On your real 488 activities: the Nimbus put on all 234 runs, then the Novablast put
+  on the 2026 runs — 27 runs changed shoes, the Nimbus dropped to 207 activities and
+  1,115.6 km, the Novablast rose by the same 130 km, and the Sep 22 run now reads
+  Novablast on its own page. Assigning replaces gear of the same kind, so the bulk
+  assign is the correction. The edit survives a re-sync: after re-normalising all 489
+  activity rows from the archived payloads — the same write path a sync takes — every
+  item's count and mileage was identical.
+
+**To look at** (on http://localhost:5173):
+
+- `/gear`, or the footprints icon in the corner. Three items, worst wear first. The
+  Nimbus is over its limit in red with the reason in words. "Edit" is one dialog where
+  the old UI asked seven `window.prompt`s; "Assign to a range" previews before it
+  applies, and Apply stays disabled until you have seen the count.
+- `/settings`, the gear icon. Garmin sign-in (password, then a code, with the browser
+  route under "Sign in through a browser instead"), the sync panel with all seven
+  endpoint watermarks and a 1.4 h – 3.4 h estimate, your edits, the theme toggle and
+  About.
+- **The theme toggle is the quickest thing to judge**: Light / Dark / System. It is
+  remembered in this browser, and System still follows the OS live.
+- `/activities` — there is an "Edited" toggle beside "Races" now, and Settings links
+  to it.
+- `/nowhere` — the catch-all used to say "Not built yet". Everything is built, so it
+  says something true instead.
+
+Screenshots, light and dark, are in `~/garmin-review/D/`.
+
+**Two things on :5173 are mine, not yours.** The three gear items and the four edits
+in those screenshots were made on `api-dev`'s throwaway copy so the features had
+something to show — you own no gear, and had no edits. They disappear the moment
+`api-dev` restarts, and they never touched your database.
+
+**Unsure about:**
+
+- **The MFA step and the 503 fallback were never tried against Garmin.** Reaching
+  either means real credentials and a run of failed attempts from this host, which is
+  the thing D44 exists because of. Both are proven by the reducer's tests, and
+  everything that does not need Garmin was exercised for real. If you connect an
+  account and the code step misbehaves, that is the untested path.
+- **`GET /api/gear/{id}` is typed and tested with no page behind it.** T12 asked for
+  cards, CRUD, bulk assign and defaults, and a per-item page was not on the list. The
+  endpoint returns the item plus its 500 most recent activities whenever you want one.
+- **A body missing a key is now a 422 rather than a 400**, on `/api/garmin/*` and
+  `/api/gear*`, because those bodies are typed models — the same shift T05a made for
+  `PATCH /api/routes/{id}`. Nothing in the app sends such a body. An *empty* value is
+  still a 400.
+- **Nothing on this box can meet the 16 ms frame budget, and T13 could not fix that.**
+  A chart hover costs ~65 ms above the harness floor, and ~360 ms on a page that also
+  has a map, because every pointer move repaints WebGL through a software rasteriser.
+  The composition is in T13's notes. The real numbers still need a machine with a GPU;
+  `frontend/scripts/measure.mjs` is committed so you can take them in one command.
+- **T13 found that the app had never compressed anything.** `StaticFiles` does not
+  gzip, so every browser was being sent 1.2 MB of JavaScript. It is 450 kB now. That
+  was a real defect sitting in plain sight for the whole rebuild, and the only reason
+  it was caught is that this row asked for a number.
+- **Two of T06's notes were wrong and are corrected in T13's.** The longest GPS run is
+  1,605 points, not the ~16,900 that note claims — its 16.9 km read as metres.
+
+965 backend tests, 645 frontend tests.
 
 Owner feedback:
 
