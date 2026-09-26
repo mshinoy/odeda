@@ -3,6 +3,7 @@ import {
   formatAgo,
   formatCountRange,
   formatDays,
+  formatRoughDuration,
   formatEfficiencyFactor,
   formatDecimal,
   formatInteger,
@@ -363,6 +364,24 @@ describe("formatRelative", () => {
 
   it("is a dash when there is no ratio", () => {
     expect(formatRelative(null)).toBe(MISSING);
+  });
+});
+
+describe("formatRoughDuration", () => {
+  it("steps from minutes to hours to days", () => {
+    expect(formatRoughDuration(480)).toBe("8 min");
+    expect(formatRoughDuration(4932)).toBe("1.4 h");
+    expect(formatRoughDuration(12330)).toBe("3.4 h");
+    expect(formatRoughDuration(180_000)).toBe("2.1 days");
+  });
+
+  it("keeps a stopwatch's precision out of an estimate", () => {
+    // formatDuration would say "1:22:12", which this number cannot support.
+    expect(formatRoughDuration(4932)).not.toContain(":");
+  });
+
+  it("is MISSING for a missing number", () => {
+    expect(formatRoughDuration(null)).toBe(MISSING);
   });
 });
 

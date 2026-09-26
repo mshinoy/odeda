@@ -1450,6 +1450,20 @@ export interface components {
             biggest_week: components["schemas"]["BiggestWeek"] | null;
         };
         /**
+         * AppConfig
+         * @description `GET /api/config`: non-secret configuration, so a view can label its own
+         *     assumptions. Nothing here is a credential.
+         */
+        AppConfig: {
+            race: components["schemas"]["ConfigRace"];
+            athlete: components["schemas"]["ConfigAthlete"];
+            targets: components["schemas"]["ConfigTargets"];
+            /** Auth Required */
+            auth_required: boolean;
+            /** Version */
+            version: string;
+        };
+        /**
          * AppliedEdit
          * @description An edit that was stored.
          */
@@ -1570,6 +1584,33 @@ export interface components {
             count: number;
             /** Attempts */
             attempts: components["schemas"]["CompareAttempt"][];
+        };
+        /** ConfigAthlete */
+        ConfigAthlete: {
+            /** Hr Rest */
+            hr_rest: number;
+            /** Hr Max */
+            hr_max: number;
+            /** Sex */
+            sex: string;
+        };
+        /** ConfigRace */
+        ConfigRace: {
+            /** Name */
+            name: string;
+            /** Date */
+            date: string;
+            /** Start Local */
+            start_local: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** ConfigTargets */
+        ConfigTargets: {
+            /** Peak Ctl */
+            peak_ctl: number;
+            /** Peak Weekly Km */
+            peak_weekly_km: number;
         };
         /**
          * DailyList
@@ -2695,6 +2736,38 @@ export interface components {
             revertible: boolean;
         };
         /**
+         * OverrideFieldCount
+         * @description How many activities carry an edit to one field.
+         */
+        OverrideFieldCount: {
+            /** Field */
+            field: string;
+            /** N */
+            n: number;
+        };
+        /**
+         * OverridesSummary
+         * @description `GET /api/overrides`: how much of the data the user has corrected.
+         *
+         *     Exercise relabels are one number rather than one `by_field` row per exercise
+         *     index, which would be a list of noise.
+         */
+        OverridesSummary: {
+            /** Total */
+            total: number;
+            /** Activities Edited */
+            activities_edited: number;
+            /** Exercise Relabels */
+            exercise_relabels: number;
+            /** By Field */
+            by_field: components["schemas"]["OverrideFieldCount"][];
+            /**
+             * Fields
+             * @description The registry, so a field's count can be labelled without a second request.
+             */
+            fields: components["schemas"]["EditableFieldInfo"][];
+        };
+        /**
          * Patterns
          * @description When training actually happens.
          */
@@ -3658,6 +3731,38 @@ export interface components {
             last_activity?: string | null;
             /** Phase */
             phase?: "details" | null;
+        };
+        /**
+         * SyncEstimate
+         * @description `GET /api/sync/estimate`: roughly how big a full backfill would be.
+         *
+         *     A range, not a number: the per-request delay dominates and Garmin's throttling
+         *     is not predictable. The rendered `estimated_low` / `estimated_high` strings the
+         *     old dashboard used are gone; the seconds they were built from are here.
+         */
+        SyncEstimate: {
+            /** First Day */
+            first_day: string;
+            /** Last Day */
+            last_day: string;
+            /** Days */
+            days: number;
+            /**
+             * Activities Pending Details
+             * @description Activities whose per-sample streams have not been fetched yet.
+             */
+            activities_pending_details: number;
+            /**
+             * Daily Endpoints
+             * @description How many Connect endpoints are fetched per day of history.
+             */
+            daily_endpoints: number;
+            /** Estimated Requests */
+            estimated_requests: number;
+            /** Estimated Seconds Low */
+            estimated_seconds_low: number;
+            /** Estimated Seconds High */
+            estimated_seconds_high: number;
         };
         /**
          * SyncStartRequest
@@ -5070,9 +5175,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["OverridesSummary"];
                 };
             };
         };
@@ -5828,9 +5931,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SyncEstimate"];
                 };
             };
         };
@@ -5903,9 +6004,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AppConfig"];
                 };
             };
         };

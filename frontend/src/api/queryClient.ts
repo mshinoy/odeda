@@ -64,4 +64,8 @@ export const queryKeys = {
   readinessHistory: (days: number) => ["readiness-history", days] as const,
   garminStatus: ["garmin-status"] as const,
   syncStatus: ["sync-status"] as const,
+  syncEstimate: ["sync-estimate"] as const,
+  /** The count of the user's edits; an edit anywhere moves it. */
+  overrides: ["overrides"] as const,
+  config: ["config"] as const,
 };

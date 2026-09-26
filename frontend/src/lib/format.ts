@@ -404,6 +404,21 @@ export function formatCountRange(
   return `${integer.format(first)}–${integer.format(last)} of ${integer.format(total)}`;
 }
 
+/**
+ * A span that is only roughly known: "8 min", "1.4 h", "2.1 days".
+ *
+ * `formatDuration` is a stopwatch, and "1:22:12" on an estimate claims a precision
+ * the number does not have. The unit steps at an hour and at a day.
+ */
+export function formatRoughDuration(seconds: MaybeNumber): string {
+  if (!isNumber(seconds)) return MISSING;
+  const minutes = seconds / 60;
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${fixedDigits(1).format(hours)} h`;
+  return `${fixedDigits(1).format(hours / 24)} days`;
+}
+
 /** "1 day" / "115 days". */
 export function formatDays(days: MaybeNumber): string {
   if (!isNumber(days)) return MISSING;

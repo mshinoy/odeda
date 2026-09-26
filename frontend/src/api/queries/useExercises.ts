@@ -38,6 +38,8 @@ function afterRelabel(client: QueryClient, id: string, session: GymSession) {
   return Promise.all([
     client.invalidateQueries({ queryKey: queryKeys.activity(id) }),
     client.invalidateQueries({ queryKey: queryKeys.activitiesAll }),
+    // A relabel is an override, and Settings counts those separately.
+    client.invalidateQueries({ queryKey: queryKeys.overrides }),
   ]);
 }
 

@@ -70,6 +70,7 @@ from .schemas import (
     DailyList,
     ExerciseRelabelRequest,
     FieldsResponse,
+    AppConfig,
     GarminConnected,
     GarminDisconnected,
     GarminLoginRequest,
@@ -101,6 +102,8 @@ from .schemas import (
     RouteSplitRequest,
     RouteSplitResult,
     Summary,
+    OverridesSummary,
+    SyncEstimate,
     SyncStartRequest,
     SyncStarted,
     SyncStatus,
@@ -795,7 +798,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except ValueError as exc:
                 raise HTTPException(400, str(exc)) from exc
 
-    @app.get("/api/overrides")
+    @app.get("/api/overrides", response_model=OverridesSummary)
     def api_overrides_summary() -> dict[str, Any]:
         with store() as st:
             return ov_mod.stats(st)
@@ -1032,7 +1035,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             out["watermarks"] = st.watermarks()
             return out
 
-    @app.get("/api/sync/estimate")
+    @app.get("/api/sync/estimate", response_model=SyncEstimate)
     def api_sync_estimate() -> dict[str, Any]:
         with store() as st:
             return backfill_mod.estimate(st)
@@ -1070,7 +1073,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_sync_stop() -> dict[str, Any]:
         return {"stopping": job.stop()}
 
-    @app.get("/api/config")
+    @app.get("/api/config", response_model=AppConfig)
     def api_config() -> dict[str, Any]:
         """Non-secret configuration, so the dashboard can label its own assumptions."""
         return {

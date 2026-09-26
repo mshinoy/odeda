@@ -45,6 +45,8 @@ function refreshAfterEdit(
     // Trends: the totals, the years, the distributions and the records alike.
     client.invalidateQueries({ queryKey: queryKeys.aggregateAll }),
     client.invalidateQueries({ queryKey: queryKeys.performance }),
+    // Settings counts the edits, so making or reverting one moves that number.
+    client.invalidateQueries({ queryKey: queryKeys.overrides }),
   ]);
 }
 

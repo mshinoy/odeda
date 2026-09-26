@@ -1758,3 +1758,79 @@ class SyncStarted(_Model):
 class SyncStopResult(_Model):
     stopping: bool
     """False when no sync was running."""
+
+
+class SyncEstimate(_Model):
+    """`GET /api/sync/estimate`: roughly how big a full backfill would be.
+
+    A range, not a number: the per-request delay dominates and Garmin's throttling
+    is not predictable. The rendered `estimated_low` / `estimated_high` strings the
+    old dashboard used are gone; the seconds they were built from are here.
+    """
+
+    first_day: str
+    last_day: str
+    days: int
+    activities_pending_details: int
+    """Activities whose per-sample streams have not been fetched yet."""
+    daily_endpoints: int
+    """How many Connect endpoints are fetched per day of history."""
+    estimated_requests: int
+    estimated_seconds_low: int
+    estimated_seconds_high: int
+
+
+class OverrideFieldCount(_Model):
+    """How many activities carry an edit to one field."""
+
+    field: str
+    n: int
+
+
+class OverridesSummary(_Model):
+    """`GET /api/overrides`: how much of the data the user has corrected.
+
+    Exercise relabels are one number rather than one `by_field` row per exercise
+    index, which would be a list of noise.
+    """
+
+    total: int
+    activities_edited: int
+    exercise_relabels: int
+    by_field: list[OverrideFieldCount]
+    fields: list[EditableFieldInfo]
+    """The registry, so a field's count can be labelled without a second request."""
+
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+
+class ConfigRace(_Model):
+    name: str
+    date: str
+    start_local: str
+    timezone: str
+
+
+class ConfigAthlete(_Model):
+    hr_rest: int
+    hr_max: int
+    sex: str
+
+
+class ConfigTargets(_Model):
+    peak_ctl: Number
+    peak_weekly_km: Number
+
+
+class AppConfig(_Model):
+    """`GET /api/config`: non-secret configuration, so a view can label its own
+    assumptions. Nothing here is a credential."""
+
+    race: ConfigRace
+    athlete: ConfigAthlete
+    targets: ConfigTargets
+    auth_required: bool
+    version: str

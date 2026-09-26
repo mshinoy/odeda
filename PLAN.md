@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 1 / 6 |
+| 4 Settings & finish | D: `open` | 2 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -93,10 +93,11 @@ Paste one of these into a fresh session.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | done | — | Settings: connect a Garmin account, by password, by code or through a browser |
-| T11b | Settings: sync, overrides summary, version, theme toggle | in progress (Patti, 2026-09-26) | — | |
+| T11b | Settings: sync, overrides summary, version, theme toggle | done | — | Settings: what a sync would cost, what you have edited, and a theme you pick |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | todo | T11b | |
 | T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
 | T20 | Prove the one-command install on the current image | todo | — | |
+| T21 | Activity list: an "edited" filter, so Settings can link to it | todo | — | |
 | T14 | Cleanup and frontend README | todo | every other task | |
 
 ### Open decisions
@@ -1135,11 +1136,39 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T11b — Settings: sync, edits, about, theme
 - **Backend:** type `/api/sync/estimate`, `/api/overrides` and `/api/config`.
 - **Build:**
-  - [ ] sync: estimate, start/stop, per-endpoint watermarks
-  - [ ] summary of edits (overrides, including T16b's exercise relabels)
-  - [ ] version, data range
-  - [ ] light / dark / system theme toggle (extend `design/theme.ts`)
+  - [x] sync: estimate, start/stop, per-endpoint watermarks
+  - [x] summary of edits (overrides, including T16b's exercise relabels)
+  - [x] version, data range
+  - [x] light / dark / system theme toggle (extend `design/theme.ts`)
 - **Old reference:** `renderSettings` in `app.js`.
+- **Notes:**
+  - **The theme toggle is a preference, not a theme.** `design/theme.ts` now holds
+    `light | dark | system`, resolves it against the OS, and remembers it in
+    `localStorage` (`ga.theme`). `system` stays the default and still follows the OS
+    live; the other two stop listening. Checked by emulating a dark OS and choosing
+    Light: the page turns light and stays light.
+  - **The estimate's two rendered strings were dropped**, per the response-boundary
+    rule: `estimated_low` / `estimated_high` were `str(timedelta(...))`, and the
+    seconds behind them are still there. They needed a formatter that is not a
+    stopwatch — `formatDuration(4932)` reads "1:22:12", which claims a precision an
+    estimate does not have — so `formatRoughDuration` is new in `format.ts`: "8 min",
+    "1.4 h", "2.1 days". The low and the high are both shown, because the backend
+    reports a range on purpose.
+  - **`/api/config` is fully modelled**, including `race`, `athlete` and `targets`,
+    for T10a's reason: a response model drops what it does not declare, and the About
+    panel needs only `version`, but silently deleting the rest of a public endpoint is
+    not this task's to do.
+  - **`/api/overrides` keeps its `fields` copy of the registry.** It duplicates
+    `/api/fields`, but it is what lets a field's count be labelled without a second
+    request, and the panel's label lookup is one line (`editSummary.ts`).
+  - Making or reverting an edit now invalidates the overrides count, from both the
+    Edit dialog and an exercise relabel. Neither key existed before this task.
+  - **The edits panel does not use `EmptyState`.** That component centres itself over
+    a whole view, and this is one of five left-aligned panels; a centred block in the
+    middle of them reads as a broken page.
+  - **There is no link to "the activities you have edited"**, although
+    `/api/activities` takes an `edited` filter, because the list's URL state
+    (`listState.ts`) has no such filter to link to. Adding one is T21.
 
 ### T12 — Gear
 - **Backend:** type the remaining `/api/gear*` endpoints (CRUD, `bulk-assign`, `defaults`).
@@ -1173,6 +1202,17 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Careful:** the owner's data is in that container. Don't recreate its volume, and
   ask before stopping it.
 - **Done when:** a fresh `docker compose up -d` serves the React app.
+
+### T21 — Activity list: an "edited" filter
+- **Found in:** T11b. The Settings "Your edits" panel wants to link to the activities
+  it is counting, and cannot: `/api/activities` takes an `edited` filter, but the
+  list's URL state does not.
+- **Build:**
+  - [ ] `edited` in `listState.ts` (URL `edited=1`, like `race=1`), a control in
+    `ActivityFilters`, and `clearFilters` clearing it
+  - [ ] the Settings edits panel links to it
+- **Done when:** the filter survives Back, and the link from Settings lands on the
+  edited activities.
 
 ### T14 — Cleanup and frontend README
 - [ ] `frontend/README.md`: how to run (dev, build, Docker), the folder structure, and
