@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `open` | 3 / 5 |
+| 3 Health & trends | C: `open` | 4 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -85,7 +85,7 @@ Paste one of these into a fresh session.
 | T08 | Health: sleep, HRV, resting HR, Body Battery | done | — | Health: your nights, your resting heart rate, and what sits off baseline |
 | T09 | Trends: performance (PBs, decoupling, EF, VO2max) | done | — | Trends: your records, and whether your long runs hold together |
 | T10a | Trends: totals, year over year, distance by month | done | T09 | Trends: what you have done, by month and by year |
-| T10b | Trends: distributions, day × hour pattern | in progress (Patti, 2026-09-26) | T10a | |
+| T10b | Trends: distributions, day × hour pattern | done | T10a | Trends: the shape of the history, and the week it happens in |
 | T10c | Trends: streaks, records, filters | todo | T10a | |
 
 ### Phase 4 — Settings & finish · Checkpoint D: `open`
@@ -953,10 +953,34 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Backend:** nothing to do. T10a typed all of `/api/aggregate`; the data is in
   `aggregate.distributions` and `aggregate.patterns` (`useAggregate`).
 - **Build:**
-  - [ ] pace, distance and HR-zone distributions
-  - [ ] day-of-week × hour pattern
+  - [x] pace, distance and HR-zone distributions
+  - [x] day-of-week × hour pattern
 - **Note:** a bucket carries `lo`, `hi` and `count` and no label, so the axis formats
   `lo` itself: seconds per km for pace, km for distance, minutes for duration, bpm for HR.
+- **Notes:**
+  - **Every chart here says how much of your history it actually covers.** Pace is 262
+    of 488 activities, distance 293 of 488, average HR 483 of 488 — a gym session has no
+    pace and no distance, so it is in `sample_size` and in no bar. Without the count the
+    shape looks like the whole history.
+  - **Garmin sent HR zones for ten of your 488 activities.** There are 6:33:39 in zones
+    against 409 hours of training, and the caption says exactly that (`6:33:39 of
+    409 h`) so the bar cannot pass itself off as four years of intensity. The payload
+    has no count of which activities carry zones, and the two times are both already
+    there, so no new field was needed.
+  - **The duration distribution is not drawn**, although the endpoint sends it. Two pool
+    swims carry 61 h and 47 h of moving time (`/activities` on 2025-10-20 and
+    2025-11-03: a watch left running), which is 18 h more than every other activity put
+    together and flattens all 18 buckets into one. Those two also inflate the "Moving
+    time" total on this page by about 108 of its 409 hours. Nothing was filtered —
+    excluding an activity from statistics is your call, and the tick box for it is on
+    the activity page.
+  - The week grid is 168 divs, not an ECharts heatmap: it needs no canvas, and
+    registering the heatmap series and its visual map would put both in the bundle for
+    one block. Hand-drawn for the same reason T16's body diagram is. Each cell carries
+    its own count in a `title`, and intensity is scaled against the busiest slot, which
+    is the only useful "full".
+  - Your week reads clearly: 17:00–21:00 most days, a second lighter band at 05:00–08:00,
+    and Monday and Tuesday at 20:00 the darkest cells on the grid.
 
 ### T10c — Trends: streaks, records, filters
 - **Backend:** nothing to do. `aggregate.streaks` and `aggregate.records` are typed, as
