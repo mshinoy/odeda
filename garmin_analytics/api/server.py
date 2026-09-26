@@ -54,6 +54,9 @@ from . import auth as auth_mod
 from . import gym as gym_mod
 from .schemas import (
     ActivityDetail,
+    Aggregate,
+    AggregateFilters,
+    AggregatePeriods,
     ActivityEditPayload,
     ActivityEditResult,
     ActivityExercises,
@@ -74,6 +77,7 @@ from .schemas import (
     Performance,
     RacePanel,
     ReclusterRequest,
+    Reports,
     ReclusterResult,
     Readiness,
     ReadinessHistory,
@@ -443,7 +447,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return _race(st)
 
-    @app.get("/api/reports")
+    @app.get("/api/reports", response_model=Reports)
     def api_reports() -> dict[str, Any]:
         with store() as st:
             return cached(settings, "reports", lambda: reports_mod.compute_reports(st))
@@ -472,7 +476,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "gear_id": gear_id,
         }
 
-    @app.get("/api/aggregate")
+    # exclude_unset: with no activities, `totals` has no span keys and `streaks` no
+    # span either, and they stay absent rather than becoming zeroes.
+    @app.get("/api/aggregate", response_model=Aggregate, response_model_exclude_unset=True)
     def api_aggregate(
         type: str | None = None,
         start: str | None = None,
@@ -485,12 +491,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return cached(settings, key, lambda: agg_mod.compute_aggregate(st, **f))
 
-    @app.get("/api/aggregate/filters")
+    @app.get("/api/aggregate/filters", response_model=AggregateFilters)
     def api_aggregate_filters() -> dict[str, Any]:
         with store() as st:
             return agg_mod.available_filters(st)
 
-    @app.get("/api/aggregate/periods")
+    @app.get("/api/aggregate/periods", response_model=AggregatePeriods)
     def api_aggregate_periods(
         period: str = Query("month", pattern="^(year|month|week)$"),
         type: str | None = None,

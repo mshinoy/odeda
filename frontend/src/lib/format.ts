@@ -65,6 +65,15 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
+/**
+ * A span too long for a clock, as whole hours: "409 h". Four hundred hours of training
+ * reads as "409:06:15" through `formatDuration`, which is a stopwatch, not a total.
+ */
+export function formatHours(seconds: MaybeNumber): string {
+  if (!isNumber(seconds)) return MISSING;
+  return `${integer.format(seconds / 3600)} h`;
+}
+
 /** m:ss, rounded to the whole second first so 359.6 s is "6:00", never "5:60". */
 function minutesSeconds(seconds: number): string {
   const total = Math.round(seconds);
@@ -201,6 +210,11 @@ const timeFormat = new Intl.DateTimeFormat(LOCALE, {
   hourCycle: "h23",
 });
 const weekdayFormat = new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", weekday: "short" });
+const monthYearFormat = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: "UTC",
+  month: "short",
+  year: "numeric",
+});
 
 const WALL_CLOCK = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?$/;
 
@@ -259,6 +273,16 @@ export function formatDateTime(iso: string | null | undefined, today: Date = new
   const date = iso ? parseWallClock(iso) : null;
   if (!date) return MISSING;
   return `${dayLabel(date, today)}, ${timeFormat.format(date)}`;
+}
+
+/**
+ * A `YYYY-MM` period: "Sep 2025". The year is always there, unlike `formatDate`'s
+ * rule — a month axis spans years, and a bare "Sep" on one has nothing to place it.
+ */
+export function formatMonth(period: string | null | undefined): string {
+  const date = period ? parseWallClock(`${period}-01`) : null;
+  if (!date) return MISSING;
+  return monthYearFormat.format(date);
 }
 
 /** "Tue". */

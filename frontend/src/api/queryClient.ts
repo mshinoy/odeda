@@ -52,6 +52,8 @@ export const queryKeys = {
   summary: ["summary"] as const,
   load: ["load"] as const,
   performance: ["performance"] as const,
+  /** Totals, periods, distributions, patterns, streaks and records in one payload. */
+  aggregate: ["aggregate"] as const,
   /** Health's three queries, keyed by the window the shared range control asks for. */
   trends: (days: number) => ["trends", days] as const,
   daily: (days: number) => ["daily", days] as const,

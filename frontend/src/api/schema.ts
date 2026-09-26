@@ -1354,6 +1354,102 @@ export interface components {
             lon: (number | null)[];
         };
         /**
+         * Aggregate
+         * @description `GET /api/aggregate`: everything the Trends aggregates need in one call.
+         */
+        Aggregate: {
+            filters: components["schemas"]["AppliedFilters"];
+            totals: components["schemas"]["LifetimeTotals"];
+            /**
+             * By Type
+             * @description Busiest type first. Never filtered by type, whatever was asked for.
+             */
+            by_type: components["schemas"]["TypeTotals"][];
+            /** By Year */
+            by_year: components["schemas"]["PeriodRow"][];
+            /**
+             * By Month
+             * @description Oldest first; months with no activity are absent, not zero rows.
+             */
+            by_month: components["schemas"]["PeriodRow"][];
+            year_over_year: components["schemas"]["YearOverYear"];
+            distributions: components["schemas"]["Distributions"];
+            patterns: components["schemas"]["Patterns"];
+            streaks: components["schemas"]["AggregateStreaks"];
+            records: components["schemas"]["Records"];
+        };
+        /**
+         * AggregateBestEffort
+         * @description Fastest effort at a standard distance within the filter.
+         */
+        AggregateBestEffort: {
+            /** Distance M */
+            distance_m: number;
+            /** Label */
+            label: string;
+            /** Seconds */
+            seconds: number;
+            /** Day */
+            day: string;
+            /** Activity Id */
+            activity_id: string;
+            /** Activity Name */
+            activity_name: string | null;
+        };
+        /**
+         * AggregateFilters
+         * @description `GET /api/aggregate/filters`: what the filter bar can offer.
+         */
+        AggregateFilters: {
+            /** Types */
+            types: components["schemas"]["FilterType"][];
+            /** Gear */
+            gear: components["schemas"]["FilterGear"][];
+            range: components["schemas"]["FilterRange"];
+        };
+        /**
+         * AggregatePeriods
+         * @description `GET /api/aggregate/periods`: one block of `Aggregate`, by week if wanted.
+         */
+        AggregatePeriods: {
+            /**
+             * Period
+             * @enum {string}
+             */
+            period: "year" | "month" | "week";
+            /** Rows */
+            rows: components["schemas"]["PeriodRow"][];
+        };
+        /**
+         * AggregateStreaks
+         * @description Consistency over the filtered set. Distinct from `Streaks` on `/api/reports`,
+         *     which counts wellness days rather than filtered activities.
+         */
+        AggregateStreaks: {
+            /**
+             * Current
+             * @description 0 unless the streak reaches today or yesterday.
+             */
+            current: number;
+            /** Longest */
+            longest: number;
+            /** Longest End */
+            longest_end: string | null;
+            /** Active Days */
+            active_days: number;
+            /**
+             * Span Days
+             * @description Absent on a set with no activities, along with the three below.
+             * @default 0
+             */
+            span_days: number;
+            /** Rest Days */
+            rest_days: number;
+            /** Active Pct */
+            active_pct?: number | null;
+            biggest_week: components["schemas"]["BiggestWeek"] | null;
+        };
+        /**
          * AppliedEdit
          * @description An edit that was stored.
          */
@@ -1386,6 +1482,21 @@ export interface components {
             reverted: false;
         };
         /**
+         * AppliedFilters
+         * @description The filters this response was computed under; keys the caller left out are
+         *     absent rather than null.
+         */
+        AppliedFilters: {
+            /** Activity Type */
+            activity_type?: string | null;
+            /** Start */
+            start?: string | null;
+            /** End */
+            end?: string | null;
+            /** Gear Id */
+            gear_id?: number | null;
+        };
+        /**
          * BestEffort
          * @description Fastest window for a standard distance within this activity.
          */
@@ -1399,6 +1510,17 @@ export interface components {
              * @description Standard label ("1 k", "5 k", "HM", ...), or null for any other distance.
              */
             label: string | null;
+        };
+        /** BiggestWeek */
+        BiggestWeek: {
+            /** Week */
+            week: string;
+            /** Activities */
+            activities: number;
+            /** Distance Km */
+            distance_km: number;
+            /** Hours */
+            hours: number;
         };
         /**
          * CompareActivity
@@ -1635,6 +1757,28 @@ export interface components {
             aerobically_durable: boolean;
         };
         /**
+         * Distributions
+         * @description How the filtered activities spread out. Pace buckets are a fixed 15 s wide
+         *     between 2:30 and 15:00 /km; the rest are split over the observed range.
+         */
+        Distributions: {
+            /** Pace */
+            pace: components["schemas"]["HistogramBucket"][];
+            /** Distance Km */
+            distance_km: components["schemas"]["HistogramBucket"][];
+            /** Duration Min */
+            duration_min: components["schemas"]["HistogramBucket"][];
+            /** Avg Hr */
+            avg_hr: components["schemas"]["HistogramBucket"][];
+            /** Hr Zones */
+            hr_zones: components["schemas"]["HrZoneShare"][];
+            /**
+             * Sample Size
+             * @description Activities behind the histograms, including those with nothing to bucket.
+             */
+            sample_size: number;
+        };
+        /**
          * EditableFieldInfo
          * @description One entry of the editable-field registry (`db/fields.py`).
          */
@@ -1753,12 +1897,73 @@ export interface components {
             /** Sub Category */
             sub_category?: string | null;
         };
+        /**
+         * Extreme
+         * @description The one activity that tops the filtered set on a single measure.
+         */
+        Extreme: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "longest_distance" | "longest_duration" | "most_elevation" | "fastest_average" | "highest_hr" | "biggest_trimp";
+            /** Label */
+            label: string;
+            /**
+             * Raw
+             * @description In the unit `key` implies; `fastest_average` is m/s, not a pace.
+             */
+            raw: number;
+            /** Day */
+            day: string;
+            /** Activity Id */
+            activity_id: string;
+            /** Activity Name */
+            activity_name: string | null;
+            /** Activity Type */
+            activity_type: string;
+        };
         /** FieldsResponse */
         FieldsResponse: {
             /** Fields */
             fields: components["schemas"]["EditableFieldInfo"][];
             /** Activity Types */
             activity_types: string[];
+        };
+        /** FilterGear */
+        FilterGear: {
+            /** Gear Id */
+            gear_id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "shoe" | "bike" | "strap" | "other";
+            /** Brand */
+            brand: string | null;
+            /** Model */
+            model: string | null;
+            /** Nickname */
+            nickname: string | null;
+            /** N */
+            n: number;
+        };
+        /** FilterRange */
+        FilterRange: {
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
+        };
+        /** FilterType */
+        FilterType: {
+            /** Value */
+            value: string;
+            /**
+             * N
+             * @description Activities of this type, before any other filter.
+             */
+            n: number;
         };
         /**
          * GarminStatus
@@ -2010,12 +2215,54 @@ export interface components {
              */
             count: number[];
         };
+        /**
+         * HistogramBucket
+         * @description One bar of a distribution. `lo` and `hi` are in the histogram's own unit:
+         *     seconds per km for pace, km for distance, minutes for duration, bpm for HR.
+         */
+        HistogramBucket: {
+            /** Lo */
+            lo: number;
+            /** Hi */
+            hi: number;
+            /** Count */
+            count: number;
+        };
+        /** HourBucket */
+        HourBucket: {
+            /**
+             * Hour
+             * @description 0-23, by the activity's local start time.
+             */
+            hour: number;
+            /** Count */
+            count: number;
+            /** Distance Km */
+            distance_km: number;
+        };
         /** HrZone */
         HrZone: {
             /** Zone */
             zone: number;
             /** Seconds */
             seconds: number;
+        };
+        /** HrZoneShare */
+        HrZoneShare: {
+            /**
+             * Zone
+             * @description 1-5.
+             */
+            zone: number;
+            /** Seconds */
+            seconds: number;
+            /** Hours */
+            hours: number;
+            /**
+             * Pct
+             * @description Share of all zone time in the filtered set.
+             */
+            pct: number;
         };
         /** KmSplit */
         KmSplit: {
@@ -2028,6 +2275,78 @@ export interface components {
             seconds: number;
             /** Avg Hr */
             avg_hr: number | null;
+        };
+        /**
+         * LifetimeTotals
+         * @description `totals`: the headline figures, plus how long they were collected over.
+         *     The four span fields are absent on a set with no activities.
+         */
+        LifetimeTotals: {
+            /** Activities */
+            activities: number;
+            /** Distance M */
+            distance_m: number;
+            /** Duration S */
+            duration_s: number;
+            /** Moving Time S */
+            moving_time_s: number;
+            /** Elevation Gain M */
+            elevation_gain_m: number;
+            /** Calories */
+            calories: number;
+            /** Trimp */
+            trimp: number;
+            /**
+             * Avg Hr
+             * @description Mean of the per-activity averages; null when none recorded heart rate.
+             */
+            avg_hr: number | null;
+            /** Avg Distance M */
+            avg_distance_m: number | null;
+            /** Avg Moving Time S */
+            avg_moving_time_s: number | null;
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
+            /** Distance Km */
+            distance_km: number;
+            /** Duration H */
+            duration_h: number;
+            /** Moving Time H */
+            moving_time_h: number;
+            /** Avg Distance Km */
+            avg_distance_km: number | null;
+            /**
+             * Avg Speed Mps
+             * @description Total distance over total moving time, not the mean of per-activity speeds:
+             *     otherwise a 400 m stride would weigh as much as a 30 km long run.
+             */
+            avg_speed_mps: number | null;
+            /** Avg Speed Kmh */
+            avg_speed_kmh: number | null;
+            /** Avg Pace S Per Km */
+            avg_pace_s_per_km: number | null;
+            /**
+             * Span Days
+             * @default 0
+             */
+            span_days: number;
+            /**
+             * Span Years
+             * @default 0
+             */
+            span_years: number;
+            /**
+             * Activities Per Week
+             * @default 0
+             */
+            activities_per_week: number;
+            /**
+             * Distance Km Per Week
+             * @default 0
+             */
+            distance_km_per_week: number;
         };
         /**
          * LoadCurrent
@@ -2117,6 +2436,24 @@ export interface components {
             overreaching: boolean;
         };
         /**
+         * MetricChange
+         * @description One metric against the year before.
+         */
+        MetricChange: {
+            /**
+             * Delta
+             * @description In the metric's own unit, so a `*_km` metric's delta is in km.
+             */
+            delta: number;
+            /** Pct */
+            pct: number;
+            /**
+             * Better
+             * @description Which direction counts as an improvement; for pace, lower.
+             */
+            better: boolean;
+        };
+        /**
          * MetricTrend
          * @description One metric's daily series, its rolling means, and today against its baseline.
          *
@@ -2165,6 +2502,60 @@ export interface components {
              */
             verdict: "insufficient data" | "normal" | "better than baseline" | "worse than baseline";
         };
+        /** MonthBucket */
+        MonthBucket: {
+            /**
+             * Month
+             * @description 1-12, across every year.
+             */
+            month: number;
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+            /** Distance Km */
+            distance_km: number;
+        };
+        /**
+         * MonthlyReportRow
+         * @description One calendar month of activity and wellness totals (`reports.monthly_report`).
+         */
+        MonthlyReportRow: {
+            /** Month */
+            month: string;
+            /** Sessions */
+            sessions: number;
+            /**
+             * Km
+             * @description All sports.
+             */
+            km: number;
+            /** Run Km */
+            run_km: number;
+            /** Hours */
+            hours: number;
+            /** Trimp */
+            trimp: number;
+            /** Elev M */
+            elev_m: number;
+            /** Rhr */
+            rhr: number | null;
+            /** Hrv */
+            hrv: number | null;
+            /** Sleep Score */
+            sleep_score: number | null;
+            /** Weight Kg */
+            weight_kg: number | null;
+            /** Vo2Max */
+            vo2max: number | null;
+            /**
+             * Km Delta Pct
+             * @description Running km change vs the previous month, percent.
+             */
+            km_delta_pct: number | null;
+            /** Trimp Delta Pct */
+            trimp_delta_pct: number | null;
+        };
         /**
          * Override
          * @description One user edit on an activity, with the Garmin value it is masking.
@@ -2202,6 +2593,30 @@ export interface components {
             revertible: boolean;
         };
         /**
+         * Patterns
+         * @description When training actually happens.
+         */
+        Patterns: {
+            /** Day Of Week */
+            day_of_week: components["schemas"]["WeekdayBucket"][];
+            /** Hour Of Day */
+            hour_of_day: components["schemas"]["HourBucket"][];
+            /** Month Of Year */
+            month_of_year: components["schemas"]["MonthBucket"][];
+            /**
+             * Dow Hour Matrix
+             * @description 7 rows (Monday first) of 24 counts. Activities with no start time are
+             *     counted in `day_of_week` but not here, so the rows need not sum to `count`.
+             */
+            dow_hour_matrix: number[][];
+            /** Busiest Day */
+            busiest_day: string | null;
+            /** Peak Hour */
+            peak_hour: number | null;
+            /** Total */
+            total: number;
+        };
+        /**
          * Performance
          * @description `GET /api/performance`.
          *
@@ -2237,6 +2652,62 @@ export interface components {
             vo2max: components["schemas"]["Vo2maxPoint"][];
             /** Efficiency Trend */
             efficiency_trend: components["schemas"]["EfficiencyPoint"][];
+        };
+        /**
+         * PeriodRow
+         * @description One row of `by_year`, `by_month` or `/api/aggregate/periods`.
+         */
+        PeriodRow: {
+            /** Activities */
+            activities: number;
+            /** Distance M */
+            distance_m: number;
+            /** Duration S */
+            duration_s: number;
+            /** Moving Time S */
+            moving_time_s: number;
+            /** Elevation Gain M */
+            elevation_gain_m: number;
+            /** Calories */
+            calories: number;
+            /** Trimp */
+            trimp: number;
+            /**
+             * Avg Hr
+             * @description Mean of the per-activity averages; null when none recorded heart rate.
+             */
+            avg_hr: number | null;
+            /** Avg Distance M */
+            avg_distance_m: number | null;
+            /** Avg Moving Time S */
+            avg_moving_time_s: number | null;
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
+            /** Distance Km */
+            distance_km: number;
+            /** Duration H */
+            duration_h: number;
+            /** Moving Time H */
+            moving_time_h: number;
+            /** Avg Distance Km */
+            avg_distance_km: number | null;
+            /**
+             * Avg Speed Mps
+             * @description Total distance over total moving time, not the mean of per-activity speeds:
+             *     otherwise a 400 m stride would weigh as much as a 30 km long run.
+             */
+            avg_speed_mps: number | null;
+            /** Avg Speed Kmh */
+            avg_speed_kmh: number | null;
+            /** Avg Pace S Per Km */
+            avg_pace_s_per_km: number | null;
+            /**
+             * Period
+             * @description `2026`, `2026-09` or `2026-W38`, by the period asked for.
+             */
+            period: string;
         };
         /**
          * PersonalBest
@@ -2518,6 +2989,16 @@ export interface components {
             /** Kept Manual */
             kept_manual: number;
         };
+        /** Records */
+        Records: {
+            /**
+             * Best Efforts
+             * @description Distances never covered are left out rather than shown empty.
+             */
+            best_efforts: components["schemas"]["AggregateBestEffort"][];
+            /** Extremes */
+            extremes: components["schemas"]["Extreme"][];
+        };
         /** ReportTotals */
         ReportTotals: {
             /** Activities */
@@ -2535,6 +3016,20 @@ export interface components {
             total_run_km: number;
             /** Total Hours */
             total_hours: number;
+        };
+        /**
+         * Reports
+         * @description `GET /api/reports`: the rolling weekly and monthly tables behind the summary.
+         */
+        Reports: {
+            /** Weekly */
+            weekly: components["schemas"]["WeeklyReportRow"][];
+            /** Monthly */
+            monthly: components["schemas"]["MonthlyReportRow"][];
+            streaks: components["schemas"]["Streaks"];
+            /** Weekday Consistency */
+            weekday_consistency: components["schemas"]["WeekdayShare"][];
+            totals: components["schemas"]["ReportTotals"];
         };
         /**
          * RevertAllResult
@@ -3237,6 +3732,59 @@ export interface components {
              */
             z_threshold?: number | null;
         };
+        /**
+         * TypeTotals
+         * @description One row of `by_type`: the same totals for one activity type.
+         */
+        TypeTotals: {
+            /** Activities */
+            activities: number;
+            /** Distance M */
+            distance_m: number;
+            /** Duration S */
+            duration_s: number;
+            /** Moving Time S */
+            moving_time_s: number;
+            /** Elevation Gain M */
+            elevation_gain_m: number;
+            /** Calories */
+            calories: number;
+            /** Trimp */
+            trimp: number;
+            /**
+             * Avg Hr
+             * @description Mean of the per-activity averages; null when none recorded heart rate.
+             */
+            avg_hr: number | null;
+            /** Avg Distance M */
+            avg_distance_m: number | null;
+            /** Avg Moving Time S */
+            avg_moving_time_s: number | null;
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
+            /** Distance Km */
+            distance_km: number;
+            /** Duration H */
+            duration_h: number;
+            /** Moving Time H */
+            moving_time_h: number;
+            /** Avg Distance Km */
+            avg_distance_km: number | null;
+            /**
+             * Avg Speed Mps
+             * @description Total distance over total moving time, not the mean of per-activity speeds:
+             *     otherwise a 400 m stride would weigh as much as a 30 km long run.
+             */
+            avg_speed_mps: number | null;
+            /** Avg Speed Kmh */
+            avg_speed_kmh: number | null;
+            /** Avg Pace S Per Km */
+            avg_pace_s_per_km: number | null;
+            /** Activity Type */
+            activity_type: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -3278,6 +3826,31 @@ export interface components {
             status: ("ok" | "error" | "partial") | null;
             /** Note */
             note: string | null;
+        };
+        /** WeekdayBucket */
+        WeekdayBucket: {
+            /**
+             * Day
+             * @description 0 = Monday.
+             */
+            day: number;
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+            /** Distance Km */
+            distance_km: number;
+            /** Hours */
+            hours: number;
+        };
+        /** WeekdayShare */
+        WeekdayShare: {
+            /** Weekday */
+            weekday: string;
+            /** Count */
+            count: number;
+            /** Pct */
+            pct: number;
         };
         /**
          * WeeklyReportRow
@@ -3327,6 +3900,77 @@ export interface components {
             km_delta_pct: number | null;
             /** Trimp Delta Pct */
             trimp_delta_pct: number | null;
+        };
+        /** YearOverYear */
+        YearOverYear: {
+            /**
+             * Metric Names
+             * @description The metrics `changes` is keyed on, in display order.
+             */
+            metric_names: string[];
+            /** Years */
+            years: components["schemas"]["YearRow"][];
+        };
+        /** YearRow */
+        YearRow: {
+            /** Activities */
+            activities: number;
+            /** Distance M */
+            distance_m: number;
+            /** Duration S */
+            duration_s: number;
+            /** Moving Time S */
+            moving_time_s: number;
+            /** Elevation Gain M */
+            elevation_gain_m: number;
+            /** Calories */
+            calories: number;
+            /** Trimp */
+            trimp: number;
+            /**
+             * Avg Hr
+             * @description Mean of the per-activity averages; null when none recorded heart rate.
+             */
+            avg_hr: number | null;
+            /** Avg Distance M */
+            avg_distance_m: number | null;
+            /** Avg Moving Time S */
+            avg_moving_time_s: number | null;
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
+            /** Distance Km */
+            distance_km: number;
+            /** Duration H */
+            duration_h: number;
+            /** Moving Time H */
+            moving_time_h: number;
+            /** Avg Distance Km */
+            avg_distance_km: number | null;
+            /**
+             * Avg Speed Mps
+             * @description Total distance over total moving time, not the mean of per-activity speeds:
+             *     otherwise a 400 m stride would weigh as much as a 30 km long run.
+             */
+            avg_speed_mps: number | null;
+            /** Avg Speed Kmh */
+            avg_speed_kmh: number | null;
+            /** Avg Pace S Per Km */
+            avg_pace_s_per_km: number | null;
+            /**
+             * Period
+             * @description `2026`, `2026-09` or `2026-W38`, by the period asked for.
+             */
+            period: string;
+            /**
+             * Changes
+             * @description Keyed by `metric_names`; every value is null on the first year, and null for
+             *     a metric the year before had nothing of.
+             */
+            changes: {
+                [key: string]: components["schemas"]["MetricChange"] | null;
+            };
         };
     };
     responses: never;
@@ -3839,9 +4483,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Reports"];
                 };
             };
         };
@@ -3897,9 +4539,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Aggregate"];
                 };
             };
             /** @description Validation Error */
@@ -3928,9 +4568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AggregateFilters"];
                 };
             };
         };
@@ -3956,9 +4594,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AggregatePeriods"];
                 };
             };
             /** @description Validation Error */

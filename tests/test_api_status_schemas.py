@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from garmin_analytics import __version__, config
+from garmin_analytics.analytics import aggregate as agg_mod
 from garmin_analytics.analytics import load as load_mod
 from garmin_analytics.analytics import performance as perf
 from garmin_analytics.analytics import readiness as ready_mod
@@ -48,6 +49,12 @@ DROPPED_SYNC_STATUS_KEYS = {"eta"}
 #: Light sleep, joined onto each `/api/daily` row from `sleep` (T08). `v_daily` carries
 #: deep and REM but not light, and a sleep-stage chart stacks all three.
 ADDED_DAILY_KEYS = {"light_s"}
+#: `analytics/aggregate` renders some of its own numbers; T10a drops the renderings and
+#: keeps the numbers. Each set below is one such pair of places.
+DROPPED_TOTALS_KEYS = {"avg_pace"}                 # `avg_pace_s_per_km` stays
+DROPPED_BEST_EFFORT_KEYS = {"time", "pace"}        # `seconds` and `distance_m` stay
+DROPPED_EXTREME_KEYS = {"display"}                 # `raw` and `key` stay
+DROPPED_BUCKET_KEYS = {"label"}                    # `lo` and `hi` stay
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +176,30 @@ def _drop(d: dict[str, Any], keys: set[str]) -> dict[str, Any]:
     return {k: v for k, v in d.items() if k not in keys}
 
 
+def _strip_aggregate(body: dict[str, Any]) -> dict[str, Any]:
+    """An aggregate payload with every rendered string removed, so the two sides of
+    the comparison differ only where something real changed."""
+    out = dict(body)
+    out["totals"] = _drop(body["totals"], DROPPED_TOTALS_KEYS)
+    for key in ("by_type", "by_year", "by_month"):
+        out[key] = [_drop(r, DROPPED_TOTALS_KEYS) for r in body[key]]
+    out["year_over_year"] = {
+        **body["year_over_year"],
+        "years": [_drop(r, DROPPED_TOTALS_KEYS) for r in body["year_over_year"]["years"]],
+    }
+    out["distributions"] = {
+        key: ([_drop(b, DROPPED_BUCKET_KEYS) for b in value]
+              if key in ("pace", "distance_km", "duration_min", "avg_hr") else value)
+        for key, value in body["distributions"].items()
+    }
+    out["records"] = {
+        "best_efforts": [_drop(e, DROPPED_BEST_EFFORT_KEYS)
+                         for e in body["records"]["best_efforts"]],
+        "extremes": [_drop(e, DROPPED_EXTREME_KEYS) for e in body["records"]["extremes"]],
+    }
+    return out
+
+
 def _check_projection(new: dict[str, Any] | None, old: dict[str, Any] | None) -> None:
     """`new` is `old` minus the strings, plus `from_seconds`, which must be the number
     `from_time` was printed from and the one the projection was computed from."""
@@ -243,6 +274,61 @@ class TestPayloadsUnchangedExceptDrops:
                   for r in st.query("SELECT day, light_s FROM sleep")}
         rows = client.get("/api/daily?days=3000").json()["rows"]
         assert [r["light_s"] for r in rows] == [stored.get(r["day"]) for r in rows]
+
+    @pytest.mark.parametrize("query", ["", "?type=running", "?start=2026-01-01"])
+    def test_aggregate_is_unchanged_but_for_the_rendered_strings(self, client, st, query):
+        f = {"activity_type": None, "start": None, "end": None, "gear_id": None}
+        if query == "?type=running":
+            f["activity_type"] = "running"
+        if query == "?start=2026-01-01":
+            f["start"] = "2026-01-01"
+        old = _as_json(agg_mod.compute_aggregate(st, **f))
+        _strict_equal(_strip_aggregate(client.get(f"/api/aggregate{query}").json()),
+                      _strip_aggregate(old))
+        # Every dropped string really was dropped, not merely equal on both sides.
+        assert "avg_pace" not in client.get(f"/api/aggregate{query}").json()["totals"]
+
+    def test_aggregate_drops_only_strings_a_number_is_already_behind(self, client, st):
+        """Each dropped key was `analytics/aggregate` printing a number that stays."""
+        old = _as_json(agg_mod.compute_aggregate(st))
+        new = client.get("/api/aggregate").json()
+        assert set(old["totals"]) - set(new["totals"]) == DROPPED_TOTALS_KEYS
+        assert "avg_pace_s_per_km" in new["totals"]
+        for effort_old, effort_new in zip(old["records"]["best_efforts"],
+                                          new["records"]["best_efforts"]):
+            assert set(effort_old) - set(effort_new) == DROPPED_BEST_EFFORT_KEYS
+            assert perf.hms(effort_new["seconds"]) == effort_old["time"]
+        for extreme_old, extreme_new in zip(old["records"]["extremes"],
+                                            new["records"]["extremes"]):
+            assert set(extreme_old) - set(extreme_new) == DROPPED_EXTREME_KEYS
+            assert extreme_new["raw"] == extreme_old["raw"]
+        for bucket_old, bucket_new in zip(old["distributions"]["pace"],
+                                          new["distributions"]["pace"]):
+            assert set(bucket_old) - set(bucket_new) == DROPPED_BUCKET_KEYS
+            assert perf.pace_str(bucket_new["lo"]) == bucket_old["label"]
+
+    def test_aggregate_keeps_the_metrics_year_over_year_keys_its_changes_on(self, client):
+        """`changes` is keyed by name, so every one of those names must survive."""
+        yoy = client.get("/api/aggregate").json()["year_over_year"]
+        for row in yoy["years"]:
+            assert set(yoy["metric_names"]) <= set(row)
+            assert set(row["changes"]) <= set(yoy["metric_names"])
+
+    @pytest.mark.parametrize("period", ["year", "month", "week"])
+    def test_aggregate_periods(self, client, st, period):
+        old = _as_json({"period": period, "rows": agg_mod.by_period(st, period)})
+        new = client.get(f"/api/aggregate/periods?period={period}").json()
+        assert new["period"] == period
+        _strict_equal([_drop(r, DROPPED_TOTALS_KEYS) for r in new["rows"]],
+                      [_drop(r, DROPPED_TOTALS_KEYS) for r in old["rows"]])
+
+    def test_aggregate_filters(self, client, st):
+        _strict_equal(client.get("/api/aggregate/filters").json(),
+                      _as_json(agg_mod.available_filters(st)))
+
+    def test_reports(self, client, st):
+        _strict_equal(client.get("/api/reports").json(),
+                      _as_json(reports_mod.compute_reports(st)))
 
     def test_race(self, client, st):
         old = _as_json(_old_race(st))
@@ -379,6 +465,29 @@ class TestEmptyShapes:
     def test_daily_is_empty(self, empty):
         assert empty.get("/api/daily").json() == {"days": 0, "rows": []}
 
+    def test_aggregate_leaves_the_span_keys_out(self, empty):
+        """With no activities there is no span to report, so `totals` stops at the
+        zeroes and `streaks` says nothing about a window it does not have."""
+        body = empty.get("/api/aggregate").json()
+        assert body["totals"]["activities"] == 0
+        assert not {"span_days", "span_years", "activities_per_week",
+                    "distance_km_per_week"} & set(body["totals"])
+        assert body["by_type"] == [] and body["by_year"] == [] and body["by_month"] == []
+        assert body["year_over_year"]["years"] == []
+        assert body["records"] == {"best_efforts": [], "extremes": []}
+        assert body["streaks"]["longest"] == 0 and body["streaks"]["biggest_week"] is None
+        assert "span_days" not in body["streaks"]
+        assert body["filters"] == {}
+
+    def test_aggregate_filters_are_empty(self, empty):
+        assert empty.get("/api/aggregate/filters").json() == {
+            "types": [], "gear": [], "range": {"first_day": None, "last_day": None}}
+
+    def test_reports_are_empty(self, empty):
+        body = empty.get("/api/reports").json()
+        assert body["weekly"] == [] and body["monthly"] == []
+        assert body["totals"]["activities"] == 0
+
     def test_race_has_no_projection(self, empty):
         body = empty.get("/api/race").json()
         assert body["projection"] is None and body["recent_bests"] == []
@@ -437,6 +546,13 @@ class TestClosedSets:
             cols = [d[0] for d in st.conn.execute("SELECT * FROM v_daily LIMIT 0").description]
         assert list(schemas.DailyRow.model_fields) == cols, (
             "v_daily changed shape: declare the new column on DailyRow")
+
+    def test_extreme_keys(self, rw_settings):
+        """The UI switches on `key` to know what unit `raw` is in, so every key
+        `records` can produce has to be in the Literal — and be reachable."""
+        with Store.open(rw_settings) as st:
+            produced = {e["key"] for e in agg_mod.records(st)["extremes"]}
+        assert produced == set(get_args(schemas.ExtremeKey))
 
     def test_daily_sleep_row_adds_only_light_sleep(self):
         assert (set(schemas.DailySleepRow.model_fields)
@@ -550,6 +666,10 @@ class TestOpenApi:
         ("/api/readiness/history", "get", "ReadinessHistory"),
         ("/api/trends", "get", "Trends"),
         ("/api/daily", "get", "DailyList"),
+        ("/api/aggregate", "get", "Aggregate"),
+        ("/api/aggregate/filters", "get", "AggregateFilters"),
+        ("/api/aggregate/periods", "get", "AggregatePeriods"),
+        ("/api/reports", "get", "Reports"),
         ("/api/race", "get", "RacePanel"),
         ("/api/health", "get", "Health"),
         ("/api/garmin/status", "get", "GarminStatus"),

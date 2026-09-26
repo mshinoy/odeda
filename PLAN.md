@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `open` | 2 / 5 |
+| 3 Health & trends | C: `open` | 3 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -84,7 +84,7 @@ Paste one of these into a fresh session.
 |---|---|---|---|---|
 | T08 | Health: sleep, HRV, resting HR, Body Battery | done | — | Health: your nights, your resting heart rate, and what sits off baseline |
 | T09 | Trends: performance (PBs, decoupling, EF, VO2max) | done | — | Trends: your records, and whether your long runs hold together |
-| T10a | Trends: totals, year over year, distance by month | in progress (Patti, 2026-09-26) | T09 | |
+| T10a | Trends: totals, year over year, distance by month | done | T09 | Trends: what you have done, by month and by year |
 | T10b | Trends: distributions, day × hour pattern | todo | T10a | |
 | T10c | Trends: streaks, records, filters | todo | T10a | |
 
@@ -913,21 +913,65 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     `/api/reports`.
   - Keep base units; the convenience `*_km` and `*_h` fields can be left out.
 - **Build:**
-  - [ ] totals as stat cards
-  - [ ] year over year with deltas
-  - [ ] distance by month
+  - [x] totals as stat cards
+  - [x] year over year with deltas
+  - [x] distance by month
 - **Old reference:** `renderAggregate`. Don't copy its bugs: its tooltips showed NaN, and
   it put dates on non-time axes.
+- **Notes:**
+  - **The whole of `/api/aggregate` is typed, not just T10a's third of it.** A response
+    model drops what it does not declare, so declaring only `totals`, `by_month` and
+    `year_over_year` would have quietly deleted the data T10b and T10c are for.
+    `distributions`, `patterns`, `streaks` and `records` are therefore modelled too, and
+    those two tasks now have nothing left to type.
+  - **Only the rendered strings were dropped**, not the `*_km` and `*_h` convenience
+    fields this card offered to leave out: `year_over_year` keys its `changes` on
+    `distance_km`, `moving_time_h` and `avg_distance_km` by those exact names, so
+    dropping them would leave a delta with no number beside it. Gone are `avg_pace`
+    ("17:35/km"), a best effort's `time` and `pace`, an extreme's `display`, and a
+    histogram bucket's `label` — each is a number that is still in the same object.
+  - **There is no pace column in the year-over-year table, although the old UI had
+    one.** `avg_pace_s_per_km` is total distance over total moving time across every
+    sport in the year, so a year with more gym and walking reads as a year that got
+    slower: yours goes 14:29 (2023) → 11:57 (2024) → **30:30** (2025) → 8:13 (2026),
+    which is a change in what you logged, not in your running. The column is Time and
+    its delta instead. A pace per year becomes a real number once a sport is chosen,
+    which is T10c's filter.
+  - The same caveat is why the "Average pace" stat card reads `17:35 /km · mixed
+    sports`. It is the number `analytics/aggregate` was written to produce and it is
+    shown, but it is not allowed to look like a running pace.
+  - **2023 shows ▲ 14,153% against 2022.** 2022 is one 2.6 km activity on December 27,
+    so the arithmetic is right and the row below it says why. Left as it is rather than
+    capped: a cap would hide that the first year is a stub.
+  - Distance by month puts the empty months back (`toMonthPoints`) so the bars stay a
+    month wide and a month off reads as a gap, rather than the next month sliding over
+    to fill it — the same reason T09's session charts use a time axis.
+  - `/api/aggregate` is 51 ms uncached, `/api/reports` 116 ms, both behind the 30 s
+    mtime cache. T13 owns the real numbers.
 
 ### T10b — Trends: distributions and patterns
+- **Backend:** nothing to do. T10a typed all of `/api/aggregate`; the data is in
+  `aggregate.distributions` and `aggregate.patterns` (`useAggregate`).
 - **Build:**
   - [ ] pace, distance and HR-zone distributions
   - [ ] day-of-week × hour pattern
+- **Note:** a bucket carries `lo`, `hi` and `count` and no label, so the axis formats
+  `lo` itself: seconds per km for pace, km for distance, minutes for duration, bpm for HR.
 
 ### T10c — Trends: streaks, records, filters
+- **Backend:** nothing to do. `aggregate.streaks` and `aggregate.records` are typed, as
+  are `/api/aggregate/filters` (the type, gear and date-range options) and
+  `/api/aggregate/periods`.
 - **Build:**
   - [ ] streaks and records
   - [ ] filters (type, gear, dates) that apply to every Trends block
+- **Notes:**
+  - An extreme carries `key` and `raw`, not a rendered `display`; `key` is a typed
+    literal of six, so the formatter switches on it (metres, seconds, metres of climb,
+    m/s, bpm, TRIMP).
+  - The filters are what make a pace per year and a lifetime average pace mean
+    anything — see T10a's notes. `useAggregate` takes no parameters yet; adding them
+    means widening the query key in `queryClient.ts` as the heatmap's does.
 
 ### T11a — Settings: Garmin sign-in
 - **Backend:** type `/api/garmin/login`, `/mfa`, `/ticket`, `/signin-url` and `/disconnect`.

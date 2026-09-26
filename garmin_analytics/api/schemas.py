@@ -1277,6 +1277,326 @@ class Performance(_Model):
 
 
 # ---------------------------------------------------------------------------
+# Aggregates: totals, periods, distributions, patterns, streaks, records
+# ---------------------------------------------------------------------------
+#
+# Every block below reads `v_activities_included`, so user edits count and an
+# excluded activity is invisible. `analytics/aggregate.py` renders some of its own
+# numbers into strings (`avg_pace`, a best effort's `time`, an extreme's `display`,
+# a histogram bucket's `label`); those are left out here, because the number behind
+# each is in the same object and `format.ts` is the one place numbers become
+# strings. Names that are not a rendered number — a distance's `label` ("1 k"), a
+# weekday's `name` ("Mon"), an extreme's `label` ("Longest distance") — stay, as
+# `PersonalBest.label` does.
+#
+# The `*_km` and `*_h` convenience fields do stay. `year_over_year` keys its
+# `changes` on `distance_km`, `moving_time_h` and `avg_distance_km` by those exact
+# names, so dropping them would leave a delta with no number beside it.
+
+
+class PeriodTotals(_Model):
+    """The totals every aggregate row carries, for whatever set of activities it
+    covers: all of them, one sport, one year, one month, one week."""
+
+    activities: int
+    distance_m: float
+    duration_s: float
+    moving_time_s: float
+    elevation_gain_m: float
+    calories: float
+    trimp: float
+    avg_hr: float | None
+    """Mean of the per-activity averages; null when none recorded heart rate."""
+    avg_distance_m: float | None
+    avg_moving_time_s: float | None
+    first_day: str | None
+    last_day: str | None
+    distance_km: float
+    duration_h: float
+    moving_time_h: float
+    avg_distance_km: float | None
+    avg_speed_mps: float | None
+    """Total distance over total moving time, not the mean of per-activity speeds:
+    otherwise a 400 m stride would weigh as much as a 30 km long run."""
+    avg_speed_kmh: float | None
+    avg_pace_s_per_km: float | None
+
+
+class LifetimeTotals(PeriodTotals):
+    """`totals`: the headline figures, plus how long they were collected over.
+    The four span fields are absent on a set with no activities."""
+
+    span_days: int = 0
+    span_years: float = 0.0
+    activities_per_week: float = 0.0
+    distance_km_per_week: float = 0.0
+
+
+class TypeTotals(PeriodTotals):
+    """One row of `by_type`: the same totals for one activity type."""
+
+    activity_type: str
+
+
+class PeriodRow(PeriodTotals):
+    """One row of `by_year`, `by_month` or `/api/aggregate/periods`."""
+
+    period: str
+    """`2026`, `2026-09` or `2026-W38`, by the period asked for."""
+
+
+class MetricChange(_Model):
+    """One metric against the year before."""
+
+    delta: float
+    """In the metric's own unit, so a `*_km` metric's delta is in km."""
+    pct: float
+    better: bool
+    """Which direction counts as an improvement; for pace, lower."""
+
+
+class YearRow(PeriodRow):
+    changes: dict[str, MetricChange | None]
+    """Keyed by `metric_names`; every value is null on the first year, and null for
+    a metric the year before had nothing of."""
+
+
+class YearOverYear(_Model):
+    metric_names: list[str]
+    """The metrics `changes` is keyed on, in display order."""
+    years: list[YearRow]
+
+
+class HistogramBucket(_Model):
+    """One bar of a distribution. `lo` and `hi` are in the histogram's own unit:
+    seconds per km for pace, km for distance, minutes for duration, bpm for HR."""
+
+    lo: float
+    hi: float
+    count: int
+
+
+class HrZoneShare(_Model):
+    zone: int
+    """1-5."""
+    seconds: float
+    hours: float
+    pct: float
+    """Share of all zone time in the filtered set."""
+
+
+class Distributions(_Model):
+    """How the filtered activities spread out. Pace buckets are a fixed 15 s wide
+    between 2:30 and 15:00 /km; the rest are split over the observed range."""
+
+    pace: list[HistogramBucket]
+    distance_km: list[HistogramBucket]
+    duration_min: list[HistogramBucket]
+    avg_hr: list[HistogramBucket]
+    hr_zones: list[HrZoneShare]
+    sample_size: int
+    """Activities behind the histograms, including those with nothing to bucket."""
+
+
+class WeekdayBucket(_Model):
+    day: int
+    """0 = Monday."""
+    name: str
+    count: int
+    distance_km: float
+    hours: float
+
+
+class HourBucket(_Model):
+    hour: int
+    """0-23, by the activity's local start time."""
+    count: int
+    distance_km: float
+
+
+class MonthBucket(_Model):
+    month: int
+    """1-12, across every year."""
+    name: str
+    count: int
+    distance_km: float
+
+
+class Patterns(_Model):
+    """When training actually happens."""
+
+    day_of_week: list[WeekdayBucket]
+    hour_of_day: list[HourBucket]
+    month_of_year: list[MonthBucket]
+    dow_hour_matrix: list[list[int]]
+    """7 rows (Monday first) of 24 counts. Activities with no start time are
+    counted in `day_of_week` but not here, so the rows need not sum to `count`."""
+    busiest_day: str | None
+    peak_hour: int | None
+    total: int
+
+
+class BiggestWeek(_Model):
+    week: str
+    activities: int
+    distance_km: float
+    hours: float
+
+
+class AggregateStreaks(_Model):
+    """Consistency over the filtered set. Distinct from `Streaks` on `/api/reports`,
+    which counts wellness days rather than filtered activities."""
+
+    current: int
+    """0 unless the streak reaches today or yesterday."""
+    longest: int
+    longest_end: str | None
+    active_days: int
+    span_days: int = 0
+    """Absent on a set with no activities, along with the three below."""
+    rest_days: int
+    active_pct: float | None = None
+    biggest_week: BiggestWeek | None
+
+
+class AggregateBestEffort(_Model):
+    """Fastest effort at a standard distance within the filter."""
+
+    distance_m: float
+    label: str
+    seconds: float
+    day: str
+    activity_id: str
+    activity_name: str | None
+
+
+#: `aggregate.records`, in order. The key says how `raw` reads: metres, seconds,
+#: metres of climb, metres per second, bpm, and TRIMP.
+ExtremeKey = Literal[
+    "longest_distance", "longest_duration", "most_elevation",
+    "fastest_average", "highest_hr", "biggest_trimp",
+]
+
+
+class Extreme(_Model):
+    """The one activity that tops the filtered set on a single measure."""
+
+    key: ExtremeKey
+    label: str
+    raw: float
+    """In the unit `key` implies; `fastest_average` is m/s, not a pace."""
+    day: str
+    activity_id: str
+    activity_name: str | None
+    activity_type: str
+
+
+class Records(_Model):
+    best_efforts: list[AggregateBestEffort]
+    """Distances never covered are left out rather than shown empty."""
+    extremes: list[Extreme]
+
+
+class AppliedFilters(_Model):
+    """The filters this response was computed under; keys the caller left out are
+    absent rather than null."""
+
+    activity_type: str | None = None
+    start: str | None = None
+    end: str | None = None
+    gear_id: int | None = None
+
+
+class Aggregate(_Model):
+    """`GET /api/aggregate`: everything the Trends aggregates need in one call."""
+
+    filters: AppliedFilters
+    totals: LifetimeTotals
+    by_type: list[TypeTotals]
+    """Busiest type first. Never filtered by type, whatever was asked for."""
+    by_year: list[PeriodRow]
+    by_month: list[PeriodRow]
+    """Oldest first; months with no activity are absent, not zero rows."""
+    year_over_year: YearOverYear
+    distributions: Distributions
+    patterns: Patterns
+    streaks: AggregateStreaks
+    records: Records
+
+
+class AggregatePeriods(_Model):
+    """`GET /api/aggregate/periods`: one block of `Aggregate`, by week if wanted."""
+
+    period: Literal["year", "month", "week"]
+    rows: list[PeriodRow]
+
+
+class FilterType(_Model):
+    value: str
+    n: int
+    """Activities of this type, before any other filter."""
+
+
+class FilterGear(_Model):
+    gear_id: int
+    kind: GearKind
+    brand: str | None
+    model: str | None
+    nickname: str | None
+    n: int
+
+
+class FilterRange(_Model):
+    first_day: str | None
+    last_day: str | None
+
+
+class AggregateFilters(_Model):
+    """`GET /api/aggregate/filters`: what the filter bar can offer."""
+
+    types: list[FilterType]
+    gear: list[FilterGear]
+    range: FilterRange
+
+
+class MonthlyReportRow(_Model):
+    """One calendar month of activity and wellness totals (`reports.monthly_report`)."""
+
+    month: str
+    sessions: int
+    km: float
+    """All sports."""
+    run_km: float
+    hours: float
+    trimp: float
+    elev_m: int
+    rhr: float | None
+    hrv: float | None
+    sleep_score: float | None
+    weight_kg: float | None
+    vo2max: float | None
+    km_delta_pct: float | None
+    """Running km change vs the previous month, percent."""
+    trimp_delta_pct: float | None
+
+
+class WeekdayShare(_Model):
+    weekday: str
+    count: int
+    pct: float
+
+
+class Reports(_Model):
+    """`GET /api/reports`: the rolling weekly and monthly tables behind the summary."""
+
+    weekly: list[WeeklyReportRow]
+    monthly: list[MonthlyReportRow]
+    streaks: Streaks
+    weekday_consistency: list[WeekdayShare]
+    totals: ReportTotals
+
+
+# ---------------------------------------------------------------------------
 # Health, Garmin and sync
 # ---------------------------------------------------------------------------
 
