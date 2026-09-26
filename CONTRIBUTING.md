@@ -4,8 +4,10 @@ Thanks for looking. This is a small, self-hosted, single-tenant app and it inten
 stay that way — the fastest way to get a change merged is for it to fit that shape.
 
 
-Frontend work is planned and tracked in [`PLAN.md`](PLAN.md): pick a task there, and
-update its status in the same commit as the work.
+Frontend work was planned and tracked in [`PLAN.md`](PLAN.md), which is also the
+history of how it was built; [`frontend/README.md`](frontend/README.md) is the
+day-to-day guide — how to run it, what to run before pushing, and how to add a chart
+or a map layer.
 
 ## Ground rules
 

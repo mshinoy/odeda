@@ -368,7 +368,7 @@ export interface GearRecord extends GearItem {
   distancePerWeekKm: number | null;
 }
 
-export function toGearRecord(raw: Schemas["GearItem"]): GearRecord {
+function toGearRecord(raw: Schemas["GearItem"]): GearRecord {
   return {
     ...toGearItem(raw),
     brand: raw.brand,

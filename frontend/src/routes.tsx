@@ -10,7 +10,7 @@ import { RoutePage } from "@/features/routes/RoutePage";
 import { RoutesPage } from "@/features/routes/RoutesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { AppShell } from "@/features/shell/AppShell";
-import { NotBuiltYet } from "@/features/shell/NotBuiltYet";
+import { NotFound } from "@/features/shell/NotFound";
 import { RouteError } from "@/features/shell/RouteError";
 import { StatusPage } from "@/features/status/StatusPage";
 import { TrendsPage } from "@/features/trends/TrendsPage";
@@ -37,7 +37,7 @@ export const router = createBrowserRouter([
           { path: "trends", element: <TrendsPage /> },
           { path: "settings", element: <SettingsPage /> },
           { path: "gear", element: <GearPage /> },
-          { path: "*", element: <NotBuiltYet /> },
+          { path: "*", element: <NotFound /> },
         ],
       },
     ],

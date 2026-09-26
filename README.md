@@ -8,14 +8,13 @@ recovery trends, and lifetime aggregates over every activity you have ever recor
 Single-tenant by design: one deployment is one person's data. There is no user
 account system, no shared database, and nobody else's Garmin password anywhere.
 
-> **The web UI is being rebuilt.** The old dashboard is gone; its replacement, a
-> React app in [`frontend/`](frontend/), is being built view by view. Built so far:
-> **Status** (readiness, training load, race projection, sync) and the single-activity
-> page (route map and synced charts). Still to come: the activity list, Map, Health,
-> Trends, and Settings and Gear behind a corner icon. Ingestion, analytics, the
-> database and the JSON API all work today; for anything not built yet, use the CLI
-> and the API. Progress and the remaining work are tracked in [`PLAN.md`](PLAN.md). FastAPI's interactive docs are at `/docs`, behind the same session gate as the
-> rest of the API.
+The web UI is a React app in [`frontend/`](frontend/), built and served from the same
+container. Every view is there: **Status**, **Activities** (with editing, gym sessions
+and compare), **Map**, **Health**, **Trends**, and **Settings** and **Gear** behind the
+corner icon. It replaced a vanilla-JS dashboard view by view; how that was done, and
+every decision taken along the way, is in [`PLAN.md`](PLAN.md) and
+[`DECISIONS.md`](DECISIONS.md). FastAPI's interactive docs are at `/docs`, behind the
+same session gate as the rest of the API.
 
 ---
 
@@ -422,6 +421,10 @@ pytest
 cd frontend && npm ci
 npm run dev                         # http://localhost:5173, /api proxied to VITE_API_URL
 ```
+
+[`frontend/README.md`](frontend/README.md) covers the frontend on its own: the three
+ways to get a backend to develop against, what to run before pushing, and how to add
+a chart or a map layer.
 
 The seeder produces physiologically coupled data — an athlete model run forward day
 by day, with an illness block, a travel block, cardiac drift, and **repeated GPS

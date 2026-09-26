@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 6 / 7 |
+| 4 Settings & finish | D: `open` | 7 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -98,7 +98,7 @@ Paste one of these into a fresh session.
 | T13 | Performance check: largest activity, heatmap, bundle size | done | T04, T10c | Performance: the build was never compressed, and what a hover really costs |
 | T20 | Prove the one-command install on the current image | done | — | Prove the one-command install: build the image, run it clean, restart it |
 | T21 | Activity list: an "edited" filter, so Settings can link to it | done | — | Activity list: an Edited filter, and the Settings link that wanted it |
-| T14 | Cleanup and frontend README | in progress (Patti, 2026-09-26) | every other task | |
+| T14 | Cleanup and frontend README | done | every other task | A README for the frontend, and the leftovers of a rebuild that is over |
 
 ### Open decisions
 
@@ -1336,7 +1336,24 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     toggle produces, so the link and the control cannot drift apart.
 
 ### T14 — Cleanup and frontend README
-- [ ] `frontend/README.md`: how to run (dev, build, Docker), the folder structure, and
+- [x] `frontend/README.md`: how to run (dev, build, Docker), the folder structure, and
   "how to add a chart" and "how to add a map layer", each with a short example
-- [ ] remove leftovers: dead components, unused tokens, TODOs
-- [ ] update the note at the top of the root `README.md`
+- [x] remove leftovers: dead components, unused tokens, TODOs
+- [x] update the note at the top of the root `README.md`
+- **Notes:**
+  - **There was almost nothing to remove, which is the useful finding.** No TODO,
+    FIXME or HACK anywhere in `src`. No module that nothing imports. No unused token:
+    the ones that look unused (`deltaGood`, `status.serious`, `kind.walk`, …) reach
+    the UI through `cssVariables()` as `--ga-*` and are used as Tailwind classes, so
+    a grep for `tokens.x` cannot see them. `knip` could not be run — it exhausts this
+    box's memory on `schema.ts` — so the sweep was done by hand.
+  - **Three things did go.** `useGearDetail` and its two query keys, which T12 wrote
+    and never used (`GET /api/gear/{id}` stays typed and tested without a page of its
+    own, as `DELETE /api/routes/{id}` does since T05c); `toGearRecord`'s export, which
+    only its own module needs; and `NotBuiltYet`, the catch-all route's placeholder.
+    That last one had gone from true to false: it said "Not built yet" on any unknown
+    address, and everything is built. It is `NotFound` now — "There is nothing at this
+    address."
+  - The root README's rebuild banner is gone; the paragraph in its place names the
+    views that exist and points at `PLAN.md` as the history rather than the plan.
+    `CONTRIBUTING.md` now points at `frontend/README.md` for day-to-day work.

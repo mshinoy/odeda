@@ -63,7 +63,6 @@ export function useGearCollection() {
 function refreshAfterGearChange(client: QueryClient) {
   return Promise.all([
     client.invalidateQueries({ queryKey: queryKeys.gear }),
-    client.invalidateQueries({ queryKey: queryKeys.gearDetailAll }),
     client.invalidateQueries({ queryKey: queryKeys.activitiesAll }),
     // The Trends filter bar offers the gear it finds, and filters by it.
     client.invalidateQueries({ queryKey: queryKeys.aggregateAll }),
@@ -99,15 +98,6 @@ export function useDeleteGear(id: number) {
     mutationFn: async () =>
       unwrap(await api.DELETE("/api/gear/{gear_id}", { params: { path: { gear_id: id } } })),
     onSuccess: () => refreshAfterGearChange(client),
-  });
-}
-
-/** The item and the activities it has been worn for. */
-export function useGearDetail(id: number) {
-  return useQuery({
-    queryKey: queryKeys.gearDetail(id),
-    queryFn: async () =>
-      unwrap(await api.GET("/api/gear/{gear_id}", { params: { path: { gear_id: id } } })),
   });
 }
 
