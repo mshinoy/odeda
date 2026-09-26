@@ -115,7 +115,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | done | — | The Fitbit export: a decade of weigh-ins with no credential |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | done | T22 | Body composition: the trend, not the morning |
 | T27 | Health: the body-composition section | done | T26 | Health: what the scale says, once the noise is out of it |
-| T28 | Trends: weight against training load, and pace per kg | todo | T26 | |
+| T28 | Trends: weight against training load, and pace per kg | in progress (fitbit, 2026-09-26) | T26 | |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | todo | T24, T25 | |
 
 ### Open decisions
