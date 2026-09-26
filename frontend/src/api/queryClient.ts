@@ -6,6 +6,7 @@ export type ActivityListParams = NonNullable<
   paths["/api/activities"]["get"]["parameters"]["query"]
 >;
 export type HeatmapParams = NonNullable<paths["/api/heatmap"]["get"]["parameters"]["query"]>;
+export type AggregateParams = NonNullable<paths["/api/aggregate"]["get"]["parameters"]["query"]>;
 
 function shouldRetry(failureCount: number, error: Error): boolean {
   // A 4xx will not fix itself on a second try.
@@ -53,7 +54,10 @@ export const queryKeys = {
   load: ["load"] as const,
   performance: ["performance"] as const,
   /** Totals, periods, distributions, patterns, streaks and records in one payload. */
-  aggregate: ["aggregate"] as const,
+  aggregateAll: ["aggregate"] as const,
+  aggregate: (params: AggregateParams) => ["aggregate", params] as const,
+  /** The filter bar's options; they change only when a sync adds a type or gear. */
+  aggregateFilters: ["aggregate", "filters"] as const,
   /** Health's three queries, keyed by the window the shared range control asks for. */
   trends: (days: number) => ["trends", days] as const,
   daily: (days: number) => ["daily", days] as const,

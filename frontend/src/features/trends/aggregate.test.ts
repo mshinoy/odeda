@@ -71,6 +71,13 @@ describe("toTotalCards", () => {
     expect(pace?.note).toBe("mixed sports");
   });
 
+  it("drops the caveat once a sport has been chosen, because then it is a pace", () => {
+    const pace = toTotalCards(totals, { oneSport: true }).find(
+      (card) => card.label === "Average pace",
+    );
+    expect(pace?.note).toBeNull();
+  });
+
   it("carries the rate behind a number, not a comparison it has nothing to make", () => {
     const cards = toTotalCards(totals);
     expect(cards[0]?.note).toBe("2.5 a week over 3.7 years");
@@ -133,8 +140,28 @@ describe("toYearTableRows", () => {
     expect(first?.hoursDelta).toBeNull();
   });
 
-  it("has no pace column: a mixed-sport pace per year measures the sport mix", () => {
-    expect(toYearTableRows(years)[0]).not.toHaveProperty("pace");
+  it("leaves pace out across sports, where it measures the sport mix and not speed", () => {
+    const [latest] = toYearTableRows(years);
+    expect(latest?.pace).toBeNull();
+    expect(latest?.paceDelta).toBeNull();
+  });
+
+  it("fills pace in once one sport is being shown", () => {
+    const withPace: YearRow[] = [
+      years[0] as YearRow,
+      {
+        ...(years[1] as YearRow),
+        avg_pace_s_per_km: 510.7,
+        changes: {
+          ...(years[1] as YearRow).changes,
+          avg_pace_s_per_km: { delta: -151.6, pct: -17.5, better: true },
+        },
+      },
+    ];
+    const [latest, first] = toYearTableRows(withPace, { oneSport: true });
+    expect(latest?.pace).toBe("8:31 /km");
+    expect(latest?.paceDelta).toEqual({ text: "▼ 17%", tone: "good" });
+    expect(first?.paceDelta).toBeNull();
   });
 
   it("does not mutate the years it was given", () => {

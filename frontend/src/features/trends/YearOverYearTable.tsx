@@ -14,8 +14,13 @@ const toneClass = {
   bad: "text-delta-bad",
 } as const;
 
-/** Each year against the one before it: how much, how fast, how hard, how long. */
+/**
+ * Each year against the one before it. Pace is a column only when one sport is being
+ * shown — `toYearTableRows` decides that and leaves the cell null otherwise.
+ */
 export function YearOverYearTable({ rows }: { rows: readonly YearTableRow[] }) {
+  const showPace = rows.some((row) => row.pace !== null);
+
   return (
     <table className="w-full text-sm">
       <thead className="border-b">
@@ -26,6 +31,8 @@ export function YearOverYearTable({ rows }: { rows: readonly YearTableRow[] }) {
           <th className={numericHead}>vs prev</th>
           <th className={numericHead}>Time</th>
           <th className={numericHead}>vs prev</th>
+          {showPace && <th className={numericHead}>Pace</th>}
+          {showPace && <th className={numericHead}>vs prev</th>}
           <th className={cn(numericHead, wideOnly)}>Avg HR</th>
           <th className={cn(numericHead, wideOnly)}>Elevation</th>
         </tr>
@@ -39,6 +46,8 @@ export function YearOverYearTable({ rows }: { rows: readonly YearTableRow[] }) {
             <DeltaCell delta={row.distanceDelta} />
             <td className={numericCell}>{row.hours}</td>
             <DeltaCell delta={row.hoursDelta} />
+            {showPace && <td className={numericCell}>{row.pace}</td>}
+            {showPace && <DeltaCell delta={row.paceDelta} />}
             <td className={cn(numericCell, wideOnly, "text-muted-foreground")}>{row.avgHr}</td>
             <td className={cn(numericCell, wideOnly, "text-muted-foreground")}>{row.elevation}</td>
           </tr>

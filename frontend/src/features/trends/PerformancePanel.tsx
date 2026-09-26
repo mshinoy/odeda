@@ -77,7 +77,7 @@ export function PerformancePanel({ performance }: { performance: Performance }) 
   return (
     <div className="flex flex-col gap-12">
       <section className="flex flex-col gap-2">
-        <h2 className="text-muted-foreground text-xs">Records</h2>
+        <h2 className="text-muted-foreground text-xs">Personal bests</h2>
         {bestRows.length > 0 ? (
           <PersonalBestTable rows={bestRows} />
         ) : (

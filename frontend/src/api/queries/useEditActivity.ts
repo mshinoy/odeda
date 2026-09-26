@@ -41,6 +41,10 @@ function refreshAfterEdit(
     client.invalidateQueries({ queryKey: queryKeys.summary }),
     client.invalidateQueries({ queryKey: queryKeys.load }),
     client.invalidateQueries({ queryKey: queryKeys.heatmapAll }),
+    // Retyping an activity, or excluding it from statistics, moves every number on
+    // Trends: the totals, the years, the distributions and the records alike.
+    client.invalidateQueries({ queryKey: queryKeys.aggregateAll }),
+    client.invalidateQueries({ queryKey: queryKeys.performance }),
   ]);
 }
 

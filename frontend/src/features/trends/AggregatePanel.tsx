@@ -9,9 +9,11 @@ import { YearOverYearTable } from "@/features/trends/YearOverYearTable";
 /** What you have done: the lifetime totals, the months behind them, and each year
  * against the one before. */
 export function AggregatePanel({ aggregate }: { aggregate: Aggregate }) {
+  // One sport chosen means pace is a pace, not an average over running and gym alike.
+  const oneSport = aggregate.filters.activity_type != null;
   const yearRows = useMemo(
-    () => toYearTableRows(aggregate.year_over_year.years),
-    [aggregate.year_over_year.years],
+    () => toYearTableRows(aggregate.year_over_year.years, { oneSport }),
+    [aggregate.year_over_year.years, oneSport],
   );
 
   if (aggregate.totals.activities === 0) {
@@ -20,7 +22,7 @@ export function AggregatePanel({ aggregate }: { aggregate: Aggregate }) {
 
   return (
     <div className="flex flex-col gap-12">
-      <TotalsPanel totals={aggregate.totals} />
+      <TotalsPanel totals={aggregate.totals} oneSport={oneSport} />
 
       <figure className="flex flex-col gap-1">
         <figcaption className="text-muted-foreground text-xs">Distance by month</figcaption>

@@ -32,7 +32,7 @@ Paste one of these into a fresh session.
 | 0 Foundations | — | 11 / 11 |
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
-| 3 Health & trends | C: `open` | 4 / 5 |
+| 3 Health & trends | C: `open` | 5 / 5 |
 | 4 Settings & finish | D: `open` | 0 / 6 |
 
 ### Phase 0 — Foundations (done)
@@ -86,7 +86,7 @@ Paste one of these into a fresh session.
 | T09 | Trends: performance (PBs, decoupling, EF, VO2max) | done | — | Trends: your records, and whether your long runs hold together |
 | T10a | Trends: totals, year over year, distance by month | done | T09 | Trends: what you have done, by month and by year |
 | T10b | Trends: distributions, day × hour pattern | done | T10a | Trends: the shape of the history, and the week it happens in |
-| T10c | Trends: streaks, records, filters | in progress (Patti, 2026-09-26) | T10a | |
+| T10c | Trends: streaks, records, filters | done | T10a | Trends: how consistent you have been, and one filter over all of it |
 
 ### Phase 4 — Settings & finish · Checkpoint D: `open`
 
@@ -987,15 +987,37 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   are `/api/aggregate/filters` (the type, gear and date-range options) and
   `/api/aggregate/periods`.
 - **Build:**
-  - [ ] streaks and records
-  - [ ] filters (type, gear, dates) that apply to every Trends block
+  - [x] streaks and records
+  - [x] filters (type, gear, dates) that apply to every Trends block
 - **Notes:**
   - An extreme carries `key` and `raw`, not a rendered `display`; `key` is a typed
     literal of six, so the formatter switches on it (metres, seconds, metres of climb,
-    m/s, bpm, TRIMP).
-  - The filters are what make a pace per year and a lifetime average pace mean
-    anything — see T10a's notes. `useAggregate` takes no parameters yet; adding them
-    means widening the query key in `queryClient.ts` as the heatmap's does.
+    m/s, bpm, TRIMP). "Fastest average pace" reads in its own sport's unit, so an
+    unfiltered wall shows `19.3 km/h · Al Daayen Cycling`.
+  - **"Every Trends block" stops at the performance block, and it says so.**
+    `/api/performance` takes no parameters, and giving it any means teaching
+    `analytics/performance` to filter, which is not a view's decision. With a filter on,
+    that section is headed `Running performance · all running, not filtered`.
+  - **The filter is what T10a's two deferred numbers were waiting for.** Choose a type
+    and the "mixed sports" caveat leaves the Average pace card, and a Pace column
+    appears in the year table. Filtered to running your years read 8:51 → 8:12 → 8:25 →
+    8:54 /km, which is a pace; unfiltered the same column reads 14:29 → 11:57 → 30:30 →
+    8:13, which is the sport mix. The column appears with the filter rather than
+    carrying a caveat, because a table cell has nowhere to put one.
+  - **You own no gear**, so `/api/aggregate/filters` returns an empty list and the gear
+    select is not rendered — an empty dropdown is a control that does nothing. T12 is
+    where gear gets created; the filter will appear on its own once it exists.
+  - The records wall shows the two bad pool swims plainly: "Longest duration 61:18:21"
+    and "Hardest session (TRIMP) 1,543" are both `Pool Swim · Oct 20, 2025`. That is the
+    honest top of the list until you exclude them from statistics.
+  - Editing an activity now invalidates the aggregate **and** performance queries. A
+    retype or an exclude-from-stats moves every number on this page, and neither key was
+    being invalidated — `performance` had been missed since T09.
+  - The records table is the extremes only. The standard-distance bests are already on
+    this page from `/api/performance` (now headed "Personal bests", to stop two tables
+    both being called Records); `aggregate.records.best_efforts` is the same five rows
+    but filterable, and drawing them twice would be worse than the small duplication in
+    the payload.
 
 ### T11a — Settings: Garmin sign-in
 - **Backend:** type `/api/garmin/login`, `/mfa`, `/ticket`, `/signin-url` and `/disconnect`.

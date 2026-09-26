@@ -8,6 +8,7 @@ import {
   formatHeartRate,
   formatHours,
   formatInteger,
+  formatPace,
 } from "@/lib/format";
 
 /** How a change reads: the percentage, and whether it is the good direction. */
@@ -26,6 +27,9 @@ export interface YearTableRow {
   hoursDelta: Delta | null;
   avgHr: string;
   elevation: string;
+  /** Null unless one sport is being shown; see `toYearTableRows`. */
+  pace: string | null;
+  paceDelta: Delta | null;
 }
 
 /**
@@ -41,14 +45,18 @@ export function toDelta(change: MetricChange | null | undefined): Delta | null {
 /**
  * Newest year first: the one you are in is the one you came to read.
  *
- * There is no pace column, although the backend offers one and the old UI had it.
- * `avg_pace_s_per_km` is total distance over total moving time across every sport in
- * that year, so a year with more gym and walking reads as a year that got slower: on
- * this data 2025 comes out at 30:30 /km against 2024's 11:57, which is a change in
- * what was logged and not in anyone's running. A pace per year is a real number only
- * once a sport has been chosen, which is the type filter's job (T10c).
+ * **Pace is only shown for one sport at a time** (`oneSport`, which the type filter
+ * sets). `avg_pace_s_per_km` is total distance over total moving time across every
+ * sport in the year, so unfiltered it reads 14:29 (2023), 11:57 (2024), 30:30 (2025),
+ * 8:13 (2026) — a change in what was logged, not in anyone's running. Filtered to
+ * running the same years read 8:56, 8:07, 8:30, 8:47, which is a pace. The column
+ * appears with the filter rather than carrying a caveat, because a table cell has
+ * nowhere to put one.
  */
-export function toYearTableRows(years: readonly YearRow[]): YearTableRow[] {
+export function toYearTableRows(
+  years: readonly YearRow[],
+  { oneSport = false }: { oneSport?: boolean } = {},
+): YearTableRow[] {
   return [...years].reverse().map((year) => ({
     year: year.period,
     activities: formatInteger(year.activities),
@@ -58,5 +66,7 @@ export function toYearTableRows(years: readonly YearRow[]): YearTableRow[] {
     hoursDelta: toDelta(year.changes["moving_time_h"]),
     avgHr: formatHeartRate(year.avg_hr),
     elevation: formatElevation(year.elevation_gain_m),
+    pace: oneSport ? formatPace(year.avg_pace_s_per_km) : null,
+    paceDelta: oneSport ? toDelta(year.changes["avg_pace_s_per_km"]) : null,
   }));
 }

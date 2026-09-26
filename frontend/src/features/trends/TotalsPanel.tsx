@@ -4,8 +4,15 @@ import { StatCard } from "@/components/StatCard";
 import { toTotalCards } from "@/features/trends/totalCards";
 
 /** Everything you have recorded, in six numbers. */
-export function TotalsPanel({ totals }: { totals: LifetimeTotals }) {
-  const cards = useMemo(() => toTotalCards(totals), [totals]);
+export function TotalsPanel({
+  totals,
+  oneSport,
+}: {
+  totals: LifetimeTotals;
+  /** Whether a type filter is on, which is what makes the average pace a real pace. */
+  oneSport: boolean;
+}) {
+  const cards = useMemo(() => toTotalCards(totals, { oneSport }), [totals, oneSport]);
 
   return (
     <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
