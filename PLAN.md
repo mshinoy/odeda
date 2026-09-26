@@ -116,7 +116,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | done | T22 | Body composition: the trend, not the morning |
 | T27 | Health: the body-composition section | done | T26 | Health: what the scale says, once the noise is out of it |
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
-| T29 | Settings: connect Fitbit, import an export, sync body composition | todo | T24, T25 | |
+| T29 | Settings: connect Fitbit, import an export, sync body composition | in progress (fitbit, 2026-09-26) | T24, T25 | |
 
 ### Open decisions
 
