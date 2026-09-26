@@ -85,7 +85,7 @@ Paste one of these into a fresh session.
 | T08 | Health: sleep, HRV, resting HR, Body Battery | done | — | Health: your nights, your resting heart rate, and what sits off baseline |
 | T09 | Trends: performance (PBs, decoupling, EF, VO2max) | done | — | Trends: your records, and whether your long runs hold together |
 | T10a | Trends: totals, year over year, distance by month | done | T09 | Trends: what you have done, by month and by year |
-| T10b | Trends: distributions, day × hour pattern | todo | T10a | |
+| T10b | Trends: distributions, day × hour pattern | in progress (Patti, 2026-09-26) | T10a | |
 | T10c | Trends: streaks, records, filters | todo | T10a | |
 
 ### Phase 4 — Settings & finish · Checkpoint D: `open`
