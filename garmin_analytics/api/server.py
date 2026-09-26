@@ -32,6 +32,7 @@ from fastapi.responses import (
     RedirectResponse,
 )
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .. import __version__, config
@@ -206,6 +207,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # types read `api_activities` rather than `api_activities_api_activities_get`.
         generate_unique_id_function=lambda route: route.name,
     )
+    # StaticFiles does not compress, so without this the browser is sent the whole
+    # 1.2 MB of JavaScript however politely it asked for gzip. The SPA's first load
+    # is about 1.4 MB uncompressed and about 0.45 MB with this on. The minimum keeps
+    # it off the small JSON replies, where the CPU costs more than the bytes save.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
     job = BackgroundJob()
     app.state.job = job
 

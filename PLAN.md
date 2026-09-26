@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 3 / 7 |
+| 4 Settings & finish | D: `open` | 4 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -95,7 +95,7 @@ Paste one of these into a fresh session.
 | T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | done | — | Settings: connect a Garmin account, by password, by code or through a browser |
 | T11b | Settings: sync, overrides summary, version, theme toggle | done | — | Settings: what a sync would cost, what you have edited, and a theme you pick |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | done | T11b | Gear: what you run in, how far it has gone, and switching it after the fact |
-| T13 | Performance check: largest activity, heatmap, bundle size | in progress (Patti, 2026-09-26) | T04, T10c | |
+| T13 | Performance check: largest activity, heatmap, bundle size | done | T04, T10c | Performance: the build was never compressed, and what a hover really costs |
 | T20 | Prove the one-command install on the current image | todo | — | |
 | T21 | Activity list: an "edited" filter, so Settings can link to it | todo | — | |
 | T14 | Cleanup and frontend README | todo | every other task | |
@@ -1216,13 +1216,55 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     Filtering the page to one pair of shoes gives 207 activities and 1,115.6 km.
 
 ### T13 — Performance check
-- [ ] time the largest activity page and the all-activities heatmap (frame budget under
+- [x] time the largest activity page and the all-activities heatmap (frame budget under
   16 ms on hover)
-- [ ] check the bundle: the main chunk was ~317 kB gzipped as of F9, mostly ECharts.
+- [x] check the bundle: the main chunk was ~317 kB gzipped as of F9, mostly ECharts.
   Lazy-load charts per route if needed.
-- [ ] if a chart lags: add LTTB downsampling on the backend (an optional `max_points`)
+- [x] if a chart lags: add LTTB downsampling on the backend (an optional `max_points`)
   rather than in the browser
 - Record the numbers in the commit message.
+- **Notes:**
+  - **The app was shipping every byte uncompressed.** `StaticFiles` does not compress,
+    so the browser was sent all 1,221,703 bytes of the main chunk however politely it
+    asked for gzip. One line of Starlette's own `GZipMiddleware` (not a new
+    dependency) takes a first load of `/status` from **1,410 kB to 450 kB**. That is
+    the whole of this task's win, and it was invisible in the build output, which
+    reports the gzipped size of a file nobody was gzipping.
+  - **Nothing on this box can meet a 16 ms frame budget, and the reason is the
+    absence of a GPU, not the app.** Measured with `frontend/scripts/measure.mjs`
+    (new, committed, so the numbers can be retaken on a real machine), 80 pointer
+    moves each:
+
+    | What | ms per move |
+    |---|---|
+    | Hovering a plain heading — the harness's own floor | 16.8 |
+    | A chart on `/health`, no map on the page | 81.5 |
+    | A chart on `/trends`, no map on the page | 85.2 |
+    | A chart on `/activities/21048126834`, which has a map | 377.1 |
+
+    Subtract the floor and a chart costs ~65 ms. The same chart on a page with a map
+    costs ~360 ms, because the crosshair moves the map's cursor dot and every move
+    repaints WebGL through SwiftShader — the ~233 ms/frame T04 and T06 already
+    measured for the basemap alone, carrying nothing. The hover plumbing itself is
+    already as narrow as the rules ask: two selectors subscribe, and the store drops a
+    write that names the same sample.
+  - **No chart is big enough to need downsampling, so the LTTB contingency does not
+    fire.** The largest activity in the database has **1,993 samples** (`Cardio`,
+    2025-02-15) and the largest GPS one **1,605 points** (`21048126834`, the 16.9 km
+    long run). `/api/activities/{id}/streams` on the biggest is 110 kB in 30 ms.
+  - **T06's note is wrong by a factor of ten.** It says that long run is "~16,900
+    points"; it is 1,605. The figure looks like its 16.9 km read as metres. The
+    conclusion it supported — that replay is slow here — stands, for the GPU reason
+    above, but the count does not.
+  - Backend timings on the real 488-activity copy, warm: `/api/heatmap` 16 ms
+    (191 kB, 10,853 cells), `/api/aggregate` 13 ms, `/api/performance` 17 ms,
+    `/api/reports` 11 ms, `/api/trends?days=730` 68 ms (156 kB),
+    `/api/activities?limit=50` 21 ms. Nothing here is near a budget.
+  - **The maps are correctly out of the main chunk**: zero mentions of `maplibre` or
+    `deck.gl` in it, and `/status` fetches 450 kB against `/map`'s 1,184 kB. ECharts
+    is in it and stays there — splitting it per route would not help Status, which
+    has charts of its own, and 450 kB compressed for the whole app is not a problem
+    worth that complexity.
 
 ### T20 — Prove the one-command install
 - **Found in:** T03c. The production image has not been rebuilt since the React

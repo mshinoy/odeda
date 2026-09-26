@@ -40,6 +40,25 @@ class TestBuiltUi:
         assert res.text == "console.log('spa');"
         assert "javascript" in res.headers["content-type"]
 
+    def test_a_big_asset_is_compressed(self, settings, fake_ui):
+        """T13: without this the browser is sent 1.2 MB of JavaScript however
+        politely it asked for gzip, and the SPA's first load is 3x what it needs
+        to be. `StaticFiles` does not compress; the middleware does."""
+        big = "console.log('spa');" + "// padding\n" * 500
+        (fake_ui / "assets" / "index-big000.js").write_text(big)
+        client = TestClient(create_app(replace(settings, ui_dir=fake_ui)))
+
+        res = client.get("/assets/index-big000.js", headers={"accept-encoding": "gzip"})
+        assert res.headers["content-encoding"] == "gzip"
+        # httpx decodes it; what matters is that the bytes on the wire were fewer.
+        assert res.text == big
+        assert int(res.headers["content-length"]) < len(big) / 2
+
+    def test_a_small_reply_is_left_alone(self, ui_client):
+        """Below the minimum the CPU costs more than the bytes save."""
+        res = ui_client.get("/assets/index-abc123.js", headers={"accept-encoding": "gzip"})
+        assert "content-encoding" not in res.headers
+
     def test_a_missing_asset_is_a_404_not_index_html(self, ui_client):
         """HTML under a .js name is a blank page with a MIME error in the console."""
         res = ui_client.get("/assets/gone-999.js")
