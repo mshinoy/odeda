@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 6 / 8 |
+| 5 Fitbit body composition | E: `open` | 7 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -115,7 +115,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | done | — | The Fitbit export: a decade of weigh-ins with no credential |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | done | T22 | Body composition: the trend, not the morning |
 | T27 | Health: the body-composition section | done | T26 | Health: what the scale says, once the noise is out of it |
-| T28 | Trends: weight against training load, and pace per kg | in progress (fitbit, 2026-09-26) | T26 | |
+| T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | todo | T24, T25 | |
 
 ### Open decisions
@@ -1680,10 +1680,37 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Goal:** the two analytics that need the activity data, where the activity data lives.
 - **Files:** `frontend/src/features/trends/`, `frontend/src/charts/body/`.
 - **Build:**
-  - [ ] weight trend and CTL on one chart, one y-axis (Rules), so a build block's cost
-    in bodyweight is visible
-  - [ ] pace per kg over time, so improvement is not confounded by weight change
-  - [ ] both hidden when there are no weigh-ins
+  - [x] weight trend and CTL over one shared day axis, one y-axis each (see the note),
+    so a build block's cost in bodyweight is visible
+  - [x] pace per kg over time, so improvement is not confounded by weight change
+  - [x] both hidden when there are no weigh-ins
+- **Notes:**
+  - **Weight and CTL are two panels, not two lines.** Kilograms and a training-load
+    index are not the same quantity and their ranges are nothing alike — a build takes
+    CTL from near zero to 90 while the scale moves 4 kg — so any single axis holding
+    both either flattens the weight into a straight line or scales one of them against
+    a second axis that is never drawn. Twin axes are what people reach for here and
+    they are not allowed (Rules), for exactly that reason: an undrawn scale invites the
+    reader to compare two shapes stretched by different amounts. Stacked panels over
+    one shared day axis — literally the same axis object, asserted by a test — say the
+    same thing with both series in their own units.
+  - **The load panel's axis is floored at zero.** Rounding 2–90 out to a round step put
+    the bottom tick at −50, and a negative training load is not quiet padding, it is a
+    quantity that cannot exist drawn as though it could. Caught in the screenshot.
+  - **The load panel's colour was wrong in dark mode and a test now covers both themes.**
+    It took the magnitude ramp's top step, which is near-white in dark — the same colour
+    as the weight panel's ink above it, so the two panels read as one line cut in half.
+    The ramp's *middle* step is the same solid blue in either theme.
+  - Run speed and weight as two indices really do belong on one axis, unlike the pair
+    above: both are percentages of the same starting week, so the axis compares like
+    with like. On seeded data speed reaches 114 % while weight falls to 95 %.
+  - W/kg is a scatter on a *time* axis — one point is one ride under its own conditions,
+    a line would claim a value for the fortnight between two of them, and even spacing
+    would hide that fortnight entirely.
+  - The section is not filtered, and says so beside its heading when a filter is on,
+    the way the performance block already does.
+  - Looked at in both themes on `/trends`; screenshots in `~/garmin-review/E/`.
+
 
 ### T29 — Settings: connect Fitbit
 - **Goal:** the owner can connect the account tomorrow without reading any of this.
