@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, detailMessage, unwrap } from "@/api/client";
+import { ApiError, detailMessage, isSessionPath, unwrap } from "@/api/client";
 
 describe("detailMessage", () => {
   it("reads a string detail", () => {
@@ -52,5 +52,25 @@ describe("unwrap", () => {
   it("falls back to the status when the body has no detail", () => {
     const error = new ApiError(500, undefined);
     expect(error.message).toBe("Request failed with status 500");
+  });
+});
+
+describe("isSessionPath", () => {
+  it("claims an ordinary API path", () => {
+    expect(isSessionPath("/api/activities")).toBe(true);
+  });
+
+  it("leaves the app's own login endpoints alone", () => {
+    expect(isSessionPath("/api/auth/login")).toBe(false);
+  });
+
+  it("leaves the Garmin endpoints alone", () => {
+    // Garmin answers 401 for a wrong Garmin password. That is not this app's
+    // session, and redirecting would throw away the form the user is filling in.
+    expect(isSessionPath("/api/garmin/login")).toBe(false);
+  });
+
+  it("ignores anything outside /api", () => {
+    expect(isSessionPath("/activities/123")).toBe(false);
   });
 });

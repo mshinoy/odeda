@@ -33,7 +33,7 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `open` | 0 / 6 |
+| 4 Settings & finish | D: `open` | 1 / 6 |
 
 ### Phase 0 — Foundations (done)
 
@@ -92,7 +92,7 @@ Paste one of these into a fresh session.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | in progress (Patti, 2026-09-26) | — | |
+| T11a | Settings: Garmin sign-in (password → MFA → ticket fallback) | done | — | Settings: connect a Garmin account, by password, by code or through a browser |
 | T11b | Settings: sync, overrides summary, version, theme toggle | todo | — | |
 | T12 | Gear: mileage, wear, CRUD, bulk reassign, defaults | todo | T11b | |
 | T13 | Performance check: largest activity, heatmap, bundle size | todo | T04, T10c | |
@@ -1096,10 +1096,41 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 ### T11a — Settings: Garmin sign-in
 - **Backend:** type `/api/garmin/login`, `/mfa`, `/ticket`, `/signin-url` and `/disconnect`.
 - **Build:**
-  - [ ] password → MFA → the browser-ticket fallback that opens on a 503 (see
+  - [x] password → MFA → the browser-ticket fallback that opens on a 503 (see
     `DECISIONS.md` D44)
-  - [ ] a connected state with a disconnect action
+  - [x] a connected state with a disconnect action
 - **Old reference:** the Garmin flow in `app.js`.
+- **Notes:**
+  - `/settings` exists now, behind the corner icon the nav already pointed at. It
+    holds the Garmin panel alone; T11b fills in the rest.
+  - **The flow is a reducer** (`features/settings/garminSignIn.ts`), so which of the
+    three routes is on screen is a value and the components that draw it hold no
+    branching. Two of its rules are worth naming: a **503 opens the browser fallback
+    by itself**, because Garmin refused the host rather than the credentials and
+    retyping a password cannot fix that; and a **410 sends the MFA step back to the
+    password step**, because an expired challenge is gone from the server's memory
+    and the code field would post into nothing.
+  - **A rejected Garmin password used to throw the user out of the app.** The
+    client's 401 middleware treated every `/api/` 401 as "this app's session
+    expired" and redirected to `/login` — but `/api/garmin/login` answers 401 when
+    *Garmin* rejects an email and password, which is a different account. The
+    exemption is now a named predicate, `isSessionPath`, with a test.
+  - `POST /api/garmin/login` returns a **discriminated union** on `status`, so the
+    generated TypeScript narrows to "connected" or "needs a code" instead of one
+    object with every field optional.
+  - **A body missing a key is now 422, not 400** — the same shift T05a's `PATCH
+    /api/routes/{id}` made, for the same reason: the body is a typed model. An
+    *empty* email, password or ticket is still a 400, because that check is the
+    handler's, not the model's.
+  - **The password and the MFA step could not be tried against Garmin.** Doing so
+    means the owner's real credentials, and a run of failed attempts on this IP is
+    what D44 exists because of. What was checked on the running stack: the
+    not-connected screen, the browser-ticket panel open, the connected card and its
+    confirm dialog (a placeholder token file in `api-dev`'s own throwaway volume,
+    removed again), a real `POST /api/garmin/disconnect` that returned
+    `removed_files: 1` and left no token file, a 410 from a made-up challenge id, a
+    400 from a blank ticket, and the sign-in URL. The two transitions that need
+    Garmin — the MFA hand-off and the 503 — are proven by the reducer's tests.
 
 ### T11b — Settings: sync, edits, about, theme
 - **Backend:** type `/api/sync/estimate`, `/api/overrides` and `/api/config`.

@@ -16,7 +16,7 @@ declared as `int` (0/1), not `bool`, so the JSON is unchanged from before typing
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -1619,6 +1619,71 @@ class GarminStatus(_Model):
     token_dir: str
     tokens_updated_at: str | None
     """ISO-8601 UTC (trailing Z) mtime of the token file; null when not connected."""
+
+
+class GarminLoginRequest(_Model):
+    """`POST /api/garmin/login` body. The password is exchanged for tokens and then
+    dropped; nothing here is stored."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: str
+    password: str
+
+
+class GarminMfaRequest(_Model):
+    """`POST /api/garmin/mfa` body: the code, against the challenge the login gave."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    challenge_id: str
+    code: str
+
+
+class GarminTicketRequest(_Model):
+    """`POST /api/garmin/ticket` body: what the browser sign-in left in the address
+    bar. The whole URL is accepted; the `ticket=ST-…` is pulled out of it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ticket: str
+
+
+class GarminConnected(GarminStatus):
+    """A finished sign-in, by any of the three routes. Carries the new status, so a
+    caller does not have to re-read `/api/garmin/status` to know the tokens landed."""
+
+    status: Literal["ok"]
+    display_name: str
+    """Garmin's own name for the account, as it answers on sign-in."""
+
+
+class GarminMfaRequired(_Model):
+    """A login Garmin paused for a code. The challenge is held in the server's
+    memory for `expires_in_s` and is single-use."""
+
+    status: Literal["mfa_required"]
+    challenge_id: str
+    expires_in_s: int
+
+
+#: `POST /api/garmin/login` answers one of two shapes. Discriminated on `status`, so
+#: the generated TypeScript narrows on it rather than offering an either-or of optionals.
+GarminLoginResult = Annotated[
+    GarminConnected | GarminMfaRequired, Field(discriminator="status")
+]
+
+
+class GarminSigninUrl(_Model):
+    """The Garmin page a real browser has to open (D44)."""
+
+    url: str
+
+
+class GarminDisconnected(GarminStatus):
+    status: Literal["ok"]
+    removed_files: int
+    """0 when there was no token cache to delete."""
 
 
 class SyncCursor(_Model):

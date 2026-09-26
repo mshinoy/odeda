@@ -70,7 +70,14 @@ from .schemas import (
     DailyList,
     ExerciseRelabelRequest,
     FieldsResponse,
+    GarminConnected,
+    GarminDisconnected,
+    GarminLoginRequest,
+    GarminLoginResult,
+    GarminMfaRequest,
+    GarminSigninUrl,
     GarminStatus,
+    GarminTicketRequest,
     GearList,
     Health,
     Heatmap,
@@ -270,14 +277,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def garmin_status() -> dict[str, Any]:
         return auth_mod.garmin_status(settings)
 
-    @app.post("/api/garmin/login")
-    def garmin_login(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/garmin/login", response_model=GarminLoginResult)
+    def garmin_login(payload: GarminLoginRequest = Body(...)) -> dict[str, Any]:
         """Exchange Garmin credentials for a token cache. Credentials are not stored."""
         try:
             return auth_mod.garmin_login(
-                settings,
-                str(payload.get("email") or "").strip(),
-                str(payload.get("password") or ""),
+                settings, payload.email.strip(), payload.password
             )
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
@@ -305,37 +310,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ) from exc
             raise HTTPException(502, f"Garmin login failed: {exc}") from exc
 
-    @app.get("/api/garmin/signin-url")
+    @app.get("/api/garmin/signin-url", response_model=GarminSigninUrl)
     def garmin_signin_url() -> dict[str, Any]:
         """The Garmin sign-in page to open in a real browser."""
         from ..ingest import connect as connect_mod
 
         return {"url": connect_mod.SIGNIN_URL}
 
-    @app.post("/api/garmin/ticket")
-    def garmin_ticket(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/garmin/ticket", response_model=GarminConnected)
+    def garmin_ticket(payload: GarminTicketRequest = Body(...)) -> dict[str, Any]:
         """Finish a browser sign-in: exchange its CAS ticket for the token cache."""
         try:
-            return auth_mod.garmin_ticket(settings, str(payload.get("ticket") or ""))
+            return auth_mod.garmin_ticket(settings, payload.ticket)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         except Exception as exc:
             raise HTTPException(502, f"Ticket exchange failed: {exc}") from exc
 
-    @app.post("/api/garmin/mfa")
-    def garmin_mfa(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/garmin/mfa", response_model=GarminConnected)
+    def garmin_mfa(payload: GarminMfaRequest = Body(...)) -> dict[str, Any]:
         try:
-            return auth_mod.garmin_mfa(
-                settings,
-                str(payload.get("challenge_id") or ""),
-                str(payload.get("code") or ""),
-            )
+            return auth_mod.garmin_mfa(settings, payload.challenge_id, payload.code)
         except LookupError as exc:
             raise HTTPException(410, str(exc)) from exc
         except Exception as exc:
             raise HTTPException(502, f"MFA verification failed: {exc}") from exc
 
-    @app.post("/api/garmin/disconnect")
+    @app.post("/api/garmin/disconnect", response_model=GarminDisconnected)
     def garmin_disconnect() -> dict[str, Any]:
         return auth_mod.garmin_disconnect(settings)
 

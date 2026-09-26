@@ -51,12 +51,23 @@ export function unwrap<R extends ApiResult>(result: R): Exclude<R["data"], undef
   return result.data as Exclude<R["data"], undefined>;
 }
 
-/** A 401 outside /api/auth/* means the session expired: send the user to log in again. */
+/**
+ * Whether a 401 from this path means *this app's* session expired.
+ *
+ * Two families are exempt. `/api/auth/*` is the session itself. `/api/garmin/*`
+ * answers 401 when **Garmin** rejects an email and password — a different account
+ * entirely, and bouncing the user out of Settings for it would lose what they typed.
+ */
+export function isSessionPath(pathname: string): boolean {
+  if (!pathname.startsWith("/api/")) return false;
+  return !pathname.startsWith("/api/auth/") && !pathname.startsWith("/api/garmin/");
+}
+
+/** A 401 on a session path means the session expired: send the user to log in again. */
 const redirectOnUnauthorized: Middleware = {
   onResponse({ request, response }) {
     if (response.status !== 401) return;
-    const { pathname } = new URL(request.url);
-    if (!pathname.startsWith("/api/") || pathname.startsWith("/api/auth/")) return;
+    if (!isSessionPath(new URL(request.url).pathname)) return;
     if (window.location.pathname === "/login") return;
 
     const next = window.location.pathname + window.location.search;

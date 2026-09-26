@@ -7,6 +7,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
 import { RoutePage } from "@/features/routes/RoutePage";
 import { RoutesPage } from "@/features/routes/RoutesPage";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 import { AppShell } from "@/features/shell/AppShell";
 import { NotBuiltYet } from "@/features/shell/NotBuiltYet";
 import { RouteError } from "@/features/shell/RouteError";
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
           { path: "routes/:id", element: <RoutePage /> },
           { path: "compare", element: <ComparePage /> },
           { path: "trends", element: <TrendsPage /> },
+          { path: "settings", element: <SettingsPage /> },
           { path: "*", element: <NotBuiltYet /> },
         ],
       },

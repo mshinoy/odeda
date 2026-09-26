@@ -700,3 +700,19 @@ export function toFieldEdits(overrides: readonly Schemas["Override"][]): FieldEd
     garminValue: o.current_garmin_value,
   }));
 }
+
+/** Whether a Garmin token cache exists on the server, and how old it is. */
+export interface GarminConnection {
+  connected: boolean;
+  tokenDir: string;
+  /** ISO-8601 UTC mtime of the token file; null when not connected. */
+  tokensUpdatedAt: string | null;
+}
+
+export function toGarminConnection(raw: Schemas["GarminStatus"]): GarminConnection {
+  return {
+    connected: raw.connected,
+    tokenDir: raw.token_dir,
+    tokensUpdatedAt: raw.tokens_updated_at,
+  };
+}
