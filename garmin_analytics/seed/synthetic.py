@@ -54,6 +54,37 @@ V_THR_START = 3.18   # m/s at lactate threshold, month 0  (~5:14/km)
 V_THR_END = 3.58     # m/s at threshold, month 18         (~4:39/km)
 WEIGHT_START = 78.5
 WEIGHT_END = 74.0
+HEIGHT_M = 1.79
+
+# Body composition is modelled as lean mass plus fat mass, not as a weight and an
+# unrelated fat percentage. Training adds a little lean mass while the diet takes fat
+# off, so fat mass falls faster than the scale does — which is the whole point of the
+# fat/lean split on the Health page. A fat percentage generated independently of the
+# weight it belongs to would make that chart show nothing but two parallel lines.
+LEAN_KG_START = 62.5
+LEAN_KG_END = 63.3
+
+# A scale reading is the true weight plus whatever the body is holding that morning.
+# 0.55 kg is about right for one overnight-fasted reading and is large enough to hide a
+# week of real change, which is why nothing downstream may present one reading as news.
+HYDRATION_SD_KG = 0.55
+
+# The true weight wanders around the plan's smooth curve: plateaus, a bad fortnight,
+# a week of travel. Modelled as a mean-reverting random walk so the trend line has
+# something to find, clamped so three years of it cannot wander into fiction.
+WEIGHT_WALK_SD_KG = 0.09
+WEIGHT_WALK_DECAY = 0.985
+WEIGHT_WALK_LIMIT_KG = 1.6
+TRAVEL_WEIGHT_KG = 0.5
+
+# Weighing happens in runs — a month of most mornings, then a fortnight of none —
+# rather than as an even coin flip per day. Every trend in analytics/body.py degrades
+# with gaps, so the gaps have to exist in the data the charts are demonstrated on.
+# Off the habit for ~8 days at a time, on it for ~50; ~69 % of days end up with a
+# reading, which is roughly five mornings a week.
+LOSES_THE_HABIT = 0.02
+REGAINS_THE_HABIT = 0.12
+WEIGHS_IN_WHEN_IN_THE_HABIT = 0.80
 
 # Session templates: (name, kind, share of weekly volume, intensity as fraction of v_thr)
 RUN_KINDS = {
@@ -96,8 +127,61 @@ class AthleteState:
     hrv_base: float = 62.0
     fatigue: float = 0.0          # short-term, drives HRV/RHR response
     weight: float = WEIGHT_START
+    #: Departure of the true weight from the plan's smooth curve. Carried between days
+    #: because a plateau lasts weeks; a fresh draw each day would be noise, not drift.
+    weight_walk: float = 0.0
+    #: Whether the athlete is currently in the habit of weighing themselves.
+    weighs_in: bool = True
     vo2max: float = 46.0
     history: list = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Body composition
+# ---------------------------------------------------------------------------
+
+
+def advance_weight(rng, state: AthleteState, progress_frac: float, travelling: bool) -> None:
+    """Move the athlete's true weight one day along the block, plus its own wandering.
+
+    Nobody loses weight along a smooth curve. The mean-reverting walk produces the
+    plateaus and the bad fortnights, which is what the trend line on the Health page
+    exists to find; without it the smoothing would have nothing to smooth and the chart
+    would prove nothing.
+    """
+    walk = state.weight_walk * WEIGHT_WALK_DECAY + rng.gauss(0, WEIGHT_WALK_SD_KG)
+    state.weight_walk = max(-WEIGHT_WALK_LIMIT_KG, min(WEIGHT_WALK_LIMIT_KG, walk))
+    trend = WEIGHT_START + (WEIGHT_END - WEIGHT_START) * progress_frac
+    state.weight = trend + state.weight_walk + (TRAVEL_WEIGHT_KG if travelling else 0.0)
+
+
+def steps_on_the_scale(rng, state: AthleteState) -> bool:
+    """Whether today produces a reading. The habit comes and goes in runs, not per day."""
+    if state.weighs_in:
+        state.weighs_in = rng.random() >= LOSES_THE_HABIT
+    else:
+        state.weighs_in = rng.random() < REGAINS_THE_HABIT
+    return state.weighs_in and rng.random() < WEIGHS_IN_WHEN_IN_THE_HABIT
+
+
+def body_row(rng, day: date, progress_frac: float, true_weight_kg: float) -> dict:
+    """One morning on the scale: a reading, and everything else derived from it.
+
+    Lean mass follows the training block; fat mass is whatever the rest of the reading
+    is. Putting the hydration noise on the *reading* rather than on the body is what
+    makes the fat percentage move with the weight it was measured alongside — a real
+    impedance scale behaves that way, and a fat percentage drawn independently of its
+    own weight would make the fat/lean split two parallel lines that mean nothing.
+    """
+    reading = true_weight_kg + rng.gauss(0, HYDRATION_SD_KG)
+    lean = LEAN_KG_START + (LEAN_KG_END - LEAN_KG_START) * progress_frac
+    fat = max(reading - lean, 0.05 * reading)
+    return {
+        "day": day.isoformat(),
+        "weight_kg": round(reading, 2),
+        "body_fat_pct": round(100.0 * fat / reading, 1),
+        "bmi": round(reading / (HEIGHT_M ** 2), 1),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -706,7 +790,7 @@ def seed_database(
             # Slow drift of the athlete's own baselines with training age.
             state.hr_rest = HR_REST_START - 5.0 * progress_frac
             state.hrv_base = 62.0 + 9.0 * progress_frac
-            state.weight = WEIGHT_START + (WEIGHT_END - WEIGHT_START) * progress_frac
+            advance_weight(rng, state, progress_frac, plan.disrupted == "travel")
             state.vo2max = 46.0 + 7.0 * progress_frac
 
             today_trimp = 0.0
@@ -877,16 +961,10 @@ def seed_database(
             store.upsert("fitness", ["day"], {**fitness_row, "raw_id": rid})
             counts["raw"] += 1
 
-            # Weight is not measured every day — about 4 mornings a week.
-            if rng.random() < 0.6:
-                body_row = {
-                    "day": plan.day.isoformat(),
-                    "weight_kg": round(state.weight + rng.gauss(0, 0.55), 2),
-                    "body_fat_pct": round(19.5 - 3.4 * progress_frac + rng.gauss(0, 0.6), 1),
-                    "bmi": round((state.weight + rng.gauss(0, 0.5)) / (1.79 ** 2), 1),
-                }
-                rid = store.store_raw("seed", "body", plan.day.isoformat(), body_row)
-                store.upsert("body_composition", ["day"], {**body_row, "raw_id": rid})
+            if steps_on_the_scale(rng, state):
+                row = body_row(rng, plan.day, progress_frac, state.weight)
+                rid = store.store_raw("seed", "body", plan.day.isoformat(), row)
+                store.upsert("body_composition", ["day"], {**row, "raw_id": rid})
                 counts["raw"] += 1
 
             yesterday_trimp = today_trimp

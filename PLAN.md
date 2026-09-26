@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 0 / 8 |
+| 5 Fitbit body composition | E: `open` | 1 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -109,7 +109,7 @@ rows. This phase fills it and makes it mean something against the training data.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | in progress (fitbit, 2026-09-26) | — | |
+| T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | done | — | Seeder: a weigh-in series worth smoothing |
 | T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | todo | — | |
 | T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | todo | T23 | |
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | todo | — | |
@@ -1477,11 +1477,11 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   has to look like a real scale.
 - **Files:** `garmin_analytics/seed/synthetic.py`, `tests/test_seed.py`.
 - **Build:**
-  - [ ] hydration noise on every reading, so a single day is never a trend
-  - [ ] weigh-ins cluster and gap the way a person does — runs of daily mornings, then
+  - [x] hydration noise on every reading, so a single day is never a trend
+  - [x] weigh-ins cluster and gap the way a person does — runs of daily mornings, then
     a week away — rather than an even 60 % coin flip
-  - [ ] body fat follows the weight it came from, so fat mass and lean mass separate
-  - [ ] a test that pins the noise-to-drift ratio: the 7-day trend moves less than the
+  - [x] body fat follows the weight it came from, so fat mass and lean mass separate
+  - [x] a test that pins the noise-to-drift ratio: the 7-day trend moves less than the
     day-to-day spread
 
 ### T23 — Fitbit OAuth: authorize → code → token → refresh
@@ -1563,3 +1563,21 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     connected state, disconnect
   - [ ] import an export ZIP by path, for the offline route
   - [ ] the `fitbit_body` watermark in the sync panel
+- **Notes:**
+  - Measured on eighteen seeded months: the scale moves 0.62 kg day to day, a
+    7-reading trailing mean moves 0.099 kg — a factor of **6.2**. That ratio is the
+    argument for the whole smoothing approach, and it is now asserted (at 3×) rather
+    than claimed.
+  - **A real bug fell out of it.** BMI was generated with its own independent noise
+    draw, so a row could report a weight that was down and a BMI that was up. Nothing
+    read both at once, which is the only reason it survived. BMI is now that morning's
+    reading over the same height.
+  - Weighing is a two-state habit (~2 % chance a day of lapsing, ~12 % a day of coming
+    back) rather than an even coin flip. It produces 74 % coverage with gaps of up to
+    six weeks, which is what T26's gap-aware EWMA and the consistency card need to have
+    something to cope with. An independent flip at the same coverage essentially never
+    misses eight days running.
+  - Fat and lean are now modelled separately — lean follows the block, fat is the
+    remainder — so over eighteen months fat mass falls 4.3 kg while lean mass rises
+    0.7 kg. Before this the fat percentage was a straight line with noise on it and the
+    two masses fell in parallel.
