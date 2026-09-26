@@ -73,7 +73,7 @@ class FakeInner:
 
 
 class FakeGarmin:
-    def __init__(self, inner, display_name="shinoy"):
+    def __init__(self, inner, display_name="test-athlete"):
         self.client = inner
         self.display_name = display_name
 
@@ -94,7 +94,7 @@ class TestLoginWithTicket:
 
         name = connect.login_with_ticket("ST-5-abc-cas", token_dir)
 
-        assert name == "shinoy"
+        assert name == "test-athlete"
         assert inner.tickets == ["ST-5-abc-cas"]
         assert (token_dir.stat().st_mode & 0o777) == 0o700
         assert (token_dir / connect.TOKEN_FILENAME).stat().st_mode & 0o777 == 0o600

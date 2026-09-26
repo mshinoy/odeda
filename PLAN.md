@@ -456,7 +456,7 @@ Owner feedback:
    - **Sequential mode (default):** commit in the main working tree on `frontend-rebuild`.
    - **Parallel mode:** create a worktree on a new branch `task/<ID>` from
      `frontend-rebuild`, commit the claim there, then publish it with
-     `git -C /home/shinzy/garmin-analytics merge --ff-only task/<ID>`.
+     `git -C <main-worktree> merge --ff-only task/<ID>`.
    - If the fast-forward fails, someone else moved the branch. Rebase onto
      `frontend-rebuild`. If the rebase conflicts on your row, the task has been taken:
      abandon the branch and pick again.
@@ -475,7 +475,7 @@ Owner feedback:
      attribution lines the session specifies.
    - In parallel mode, rebase `task/<ID>` onto `frontend-rebuild`. Conflicts in
      `PLAN.md` touch only rows, so keep both sides. Then
-     `git -C /home/shinzy/garmin-analytics merge --ff-only task/<ID>` and remove the
+     `git -C <main-worktree> merge --ff-only task/<ID>` and remove the
      worktree.
    - If this was the last row of the phase, go on to the checkpoint.
 7. **Stuck?** Set `blocked: <one line why>` or `needs decision: <the question>`, add a

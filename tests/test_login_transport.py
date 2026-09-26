@@ -53,7 +53,7 @@ class FakeGarmin:
     """The wrapper's contract: `login(tokenstore=...)` resumes from the cache when one
     is there, and only falls back to the credentials when it is not."""
 
-    def __init__(self, inner, display_name="shinoy", **kwargs):
+    def __init__(self, inner, display_name="test-athlete", **kwargs):
         self.client = inner
         self.display_name = display_name
         self.kwargs = kwargs
