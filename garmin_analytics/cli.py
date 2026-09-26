@@ -266,6 +266,22 @@ def _run_fitbit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_import_fitbit(args: argparse.Namespace) -> int:
+    """Load a Fitbit export ZIP. No credential, no rate limit, no network."""
+    from .ingest import fitbit_export
+
+    with _store() as st:
+        result = fitbit_export.import_fitbit_export(st, args.path)
+    print(f"Scanned {result['members_scanned']} members from {result['zip']}")
+    print(f"  weigh-ins written   {result['written']}")
+    if result["units_found"]:
+        print(f"  units in the export {', '.join(result['units_found'])}")
+    if result["unrecognised_count"]:
+        print(f"  {result['unrecognised_count']} members held no weight data")
+    _emit(result, args.json)
+    return 0
+
+
 def cmd_seed(args: argparse.Namespace) -> int:
     from .seed.synthetic import DEFAULT_MONTHS, seed_database
 
@@ -517,6 +533,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--end", help="last day, ISO date (default today)")
     sp.add_argument("--estimate", action="store_true",
                     help="report the size of the job and exit without fetching")
+
+    sp = add("import-fitbit", cmd_import_fitbit,
+             "load a Fitbit data export from Google Takeout (no credential needed)")
+    sp.add_argument("path")
 
     sp = add("fitbit", cmd_fitbit, "connect Fitbit and pull the scale's weigh-ins")
     sp.add_argument("action", choices=("connect", "sync", "status", "disconnect"))

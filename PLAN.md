@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 3 / 8 |
+| 5 Fitbit body composition | E: `open` | 4 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -112,7 +112,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T22 | Seeder: a weigh-in series worth smoothing (gaps, drift, hydration noise) | done | — | Seeder: a weigh-in series worth smoothing |
 | T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | done | — | Fitbit OAuth, proved without a Fitbit account |
 | T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | done | T23 | Fitbit ingest: three years of weigh-ins in 36 requests |
-| T25 | Fitbit export importer (Google Takeout), no credentials needed | in progress (fitbit, 2026-09-26) | — | |
+| T25 | Fitbit export importer (Google Takeout), no credentials needed | done | — | The Fitbit export: a decade of weigh-ins with no credential |
 | T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | todo | T22 | |
 | T27 | Health: the body-composition section | todo | T26 | |
 | T28 | Trends: weight against training load, and pace per kg | todo | T26 | |
@@ -1565,11 +1565,37 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   the fastest way to load history without touching the rate limit.
 - **Files:** new `garmin_analytics/ingest/fitbit_export.py`, `tests/test_fitbit_export.py`.
 - **Build:**
-  - [ ] route by shape, not by path, the way `export_zip.py` does — Takeout's layout
+  - [x] route by shape, not by path, the way `export_zip.py` does — Takeout's layout
     moves and a renamed directory must cost nothing
-  - [ ] both shapes Fitbit exports weight in: the JSON logs and the CSV
-  - [ ] raw-first, then the same normaliser the API path uses, so the two cannot drift
-  - [ ] tested against a ZIP the test builds itself
+  - [x] both shapes Fitbit exports weight in: the JSON logs and the CSV
+  - [x] raw-first, then the same normaliser the API path uses, so the two cannot drift
+  - [x] tested against a ZIP the test builds itself
+- **Notes:**
+  - **Two traps, and both produce numbers that look right.** `03/01/19` in a Fitbit
+    export is 1 March 2019; read day-first it is 3 January — a plausible date in the
+    right year, wrong by two months, and nothing downstream can detect it. And the
+    export follows the account's *original* unit setting without saying which it used.
+  - **The unit is inferred from arithmetic, not from a label or a guess.** 75 and 175
+    are both plausible weights for a person, so the number decides nothing. The
+    record's own BMI does: weight and BMI together imply a height, and a weight in
+    pounds implies one of about 2.6 m. Every record votes and the majority wins, so one
+    record with a BMI of 0 cannot convert a decade of history. No BMI anywhere means no
+    evidence, and metric — what Fitbit documents — stands.
+  - The export shares `normalize_fitbit_weight` with the live sync rather than
+    reimplementing it. `canonical_records` is the only place the export's quirks live;
+    everything after it — D5, the missing-fat rule, the rounding — is one function, so
+    the two paths cannot disagree about a kilogram.
+  - **The import writes its own watermark, `fitbit_export`, not `fitbit_body`.** That
+    one is the live sync's resume cursor, and a ZIP's coverage is not a day the sync has
+    reached; overwriting it would send the next sync back to the start of the account.
+    The raw documents still go in under `fitbit_body`, because it is the same data and
+    `/api/raw/{endpoint}/{ref_key}` should find either.
+  - A weight outside 25–300 kg is dropped with a warning. That is not an unusual
+    athlete, it is a column read as something else, and 6,000 kg would be the entire
+    y axis of the Health chart.
+  - Tested against ZIPs the tests build. A real export is megabytes of one person's
+    history and this repository is public-bound.
+
 
 ### T26 — Body analytics and `/api/body`
 - **Goal:** the analytics the owner asked for, as pure functions with hand-derived
