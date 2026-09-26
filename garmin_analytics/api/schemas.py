@@ -1044,6 +1044,135 @@ class Trends(_Model):
     """|z| at or above which a metric is flagged."""
 
 
+# --- body composition ----------------------------------------------------------------
+
+
+class BodySeries(_Model):
+    """The weigh-in series on one dense daily axis.
+
+    Every list is parallel to `days`, which has no holes in it — a sparse axis would
+    close the gaps between weigh-ins and quietly claim the scale was used every day.
+    `weight_kg` is null on a day with no reading; the three smoothed series carry the
+    trend across, which is what they are for.
+    """
+
+    days: list[str]
+    weight_kg: list[float | None]
+    """The raw readings. Draw these faintly behind the trend, never as the series."""
+    trend_kg: list[float | None]
+    """Gap-aware exponential trend, 7-day half-life."""
+    fat_kg: list[float | None]
+    """Smoothed fat mass: weight × body fat %."""
+    lean_kg: list[float | None]
+    """Smoothed lean mass: the rest of it."""
+
+
+class BodyConsistency(_Model):
+    """How often the scale was actually used over the window.
+
+    Not housekeeping: every other number here is a function of how much data there is,
+    and showing the gaps is the honest way to say a trend is thin.
+    """
+
+    readings: int
+    span_days: int
+    coverage_pct: float
+    per_week: float
+    longest_gap_days: int | None = None
+    """Days *between* two readings, so consecutive mornings are a gap of 0."""
+    days_since_last: int | None = None
+
+
+class BodyLatest(_Model):
+    """Where the athlete is now, and how far that has moved over the window drawn."""
+
+    day: str
+    trend_kg: float | None = None
+    reading_kg: float | None = None
+    """The most recent actual reading. A card showing this alone would be noise."""
+    fat_kg: float | None = None
+    lean_kg: float | None = None
+    change_kg: float | None = None
+    fat_change_kg: float | None = None
+    lean_change_kg: float | None = None
+
+
+class RaceWeightProjection(_Model):
+    """The recent trend carried forward to race day.
+
+    Null when there is not enough recent data to fit a line — under 8 readings or under
+    28 days of trend in the window — rather than a projection from three points.
+
+    **`rule_of_thumb_s_per_km` and `rule_of_thumb_race_s` are a rule of thumb, not a
+    prediction.** They apply the commonly quoted ~2 s per mile per pound to the
+    projected change. That figure is a rough empirical average across runners, it
+    assumes the weight lost is fat rather than muscle, and it says nothing about this
+    athlete in particular. Label it as such wherever it is shown.
+    """
+
+    race_name: str
+    race_day: str
+    days_out: int
+    current_trend_kg: float
+    projected_kg: float
+    change_kg: float
+    slope_kg_per_week: float
+    window_days: int
+    """Days of trend the line was fitted over."""
+    readings_used: int
+    rule_of_thumb_s_per_km: float
+    rule_of_thumb_race_s: int
+
+
+class WeightLoadPoint(_Model):
+    """One day that has both a weight trend and a CTL."""
+
+    day: str
+    trend_kg: float
+    ctl: float
+
+
+class PowerToWeightPoint(_Model):
+    """One ride's average watts over the weight trend on the day it was ridden.
+
+    Divided by the trend rather than that morning's reading: hydration noise in the
+    divisor would appear in the performance series as form.
+    """
+
+    day: str
+    activity_id: str
+    watts_per_kg: float
+
+
+class SpeedWeightPoint(_Model):
+    """One week's mean run speed and mean weight trend, each as a percentage of the
+    first week in the window.
+
+    Deliberately two indexed series rather than a speed-per-kilogram: running cost is
+    already roughly proportional to bodyweight, so dividing again produces a number
+    with no meaning. The comparison is the reader's to make.
+    """
+
+    week: str
+    speed_index: float
+    weight_index: float
+
+
+class BodyComposition(_Model):
+    """`GET /api/body`. `has_data` is false when nothing has ever been weighed, and
+    everything else is empty rather than null-filled, so the UI hides the section
+    instead of drawing an empty chart."""
+
+    has_data: bool
+    series: BodySeries
+    consistency: BodyConsistency
+    latest: BodyLatest | None = None
+    projection: RaceWeightProjection | None = None
+    against_load: list[WeightLoadPoint]
+    power_to_weight: list[PowerToWeightPoint]
+    speed_vs_weight: list[SpeedWeightPoint]
+
+
 class ReadinessComponents(_Model):
     """Per-component sub-scores, 0..100, null when that component has no data.
 

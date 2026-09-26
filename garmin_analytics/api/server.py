@@ -37,6 +37,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .. import __version__, config
 from ..analytics import aggregate as agg_mod
+from ..analytics import body as body_mod
 from ..analytics import load as load_mod
 from ..analytics import performance as perf
 from ..analytics import readiness as ready_mod
@@ -67,6 +68,7 @@ from .schemas import (
     ActivityRouteRequest,
     ActivityRouteResult,
     ActivityStreams,
+    BodyComposition,
     CompareTracks,
     DailyList,
     ExerciseRelabelRequest,
@@ -448,6 +450,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(400, f"unknown metrics: {', '.join(unknown)}")
         with store() as st:
             return trends_mod.compute_trends(st, days=days, metrics=wanted)
+
+    @app.get("/api/body", response_model=BodyComposition)
+    def api_body(days: int = Query(540, ge=28, le=4000)) -> dict[str, Any]:
+        """Weight, fat and lean mass, and what they look like against the training.
+
+        `days` bounds the charts, not the projection: that fits its own eight-week
+        window, so narrowing the view cannot change where race day lands.
+        """
+        with store() as st:
+            return body_mod.compute_body(st, days=days)
 
     @app.get("/api/readiness", response_model=Readiness, response_model_exclude_unset=True)
     def api_readiness(day: str | None = None) -> dict[str, Any]:

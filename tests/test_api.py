@@ -380,7 +380,36 @@ class TestEmptyDatabase:
     @pytest.mark.parametrize("path", [
         "/api/summary", "/api/load", "/api/trends", "/api/readiness",
         "/api/readiness/history", "/api/performance", "/api/race", "/api/reports",
-        "/api/daily", "/api/activities", "/api/doctor", "/api/config", "/",
+        "/api/daily", "/api/activities", "/api/doctor", "/api/config", "/api/body", "/",
     ])
     def test_every_endpoint_survives(self, empty_client, path):
         assert empty_client.get(path).status_code == 200
+
+
+class TestBody:
+    """`GET /api/body`. The model is the contract; `test_body.py` owns the maths."""
+
+    def test_it_returns_the_whole_report(self, client):
+        body = client.get("/api/body?days=540").json()
+        assert body["has_data"] is True
+        for key in ("series", "consistency", "latest", "against_load",
+                    "power_to_weight", "speed_vs_weight"):
+            assert key in body
+
+    def test_every_series_is_parallel_to_its_axis(self, client):
+        """The charts index these together; a length mismatch would silently shift a
+        reading onto the wrong day."""
+        series = client.get("/api/body?days=540").json()["series"]
+        n = len(series["days"])
+        assert n == len(series["weight_kg"]) == len(series["trend_kg"])
+        assert n == len(series["fat_kg"]) == len(series["lean_kg"])
+
+    def test_days_is_validated(self, client):
+        assert client.get("/api/body?days=1").status_code == 422
+        assert client.get("/api/body?days=99999").status_code == 422
+
+    def test_an_unweighed_database_says_so_rather_than_erroring(self, empty_client):
+        body = empty_client.get("/api/body").json()
+        assert body["has_data"] is False
+        assert body["latest"] is None and body["projection"] is None
+        assert body["series"]["days"] == []

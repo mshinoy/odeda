@@ -34,7 +34,7 @@ Paste one of these into a fresh session.
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `open` | 4 / 8 |
+| 5 Fitbit body composition | E: `open` | 5 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -113,7 +113,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T23 | Fitbit OAuth: authorize → code → token → refresh, cached on the volume | done | — | Fitbit OAuth, proved without a Fitbit account |
 | T24 | Fitbit ingest: weigh-ins by date range, raw-first, resumable, rate-limit paced | done | T23 | Fitbit ingest: three years of weigh-ins in 36 requests |
 | T25 | Fitbit export importer (Google Takeout), no credentials needed | done | — | The Fitbit export: a decade of weigh-ins with no credential |
-| T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | in progress (fitbit, 2026-09-26) | T22 | |
+| T26 | Body analytics and `/api/body`: trend, fat/lean, consistency, projection | done | T22 | Body composition: the trend, not the morning |
 | T27 | Health: the body-composition section | todo | T26 | |
 | T28 | Trends: weight against training load, and pace per kg | todo | T26 | |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | todo | T24, T25 | |
@@ -1603,14 +1603,42 @@ Everything else still returns `unknown` and has to be typed by the task that fir
 - **Files:** new `garmin_analytics/analytics/body.py`, `garmin_analytics/api/schemas.py`,
   `garmin_analytics/api/server.py`, `tests/test_body.py`.
 - **Build:**
-  - [ ] EWMA trend over the raw weigh-ins, gap-aware — a 10-day gap must not let one
+  - [x] EWMA trend over the raw weigh-ins, gap-aware — a 10-day gap must not let one
     reading jump the trend
-  - [ ] fat mass and lean mass from weight × body-fat %
-  - [ ] weigh-in consistency: readings per week, longest gap, coverage of the window
-  - [ ] race-day projection for 2027-01-15 from the recent trend slope, with a plain
+  - [x] fat mass and lean mass from weight × body-fat %
+  - [x] weigh-in consistency: readings per week, longest gap, coverage of the window
+  - [x] race-day projection for 2027-01-15 from the recent trend slope, with a plain
     statement of the window it was fitted over
-  - [ ] weight trend aligned to CTL, and a per-kg performance series
-  - [ ] `GET /api/body`, Pydantic models, then `npm run gen:api`
+  - [x] weight trend aligned to CTL, and a per-kg performance series
+  - [x] `GET /api/body`, Pydantic models, then `npm run gen:api`
+- **Notes:**
+  - **The gap rule is the part that needed thinking about.** Textbook continuous-time
+    EWMA sends the weight on a new reading to 1 as the gap grows, so a weigh-in after a
+    month away *becomes* the trend. That is right about the old estimate being stale
+    and wrong about the new one being reliable — it is one number with ±0.6 kg of
+    hydration in it, taken after a fortnight of not weighing. `MAX_STEP = 0.5` caps it:
+    one reading closes half the gap, and re-establishing the trend takes weighing in
+    again. Two tests pin both halves.
+  - **The projection refuses to answer rather than answering badly.** Under 8 readings
+    or under 28 days of trend in the 56-day window returns null. A line through three
+    points is a straight face on a coin toss, and the owner would have no way to tell.
+  - **The pace figure is a rule of thumb and says so in three places** — the constant's
+    comment, the Pydantic model's docstring, and the field name itself
+    (`rule_of_thumb_s_per_km`). ~2 s per mile per pound is 2.7 s per km per kg. It is a
+    rough average across runners, it assumes the weight lost is fat, and it knows
+    nothing about this athlete.
+  - **"Pace per kg" was rejected on merit.** Running's metabolic cost is already roughly
+    proportional to bodyweight, so speed is mass-normalised to begin with and dividing
+    it by mass again produces a number with no meaning. What is built instead is run
+    speed and bodyweight both **indexed** to the start of the window: if speed is up 4 %
+    while weight is down 2 %, the reader can see the improvement is not the scale — and
+    the code has not invented a conversion to tell them so. W/kg for rides *is* built,
+    because on a climb speed really is very nearly linear in it.
+  - W/kg divides by the *trend*, not by that morning's reading. Hydration noise in the
+    divisor would come out in the performance series looking exactly like form.
+  - On eighteen seeded months: fat mass −4.66 kg, lean mass +0.77 kg, run speed index
+    114.4 against a weight index of 95.3.
+
 
 ### T27 — Health: the body-composition section
 - **Goal:** the headline is the trend, not the reading.
