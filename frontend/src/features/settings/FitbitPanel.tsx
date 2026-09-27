@@ -57,11 +57,13 @@ export function FitbitPanel() {
         <div className="flex max-w-lg flex-col gap-2">
           <StatusDot
             tone="neutral"
-            label="No Fitbit app registered. Nothing can connect until there is one."
+            label="No Google Health app registered. Nothing can connect until there is one."
           />
           <p className="text-muted-foreground text-sm">
-            Register a Personal app at dev.fitbit.com/apps and put its client ID and secret in the
-            environment as FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET, then restart.
+            Create a Web application OAuth client in Google Cloud, enable the Google Health API,
+            and put its client ID and secret in the environment as GOOGLE_HEALTH_CLIENT_ID and
+            GOOGLE_HEALTH_CLIENT_SECRET, then restart. While the client is unverified you also
+            have to add yourself as a test user on its Audience page, or consent will fail.
           </p>
           <p className="text-muted-foreground text-xs break-all">
             The redirect URL it has to be registered with is {status.data.redirect_uri}

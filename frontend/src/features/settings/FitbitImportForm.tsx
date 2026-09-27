@@ -12,7 +12,7 @@ import { importSummary } from "@/features/settings/fitbitSummary";
  * Collapsed, because it is the second-choice path — but kept beside the connection
  * rather than hidden elsewhere, because it is the one that still works if Google
  * retires the Web API, and the one that loads a decade of history without spending a
- * single one of the 150 requests an hour.
+ * single API request.
  *
  * A path rather than a file upload: the archive is hundreds of megabytes, this app is
  * single-tenant and runs on the owner's own machine, and streaming a multipart upload

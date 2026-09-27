@@ -51,6 +51,55 @@ def reading(day: str, kg: float, *, fat=None, bmi=None, time="07:38:14", source=
     return record
 
 
+def sample(day: str, kg: float, *, clock="07:38:14", offset="0s") -> dict:
+    """One `weight` data point in the shape Google Health documents.
+
+    `civilTime` is what the normaliser prefers — it is the day the person was actually
+    standing on the scale, which for a UTC+3 user is not always the UTC day.
+    """
+    hours, minutes, seconds = (int(part) for part in clock.split(":"))
+    year, month, dom = (int(part) for part in day.split("-"))
+    return {
+        "dataSource": {"recordingMethod": "UNKNOWN", "platform": "FITBIT"},
+        "weight": {
+            "sampleTime": {
+                "physicalTime": f"{day}T{clock}Z",
+                "utcOffset": offset,
+                "civilTime": {
+                    "date": {"year": year, "month": month, "day": dom},
+                    "time": {"hours": hours, "minutes": minutes, "seconds": seconds},
+                },
+            },
+            "weightGrams": round(kg * 1000),
+        },
+    }
+
+
+def fat_sample(day: str, pct: float, *, clock="07:38:14") -> dict:
+    hours, minutes, seconds = (int(part) for part in clock.split(":"))
+    year, month, dom = (int(part) for part in day.split("-"))
+    return {
+        "bodyFat": {
+            "sampleTime": {
+                "physicalTime": f"{day}T{clock}Z",
+                "utcOffset": "0s",
+                "civilTime": {
+                    "date": {"year": year, "month": month, "day": dom},
+                    "time": {"hours": hours, "minutes": minutes, "seconds": seconds},
+                },
+            },
+            "percentage": pct,
+        },
+    }
+
+
+def points(*samples) -> dict:
+    return {"dataPoints": list(samples), "nextPageToken": ""}
+
+
+fat_points = points
+
+
 def a_client(tmp_path, *replies, now=1_000_000.0):
     transport = FakeTransport(*replies)
     return (
@@ -135,157 +184,128 @@ class TestNormalising:
         assert norm.normalize_fitbit_weight(weight_log({"date": "2026-03-01"})) == []
 
 
-class TestWindows:
-    def test_a_window_is_inclusive_at_both_ends(self):
-        """31 days means the 1st to the 31st. `start + 31 days` is 32 days and a 400."""
-        spans = FS.windows(date(2026, 1, 1), date(2026, 1, 31))
-        assert spans == [(date(2026, 1, 1), date(2026, 1, 31))]
-        assert (spans[0][1] - spans[0][0]).days + 1 == FS.WINDOW_DAYS
+class TestTheFilter:
+    def test_it_asks_for_samples_on_or_after_the_start(self):
+        expr = FS.since_filter("weight", date(2026, 1, 1))
+        assert expr == 'weight.sample_time.physical_time >= "2026-01-01T00:00:00Z"'
 
-    def test_a_span_splits_without_gaps_or_overlaps(self):
-        spans = FS.windows(date(2026, 1, 1), date(2026, 4, 15))
-        assert spans[0][0] == date(2026, 1, 1)
-        assert spans[-1][1] == date(2026, 4, 15)
-        for earlier, later in zip(spans, spans[1:]):
-            assert (later[0] - earlier[1]).days == 1
-        assert all((b - a).days + 1 <= FS.WINDOW_DAYS for a, b in spans)
-
-    def test_three_years_is_about_thirty_six_calls(self):
-        """The whole argument for the range form, as a number.
-
-        1,096 days at one call a day against 36 at 31 days a call: 150 an hour makes the
-        first an eight-hour job and the second a two-minute one.
-        """
-        spans = FS.windows(date(2023, 9, 26), date(2026, 9, 26))
-        assert 35 <= len(spans) <= 37
-
-    def test_one_day_is_one_window(self):
-        assert FS.windows(date(2026, 1, 5), date(2026, 1, 5)) == [
-            (date(2026, 1, 5), date(2026, 1, 5))
-        ]
-
-    def test_an_end_before_the_start_is_no_work(self):
-        assert FS.windows(date(2026, 2, 1), date(2026, 1, 1)) == []
+    def test_the_field_prefix_uses_underscores_not_the_url_hyphens(self):
+        """`body-fat` in the path, `body_fat` in the filter. Swapping them is an
+        INVALID_ARGUMENT that reads like a server fault rather than a typo."""
+        expr = FS.since_filter("body_fat", date(2026, 1, 1))
+        assert expr.startswith("body_fat.sample_time")
+        assert "body-fat" not in expr
 
 
 class TestSync:
-    def test_it_writes_rows_and_archives_the_payload_first(self, store, tmp_path):
-        payload = weight_log(
-            reading("2026-01-02", 76.4, fat=18.2, bmi=23.85),
-            reading("2026-01-09", 76.1, fat=18.0, bmi=23.75),
+    def test_it_writes_rows_and_archives_both_payloads_first(self, store, tmp_path):
+        client, transport = a_client(
+            tmp_path,
+            response(200, points(sample("2026-01-02", 76.4), sample("2026-01-09", 76.1))),
+            response(200, fat_points(fat_sample("2026-01-02", 18.2))),
         )
-        client, transport = a_client(tmp_path, response(200, payload))
-        result = FS.sync_body(
-            store, client,
-            start=date(2026, 1, 1), end=date(2026, 1, 20),
-            sleep=lambda _s: None,
-        )
+        result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20))
 
         assert result["state"] == "done"
         assert result["days_written"] == 2
-        assert transport.calls[0]["url"].endswith(
-            "/1/user/-/body/log/weight/date/2026-01-01/2026-01-20.json"
+        assert "dataTypes/weight/dataPoints" in transport.calls[0]["url"]
+        assert "dataTypes/body-fat/dataPoints" in transport.calls[1]["url"]
+
+        rows = store.query(
+            "SELECT day, weight_kg, body_fat_pct FROM body_composition ORDER BY day"
         )
-        rows = store.query("SELECT day, weight_kg, body_fat_pct FROM body_composition ORDER BY day")
         assert [r["day"] for r in rows] == ["2026-01-02", "2026-01-09"]
         assert rows[0]["weight_kg"] == 76.4
+        assert rows[0]["body_fat_pct"] == 18.2
+        # The 9th had no fat reading. A null, never an invented zero.
+        assert rows[1]["body_fat_pct"] is None
 
-        raw = store.raw_documents(FS.ENDPOINT)
-        assert len(raw) == 1
-        assert raw[0]["source"] == "fitbit"
-        # The ref key is the window that was asked for, so a re-run dedupes on it.
-        assert raw[0]["ref_key"] == "2026-01-01:2026-01-20"
-        # Every row points at the archived document it came from.
+        # Both streams archived separately, so a re-parse never needs a re-fetch.
+        assert len(store.raw_documents(f"{FS.ENDPOINT}:weight")) == 1
+        assert len(store.raw_documents(f"{FS.ENDPOINT}:body_fat")) == 1
         assert store.scalar("SELECT COUNT(*) FROM body_composition WHERE raw_id IS NULL") == 0
 
+    def test_grams_become_kilograms(self, store, tmp_path):
+        """`weightGrams` is grams, always — the one thing the old API would not say."""
+        client, _ = a_client(
+            tmp_path,
+            response(200, {"dataPoints": [{
+                "weight": {
+                    "sampleTime": {"physicalTime": "2026-01-02T07:00:00Z", "utcOffset": "0s"},
+                    "weightGrams": 76380,
+                }
+            }]}),
+            response(200, fat_points()),
+        )
+        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20))
+        assert store.scalar("SELECT weight_kg FROM body_composition") == 76.38
+
     def test_running_it_twice_changes_nothing(self, store, tmp_path):
-        payload = weight_log(reading("2026-01-02", 76.4))
         for _ in range(2):
-            client, _ = a_client(tmp_path, response(200, payload))
-            FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20),
-                         sleep=lambda _s: None)
+            client, _ = a_client(
+                tmp_path,
+                response(200, points(sample("2026-01-02", 76.4))),
+                response(200, fat_points()),
+            )
+            FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20))
         assert store.scalar("SELECT COUNT(*) FROM body_composition") == 1
-        assert len(store.raw_documents(FS.ENDPOINT)) == 1
+        assert len(store.raw_documents(f"{FS.ENDPOINT}:weight")) == 1
 
     def test_a_corrected_reading_overwrites_the_old_one(self, store, tmp_path):
-        """Fitbit lets a weigh-in be edited after the fact, so the newer fetch wins."""
-        client, _ = a_client(tmp_path, response(200, weight_log(reading("2026-01-02", 76.4))))
-        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20),
-                     sleep=lambda _s: None)
-        client, _ = a_client(tmp_path, response(200, weight_log(reading("2026-01-02", 75.9))))
-        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20),
-                     sleep=lambda _s: None)
-        assert store.scalar("SELECT weight_kg FROM body_composition WHERE day = '2026-01-02'") == 75.9
+        """A weigh-in can be edited after the fact, so the newer fetch wins."""
+        for kg in (76.4, 75.9):
+            client, _ = a_client(
+                tmp_path,
+                response(200, points(sample("2026-01-02", kg))),
+                response(200, fat_points()),
+            )
+            FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20))
+        assert store.scalar(
+            "SELECT weight_kg FROM body_composition WHERE day = '2026-01-02'"
+        ) == 75.9
 
     def test_the_watermark_only_moves_behind_written_data(self, store, tmp_path):
+        """A run that found nothing must not advance the mark past data still to come."""
         client, _ = a_client(
             tmp_path,
-            response(200, weight_log(reading("2026-01-02", 76.4))),
-            response(200, weight_log(reading("2026-02-03", 76.0))),
+            response(200, points(sample("2026-01-02", 76.4))),
+            response(200, fat_points()),
         )
-        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 2, 20),
-                     sleep=lambda _s: None)
-        assert store.get_watermark(FS.ENDPOINT) == "2026-02-20"
+        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 2, 20))
+        assert store.get_watermark(FS.ENDPOINT) == "2026-01-02"
 
-    def test_a_rate_limit_keeps_the_windows_it_already_did(self, store, tmp_path):
-        """The failure this exists to prevent: a 429 on window 31 throwing away 30."""
+    def test_a_rate_limit_stops_with_its_place_kept(self, store, tmp_path):
         client, _ = a_client(
             tmp_path,
-            response(200, weight_log(reading("2026-01-02", 76.4))),
             response(429, {"errors": [{"message": "Too Many Requests"}]},
-                     headers={"fitbit-rate-limit-reset": "900"}),
+                     headers={"Retry-After": "90"}),
         )
-        result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 3, 20),
-                              sleep=lambda _s: None)
-
+        result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 3, 20))
         assert result["state"] == "rate_limited"
-        assert result["retry_after_s"] == 900
-        assert result["windows_done"] == 1
-        assert store.scalar("SELECT COUNT(*) FROM body_composition") == 1
-        # And it says where it stopped, so the next run resumes rather than restarts.
-        assert store.get_watermark(FS.ENDPOINT) == "2026-01-31"
-
-    def test_it_stops_before_draining_the_hourly_budget(self, store, tmp_path):
-        """The budget is shared with the rest of the app. A backfill that spends the
-        last request leaves the Settings page unable to render for an hour."""
-        client, transport = a_client(
-            tmp_path,
-            response(200, weight_log(reading("2026-01-02", 76.4)),
-                     headers={"fitbit-rate-limit-remaining": str(FS.RESERVE_CALLS)}),
-        )
-        result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 6, 1),
-                              sleep=lambda _s: None)
-        assert result["state"] == "rate_limited"
-        assert result["windows_done"] == 1
-        assert len(transport.calls) == 1
+        assert result["retry_after_s"] == 90
 
     def test_a_caller_can_stop_it(self, store, tmp_path):
         client, transport = a_client(tmp_path)
         result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 6, 1),
-                              should_stop=lambda: True, sleep=lambda _s: None)
+                              should_stop=lambda: True)
         assert result["state"] == "stopped"
         assert transport.calls == []
 
-    def test_it_paces_itself_between_windows(self, store, tmp_path):
-        """One second a call. The limit is 150 an hour and even ten years of history is
-        120 calls, so there is nothing to gain by going faster."""
-        slept: list[float] = []
+    def test_no_readings_is_not_an_error(self, store, tmp_path):
+        client, _ = a_client(tmp_path, response(200, points()), response(200, fat_points()))
+        result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20))
+        assert result["state"] == "done" and result["days_written"] == 0
+
+    def test_a_fat_reading_without_a_weight_is_not_a_row(self, store, tmp_path):
+        """`body_composition` is keyed by day and `weight_kg` is what everything
+        downstream reads; a fat-only day has nothing to hang on."""
         client, _ = a_client(
             tmp_path,
-            response(200, weight_log()),
-            response(200, weight_log()),
-            response(200, weight_log()),
+            response(200, points()),
+            response(200, fat_points(fat_sample("2026-01-02", 18.2))),
         )
-        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 3, 20),
-                     sleep=slept.append)
-        # Three windows, two gaps: no sleep after the last one.
-        assert slept == [FS.PAUSE_S, FS.PAUSE_S]
-
-    def test_an_empty_window_is_not_an_error(self, store, tmp_path):
-        client, _ = a_client(tmp_path, response(200, weight_log()))
-        result = FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20),
-                              sleep=lambda _s: None)
-        assert result["state"] == "done" and result["days_written"] == 0
+        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 20))
+        assert store.scalar("SELECT COUNT(*) FROM body_composition") == 0
 
 
 class TestResuming:
@@ -304,23 +324,16 @@ class TestResuming:
         store.set_watermark(FS.ENDPOINT, "not-a-date", "ok", None)
         assert FS.resume_from(store, date(2019, 5, 1)) == date(2019, 5, 1)
 
-    def test_the_account_start_comes_from_the_profile(self, tmp_path):
-        client, _ = a_client(tmp_path, response(200, {"user": {"memberSince": "2014-07-19"}}))
-        assert FS.account_start(client) == date(2014, 7, 19)
-
-    def test_an_unreadable_profile_does_not_fail_a_backfill(self, tmp_path):
-        """A handful of empty windows is a cheaper failure than no backfill at all."""
-        client, _ = a_client(tmp_path, response(500, {"errors": [{"message": "boom"}]}))
-        assert FS.account_start(client) == FS.EARLIEST_PLAUSIBLE
-
-    def test_a_member_date_before_fitbit_existed_is_clamped(self, tmp_path):
-        client, _ = a_client(tmp_path, response(200, {"user": {"memberSince": "1999-01-01"}}))
-        assert FS.account_start(client) == FS.EARLIEST_PLAUSIBLE
+    def test_a_first_run_starts_at_the_earliest_plausible_date(self, store):
+        """No profile call any more: the filter is one request whether it reaches back
+        to 2009 or to last month, so there is nothing to save by narrowing it first."""
+        assert FS.resume_from(store, FS.EARLIEST_PLAUSIBLE) == FS.EARLIEST_PLAUSIBLE
+        assert FS.EARLIEST_PLAUSIBLE < date(2013, 1, 1)
 
 
 class TestStatus:
-    def test_it_reports_without_talking_to_fitbit(self, store, tmp_path):
-        """Opening the Settings page must not spend one of 150 requests."""
+    def test_it_reports_without_talking_to_google(self, store, tmp_path):
+        """Opening the Settings page must not depend on the network to render."""
         state = FS.status(store, tmp_path)
         assert state["connected"] is False
         assert state["weigh_ins"] == 0
@@ -329,10 +342,10 @@ class TestStatus:
     def test_it_reports_the_span_of_what_is_stored(self, store, tmp_path):
         client, _ = a_client(
             tmp_path,
-            response(200, weight_log(reading("2026-01-02", 76.4), reading("2026-01-20", 76.0))),
+            response(200, points(sample("2026-01-02", 76.4), sample("2026-01-20", 76.0))),
+            response(200, fat_points()),
         )
-        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 25),
-                     sleep=lambda _s: None)
+        FS.sync_body(store, client, start=date(2026, 1, 1), end=date(2026, 1, 25))
         F.save_tokens(F.Tokens("a", "r", expires_at=1.0, user_id="ABC123"), tmp_path)
 
         state = FS.status(store, tmp_path)
@@ -340,7 +353,7 @@ class TestStatus:
         assert state["user_id"] == "ABC123"
         assert state["weigh_ins"] == 2
         assert (state["first_day"], state["last_day"]) == ("2026-01-02", "2026-01-20")
-        assert state["last_synced_day"] == "2026-01-25"
+        assert state["last_synced_day"] == "2026-01-20"
 
 
 class TestTheCommand:
@@ -370,12 +383,13 @@ class TestTheCommand:
     def test_a_missing_credential_is_one_line_not_a_traceback(self, capsys, monkeypatch, tmp_path):
         from garmin_analytics import cli
 
-        monkeypatch.delenv("FITBIT_CLIENT_ID", raising=False)
-        monkeypatch.delenv("FITBIT_CLIENT_SECRET", raising=False)
+        for _n in ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET",
+                   "FITBIT_CLIENT_ID", "FITBIT_CLIENT_SECRET"):
+            monkeypatch.delenv(_n, raising=False)
         monkeypatch.setenv("GA_TOKEN_DIR", str(tmp_path))
         args = cli.build_parser().parse_args(["fitbit", "connect"])
         assert cli.cmd_fitbit(args) == 1
-        assert "dev.fitbit.com" in capsys.readouterr().err
+        assert "Google Cloud" in capsys.readouterr().err
 
 
 class TestTheApi:
@@ -399,8 +413,9 @@ class TestTheApi:
         auth_mod._FITBIT_PENDING.clear()
 
     def test_status_says_nothing_is_set_up_yet(self, app_client, monkeypatch):
-        monkeypatch.delenv("FITBIT_CLIENT_ID", raising=False)
-        monkeypatch.delenv("FITBIT_CLIENT_SECRET", raising=False)
+        for _n in ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET",
+                   "FITBIT_CLIENT_ID", "FITBIT_CLIENT_SECRET"):
+            monkeypatch.delenv(_n, raising=False)
         body = app_client.get("/api/fitbit/status").json()
         assert body["connected"] is False
         assert body["credentials_configured"] is False
@@ -412,11 +427,12 @@ class TestTheApi:
         self, app_client, monkeypatch
     ):
         """A missing client id is a setup step the user has not done, not a fault."""
-        monkeypatch.delenv("FITBIT_CLIENT_ID", raising=False)
-        monkeypatch.delenv("FITBIT_CLIENT_SECRET", raising=False)
+        for _n in ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET",
+                   "FITBIT_CLIENT_ID", "FITBIT_CLIENT_SECRET"):
+            monkeypatch.delenv(_n, raising=False)
         res = app_client.get("/api/fitbit/authorize-url")
         assert res.status_code == 409
-        assert "dev.fitbit.com" in res.json()["detail"]
+        assert "Google Cloud" in res.json()["detail"]
 
     def test_the_authorize_url_keeps_the_verifier_on_the_server(
         self, app_client, monkeypatch

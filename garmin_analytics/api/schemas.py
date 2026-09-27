@@ -1053,15 +1053,18 @@ class FitbitStatus(_Model):
 
     connected: bool
     credentials_configured: bool
-    """Whether FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET are in the environment. Until
-    they are, there is nothing to connect *with* and the panel says so."""
+    """Whether GOOGLE_HEALTH_CLIENT_ID and GOOGLE_HEALTH_CLIENT_SECRET are in the
+    environment. Until they are, there is nothing to connect *with* and the panel says
+    so. The legacy FITBIT_* names are still accepted."""
     user_id: str
+    """The Google Health user id of the connected account. Empty when not connected."""
     last_synced_day: str | None = None
     weigh_ins: int
     first_day: str | None = None
     last_day: str | None = None
     redirect_uri: str
-    """What has to be registered at dev.fitbit.com, character for character."""
+    """What has to be an Authorized redirect URI on the Google Cloud OAuth client,
+    character for character."""
 
 
 class FitbitAuthorizeUrl(_Model):

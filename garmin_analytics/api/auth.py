@@ -24,6 +24,7 @@ import hmac
 import os
 import secrets
 import time
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -362,10 +363,41 @@ def fitbit_connect(settings, pasted: str) -> dict[str, Any]:
 
     creds = fitbit_mod.Credentials.from_env()
     code = fitbit_mod.extract_code(pasted, pending.state)
-    tokens = fitbit_mod.exchange_code(creds, pending, code, fitbit_mod.UrllibTransport())
+    transport = fitbit_mod.UrllibTransport()
+    tokens = fitbit_mod.exchange_code(creds, pending, code, transport)
+
+    # Consent is granular: Google issues a token even when the user unticks the
+    # permission, so the grant has to be inspected before it is called a connection.
+    # Raises MissingConsent, which the route turns into a 403 with the fix in it.
+    fitbit_mod.require_consent(tokens)
+
+    # Google's token response carries no user id. The identity call supplies both the
+    # `healthUserId` and the legacy six-character Fitbit one, which is what lets rows
+    # written before the migration still be matched to this account. It is also the
+    # first call that can return 412, and finding that out now — while the user is
+    # looking at the Settings page — beats finding out during a sync tomorrow.
+    identity: dict[str, Any] = {}
+    try:
+        client = fitbit_mod.FitbitClient(
+            creds, tokens, Path(settings.token_dir), transport
+        )
+        identity = dict(client.identity())
+        tokens = replace(tokens, user_id=str(identity.get("healthUserId") or ""))
+    except fitbit_mod.ProfileNotReady:
+        # Not a failed connection: the tokens are good and worth keeping, the user just
+        # has to finish onboarding in the Google Health app. Saved below, reported here.
+        fitbit_mod.save_tokens(tokens, Path(settings.token_dir))
+        _FITBIT_PENDING.pop(pending.state, None)
+        raise
+
     fitbit_mod.save_tokens(tokens, Path(settings.token_dir))
     _FITBIT_PENDING.pop(pending.state, None)
-    return {"status": "ok", "user_id": tokens.user_id, **fitbit_status(settings)}
+    return {
+        "status": "ok",
+        "user_id": tokens.user_id,
+        "legacy_user_id": str(identity.get("legacyUserId") or ""),
+        **fitbit_status(settings),
+    }
 
 
 def _match_pending(pasted: str) -> Any:

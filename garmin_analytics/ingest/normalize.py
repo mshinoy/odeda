@@ -16,8 +16,8 @@ Units are normalised on the way in:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Iterable, Mapping, Sequence
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 # Garmin activity typeKeys mapped onto the coarse buckets this app reasons about.
 TYPE_MAP = {
@@ -428,7 +428,121 @@ def normalize_weight(payload: Mapping[str, Any], day: str | None = None) -> list
 
 
 # ---------------------------------------------------------------------------
-# Fitbit
+# Google Health API data points
+# ---------------------------------------------------------------------------
+
+
+def _sample_day_and_time(sample_time: Any) -> tuple[str, str]:
+    """The local day and clock time of an observation, as `("YYYY-MM-DD", "HH:MM:SS")`.
+
+    `civilTime` is preferred over `physicalTime` deliberately. A weigh-in belongs to the
+    day the person was standing on the scale, not to the UTC day — for a Doha user at
+    UTC+3 a 02:00 local reading is the previous day in UTC, and filing it there would
+    put a Tuesday morning weight on Monday's row.
+
+    Falls back to `physicalTime` shifted by `utcOffset` when civil time is absent; it is
+    output-only in the schema, so it is present on reads but not guaranteed forever.
+    """
+    if not isinstance(sample_time, Mapping):
+        return "", ""
+
+    civil = sample_time.get("civilTime")
+    if isinstance(civil, Mapping):
+        parts = civil.get("date")
+        if isinstance(parts, Mapping):
+            year, month, dom = parts.get("year"), parts.get("month"), parts.get("day")
+            if year and month and dom:
+                clock = civil.get("time")
+                hhmmss = "00:00:00"
+                if isinstance(clock, Mapping):
+                    hhmmss = "{:02d}:{:02d}:{:02d}".format(
+                        int(clock.get("hours") or 0),
+                        int(clock.get("minutes") or 0),
+                        int(clock.get("seconds") or 0),
+                    )
+                return f"{int(year):04d}-{int(month):02d}-{int(dom):02d}", hhmmss
+
+    physical = str(sample_time.get("physicalTime") or "")
+    if not physical:
+        return "", ""
+    try:
+        moment = datetime.fromisoformat(physical.replace("Z", "+00:00"))
+    except ValueError:
+        return physical[:10], physical[11:19]
+    offset_raw = str(sample_time.get("utcOffset") or "0s").rstrip("s")
+    try:
+        moment = moment + timedelta(seconds=float(offset_raw))
+    except ValueError:
+        pass
+    return moment.date().isoformat(), moment.strftime("%H:%M:%S")
+
+
+def _earliest_per_day(
+    points: Any,
+    key: str,
+    read: Callable[[Mapping[str, Any]], Any],
+) -> dict[str, Any]:
+    """Collapse a data-point list to one value per day, keeping the earliest reading.
+
+    Same rule as the old weight log (D5): `body_composition` is keyed by day and a
+    morning reading before food and water is the comparable one. Every reading survives
+    in `raw_documents` regardless.
+    """
+    if not isinstance(points, list):
+        return {}
+    best: dict[str, tuple[str, Any]] = {}
+    for point in points:
+        if not isinstance(point, Mapping):
+            continue
+        body = point.get(key)
+        if not isinstance(body, Mapping):
+            continue
+        day, clock = _sample_day_and_time(body.get("sampleTime"))
+        if not day:
+            continue
+        value = read(body)
+        if value is None:
+            continue
+        if day not in best or clock < best[day][0]:
+            best[day] = (clock, value)
+    return {day: value for day, (_, value) in best.items()}
+
+
+def normalize_health_weight(payload: Any, day: str | None = None) -> list[dict[str, Any]]:
+    """Google Health `weight` data points -> one row per day, in kilograms.
+
+    Takes the `dataPoints` envelope or a bare list.
+
+    **Units are no longer a guess.** The Fitbit Web API answered in whatever unit the
+    account's locale implied and the export said nothing at all, which is why there is
+    a BMI-based unit sniffer further down this file. `weightGrams` is grams, always, so
+    the conversion is a division and nothing has to be inferred.
+    """
+    points = payload.get("dataPoints") if isinstance(payload, Mapping) else payload
+    grams = _earliest_per_day(points, "weight", lambda b: as_float(b.get("weightGrams")))
+    return [
+        {"day": when, "weight_kg": round(value / 1000.0, 2)}
+        for when, value in sorted(grams.items())
+    ]
+
+
+def normalize_health_body_fat(payload: Any, day: str | None = None) -> list[dict[str, Any]]:
+    """Google Health `body-fat` data points -> one row per day, as a percentage.
+
+    A separate data type from weight, and therefore a separate request and a separate
+    row fragment. `merge_daily` puts the two back together; a day with a weight and no
+    fat reading keeps a null rather than inventing a zero.
+    """
+    points = payload.get("dataPoints") if isinstance(payload, Mapping) else payload
+    pct = _earliest_per_day(points, "bodyFat", lambda b: as_float(b.get("percentage")))
+    return [
+        {"day": when, "body_fat_pct": round(value, 2)}
+        for when, value in sorted(pct.items())
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Fitbit (the Google Takeout export, and the retired Web API)
 # ---------------------------------------------------------------------------
 
 #: A weight log record carries `time` as HH:mm:ss, set to 23:59:59 when the entry was

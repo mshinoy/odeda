@@ -1,7 +1,7 @@
-// The Fitbit connection: status, the consent URL, finishing the flow, syncing, and the
-// offline import. Everything here is a mutation except the status, which is read off
-// disk rather than from Fitbit — the account's budget is 150 requests an hour and a
-// Settings page that spent one per open would be a poor use of it.
+// The Google Health connection: status, the consent URL, finishing the flow, syncing,
+// and the offline import. Everything here is a mutation except the status, which is
+// read off disk rather than from Google Health — a Settings page that needs the
+// network to render is a Settings page that can fail to render.
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/api/client";
 import { queryKeys } from "@/api/queryClient";

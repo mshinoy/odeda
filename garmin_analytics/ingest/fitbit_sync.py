@@ -1,13 +1,18 @@
-"""Fetching weigh-ins from Fitbit and turning them into `body_composition` rows.
+"""Fetching weigh-ins from Google Health and turning them into `body_composition` rows.
 
 `fitbit.py` is the session; this is what it is for.
 
-The shape of the problem is the rate limit. Fitbit allows **150 requests per hour per
-user** and the owner has years of history, so a day-by-day walk is not a slow version of
-this job — it is an impossible one: three years is 1,100 days, or eight hours of
-sleeping on a 429. The weight *log* endpoint takes a date range of up to 31 days and
-returns every reading in it, complete with body fat and BMI, so the same three years is
-**36 requests** and the whole backfill fits inside a quarter of one hour's budget.
+The shape of the problem changed with the API. The Fitbit Web API allowed **150 requests
+an hour**, which is what forced the old design: a 31-day range form, 36 carefully paced
+calls for three years, and a reserve held back so opening Settings did not drain the
+budget. Google Health allows **300 requests a minute per user** and pages with a cursor
+instead of a date range, so a full history is a handful of calls and the pacing
+machinery is gone.
+
+What replaced it is a different shape: **weight and body fat are separate data types**.
+The old weigh-in record carried both; now they are two paginated queries merged by day.
+A day with a weight and no fat reading keeps a null — a manual entry has no body fat and
+must not invent a zero.
 
 Everything else follows the Garmin ingest: raw-first archival before anything is parsed,
 idempotent upserts keyed by day, a watermark per endpoint, and a run that can be killed
@@ -17,7 +22,6 @@ and resumed without losing its place.
 from __future__ import annotations
 
 import logging
-import time
 from datetime import date, timedelta
 from typing import Any, Callable
 
@@ -32,73 +36,39 @@ ENDPOINT = "fitbit_body"
 
 SOURCE = "fitbit"
 
-#: The documented maximum for the weight-log range form. Asking for more is a 400.
-WINDOW_DAYS = 31
-
-#: Seconds between calls. The limit is 150/hour and a backfill of even ten years is
-#: 120 calls, so there is no need to go fast and every reason not to look like a script.
-PAUSE_S = 1.0
-
-#: Stop this far short of the hourly budget. The app makes other calls — the profile on
-#: the Settings page, the next incremental sync — and a backfill that drains the last
-#: request leaves the account looking broken for an hour.
-RESERVE_CALLS = 10
-
-#: How far back a *re-sync* re-reads. Fitbit lets a reading be edited or back-dated
-#: after the fact, so the days either side of the watermark are re-fetched rather than
-#: trusted. Two windows is cheap; a wrong weight that never corrects itself is not.
+#: How far back a *re-sync* re-reads. A reading can be edited or back-dated after the
+#: fact, so the days either side of the watermark are re-fetched rather than trusted.
+#: Cheap; a wrong weight that never corrects itself is not.
 RESYNC_OVERLAP_DAYS = 45
 
 #: Fitbit launched in 2009 and the Aria scale in 2012. Walking back past this is
-#: guaranteed-empty request volume, and it is only ever the fallback: the account's own
-#: `memberSince` is used when the profile can be read.
+#: guaranteed-empty query range, and the filter is a single request either way.
 EARLIEST_PLAUSIBLE = date(2009, 1, 1)
 
+#: Data points per page. The documented maximum is 10000 and the default is 1440, so
+#: asking for the maximum keeps a decade of daily weigh-ins (~3,650 points) to a single
+#: request; the cursor handles anything larger. Values above the maximum are truncated
+#: rather than rejected, so this is safe even if the ceiling moves.
+PAGE_SIZE = 10000
 
-def weight_log_path(start: date, end: date) -> str:
-    """The range form: every reading between two dates, inclusive, in one call."""
-    return f"/1/user/-/body/log/weight/date/{start.isoformat()}/{end.isoformat()}.json"
 
+def since_filter(data_type_field: str, start: date) -> str:
+    """A `filter` expression restricting a data type to samples on or after a date.
 
-def windows(start: date, end: date, size_days: int = WINDOW_DAYS) -> list[tuple[date, date]]:
-    """Split a span into inclusive chunks no longer than the endpoint accepts.
-
-    Inclusive at both ends, which is what makes the arithmetic `size_days - 1`: a
-    31-day window running 2026-01-01 to 2026-02-01 is 32 days and Fitbit refuses it.
+    The field prefix is the data type's *filter parameter* — underscores, not the
+    hyphens used in the URL path (`body_fat` in a filter, `body-fat` in a path). Getting
+    those the wrong way round is an INVALID_ARGUMENT that reads like a server fault.
     """
-    if end < start:
-        return []
-    out: list[tuple[date, date]] = []
-    cursor = start
-    while cursor <= end:
-        stop = min(cursor + timedelta(days=size_days - 1), end)
-        out.append((cursor, stop))
-        cursor = stop + timedelta(days=1)
-    return out
-
-
-def account_start(client: fitbit_mod.FitbitClient) -> date:
-    """The day the account was opened, so the backfill has a floor that is not a guess.
-
-    A profile that cannot be read is not worth failing a backfill over — the fallback
-    costs a handful of empty windows, and `EARLIEST_PLAUSIBLE` bounds even that.
-    """
-    try:
-        member_since = str(client.profile().get("memberSince") or "")[:10]
-        if member_since:
-            return max(date.fromisoformat(member_since), EARLIEST_PLAUSIBLE)
-    except (fitbit_mod.FitbitError, ValueError) as exc:
-        log.debug("could not read the Fitbit profile (%s); falling back to %s",
-                  exc, EARLIEST_PLAUSIBLE)
-    return EARLIEST_PLAUSIBLE
+    stamp = f"{start.isoformat()}T00:00:00Z"
+    return f'{data_type_field}.sample_time.physical_time >= "{stamp}"'
 
 
 def resume_from(store, fallback: date) -> date:
-    """Where the next run starts: just before the watermark, or the account's start.
+    """Where the next run starts: behind the watermark, or the account's floor.
 
     Re-reading `RESYNC_OVERLAP_DAYS` behind the watermark is the point. The upsert is
-    keyed by day so re-reading costs nothing, and a reading the owner corrected on the
-    Fitbit app last week would otherwise never be picked up.
+    keyed by day so re-reading costs nothing, and a reading corrected in the Google
+    Health app last week would otherwise never be picked up.
     """
     mark = store.get_watermark(ENDPOINT)
     if not mark:
@@ -116,101 +86,124 @@ def sync_body(
     end: date | None = None,
     echo: Callable[[str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
-    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
-    """Walk the account's weigh-ins into `body_composition`, oldest window first.
+    """Pull weigh-ins and body-fat readings into `body_composition`.
 
-    Oldest first, and the watermark advances only after a window has actually been
-    written. That is what makes a killed run resumable: whatever the watermark says has
-    genuinely landed, so the next run re-reads a little and loses nothing.
+    Two fetches, each following its own cursor to the end, merged by day and written in
+    one transaction. The watermark advances only after the write lands, so a killed run
+    re-reads a little and loses nothing.
 
     Stops — rather than fails — on the rate limit and on the caller's `should_stop`,
-    reporting where it got to. A backfill that throws away 30 completed windows because
-    the 31st hit a 429 would be worse than useless.
+    reporting where it got to.
     """
     end = end or date.today()
-    begin = start or resume_from(store, account_start(client))
-    spans = windows(begin, end)
+    begin = start or resume_from(store, EARLIEST_PLAUSIBLE)
 
     result: dict[str, Any] = {
         "endpoint": ENDPOINT,
         "start_day": begin.isoformat(),
         "end_day": end.isoformat(),
-        "windows": len(spans),
-        "windows_done": 0,
         "days_written": 0,
+        "weight_points": 0,
+        "body_fat_points": 0,
         "state": "done",
         "retry_after_s": None,
     }
-    if not spans:
+
+    if should_stop and should_stop():
+        result["state"] = "stopped"
         return result
 
-    for index, (window_start, window_end) in enumerate(spans):
-        if should_stop and should_stop():
-            result["state"] = "stopped"
-            break
-        if client.remaining is not None and client.remaining <= RESERVE_CALLS:
-            # Seen coming rather than discovered by a 429: the budget is shared with
-            # the rest of the app and draining it makes everything else look broken.
-            result["state"] = "rate_limited"
-            result["retry_after_s"] = 3600
-            break
-
-        try:
-            payload = client.get(weight_log_path(window_start, window_end))
-        except fitbit_mod.RateLimited as limited:
-            result["state"] = "rate_limited"
-            result["retry_after_s"] = limited.retry_after_s
-            break
-
-        written = write_weight_payload(store, payload, window_start, window_end)
-        result["days_written"] += written
-        result["windows_done"] += 1
-        store.set_watermark(
-            ENDPOINT,
-            window_end.isoformat(),
-            "ok",
-            f"{result['days_written']} weigh-ins through {window_end.isoformat()}",
+    try:
+        weight_points = client.data_points(
+            fitbit_mod.WEIGHT_DATA_TYPE,
+            since_filter("weight", begin),
+            PAGE_SIZE,
         )
         if echo:
-            echo(
-                f"{window_start} → {window_end}: {written} weigh-in(s)"
-                f"  [{index + 1}/{len(spans)}]"
-            )
-        if index + 1 < len(spans):
-            sleep(PAUSE_S)
+            echo(f"weight: {len(weight_points)} reading(s) since {begin}")
 
-    if result["state"] != "done":
+        if should_stop and should_stop():
+            result["state"] = "stopped"
+            return result
+
+        # Body fat is its own data type and its own permission-shaped risk: the scope is
+        # shared with weight, so if weight came back this will too. A failure here is
+        # still not allowed to discard the weights already in hand.
+        fat_points = client.data_points(
+            fitbit_mod.BODY_FAT_DATA_TYPE,
+            since_filter("body_fat", begin),
+            PAGE_SIZE,
+        )
+        if echo:
+            echo(f"body fat: {len(fat_points)} reading(s) since {begin}")
+    except fitbit_mod.RateLimited as limited:
+        result["state"] = "rate_limited"
+        result["retry_after_s"] = limited.retry_after_s
         store.set_watermark(
             ENDPOINT,
             store.get_watermark(ENDPOINT),
-            result["state"],
-            f"stopped after {result['windows_done']} of {result['windows']} windows",
+            "rate_limited",
+            f"rate limited; retry in {limited.retry_after_s}s",
         )
+        return result
+
+    result["weight_points"] = len(weight_points)
+    result["body_fat_points"] = len(fat_points)
+
+    written, last_day = write_points(store, weight_points, fat_points, begin, end)
+    result["days_written"] = written
+
+    # The watermark is the last day actually written, not the day the run happened. A
+    # run that found nothing must not advance it past data that might arrive later.
+    mark = last_day or store.get_watermark(ENDPOINT) or begin.isoformat()
+    store.set_watermark(ENDPOINT, mark, "ok", f"{written} weigh-in(s) through {mark}")
+    result["last_day"] = mark
+    if echo:
+        echo(f"wrote {written} day(s) through {mark}")
     return result
 
 
-def write_weight_payload(store, payload: Any, window_start: date, window_end: date) -> int:
-    """Archive the response verbatim, then normalise it. In that order, always.
+def write_points(
+    store,
+    weight_points: list[Any],
+    fat_points: list[Any],
+    window_start: date,
+    window_end: date,
+) -> tuple[int, str | None]:
+    """Archive both responses verbatim, then normalise and merge. In that order, always.
 
-    The ref key is the window rather than the day: it is what was asked for, so
-    re-running the same window dedupes on content hash and a re-parse never needs a
-    re-fetch — which is the whole point of the raw archive.
+    The raw archive is keyed by data type and window so a re-parse never needs a
+    re-fetch — which is the whole point of keeping it.
     """
     ref_key = f"{window_start.isoformat()}:{window_end.isoformat()}"
     with store.tx():
-        raw_id = store.store_raw(SOURCE, ENDPOINT, ref_key, payload)
-        rows = norm.normalize_fitbit_weight(payload)
+        weight_raw = store.store_raw(
+            SOURCE, f"{ENDPOINT}:weight", ref_key, {"dataPoints": weight_points}
+        )
+        store.store_raw(
+            SOURCE, f"{ENDPOINT}:body_fat", ref_key, {"dataPoints": fat_points}
+        )
+        merged = norm.merge_daily(
+            [
+                *norm.normalize_health_weight({"dataPoints": weight_points}),
+                *norm.normalize_health_body_fat({"dataPoints": fat_points}),
+            ]
+        )
+        # A body-fat reading on a day with no weight has nothing to hang on: the table
+        # is keyed by day and `weight_kg` is the column everything downstream reads.
+        rows = [row for row in merged.values() if row.get("weight_kg") is not None]
         for row in rows:
-            store.upsert("body_composition", ["day"], {**row, "raw_id": raw_id})
-    return len(rows)
+            store.upsert("body_composition", ["day"], {**row, "raw_id": weight_raw})
+    last_day = max((str(r["day"]) for r in rows), default=None)
+    return len(rows), last_day
 
 
 def status(store, token_dir) -> dict[str, Any]:
     """What Settings shows: connected or not, and how far the data goes.
 
-    Deliberately makes no network call. A page that has to talk to Fitbit to render
-    spends a request out of 150 every time it is opened.
+    Deliberately makes no network call — a page that has to talk to Google Health to
+    render is a page that can fail to render.
     """
     watermark = store.get_watermark(ENDPOINT)
     row = store.query(

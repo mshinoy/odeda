@@ -69,13 +69,14 @@ class FakeTransport:
 
 CREDS = F.Credentials("test-client-id", "test-client-secret")
 
+#: A Google token response. Note the hour, not Fitbit's eight, and the full scope URL
+#: rather than the bare word `weight` — both are load-bearing.
 TOKEN_PAYLOAD = {
     "access_token": "access-1",
     "refresh_token": "refresh-1",
-    "expires_in": 28800,
-    "scope": "weight",
+    "expires_in": 3600,
+    "scope": F.SCOPE,
     "token_type": "Bearer",
-    "user_id": "ABC123",
 }
 
 REFRESHED_PAYLOAD = {**TOKEN_PAYLOAD, "access_token": "access-2", "refresh_token": "refresh-2"}
@@ -125,19 +126,33 @@ class TestPKCE:
         assert F.code_challenge(verifier) == expected
         assert "=" not in F.code_challenge(verifier)
 
-    def test_the_authorize_url_asks_for_weight_and_nothing_else(self):
+    def test_the_authorize_url_asks_for_one_read_scope_and_nothing_else(self):
         from urllib.parse import parse_qs, urlparse
 
         pending = F.begin_authorization("cid", "http://localhost:8000/api/fitbit/callback")
         parsed = urlparse(pending.url)
         params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
         assert f"{parsed.scheme}://{parsed.netloc}{parsed.path}" == F.AUTHORIZE_URL
-        assert params["scope"] == "weight"
+        assert parsed.netloc == "accounts.google.com"
+        # One scope, read-only. A write scope on an app that never writes is a scope
+        # that can only ever leak.
+        assert params["scope"] == F.SCOPE
+        assert params["scope"].endswith(".health_metrics_and_measurements.readonly")
+        assert " " not in params["scope"]
         assert params["response_type"] == "code"
         assert params["code_challenge_method"] == "S256"
         assert params["code_challenge"] == F.code_challenge(pending.verifier)
         assert params["state"] == pending.state
         assert params["redirect_uri"] == "http://localhost:8000/api/fitbit/callback"
+
+    def test_the_authorize_url_asks_for_offline_access(self):
+        """Without this Google issues no refresh token and the link dies in an hour."""
+        from urllib.parse import parse_qs, urlparse
+
+        pending = F.begin_authorization("cid", "http://x/cb")
+        params = {k: v[0] for k, v in parse_qs(urlparse(pending.url).query).items()}
+        assert params["access_type"] == "offline"
+        assert params["prompt"] == "consent"
 
     def test_two_attempts_never_share_a_verifier(self):
         first = F.begin_authorization("cid", "http://x/cb")
@@ -186,21 +201,27 @@ class TestExchange:
         assert form["grant_type"] == "authorization_code"
         assert form["code"] == "the-code"
         assert form["code_verifier"] == pending.verifier
-        # Byte-identical to the consent URL's, or Fitbit refuses the exchange.
+        # Byte-identical to the consent URL's, or Google refuses the exchange.
         assert form["redirect_uri"] == pending.redirect_uri
         assert tokens.access_token == "access-1"
-        assert tokens.expires_at == 1000.0 + 28800
+        assert tokens.expires_at == 1000.0 + 3600
 
-    def test_authenticates_the_app_with_basic_auth(self):
-        """The header is `Basic base64(client_id:client_secret)` — decoded here so a
-        change to the encoding cannot pass by looking merely non-empty."""
+    def test_authenticates_the_app_with_the_secret_in_the_body(self):
+        """Google's token endpoint takes `client_secret` as a form field.
+
+        Fitbit's took HTTP Basic. Sending Basic to Google returns `invalid_client`,
+        which says nothing about which half it disliked — so this asserts the field is
+        present *and* that no Authorization header is sent, because a stray one is
+        exactly the kind of leftover that still passes a "does it work" check.
+        """
         pending = F.begin_authorization("test-client-id", "http://localhost:8000/cb")
         transport = FakeTransport(response(200, TOKEN_PAYLOAD))
         F.exchange_code(CREDS, pending, "code", transport, now=0.0)
-        header = transport.calls[0]["headers"]["Authorization"]
-        assert header.startswith("Basic ")
-        decoded = base64.b64decode(header.split(" ", 1)[1]).decode("utf-8")
-        assert decoded == "test-client-id:test-client-secret"
+        call = transport.calls[0]
+        form = transport.form(0)
+        assert form["client_secret"] == "test-client-secret"
+        assert form["client_id"] == "test-client-id"
+        assert "Authorization" not in call["headers"]
 
     def test_a_spent_code_says_so_in_words(self):
         pending = F.begin_authorization("cid", "http://x/cb")
@@ -214,15 +235,21 @@ class TestExchange:
         """Writing it would report success and then fail on every run afterwards —
         the same trap `login_with_ticket` documents for Garmin."""
         pending = F.begin_authorization("cid", "http://x/cb")
-        transport = FakeTransport(response(200, {"access_token": "a", "expires_in": 28800}))
+        transport = FakeTransport(response(200, {"access_token": "a", "expires_in": 3600}))
         with pytest.raises(F.FitbitError, match="cannot be resumed"):
+            F.exchange_code(CREDS, pending, "code", transport, now=0.0)
+
+    def test_a_code_exchange_without_a_refresh_token_names_the_likely_cause(self):
+        """`access_type=offline` missing is the one way to land here, so say so."""
+        pending = F.begin_authorization("cid", "http://x/cb")
+        transport = FakeTransport(response(200, {"access_token": "a", "expires_in": 3600}))
+        with pytest.raises(F.FitbitError, match="access_type=offline"):
             F.exchange_code(CREDS, pending, "code", transport, now=0.0)
 
 
 class TestRefreshRotation:
-    def test_the_refresh_token_is_replaced_not_reused(self):
-        """Fitbit rotates: the response carries a new refresh token and the old one is
-        dead on arrival. Reusing it is the single most likely way to lose the account."""
+    def test_a_rotated_refresh_token_is_taken(self):
+        """Google *may* return a new refresh token. When it does, it wins."""
         tokens = F.Tokens("access-1", "refresh-1", expires_at=0.0)
         transport = FakeTransport(response(200, REFRESHED_PAYLOAD))
         rotated = F.refresh_tokens(CREDS, tokens, transport, now=5000.0)
@@ -230,7 +257,25 @@ class TestRefreshRotation:
         assert transport.form(0)["refresh_token"] == "refresh-1"
         assert rotated.refresh_token == "refresh-2"
         assert rotated.access_token == "access-2"
-        assert rotated.expires_at == 5000.0 + 28800
+        assert rotated.expires_at == 5000.0 + 3600
+
+    def test_a_refresh_without_a_new_refresh_token_keeps_the_one_it_has(self):
+        """**The usual Google response.** Unlike Fitbit, Google normally returns only a
+        new access token and the held refresh token stays valid.
+
+        Treating that as an error would break the very first refresh, an hour into the
+        first sync — the exact failure the old rotate-always assumption would have
+        caused on live data while every test still passed.
+        """
+        tokens = F.Tokens("access-1", "refresh-1", expires_at=0.0)
+        transport = FakeTransport(
+            response(200, {"access_token": "access-2", "expires_in": 3600, "scope": F.SCOPE})
+        )
+        refreshed = F.refresh_tokens(CREDS, tokens, transport, now=5000.0)
+
+        assert refreshed.access_token == "access-2"
+        assert refreshed.refresh_token == "refresh-1"
+        assert refreshed.expires_at == 5000.0 + 3600
 
     def test_a_rejected_refresh_token_asks_for_consent_again(self):
         tokens = F.Tokens("access-1", "refresh-1", expires_at=0.0)
@@ -316,11 +361,21 @@ class TestRateLimit:
         assert caught.value.retry_after_s == 1830
         assert "1830" in str(caught.value)
 
-    def test_the_hour_is_the_fallback_when_no_header_says(self, tmp_path):
+    def test_a_minute_is_the_fallback_when_no_header_says(self, tmp_path):
+        """Google Health's window is a minute per user, not Fitbit's hour. Waiting an
+        hour on a limit that cleared in sixty seconds is a backfill that looks hung."""
         client, _ = a_client(tmp_path, response(429, FITBIT_ERRORS))
         with pytest.raises(F.RateLimited) as caught:
-            client.get("/1/user/-/body/log/weight/date/2026-01-01.json")
-        assert caught.value.retry_after_s == 3600
+            client.get("/users/me/dataTypes/weight/dataPoints")
+        assert caught.value.retry_after_s == 60
+
+    def test_a_standard_retry_after_header_is_honoured(self, tmp_path):
+        client, _ = a_client(
+            tmp_path, response(429, FITBIT_ERRORS, headers={"Retry-After": "90"})
+        )
+        with pytest.raises(F.RateLimited) as caught:
+            client.get("/users/me/dataTypes/weight/dataPoints")
+        assert caught.value.retry_after_s == 90
 
     def test_the_remaining_budget_is_read_off_every_response(self, tmp_path):
         """So a backfill can pace itself instead of waiting for the 429 it can see."""
@@ -402,32 +457,118 @@ class TestSecretsStayOut:
         assert "access-1" not in repr(F.Tokens("access-1", "refresh-1", expires_at=0.0))
 
     def test_missing_environment_credentials_say_where_to_get_them(self, monkeypatch):
-        monkeypatch.delenv("FITBIT_CLIENT_ID", raising=False)
-        monkeypatch.delenv("FITBIT_CLIENT_SECRET", raising=False)
+        for name in ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET",
+                     "FITBIT_CLIENT_ID", "FITBIT_CLIENT_SECRET"):
+            monkeypatch.delenv(name, raising=False)
         assert F.Credentials.configured() is False
-        with pytest.raises(F.NotConnected, match="dev.fitbit.com"):
+        with pytest.raises(F.NotConnected, match="Google Cloud"):
             F.Credentials.from_env()
 
     def test_environment_credentials_are_read_when_set(self, monkeypatch):
-        monkeypatch.setenv("FITBIT_CLIENT_ID", "cid")
-        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "csecret")
+        monkeypatch.setenv("GOOGLE_HEALTH_CLIENT_ID", "cid")
+        monkeypatch.setenv("GOOGLE_HEALTH_CLIENT_SECRET", "csecret")
         assert F.Credentials.configured() is True
         assert F.Credentials.from_env().client_id == "cid"
 
+    def test_the_old_fitbit_names_still_work(self, monkeypatch):
+        """An existing `.env` should not stop the app booting after the migration."""
+        for name in ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET"):
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "legacy-id")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "legacy-secret")
+        assert F.Credentials.configured() is True
+        assert F.Credentials.from_env().client_id == "legacy-id"
+
+    def test_the_new_names_win_over_the_old_ones(self, monkeypatch):
+        monkeypatch.setenv("GOOGLE_HEALTH_CLIENT_ID", "new-id")
+        monkeypatch.setenv("GOOGLE_HEALTH_CLIENT_SECRET", "new-secret")
+        monkeypatch.setenv("FITBIT_CLIENT_ID", "legacy-id")
+        monkeypatch.setenv("FITBIT_CLIENT_SECRET", "legacy-secret")
+        assert F.Credentials.from_env().client_id == "new-id"
+
 
 class TestRequestShape:
-    def test_weights_are_asked_for_in_metric_explicitly(self, tmp_path):
-        """The default follows the account's locale. A silent switch to pounds would
-        write a number three digits wrong into a column called weight_kg."""
-        client, transport = a_client(tmp_path, response(200, {"weight": []}))
-        client.get("/1/user/-/body/log/weight/date/2026-01-01.json")
-        assert transport.calls[0]["headers"]["Accept-Language"] == "en_GB"
+    def test_no_accept_language_is_sent(self, tmp_path):
+        """The old API answered in whatever unit the locale implied, so the header was
+        load-bearing. Google Health answers in `weightGrams` and the question is gone —
+        sending a locale hint now would only suggest units are still negotiable."""
+        client, transport = a_client(tmp_path, response(200, {"dataPoints": []}))
+        client.get("/users/me/dataTypes/weight/dataPoints")
+        assert "Accept-Language" not in transport.calls[0]["headers"]
 
     def test_a_relative_path_is_resolved_against_the_api_root(self, tmp_path):
         client, transport = a_client(tmp_path, response(200, {}))
-        client.get("1/user/-/profile.json")
-        assert transport.calls[0]["url"] == "https://api.fitbit.com/1/user/-/profile.json"
+        client.get("users/me/identity")
+        assert transport.calls[0]["url"] == "https://health.googleapis.com/v4/users/me/identity"
 
-    def test_the_display_name_comes_off_the_profile(self, tmp_path):
-        client, _ = a_client(tmp_path, response(200, {"user": {"displayName": "Runner"}}))
-        assert client.display_name() == "Runner"
+    def test_the_display_name_is_the_health_user_id(self, tmp_path):
+        client, _ = a_client(
+            tmp_path,
+            response(200, {"legacyUserId": "A1B2C3", "healthUserId": "111111256096816351"}),
+        )
+        assert client.display_name() == "111111256096816351"
+
+    def test_identity_returns_both_ids(self, tmp_path):
+        """Google's migration guide: store both, so rows keyed by the old six-character
+        Fitbit id can still be matched to this account after the cutover."""
+        client, _ = a_client(
+            tmp_path,
+            response(200, {"legacyUserId": "A1B2C3", "healthUserId": "111111256096816351"}),
+        )
+        identity = client.identity()
+        assert identity["legacyUserId"] == "A1B2C3"
+        assert identity["healthUserId"] == "111111256096816351"
+
+
+class TestProfileAndConsent:
+    def test_a_412_is_its_own_state_with_the_remedy_in_it(self, tmp_path):
+        """Consent succeeded; the account has no Google Health profile. The docs require
+        an actionable prompt, not a generic error."""
+        client, _ = a_client(tmp_path, response(412, {"error": {"code": 412}}))
+        with pytest.raises(F.ProfileNotReady) as caught:
+            client.get("/users/me/identity")
+        assert "Google Health app" in str(caught.value)
+
+    def test_a_403_reads_as_a_withheld_permission(self, tmp_path):
+        client, _ = a_client(tmp_path, response(403, {"error": {"message": "denied"}}))
+        with pytest.raises(F.MissingConsent):
+            client.get("/users/me/dataTypes/weight/dataPoints")
+
+    def test_zero_consent_is_caught_before_it_is_called_a_connection(self):
+        """Google issues a token even when the user unticks the permission."""
+        tokens = F.Tokens("a", "r", expires_at=0.0, scope="openid email")
+        with pytest.raises(F.MissingConsent, match="at least one|At least one"):
+            F.require_consent(tokens)
+
+    def test_a_granted_health_scope_passes(self):
+        tokens = F.Tokens("a", "r", expires_at=0.0, scope=f"openid {F.SCOPE}")
+        F.require_consent(tokens)
+        assert F.granted_health_scopes(tokens.scope) == {F.SCOPE}
+
+
+class TestPaging:
+    def test_it_follows_the_cursor_to_the_end(self, tmp_path):
+        client, transport = a_client(
+            tmp_path,
+            response(200, {"dataPoints": [{"weight": {"weightGrams": 1}}], "nextPageToken": "p2"}),
+            response(200, {"dataPoints": [{"weight": {"weightGrams": 2}}], "nextPageToken": ""}),
+        )
+        points = client.data_points("weight")
+        assert len(points) == 2
+        assert "pageToken=p2" in transport.calls[1]["url"]
+
+    def test_a_repeated_cursor_stops_rather_than_looping_forever(self, tmp_path):
+        """A server that echoes the same token would otherwise hang the sync."""
+        client, transport = a_client(
+            tmp_path,
+            *[response(200, {"dataPoints": [], "nextPageToken": "same"})] * 4,
+        )
+        client.data_points("weight")
+        assert len(transport.calls) == 2
+
+    def test_the_filter_is_passed_through(self, tmp_path):
+        client, transport = a_client(tmp_path, response(200, {"dataPoints": []}))
+        client.data_points("body-fat", 'body_fat.sample_time.physical_time >= "2026-01-01T00:00:00Z"')
+        url = transport.calls[0]["url"]
+        assert "dataTypes/body-fat/dataPoints" in url
+        assert "body_fat.sample_time.physical_time" in url

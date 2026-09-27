@@ -6,13 +6,15 @@ turns what it fetches into rows.
 
 Three things shape the design.
 
-**The auth layer is Google's now.** The URLs are still Fitbit's and the data endpoints
-are unchanged, but a 401 comes back in Google's `UNAUTHENTICATED` envelope rather than
-Fitbit's classic `{"errors": [...]}` shape. Both are parsed, because which one arrives
-is not ours to decide and an unreadable error is worse than a wrong one.
+**This talks to the Google Health API, not the Fitbit Web API.** The Fitbit Web API is
+being retired; Google Health is its replacement and it is a different service, not a
+rebrand. Registration is a Google Cloud OAuth client, consent is Google's, the token
+endpoint is Google's, and the data lives at `health.googleapis.com/v4`. The module keeps
+the `fitbit` name because the *scale* is still an Aria and the database column is still
+`body_composition` — renaming the file would churn every import to say nothing new.
 
 **Everything goes through an injectable transport.** Not for elegance: the credential
-belongs to one person's Fitbit account, so the only way to know this code is right
+belongs to one person's Google account, so the only way to know this code is right
 before it ever meets a real one is to drive the whole flow — authorize, exchange,
 refresh, rotate, 401-retry, 429 — against handcrafted payloads. `tests/test_fitbit_auth.py`
 does exactly that, the way `test_login_transport.py` does for Garmin.
@@ -45,18 +47,22 @@ from typing import Any, Callable, Mapping, Protocol
 
 log = logging.getLogger("garmin_analytics.fitbit")
 
-AUTHORIZE_URL = "https://www.fitbit.com/oauth2/authorize"
-TOKEN_URL = "https://api.fitbit.com/oauth2/token"
-API_ROOT = "https://api.fitbit.com"
+#: Google's OAuth 2.0 endpoints. The Fitbit ones (`www.fitbit.com/oauth2/authorize`,
+#: `api.fitbit.com/oauth2/token`) belong to the retiring service and will not accept a
+#: Google Cloud client id at all.
+AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+TOKEN_URL = "https://oauth2.googleapis.com/token"
+API_ROOT = "https://health.googleapis.com/v4"
 
-#: The only permission this app asks for. Weight is all it reads, and a scope it does
-#: not need is a scope it can leak.
-SCOPE = "weight"
+#: The only permission this app asks for. Weight and body fat are both "health metrics
+#: and measurements", and read-only because nothing here ever writes to Google Health.
+#: A scope it does not need is a scope it can leak.
+_HEALTH_SCOPE_PREFIX = "https://www.googleapis.com/auth/googlehealth"
+SCOPE = f"{_HEALTH_SCOPE_PREFIX}.health_metrics_and_measurements.readonly"
 
-#: Access tokens from the authorization-code flow last 8 hours and no longer — Fitbit
-#: rejects any other `expires_in`. So the refresh path is not an edge case that fires
-#: once a year like Garmin's; it fires on almost every sync.
-ACCESS_TOKEN_TTL_S = 28800
+#: Google's access tokens are an hour, not Fitbit's eight. Only a fallback: the token
+#: response carries `expires_in` and that is what is used when present.
+ACCESS_TOKEN_TTL_S = 3600
 
 #: Refresh a little before the token actually dies, so a long backfill does not expire
 #: mid-run and spend a call finding out.
@@ -66,9 +72,17 @@ EXPIRY_SKEW_S = 300
 #: `disconnect` cannot be talked into deleting Garmin's cache next to it.
 TOKEN_FILENAME = "fitbit_tokens.json"
 
-#: The redirect Fitbit sends the browser back to. It has to match what is registered at
-#: dev.fitbit.com character for character, so it is one constant with one override.
+#: The redirect Google sends the browser back to. It has to match the Authorized
+#: redirect URI on the Google Cloud OAuth client byte for byte, so it is one constant
+#: with one override. `http` is legal here only because Google exempts localhost from
+#: its HTTPS rule; any other host must be https.
 DEFAULT_REDIRECT_URI = "http://localhost:8000/api/fitbit/callback"
+
+#: The data types this reads, and the key each data point carries its payload under.
+#: Weight and body fat are separate data types in Google Health — the Fitbit Web API
+#: returned both in one weigh-in record, and that is the single biggest shape change.
+WEIGHT_DATA_TYPE = "weight"
+BODY_FAT_DATA_TYPE = "body-fat"
 
 
 def redirect_uri() -> str:
@@ -81,7 +95,7 @@ def redirect_uri() -> str:
 
 
 class FitbitError(Exception):
-    """Anything that went wrong talking to Fitbit."""
+    """Anything that went wrong talking to Google Health (or the Fitbit export)."""
 
 
 class NotConnected(FitbitError):
@@ -97,14 +111,37 @@ class NeedsReauthorization(FitbitError):
     """
 
 
+class ProfileNotReady(FitbitError):
+    """412. Consent succeeded but the account has no initialised Google Health profile.
+
+    Google's migration guide is explicit that this must not surface as a generic error
+    or a blank screen: the user has to open the Google Health app and finish onboarding,
+    and the only useful thing to show them is that sentence.
+    """
+
+    def __str__(self) -> str:
+        return (
+            "Your Google Health profile isn't ready yet. Open the Google Health app to "
+            "complete setup, then come back and sync."
+        )
+
+
+class MissingConsent(FitbitError):
+    """The user approved the sign-in but withheld the permission this app needs.
+
+    Google requires granular consent to be handled rather than crashed on, so this is a
+    distinct, nameable state and not a 403 discovered on the first data call.
+    """
+
+
 @dataclass
 class RateLimited(FitbitError):
-    """429. Fitbit allows 150 requests per hour per user and then stops answering."""
+    """429. Google Health allows 300 requests a minute per user and then stops."""
 
     retry_after_s: int
 
     def __str__(self) -> str:
-        return f"Fitbit rate limit reached; it resets in {self.retry_after_s} s"
+        return f"Google Health rate limit reached; it resets in {self.retry_after_s} s"
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +161,7 @@ class Response:
         try:
             return json.loads(self.body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise FitbitError(f"Fitbit returned something that is not JSON ({exc}).") from exc
+            raise FitbitError(f"Google Health returned something that is not JSON ({exc}).") from exc
 
     def header(self, name: str) -> str | None:
         lowered = {k.lower(): v for k, v in self.headers.items()}
@@ -170,7 +207,7 @@ class UrllibTransport:
         except urllib.error.HTTPError as exc:
             return Response(int(exc.code), dict(exc.headers or {}), exc.read())
         except urllib.error.URLError as exc:
-            raise FitbitError(f"Could not reach Fitbit ({exc.reason}).") from exc
+            raise FitbitError(f"Could not reach Google Health ({exc.reason}).") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -182,35 +219,47 @@ class UrllibTransport:
 class Credentials:
     """The app's own identity, from the environment. Never from the database.
 
-    A Personal app at dev.fitbit.com issues both. They identify the *application*, not
-    the person, but the secret is still a secret: it is read once at the point of use
-    and never stored, echoed or logged.
+    A Web application OAuth client in Google Cloud issues both. They identify the
+    *application*, not the person, but the secret is still a secret: it is read once at
+    the point of use and never stored, echoed or logged.
+
+    `GOOGLE_HEALTH_*` is the name to use. The old `FITBIT_*` names are still read as a
+    fallback so an existing `.env` keeps working, but a Fitbit client id will not
+    authenticate against Google and the error when it fails says so.
     """
 
     client_id: str
     client_secret: str
 
+    #: Checked in order. The first pair that is fully present wins.
+    ENV_NAMES = (
+        ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET"),
+        ("FITBIT_CLIENT_ID", "FITBIT_CLIENT_SECRET"),
+    )
+
+    @classmethod
+    def _from_environ(cls) -> tuple[str, str]:
+        for id_name, secret_name in cls.ENV_NAMES:
+            client_id = os.environ.get(id_name, "").strip()
+            client_secret = os.environ.get(secret_name, "").strip()
+            if client_id and client_secret:
+                return client_id, client_secret
+        return "", ""
+
     @classmethod
     def from_env(cls) -> "Credentials":
-        client_id = os.environ.get("FITBIT_CLIENT_ID", "").strip()
-        client_secret = os.environ.get("FITBIT_CLIENT_SECRET", "").strip()
+        client_id, client_secret = cls._from_environ()
         if not client_id or not client_secret:
             raise NotConnected(
-                "FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET are not set. Register a "
-                "Personal app at dev.fitbit.com/apps and put them in the environment."
+                "GOOGLE_HEALTH_CLIENT_ID and GOOGLE_HEALTH_CLIENT_SECRET are not set. "
+                "Create a Web application OAuth client in Google Cloud, enable the "
+                "Google Health API, and put the pair in the environment."
             )
         return cls(client_id, client_secret)
 
     @staticmethod
     def configured() -> bool:
-        return bool(
-            os.environ.get("FITBIT_CLIENT_ID", "").strip()
-            and os.environ.get("FITBIT_CLIENT_SECRET", "").strip()
-        )
-
-    def basic_auth(self) -> str:
-        raw = f"{self.client_id}:{self.client_secret}".encode("utf-8")
-        return "Basic " + base64.b64encode(raw).decode("ascii")
+        return bool(Credentials._from_environ()[0])
 
     def __repr__(self) -> str:  # pragma: no cover - only reachable from a traceback
         """Never let a secret into a traceback or a log line."""
@@ -239,15 +288,31 @@ class Tokens:
         }
 
     @classmethod
-    def from_token_response(cls, payload: Mapping[str, Any], now: float) -> "Tokens":
+    def from_token_response(
+        cls,
+        payload: Mapping[str, Any],
+        now: float,
+        fallback_refresh: str = "",
+    ) -> "Tokens":
+        """Build a token pair from a token-endpoint response.
+
+        `fallback_refresh` is the refresh token already held. **Google does not reissue
+        one on every refresh** — unlike Fitbit, which rotates on each call, a Google
+        refresh response usually carries only a new access token and the existing
+        refresh token stays valid. Treating that as an error would break the very first
+        refresh, an hour into the first sync, so the held token carries forward.
+
+        An *authorization-code* exchange with no refresh token is still fatal: it means
+        `access_type=offline` was missing and the connection would die within the hour.
+        Callers signal that case by passing no fallback.
+        """
         access = str(payload.get("access_token") or "")
-        refresh = str(payload.get("refresh_token") or "")
+        refresh = str(payload.get("refresh_token") or "") or fallback_refresh
         if not access or not refresh:
-            # A response with only an access token cannot be resumed tomorrow, and
-            # writing it would report a connection that fails on the next sync.
             raise FitbitError(
-                "Fitbit returned a token response with no refresh token; a session that "
-                "cannot be resumed is not a connection."
+                "Google returned a token response with no refresh token; a session that "
+                "cannot be resumed is not a connection. Check that the consent URL "
+                "carried access_type=offline."
             )
         expires_in = payload.get("expires_in")
         ttl = float(expires_in) if isinstance(expires_in, (int, float)) else ACCESS_TOKEN_TTL_S
@@ -351,7 +416,7 @@ def _b64url(raw: bytes) -> str:
 def code_challenge(verifier: str) -> str:
     """S256: BASE64URL(SHA256(ASCII(verifier))), unpadded.
 
-    The padding matters. Fitbit compares the challenge it stored against the one it
+    The padding matters. Google compares the challenge it stored against the one it
     derives from the verifier, and a `=` on the end of either makes two identical
     verifiers look different.
     """
@@ -380,6 +445,14 @@ def begin_authorization(
             "state": state,
             "code_challenge": code_challenge(verifier),
             "code_challenge_method": "S256",
+            # Without `offline` Google issues an access token and no refresh token, and
+            # the connection silently dies an hour later. It is the single easiest way
+            # to get this flow wrong.
+            "access_type": "offline",
+            # Force the consent screen. Google only returns a refresh token on the
+            # first grant, so a re-connect after a lost cache gets nothing back unless
+            # consent is asked for again.
+            "prompt": "consent",
         }
     )
     return PendingAuthorization(
@@ -424,7 +497,7 @@ def extract_code(pasted: str, expected_state: str | None = None) -> str:
     if re.fullmatch(r"[A-Za-z0-9._~-]{8,}", text):
         return text
     raise FitbitError(
-        "No Fitbit authorization code in that text. After approving, the address bar "
+        "No authorization code in that text. After approving, the address bar "
         "contains `?code=…` — paste that whole URL."
     )
 
@@ -438,23 +511,28 @@ def _token_request(
     body: Mapping[str, str],
     transport: Transport,
     now: float,
+    fallback_refresh: str = "",
 ) -> Tokens:
+    # Google's token endpoint takes the client secret as a form field, not as an HTTP
+    # Basic header. Sending Basic instead gets an `invalid_client` that says nothing
+    # about which half of the credential it disliked.
+    payload_body = dict(body)
+    payload_body["client_secret"] = creds.client_secret
     response = transport.request(
         "POST",
         TOKEN_URL,
         {
-            "Authorization": creds.basic_auth(),
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
         },
-        _form(body),
+        _form(payload_body),
     )
     if response.status >= 400:
         raise _auth_error(response)
     payload = response.json()
     if not isinstance(payload, Mapping):
-        raise FitbitError("Fitbit's token endpoint returned something unexpected.")
-    return Tokens.from_token_response(payload, now)
+        raise FitbitError("Google's token endpoint returned something unexpected.")
+    return Tokens.from_token_response(payload, now, fallback_refresh)
 
 
 def exchange_code(
@@ -467,7 +545,7 @@ def exchange_code(
     """Trade the authorization code for the first pair of tokens.
 
     The code is valid for ten minutes and once. `redirect_uri` has to be byte-identical
-    to the one in the consent URL or Fitbit rejects the exchange — which is why it is
+    to the one in the consent URL or Google rejects the exchange — which is why it is
     carried on `pending` rather than read from the environment a second time, where an
     edited variable could silently change it between the two calls.
     """
@@ -491,12 +569,17 @@ def refresh_tokens(
     transport: Transport,
     now: float | None = None,
 ) -> Tokens:
-    """Swap the refresh token for a new pair.
+    """Swap the refresh token for a fresh access token.
 
-    **Fitbit rotates the refresh token**: the response carries a new one and the old one
-    stops working immediately. Losing the new one means the account has to be authorised
-    by hand again, so every caller of this writes the result to the cache before it does
-    anything else with it.
+    **Google usually does not rotate the refresh token.** Fitbit did, and the old code
+    was built around that: the response carried a new one and the old one died at once.
+    Google normally returns only a new access token, so the held refresh token is passed
+    as the fallback and carries forward.
+
+    It *may* still return one — the documented response shows `refresh_token` and
+    `refresh_token_expires_in` — so callers keep writing the result to the cache before
+    doing anything else with it. Carrying forward and rotating both work; assuming
+    either is what breaks.
     """
     return _token_request(
         creds,
@@ -507,7 +590,27 @@ def refresh_tokens(
         },
         transport,
         now if now is not None else time.time(),
+        fallback_refresh=tokens.refresh_token,
     )
+
+
+def granted_health_scopes(scope: str) -> set[str]:
+    """The Google Health scopes actually granted, out of a token response's `scope`.
+
+    Consent is granular: the user can approve the sign-in and withhold the permission.
+    The token is still issued, so the only place this is visible is the scope string.
+    """
+    return {s for s in (scope or "").split() if s.startswith(_HEALTH_SCOPE_PREFIX)}
+
+
+def require_consent(tokens: Tokens) -> None:
+    """Fail loudly, and nameably, when the grant carries no Google Health permission."""
+    if not granted_health_scopes(tokens.scope):
+        raise MissingConsent(
+            "The sign-in completed but no Google Health permission was granted. At "
+            "least one is required to read your weigh-ins — connect again and leave "
+            "the health metrics permission ticked."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -556,29 +659,30 @@ def _auth_error(response: Response) -> FitbitError:
         return RateLimited(retry_after_s=retry_after(response))
     if response.status in (400, 401):
         return NeedsReauthorization(
-            f"Fitbit would not issue a token ({detail}). Authorise the app again — a "
+            f"Google would not issue a token ({detail}). Authorise the app again — a "
             "code is single-use and expires in ten minutes, and a refresh token that "
             "has been rotated is already spent."
         )
-    return FitbitError(f"Fitbit's token endpoint failed ({detail}).")
+    return FitbitError(f"Google's token endpoint failed ({detail}).")
 
 
 def retry_after(response: Response) -> int:
-    """How long to wait, from whichever header Fitbit chose to send.
+    """How long to wait before trying again, in seconds.
 
-    `fitbit-rate-limit-reset` is seconds until the hourly window rolls; `Retry-After` is
-    the standard one. An hour is the fallback because that is the window length, and
-    guessing shorter just burns another request on another 429.
+    Google Health's per-user limit is 300 requests a minute, so the fallback is a
+    minute rather than Fitbit's hour. `Retry-After` is honoured when sent; the legacy
+    `fitbit-rate-limit-reset` is still read because a proxy in front of the old API
+    may yet emit it and ignoring a correct answer to guess a worse one is silly.
     """
-    for header in ("fitbit-rate-limit-reset", "retry-after"):
+    for header in ("retry-after", "fitbit-rate-limit-reset"):
         raw = response.header(header)
         if raw and raw.strip().isdigit():
             return int(raw.strip())
-    return 3600
+    return 60
 
 
 def rate_limit_remaining(response: Response) -> int | None:
-    """Calls left in this hour, when Fitbit says. Approximate by its own documentation."""
+    """Calls left in the window, when the service says. Google usually does not."""
     raw = response.header("fitbit-rate-limit-remaining")
     if raw and raw.strip().lstrip("-").isdigit():
         return int(raw.strip())
@@ -647,9 +751,10 @@ class FitbitClient:
     def get(self, path: str) -> Any:
         """A GET against the API, refreshing once if the token turns out to be dead.
 
-        The proactive expiry check is not enough on its own: Fitbit can revoke a token
-        early, and the clock in a container can be wrong. So a 401 is retried once after
-        a refresh, and a second 401 is reported rather than looped on.
+        The proactive expiry check is not enough on its own: access can be revoked from
+        the Google Account page at any moment, and the clock in a container can be
+        wrong. So a 401 is retried once after a refresh, and a second 401 is reported
+        rather than looped on.
         """
         self.ensure_fresh()
         response = self._authorised_get(path)
@@ -661,11 +766,20 @@ class FitbitClient:
             raise RateLimited(retry_after_s=retry_after(response))
         if response.status == 401:
             raise NeedsReauthorization(
-                f"Fitbit rejected the refreshed token ({error_message(response)}). "
+                f"Google rejected the refreshed token ({error_message(response)}). "
                 "The app's access was probably revoked; authorise it again."
             )
+        if response.status == 412:
+            # Consent worked but the account has no Google Health profile yet. Its own
+            # error type, because the remedy is in a different app entirely.
+            raise ProfileNotReady()
+        if response.status == 403:
+            raise MissingConsent(
+                f"Google Health refused {path} ({error_message(response)}). The health "
+                "metrics permission was probably withheld; connect again and grant it."
+            )
         if response.status >= 400:
-            raise FitbitError(f"Fitbit refused {path} ({error_message(response)}).")
+            raise FitbitError(f"Google Health refused {path} ({error_message(response)}).")
         return response.json()
 
     def _authorised_get(self, path: str) -> Response:
@@ -676,10 +790,9 @@ class FitbitClient:
             {
                 "Authorization": f"Bearer {self.tokens.access_token}",
                 "Accept": "application/json",
-                # Metric, explicitly. The default follows the account's locale, and a
-                # silent switch to pounds would write a weight three digits wrong
-                # into a column called weight_kg.
-                "Accept-Language": "en_GB",
+                # No Accept-Language. The old API returned whatever unit the account's
+                # locale implied, so the header was load-bearing; Google Health answers
+                # in `weightGrams` and the question no longer exists.
             },
         )
         seen = rate_limit_remaining(response)
@@ -687,15 +800,61 @@ class FitbitClient:
             self.remaining = seen
         return response
 
-    def profile(self) -> Mapping[str, Any]:
-        """The account this token belongs to. Used to show *which* Fitbit is connected."""
-        payload = self.get("/1/user/-/profile.json")
-        user = payload.get("user") if isinstance(payload, Mapping) else None
-        return user if isinstance(user, Mapping) else {}
+    def identity(self) -> Mapping[str, Any]:
+        """Both user ids for this token: Google's `healthUserId` and Fitbit's legacy one.
+
+        Google's migration guide recommends calling this as soon as a user consents and
+        storing both, so records keyed by the old six-character Fitbit id can still be
+        matched after the cutover. It is also the cheapest possible probe of whether
+        the profile exists at all — it is what returns 412 when it does not.
+        """
+        payload = self.get("/users/me/identity")
+        return payload if isinstance(payload, Mapping) else {}
 
     def display_name(self) -> str:
-        profile = self.profile()
-        return str(profile.get("displayName") or profile.get("fullName") or "")
+        """Which account is connected. The health user id; there is no name endpoint."""
+        return str(self.identity().get("healthUserId") or "")
+
+    def data_points(
+        self,
+        data_type: str,
+        filter_expr: str | None = None,
+        page_size: int = 1000,
+    ) -> list[Mapping[str, Any]]:
+        """Every data point of one type, following `nextPageToken` to the end.
+
+        The Fitbit Web API paged by date window because it had no cursor and a 150/hour
+        budget; Google Health pages by token and allows 300 requests a minute, so the
+        whole history is a handful of calls rather than 36 carefully spaced ones.
+
+        An empty `nextPageToken` and an absent one both mean the end. A token that
+        repeats itself would mean an infinite loop, so it is checked for rather than
+        trusted.
+        """
+        collected: list[Mapping[str, Any]] = []
+        token = ""
+        seen_tokens: set[str] = set()
+        while True:
+            params: dict[str, str] = {"pageSize": str(page_size)}
+            if filter_expr:
+                params["filter"] = filter_expr
+            if token:
+                params["pageToken"] = token
+            query = urllib.parse.urlencode(params)
+            payload = self.get(f"/users/me/dataTypes/{data_type}/dataPoints?{query}")
+            if not isinstance(payload, Mapping):
+                break
+            page = payload.get("dataPoints")
+            if isinstance(page, list):
+                collected.extend(p for p in page if isinstance(p, Mapping))
+            token = str(payload.get("nextPageToken") or "")
+            if not token:
+                break
+            if token in seen_tokens:
+                log.warning("Google Health repeated a page token for %s; stopping.", data_type)
+                break
+            seen_tokens.add(token)
+        return collected
 
 
 def connected_account(token_dir: Path) -> str:

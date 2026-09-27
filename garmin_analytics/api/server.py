@@ -390,8 +390,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- Fitbit connection (the scale) ---------------------------------------
     #
-    # Fitbit is the second data source and the only one that knows what the owner
-    # weighs. None of this has ever run against Fitbit's servers; see HANDOVER-FITBIT.md.
+    # Google Health is the second data source and the only one that knows what the
+    # owner weighs. See HANDOVER-FITBIT.md for what is proven and what is not.
 
     @app.get("/api/fitbit/status", response_model=FitbitStatus)
     def fitbit_status() -> dict[str, Any]:
@@ -419,6 +419,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(400, str(exc)) from exc
         except LookupError as exc:
             raise HTTPException(410, str(exc)) from exc
+        except fitbit_mod.MissingConsent as exc:
+            # The sign-in worked; the permission did not. 403 rather than 400 because
+            # nothing about the request was malformed.
+            raise HTTPException(403, str(exc)) from exc
+        except fitbit_mod.ProfileNotReady as exc:
+            # 412 straight through: the tokens are saved and good, the account just has
+            # no Google Health profile yet. The message names the app to open.
+            raise HTTPException(412, str(exc)) from exc
         except fitbit_mod.NeedsReauthorization as exc:
             raise HTTPException(400, str(exc)) from exc
         except fitbit_mod.FitbitError as exc:
@@ -432,17 +440,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         exchange happens, and the user is told to go back to Settings. It is not the
         only way in — `POST /api/fitbit/connect` takes a pasted URL — because this
         route only works if the registered redirect actually points at this app, and
-        whether it does is a setting at dev.fitbit.com that nothing here controls.
+        whether it does is a setting on the Google Cloud OAuth client that nothing
+        here controls.
         """
         from ..ingest import fitbit as fitbit_mod
 
         if error:
-            return HTMLResponse(_fitbit_page(f"Fitbit returned “{error}”."), status_code=400)
+            return HTMLResponse(_fitbit_page(f"Google returned “{error}”."), status_code=400)
         try:
             auth_mod.fitbit_connect(settings, f"?code={code}&state={state}")
+        except fitbit_mod.ProfileNotReady as exc:
+            # The tokens are saved; only the Google Health profile is missing. A 400
+            # here would read as "the sign-in failed", which is the wrong instruction.
+            return HTMLResponse(_fitbit_page(str(exc)), status_code=412)
         except (ValueError, LookupError, fitbit_mod.FitbitError) as exc:
             return HTMLResponse(_fitbit_page(str(exc)), status_code=400)
-        return HTMLResponse(_fitbit_page("Fitbit connected. You can close this tab."))
+        return HTMLResponse(
+            _fitbit_page("Google Health connected. You can close this tab.")
+        )
 
     @app.post("/api/fitbit/disconnect", response_model=FitbitDisconnected)
     def fitbit_disconnect() -> dict[str, Any]:
@@ -452,10 +467,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def fitbit_sync_now(since: str | None = None) -> dict[str, Any]:
         """Pull weigh-ins. Synchronous, and that is a considered choice.
 
-        A three-year backfill is ~36 requests paced a second apart, so the whole job is
-        under a minute — short enough to answer in a request, and not worth the
-        machinery of a background job with its own status row. If Fitbit's budget runs
-        out it returns `rate_limited` with its place kept, and running it again resumes.
+        A full history is two cursor-paged fetches against a 300-request-a-minute
+        budget, so the whole job is seconds — short enough to answer in a request, and
+        not worth the machinery of a background job with its own status row. If the
+        budget does run out it returns `rate_limited` with its place kept, and running
+        it again resumes.
         """
         from ..ingest import fitbit as fitbit_mod
         from ..ingest import fitbit_sync as fitbit_sync_mod
