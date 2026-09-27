@@ -2443,19 +2443,24 @@ export interface components {
             start_day: string;
             /** End Day */
             end_day: string;
-            /** Windows */
-            windows: number;
-            /** Windows Done */
-            windows_done: number;
             /** Days Written */
             days_written: number;
+            /** Weight Points */
+            weight_points: number;
+            /** Body Fat Points */
+            body_fat_points: number;
             /** State */
             state: string;
             /**
              * Retry After S
-             * @description Seconds until Fitbit's hourly budget resets, when that is why it stopped.
+             * @description Seconds until Google's per-minute budget resets, when that is why it stopped.
              */
             retry_after_s?: number | null;
+            /**
+             * Last Day
+             * @description The last day written, and the new watermark. Absent if the run never got that far.
+             */
+            last_day?: string | null;
         };
         /**
          * GarminConnected

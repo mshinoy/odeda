@@ -256,11 +256,12 @@ def _run_fitbit(args: argparse.Namespace) -> int:
             echo=None if args.quiet else print,
         )
     print(
-        f"{result['state']}: {result['windows_done']}/{result['windows']} windows, "
-        f"{result['days_written']} weigh-ins, {result['start_day']} → {result['end_day']}"
+        f"{result['state']}: {result['days_written']} weigh-ins from "
+        f"{result['weight_points']} weight and {result['body_fat_points']} body-fat "
+        f"reading(s), {result['start_day']} → {result['end_day']}"
     )
     if result["state"] == "rate_limited":
-        print(f"  Fitbit's hourly budget is spent. Re-run in {result['retry_after_s']} s; "
+        print(f"  Google's per-minute budget is spent. Re-run in {result['retry_after_s']} s; "
               f"it resumes from the watermark.")
     _emit(result, args.json)
     return 0

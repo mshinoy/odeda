@@ -1096,12 +1096,14 @@ class FitbitSyncResult(_Model):
     endpoint: str
     start_day: str
     end_day: str
-    windows: int
-    windows_done: int
     days_written: int
+    weight_points: int
+    body_fat_points: int
     state: str
     retry_after_s: int | None = None
-    """Seconds until Fitbit's hourly budget resets, when that is why it stopped."""
+    """Seconds until Google's per-minute budget resets, when that is why it stopped."""
+    last_day: str | None = None
+    """The last day written, and the new watermark. Absent if the run never got that far."""
 
 
 class FitbitImportRequest(_Model):

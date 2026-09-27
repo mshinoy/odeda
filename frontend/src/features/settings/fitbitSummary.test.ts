@@ -22,11 +22,12 @@ const sync: FitbitSyncResult = {
   endpoint: "fitbit_body",
   start_day: "2023-09-26",
   end_day: "2026-09-26",
-  windows: 36,
-  windows_done: 36,
   days_written: 401,
+  weight_points: 470,
+  body_fat_points: 428,
   state: "done",
   retry_after_s: null,
+  last_day: "2026-09-26",
 };
 
 const imported: FitbitImportResult = {
@@ -67,16 +68,18 @@ describe("what is stored", () => {
 });
 
 describe("what a sync did", () => {
-  it("reports the windows and the span", () => {
-    expect(syncSummary(sync)).toBe("401 weigh-ins from 36 of 36 windows, 2023-09-26 → 2026-09-26.");
+  it("reports what it fetched and the span", () => {
+    expect(syncSummary(sync)).toBe(
+      "401 weigh-ins from 470 weight and 428 body-fat readings, 2023-09-26 → 2026-09-26.",
+    );
   });
 
   it("does not make a rate limit read as a failure", () => {
-    // It kept every window it finished and its watermark. "Sync failed" would send
+    // It kept everything it fetched and its watermark. "Sync failed" would send
     // the owner looking for a problem that is not there.
-    const limited = { ...sync, state: "rate_limited", windows_done: 12, retry_after_s: 1830 };
+    const limited = { ...sync, state: "rate_limited", weight_points: 120, retry_after_s: 1830 };
     const text = syncSummary(limited);
-    expect(text).toContain("12 of 36 windows");
+    expect(text).toContain("120 weight and 428 body-fat readings");
     expect(text).toContain("31 minutes");
     expect(text).toContain("resumes where it stopped");
     expect(text).not.toMatch(/fail/i);
@@ -87,9 +90,11 @@ describe("what a sync did", () => {
     expect(syncSummary(limited)).toContain("1 minute");
   });
 
-  it("falls back to the hour when Fitbit did not say", () => {
+  it("falls back to a minute when Google did not say", () => {
+    // Google's budget is 300 requests a minute, not Fitbit's 150 an hour. Telling
+    // someone to wait an hour for a limit that clears in sixty seconds is its own bug.
     const limited = { ...sync, state: "rate_limited", retry_after_s: null };
-    expect(syncSummary(limited)).toContain("60 minutes");
+    expect(syncSummary(limited)).toContain("1 minute");
   });
 });
 

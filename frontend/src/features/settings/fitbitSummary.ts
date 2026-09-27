@@ -23,27 +23,27 @@ export function storedSummary(status: FitbitStatus): string {
   return `${formatInteger(status.weigh_ins)} weigh-ins${span}`;
 }
 
-/** Rounded up, and in minutes: the window is an hour, and "in 0 minutes" is a lie. */
+/** Rounded up, and in minutes: Google's budget resets per minute, and "in 0 minutes" is a lie. */
 function waitInMinutes(seconds: number | null | undefined): string {
-  const minutes = Math.max(1, Math.ceil((seconds ?? 3600) / 60));
+  const minutes = Math.max(1, Math.ceil((seconds ?? 60) / 60));
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 }
 
 /**
  * What a finished sync did.
  *
- * A rate-limited run is not a failure and must not read like one: it kept every window
- * it completed and its watermark, so the honest sentence says what it got and when to
- * come back, not "sync failed".
+ * A rate-limited run is not a failure and must not read like one: it kept everything it
+ * fetched and its watermark, so the honest sentence says what it got and when to come
+ * back, not "sync failed".
  */
 export function syncSummary(result: FitbitSyncResult): string {
   const got = `${formatInteger(result.days_written)} weigh-ins from ${formatInteger(
-    result.windows_done,
-  )} of ${formatInteger(result.windows)} windows`;
+    result.weight_points,
+  )} weight and ${formatInteger(result.body_fat_points)} body-fat readings`;
 
   if (result.state === "rate_limited") {
     return (
-      `${got}. Fitbit's hourly budget is spent — run it again in about ` +
+      `${got}. Google's per-minute budget is spent — run it again in about ` +
       `${waitInMinutes(result.retry_after_s)}; it resumes where it stopped.`
     );
   }
