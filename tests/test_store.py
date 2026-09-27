@@ -137,6 +137,38 @@ class TestWatermarks:
         assert marks["sleep"]["status"] == "partial"
         assert marks["sleep"]["note"] == "rate limited"
 
+    def test_survives_the_process_that_wrote_it(self, settings):
+        """A watermark that only lives until close is worse than none at all.
+
+        It read back correctly inside the same session, so nothing looked wrong — and
+        the next sync re-fetched history it already had. The Fitbit sync hit exactly
+        this: its `set_watermark` was the last statement before the store closed.
+        """
+        with S.Store.open(settings) as writer:
+            writer.set_watermark("fitbit_body", "2026-09-24", "ok", "413 weigh-in(s)")
+
+        with S.Store.open(settings) as reader:
+            assert reader.get_watermark("fitbit_body") == "2026-09-24"
+
+
+class TestClosingAStore:
+    def test_a_trailing_write_is_committed(self, settings):
+        """`__exit__` used to close without committing, silently dropping the tail."""
+        with S.Store.open(settings) as writer:
+            writer.upsert("sleep", ["day"], {"day": "2026-09-20", "sleep_score": 70})
+
+        with S.Store.open(settings) as reader:
+            assert reader.scalar("SELECT COUNT(*) FROM sleep") == 1
+
+    def test_a_failed_block_keeps_nothing(self, settings):
+        with pytest.raises(RuntimeError):
+            with S.Store.open(settings) as writer:
+                writer.upsert("sleep", ["day"], {"day": "2026-09-20", "sleep_score": 70})
+                raise RuntimeError("boom")
+
+        with S.Store.open(settings) as reader:
+            assert reader.scalar("SELECT COUNT(*) FROM sleep") == 0
+
 
 class TestTransactions:
     def test_rollback_on_error(self, store):

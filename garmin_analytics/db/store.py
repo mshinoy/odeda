@@ -142,8 +142,19 @@ class Store:
     def __enter__(self) -> "Store":
         return self
 
-    def __exit__(self, *exc: object) -> None:
-        self.close()
+    def __exit__(self, exc_type: object, *_rest: object) -> None:
+        # `close()` alone discards whatever the last statement left in an open
+        # transaction, so a write that happened to be the final one in the block
+        # vanished with no error anywhere — which is how the Fitbit sync wrote 413
+        # weigh-ins and then lost its own watermark. Commit a clean exit; a failed one
+        # still rolls back, as closing already did.
+        try:
+            if exc_type is None:
+                self.conn.commit()
+            else:
+                self.conn.rollback()
+        finally:
+            self.close()
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -249,6 +260,10 @@ class Store:
                 "note": note,
             },
         )
+        # Commit here as `set_setting` and `set_sync_status` do. A watermark is the
+        # record that work already done need not be done again; leaving it pending on
+        # somebody else's later commit is how it went missing.
+        self.conn.commit()
 
     def watermarks(self) -> list[dict[str, Any]]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM sync_watermark ORDER BY endpoint")]
