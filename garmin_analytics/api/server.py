@@ -19,6 +19,7 @@ import json
 import statistics
 import threading
 import time
+import urllib.parse
 from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any, Callable
@@ -447,8 +448,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         if error:
             return HTMLResponse(_fitbit_page(f"Google returned “{error}”."), status_code=400)
+        # Re-encode rather than interpolate: FastAPI hands these over already decoded,
+        # and a Google code contains a `/` that has to survive the round trip.
+        query = urllib.parse.urlencode({"code": code, "state": state})
         try:
-            auth_mod.fitbit_connect(settings, f"?code={code}&state={state}")
+            auth_mod.fitbit_connect(settings, f"?{query}")
         except fitbit_mod.ProfileNotReady as exc:
             # The tokens are saved; only the Google Health profile is missing. A 400
             # here would read as "the sign-in failed", which is the wrong instruction.

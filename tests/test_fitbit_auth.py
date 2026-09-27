@@ -173,6 +173,26 @@ class TestExtractCode:
     def test_accepts_a_bare_code(self):
         assert F.extract_code("abc123def") == "abc123def"
 
+    # Every real Google code looks like this: `4/0A…`, with a forward slash the address
+    # bar shows as `%2F`. Truncating it at the slash is what produces Google's
+    # `invalid_grant: Malformed auth code`.
+    REAL_CODE = "4/0AVGzR1DkQ_7w-xY2z.p~aBcDeF3"
+
+    def test_keeps_a_percent_encoded_slash_in_a_real_google_code(self):
+        url = (
+            "http://localhost:8000/api/fitbit/callback"
+            "?code=4%2F0AVGzR1DkQ_7w-xY2z.p~aBcDeF3&state=s1"
+        )
+        assert F.extract_code(url, "s1") == self.REAL_CODE
+
+    def test_keeps_a_literal_slash_in_a_real_google_code(self):
+        """FastAPI decodes the query before the callback route sees it."""
+        url = f"http://localhost:8000/api/fitbit/callback?code={self.REAL_CODE}&state=s1"
+        assert F.extract_code(url, "s1") == self.REAL_CODE
+
+    def test_accepts_a_real_code_pasted_bare(self):
+        assert F.extract_code(self.REAL_CODE) == self.REAL_CODE
+
     def test_rejects_a_redirect_from_another_attempt(self):
         """The anti-forgery check, done here so no route can forget it."""
         url = "http://localhost:8000/api/fitbit/callback?code=abc123def&state=other"

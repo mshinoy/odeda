@@ -463,7 +463,12 @@ def begin_authorization(
     )
 
 
-_CODE_RE = re.compile(r"[?&#]code=([A-Za-z0-9._~-]+)")
+# A Google authorization code starts `4/0A…` — it contains a forward slash, which the
+# address bar shows percent-encoded as `%2F`. Parse the query properly rather than
+# pattern-matching the value, so the code survives whichever form it arrives in. A
+# character class that omits `/` and `%` truncates every real code to `4`, and Google
+# answers that with `invalid_grant: Malformed auth code`.
+_BARE_CODE_RE = re.compile(r"[A-Za-z0-9._~%/-]{8,}")
 
 
 def extract_code(pasted: str, expected_state: str | None = None) -> str:
@@ -481,21 +486,23 @@ def extract_code(pasted: str, expected_state: str | None = None) -> str:
     if not text:
         raise FitbitError("Nothing was pasted. Copy the address bar after approving.")
 
-    if expected_state and ("state=" in text):
-        parsed = urllib.parse.urlparse(text)
-        params = urllib.parse.parse_qs(parsed.query or parsed.fragment)
-        got = (params.get("state") or [""])[0]
+    parsed = urllib.parse.urlparse(text)
+    params = urllib.parse.parse_qs(parsed.query or parsed.fragment)
+
+    if expected_state and params.get("state"):
+        got = params["state"][0]
         if got != expected_state:
             raise FitbitError(
                 "That redirect belongs to a different sign-in attempt. Start again from "
                 "the Connect button so the state matches."
             )
 
-    match = _CODE_RE.search(text)
-    if match:
-        return match.group(1)
-    if re.fullmatch(r"[A-Za-z0-9._~-]{8,}", text):
-        return text
+    # `parse_qs` percent-decodes exactly once, which is what the token endpoint wants.
+    code = (params.get("code") or [""])[0].strip()
+    if code:
+        return code
+    if _BARE_CODE_RE.fullmatch(text):
+        return urllib.parse.unquote(text)
     raise FitbitError(
         "No authorization code in that text. After approving, the address bar "
         "contains `?code=…` — paste that whole URL."
