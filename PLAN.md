@@ -39,6 +39,7 @@ Paste one of these into a fresh session.
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
+| 11 Loose ends | K: `open` | 0 / 3 |
 
 ### Phase 0 — Foundations (done)
 
@@ -165,6 +166,17 @@ different points.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
+
+### Phase 11 — Loose ends · Checkpoint K: `open`
+
+What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
+about one lap in six round a loop goes untimed, and the regroup renumbered every route.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T45 | Map: open on where most of the activity is, not on every point ever recorded | in progress (loose-ends, 2026-10-08) | — | |
+| T46 | Laps: timed from where each run started on the loop; cut corners do not count | in progress (loose-ends, 2026-10-08) | — | |
+| T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | in progress (loose-ends, 2026-10-08) | — | |
 
 ### Open decisions
 
