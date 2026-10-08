@@ -37,6 +37,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
+| 8 Speed | H: `open` | 0 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -141,6 +142,16 @@ Strava shows a feed but laid out for a wide screen.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
+
+### Phase 8 — Speed · Checkpoint H: `open`
+
+The owner asked why the Map page is slow (2026-10-08). Measured: the heatmap is
+recomputed (~1–1.5 s) on most visits because the analytics cache expires after 30 s,
+and the map library only starts downloading once the heatmap has arrived.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T34 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | in progress (map-speed, 2026-10-08) | — | |
 
 ### Open decisions
 
