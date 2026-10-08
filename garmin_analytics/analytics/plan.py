@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Collection, Iterable, Mapping, Sequence
 
 from ..plan import parse as P
 
@@ -85,10 +85,13 @@ class PlannedDay:
     optional: bool
     title: str
     session_ids: list[int] = field(default_factory=list)
+    #: The owner said this day does not count. Unlike `optional`, which is the
+    #: calendar's own word, this is a decision they made afterwards.
+    ignored: bool = False
 
     @property
     def weight(self) -> float:
-        if self.optional:
+        if self.optional or self.ignored:
             return 0.0
         return KIND_WEIGHT.get(self.kind or "", DEFAULT_WEIGHT)
 
@@ -110,9 +113,14 @@ class Judged:
         """Whether this day contributes to an adherence figure at all.
 
         An optional session does not: counting a skipped optional spin as a miss makes
-        the plan punish the owner for following it. Nor does a day still in the future.
+        the plan punish the owner for following it. Nor does a day still in the future,
+        nor one the owner has said to ignore.
         """
-        return not self.planned.optional and self.verdict != "upcoming"
+        return (
+            not self.planned.optional
+            and not self.planned.ignored
+            and self.verdict != "upcoming"
+        )
 
     @property
     def credited(self) -> bool:
@@ -124,13 +132,21 @@ class Judged:
 # ---------------------------------------------------------------------------
 
 
-def collapse(sessions: Sequence[Mapping[str, Any]]) -> list[PlannedDay]:
+def collapse(
+    sessions: Sequence[Mapping[str, Any]],
+    ignored: Collection[int] = (),
+) -> list[PlannedDay]:
     """One `PlannedDay` per (day, sport). D13: the more specific event wins.
 
     Specificity, most specific first: an event that states its own distance, then a
     one-off, then an instance of a recurring series. A session carrying a `GA:` hint is
     always most specific, because it was written to settle exactly this.
+
+    `ignored` holds the plan_session ids the owner has struck out. One is enough: the
+    events on a day are one prescription described several times, so ignoring any of
+    them ignores the day.
     """
+    ignored = set(ignored)
     grouped: dict[tuple[str, str | None], list[Mapping[str, Any]]] = defaultdict(list)
     for row in sessions:
         grouped[(str(row["day"]), row.get("sport"))].append(row)
@@ -139,6 +155,7 @@ def collapse(sessions: Sequence[Mapping[str, Any]]) -> list[PlannedDay]:
     for (day, sport), rows in sorted(grouped.items(), key=lambda kv: (kv[0][0], kv[0][1] or "")):
         rows = sorted(rows, key=_specificity)
         best = rows[0]
+        ids = [int(r["id"]) for r in rows if r.get("id") is not None]
         out.append(
             PlannedDay(
                 day=day,
@@ -150,7 +167,8 @@ def collapse(sessions: Sequence[Mapping[str, Any]]) -> list[PlannedDay]:
                 # session on a day is a session owed.
                 optional=all(bool(r.get("optional")) for r in rows),
                 title=str(best.get("title") or ""),
-                session_ids=[int(r["id"]) for r in rows if r.get("id") is not None],
+                session_ids=ids,
+                ignored=any(i in ignored for i in ids),
             )
         )
     return out
@@ -430,6 +448,16 @@ def _manual_links(store) -> dict[int, str]:
     }
 
 
+def _ignored_links(store) -> set[int]:
+    """The sessions the owner has struck out. Both decisions are read, not just one."""
+    return {
+        int(r["plan_session_id"])
+        for r in store.query(
+            "SELECT plan_session_id FROM plan_links WHERE link_type = 'ignored'"
+        )
+    }
+
+
 def judge_all(store, today: date | None = None) -> tuple[list[Judged], list[dict[str, Any]]]:
     sessions = _sessions(store)
     if not sessions:
@@ -439,7 +467,7 @@ def judge_all(store, today: date | None = None) -> tuple[list[Judged], list[dict
     window_lo = (date.fromisoformat(lo) - timedelta(days=MOVE_TOLERANCE_DAYS)).isoformat()
     window_hi = (date.fromisoformat(hi) + timedelta(days=MOVE_TOLERANCE_DAYS)).isoformat()
     return match(
-        collapse(sessions),
+        collapse(sessions, _ignored_links(store)),
         _activities(store, window_lo, window_hi),
         today=today,
         manual=_manual_links(store),
@@ -456,6 +484,7 @@ def _as_dict(item: Judged) -> dict[str, Any]:
         "planned_max_m": p.max_m,
         "title": p.title,
         "optional": p.optional,
+        "ignored": p.ignored,
         "session_ids": p.session_ids,
         "verdict": item.verdict,
         "activity_id": item.activity_id,

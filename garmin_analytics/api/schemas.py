@@ -2324,6 +2324,10 @@ class PlanSession(_Model):
     """Equal to `planned_min_m` unless the plan gave a range (`8-10 km`)."""
     title: str
     optional: bool
+    """The calendar's own word: a session that was never owed."""
+    ignored: bool
+    """The owner's word, said afterwards. Still shown, so a denominator never falls
+    without a visible reason, but out of every adherence figure."""
     session_ids: list[int]
     """The calendar events collapsed into this one prescription."""
     verdict: PlanVerdict

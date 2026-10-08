@@ -269,6 +269,48 @@ class TestWeekly:
         assert A.rolling_adherence(weeks, window=4) == pytest.approx(76.7, abs=0.1)
 
 
+class TestIgnoredSessions:
+    """T48. `ignore` wrote a row that nothing read, so the percentage never moved."""
+
+    DAYS = [
+        session("2026-12-07", P.SPORT_RUN, lo=7200, kind="easy", sid=1),
+        session("2026-12-11", P.SPORT_RUN, lo=18000, kind="long", sid=2),
+    ]
+
+    def test_an_ignored_day_leaves_the_denominator(self):
+        both, _ = A.match(A.collapse(self.DAYS), [], TODAY)
+        assert A.weekly(both)[0]["sessions_planned"] == 2
+
+        kept, _ = A.match(A.collapse(self.DAYS, {2}), [], TODAY)
+        assert A.weekly(kept)[0]["sessions_planned"] == 1
+
+    def test_ignoring_the_missed_long_run_stops_it_costing_anything(self):
+        done = [activity("2026-12-07", metres=7300)]
+        before, _ = A.match(A.collapse(self.DAYS), done, TODAY)
+        after, _ = A.match(A.collapse(self.DAYS, {2}), done, TODAY)
+        assert A.weekly(before)[0]["adherence_pct"] == pytest.approx(25.0, abs=0.1)
+        assert A.weekly(after)[0]["adherence_pct"] == 100.0
+
+    def test_one_ignored_event_ignores_the_day_it_describes(self):
+        """A day's events are one prescription written several times (D13), so there
+        is no coherent state where half of a collapsed day is struck out."""
+        pair = [
+            session("2026-12-11", P.SPORT_RUN, kind="long", title="Long Run - DBRC", sid=3),
+            session("2026-12-11", P.SPORT_RUN, lo=18000, kind="long", title="W11", sid=4),
+        ]
+        day = A.collapse(pair, {4})[0]
+        assert day.ignored is True
+        assert day.weight == 0.0
+
+    def test_an_ignored_session_is_still_reported(self):
+        """Dropping it would make the denominator fall with nothing on screen to say
+        why — the silent improvement the parse review list exists to prevent."""
+        judged, _ = A.match(A.collapse(self.DAYS, {2}), [], TODAY)
+        ignored = [j for j in judged if j.planned.ignored]
+        assert len(ignored) == 1
+        assert A._as_dict(ignored[0])["ignored"] is True
+
+
 class TestTargets:
     """D12. The two constants this replaces were invented by an agent: 55 km/week
     against a plan whose biggest week is 35.7, and a CTL of 75 that nothing produced.

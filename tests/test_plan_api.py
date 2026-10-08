@@ -148,6 +148,38 @@ class TestThePlan:
         assert summary["adherence_pct"] < 50
 
 
+class TestIgnoring:
+    """T48. The endpoint has always accepted `ignore`; nothing read the row it wrote."""
+
+    def _friday(self, client) -> int:
+        week = client.get("/api/plan/week", params={"start": "2026-09-28"}).json()
+        return next(s for s in week["sessions"] if s["day"] == "2026-10-02")["session_ids"][0]
+
+    def test_ignoring_the_missed_long_run_moves_the_percentage(self, planned):
+        before = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()["summary"]
+        assert before["sessions_planned"] == 2
+
+        planned.put(f"/api/plan/sessions/{self._friday(planned)}/link", json={"ignore": True})
+
+        after = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()["summary"]
+        assert after["sessions_planned"] == 1
+        assert after["adherence_pct"] == 100.0
+
+    def test_the_ignored_session_is_still_on_the_page(self, planned):
+        planned.put(f"/api/plan/sessions/{self._friday(planned)}/link", json={"ignore": True})
+        week = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()
+        friday = next(s for s in week["sessions"] if s["day"] == "2026-10-02")
+        assert friday["ignored"] is True
+
+    def test_undoing_it_puts_the_session_back(self, planned):
+        session_id = self._friday(planned)
+        planned.put(f"/api/plan/sessions/{session_id}/link", json={"ignore": True})
+        planned.delete(f"/api/plan/sessions/{session_id}/link")
+        summary = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()["summary"]
+        assert summary["sessions_planned"] == 2
+        assert summary["adherence_pct"] < 50
+
+
 class TestTheRacePanelsTargets:
     """D12: `/api/race` used to carry `ctl_target: 75` and `weekly_km_target: 55` on
     every install, synced or not. Both now come from the calendar or not at all."""

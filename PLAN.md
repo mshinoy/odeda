@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 7 / 10 |
+| 8 Training plan | H: `open` | 8 / 10 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -180,7 +180,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T40 | Status: this week against the plan, and the planned line on the race panel | in progress (patti, 2026-10-08) | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
-| T48 | An ignored session is actually ignored | todo | T37 | |
+| T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2424,9 +2424,9 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `frontend/src/api/schema.ts` (generated), `tests/test_plan_adherence.py`,
   `tests/test_plan_api.py`.
 - **Build:**
-  - [ ] `judge_all` reads `plan_links` rows of type `ignored`, not only `manual`
-  - [ ] an ignored day leaves the adherence denominator, the way an optional one does
-  - [ ] the API says a session is ignored, so the view can show it as a decision rather
+  - [x] `judge_all` reads `plan_links` rows of type `ignored`, not only `manual`
+  - [x] an ignored day leaves the adherence denominator, the way an optional one does
+  - [x] the API says a session is ignored, so the view can show it as a decision rather
     than losing it silently
 - **Notes:**
   - Found while building T40's re-link control. `set_link(..., ignore=True)` has always
@@ -2436,7 +2436,15 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     them was.
   - **An ignored session must stay visible.** Dropping it from the response would make
     the denominator fall for no stated reason, which is the same silent improvement the
-    parse review list exists to prevent (T41).
+    parse review list exists to prevent (T41). It is reported with `ignored: true`
+    beside its ordinary verdict.
+  - **A day is ignored if any of its events is.** A day's events are one prescription
+    written several times (D13), so there is no coherent half-ignored day; `collapse`
+    takes the union.
+  - Measured against the real copy with a stand-in plan loaded: ignoring the missed
+    Friday long run in the week of 2026-09-28 took that week from 2 prescribed sessions
+    at 23% to 1 at 100%, and undoing it put the 23% back.
+  - 1,433 backend tests.
 
 ### T42 — Targets the plan actually asks for
 - **Goal:** no number in this app that measures the owner against a target is a number
