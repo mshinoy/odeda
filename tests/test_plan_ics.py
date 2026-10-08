@@ -250,3 +250,31 @@ class TestFailures:
         assert result["unsupported"] == 1
         row = plan_ics.sessions(subscribed)[0]
         assert row["parse_status"] == "unsupported_rrule"
+
+
+class TestEnvBootstrap:
+    """`GA_PLAN_ICS_URL`, for deployments that declare their config rather than typing
+    it into a settings page."""
+
+    def test_an_env_url_is_adopted_when_nothing_is_subscribed(self, store, monkeypatch):
+        monkeypatch.setenv("GA_PLAN_ICS_URL", URL)
+        plan_ics.sync_plan(store, FakeTransport(ok(feed(FRIDAY_SERIES))), today=TODAY)
+        source = plan_ics.get_source(store)
+        assert source is not None and source["url"] == URL
+
+    def test_the_database_wins_once_something_is_subscribed(self, store, monkeypatch):
+        """Otherwise an address changed in Settings silently reverts on restart."""
+        chosen = URL.replace("s3cr3t", "chosen-in-settings")
+        plan_ics.set_source(store, chosen)
+        monkeypatch.setenv("GA_PLAN_ICS_URL", URL)
+        plan_ics.adopt_env_url(store)
+        assert plan_ics.get_source(store)["url"] == chosen
+
+    def test_a_malformed_variable_does_not_stop_the_app(self, store, monkeypatch):
+        monkeypatch.setenv("GA_PLAN_ICS_URL", "paste the address here")
+        assert plan_ics.adopt_env_url(store) is None
+        assert plan_ics.get_source(store) is None
+
+    def test_an_unset_variable_changes_nothing(self, store, monkeypatch):
+        monkeypatch.delenv("GA_PLAN_ICS_URL", raising=False)
+        assert plan_ics.adopt_env_url(store) is None

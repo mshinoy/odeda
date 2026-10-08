@@ -151,6 +151,29 @@ def get_source(store) -> dict[str, Any] | None:
     return rows[0] if rows else None
 
 
+def adopt_env_url(store, settings=None) -> int | None:
+    """Subscribe from `GA_PLAN_ICS_URL` when nothing is subscribed yet.
+
+    A bootstrap default, not an override: once a row exists the database wins and the
+    variable is ignored. Env always winning would mean an address changed in Settings
+    silently reverting at the next restart, which is a worse surprise than editing a
+    file. Returns the source id when it adopted one, else None.
+    """
+    from ..config import load_settings
+
+    settings = settings or load_settings()
+    url = (getattr(settings, "plan_ics_url", "") or "").strip()
+    if not url or get_source(store) is not None:
+        return None
+    try:
+        return set_source(store, url, label="Training")
+    except PlanFeedError:
+        # A malformed variable must not stop the app starting. The owner sees it as
+        # "no calendar subscribed", and Settings is where they fix it.
+        log.warning("GA_PLAN_ICS_URL is not a usable calendar address; ignoring it")
+        return None
+
+
 def clear_source(store) -> None:
     """Forget the calendar. The sessions it prescribed stay: a past week is still a week
     the owner trained, and deleting the plan should not silently delete the record of it."""
@@ -198,6 +221,7 @@ def sync_plan(
     changed is a success with nothing written — `unchanged`, not a failure, and it still
     moves `last_fetch_at` so Settings can say when it last looked.
     """
+    adopt_env_url(store)
     source = get_source(store)
     if source is None or not source["enabled"]:
         return {"status": "skipped", "reason": "no calendar subscribed"}

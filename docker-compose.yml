@@ -30,6 +30,7 @@ services:
       GA_DB: /data/garmin.db
       GA_RAW_DIR: /data/raw_archive
       GA_TOKEN_DIR: /data/tokens
+      GA_PLAN_ICS_URL: ${GA_PLAN_ICS_URL:-}
 
     volumes:
       # The database, the raw payload archive and the Garmin token cache.
