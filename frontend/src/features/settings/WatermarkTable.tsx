@@ -13,7 +13,7 @@ const numericHead = cn(headCell, "text-right");
 /** A watermark's own status word, or "never" when the endpoint has not run. */
 function tone(status: Watermark["status"]): "good" | "warning" | "critical" | "neutral" {
   if (status === "ok") return "good";
-  if (status === "partial") return "warning";
+  if (status === "partial" || status === "rate_limited") return "warning";
   if (status === "error") return "critical";
   return "neutral";
 }

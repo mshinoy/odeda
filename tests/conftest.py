@@ -7,6 +7,7 @@ real data directory or the Garmin token cache — the environment is redirected 
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -14,6 +15,10 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))  # so `import fitgen` works
+
+# No test app ever starts the automatic sync. The tests that exercise the scheduler
+# build their own with the interval they want.
+os.environ["GA_AUTO_SYNC_HOURS"] = "0"
 
 
 @pytest.fixture

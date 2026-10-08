@@ -126,7 +126,7 @@ was eleven days behind. This phase makes the app keep itself current.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | in progress (auto-sync, 2026-10-08) | — | |
+| T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | done | — | Auto-sync: the data stops being as old as the last button press |
 | T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | todo | T30 | |
 
 ### Open decisions
@@ -1872,3 +1872,43 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     and `/api/body` picked the rows up. The consent and exchange were not — that needs
     the credential.
 
+### T30 — Auto-sync: Garmin and Google Health every 6 hours
+- **Goal:** the data is current without anyone pressing Sync.
+- **Files:** `garmin_analytics/ingest/auto_sync.py`, `garmin_analytics/api/server.py`,
+  `garmin_analytics/config.py`, `docker-compose.yml`.
+- **Build:**
+  - [x] a scheduler thread in the server process, started and stopped by the app's
+    lifespan; `GA_AUTO_SYNC_HOURS` (default 6, `0` off), off in `api-dev` and in tests
+  - [x] each run: Garmin's incremental `connect.sync`, streams for activities that have
+    none (25 a run at most), derive only if something arrived; then Google Health's
+    `sync_body`. Each source is skipped when not connected, and one failing does not stop
+    the other
+  - [x] its own `sync_status` row (`auto`), and `GET /api/sync/auto` for Settings
+  - [x] a manual sync and an automatic one never run together: a due run waits ten
+    minutes for a backfill, and both Sync buttons answer 409 while a run is in progress
+- **Notes:**
+  - **The incremental sync, not the backfill.** The backfill re-reads the whole activity
+    list and re-clusters every route each time; the incremental sync resumes each
+    endpoint from its watermark with three days of overlap, so late-arriving sleep and
+    HRV still land. It comes to a few dozen requests a run.
+  - **Derive runs only when there is something to derive.** Measured on the real data:
+    best efforts 2.2 s, route clustering 29.8 s. A quiet run, which is most runs, pays
+    neither. A test pins that.
+  - **The interval is counted from the last run, which is stored in the database**, not
+    from process start. A redeploy does not reset the clock. A server that boots with a
+    run overdue runs it two minutes later. That is how the eleven days behind on
+    2026-10-08 get caught up without a button. A run that died mid-way counts from its
+    start, so a crash cannot stall the schedule.
+  - **No retry loop.** A failed run (an expired Garmin session, withdrawn Google consent)
+    is recorded with its message and tried again at the next interval. A broken
+    credential costs one failed run every six hours, never a hammering of an unofficial
+    API.
+  - **A latent bug fell out of it.** A rate-limited Google Health sync writes the
+    watermark status `rate_limited`, which the `Watermark` schema did not allow, so
+    `/api/sync/status` would have answered 500 until the next good run. Automatic runs
+    make that more likely, so the status is now allowed, and the watermark table shows it
+    in amber.
+  - `api-dev` had been created before its `GA_AUTO_SYNC_HOURS: "0"` existed, and its
+    `--reload` picked up the new code with the scheduler on. Its token cache has always
+    been empty, so nothing could leave the machine, but it was recreated so that is true
+    by configuration as well as by accident.

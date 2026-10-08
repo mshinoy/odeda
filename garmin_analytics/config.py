@@ -62,6 +62,9 @@ class Settings:
     #: Set GA_COOKIE_SECURE=1 when serving over HTTPS (behind a reverse proxy).
     cookie_secure: bool = False
     session_ttl_days: int = 30
+    #: Hours between automatic syncs (D8). 0 turns them off. Off unless set, so a
+    #: Settings built anywhere but `load_settings` never starts a scheduler by accident.
+    auto_sync_hours: float = 0.0
     #: Where the React SPA's production build lands (`npm run build` in frontend/).
     #: A build artifact, not source: absent in a fresh clone, and the API runs without it.
     ui_dir: Path = Path(__file__).resolve().parent / "ui"
@@ -92,4 +95,5 @@ def load_settings() -> Settings:
         app_password=os.environ.get("APP_PASSWORD", "").strip(),
         cookie_secure=_env_bool("GA_COOKIE_SECURE", False),
         session_ttl_days=int(os.environ.get("GA_SESSION_DAYS", 30)),
+        auto_sync_hours=float(os.environ.get("GA_AUTO_SYNC_HOURS", 6)),
     )

@@ -212,6 +212,14 @@ which tells you within minutes whether ingestion works at all.
 sync has moved the watermarks to today, a later run resumes from today and skips the
 years behind it; `sync --full` re-walks the whole `--days` window instead.
 
+**After the first backfill, the app keeps itself current.** Every 6 hours the server
+runs that same incremental sync for Garmin, fetches streams for any new activities, and
+pulls Google Health weigh-ins, skipping whichever source is not connected. Best efforts
+and routes are recomputed only when something new arrived. The interval is counted
+from the last run, which is stored in the database, so a restart does not reset it.
+Settings shows how the last run went. `GA_AUTO_SYNC_HOURS` changes the interval, and
+`0` turns it off.
+
 Raw payloads are archived **verbatim** before anything is normalised, so improving a
 parser never means re-fetching. `garmin-analytics renormalize` rebuilds every table
 from the archive with no network access at all.
@@ -340,7 +348,7 @@ routes, route_members  clusters of activities that follow the same path
 route_segment_efforts  per-attempt, per-segment splits, cached
 sleep, daily_wellness, hrv_daily, fitness, body_composition     per-day wellness
 best_efforts           rolling best efforts extracted from sample streams
-sync_status            resumable backfill progress
+sync_status            resumable backfill progress, and the last automatic run
 sessions, app_settings session cookies (hashed) and the app password hash (PBKDF2)
 ```
 
@@ -358,6 +366,7 @@ Backend settings are documented in [`.env.example`](.env.example). The ones that
 | `GA_COOKIE_SECURE` | `0` | Set to `1` when behind HTTPS. |
 | `GA_SEED_DEMO` | `0` | `1` generates synthetic data on first start. |
 | `GA_HR_REST` / `GA_HR_MAX` | 52 / 187 | Used by TRIMP and zone maths. |
+| `GA_AUTO_SYNC_HOURS` | `6` | Hours between automatic syncs; `0` turns them off. |
 | `TZ` | `Etc/UTC` | Your IANA zone. Anything anchored on "today" needs it. |
 
 There is deliberately **no** `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Credentials are

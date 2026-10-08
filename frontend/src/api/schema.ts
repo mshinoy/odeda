@@ -1131,6 +1131,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/auto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Sync Auto
+         * @description Whether the app syncs on its own, how often, and how the last run went.
+         */
+        get: operations["api_sync_auto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/stop": {
         parameters: {
             query?: never;
@@ -1684,6 +1704,58 @@ export interface components {
             end?: string | null;
             /** Gear Id */
             gear_id?: number | null;
+        };
+        /**
+         * AutoSyncSource
+         * @description How one source fared in the last automatic run.
+         */
+        AutoSyncSource: {
+            /**
+             * State
+             * @description `skipped` when the source is not connected.
+             * @enum {string}
+             */
+            state: "done" | "skipped" | "error";
+            /** Message */
+            message: string;
+        };
+        /**
+         * AutoSyncStatus
+         * @description `GET /api/sync/auto`: the scheduler that syncs without the button (D8).
+         */
+        AutoSyncStatus: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Interval Hours
+             * @description 0 when off (`GA_AUTO_SYNC_HOURS=0`).
+             */
+            interval_hours: number;
+            /**
+             * Running
+             * @description A run is in progress in this process right now.
+             */
+            running: boolean;
+            /**
+             * State
+             * @description The last run's outcome; null before the first one.
+             */
+            state: ("idle" | "running" | "done" | "cancelled" | "error") | null;
+            /** Message */
+            message: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Next Run At
+             * @description Null when off. In the past when a run is due and waiting on a manual sync.
+             */
+            next_run_at: string | null;
+            /** Sources */
+            sources: {
+                [key: string]: components["schemas"]["AutoSyncSource"];
+            };
         };
         /**
          * BestEffort
@@ -4749,8 +4821,11 @@ export interface components {
             last_day: string | null;
             /** Last Run At */
             last_run_at: string | null;
-            /** Status */
-            status: ("ok" | "error" | "partial") | null;
+            /**
+             * Status
+             * @description `rate_limited` is Google Health's: the place is kept and the next run resumes.
+             */
+            status: ("ok" | "error" | "partial" | "rate_limited") | null;
             /** Note */
             note: string | null;
         };
@@ -6894,6 +6969,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_sync_auto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoSyncStatus"];
                 };
             };
         };

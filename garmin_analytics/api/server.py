@@ -21,6 +21,7 @@ import threading
 import time
 import urllib.parse
 from collections.abc import Sequence
+from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Any, Callable
 
@@ -52,6 +53,7 @@ from ..db.store import Store
 from ..edits import exercises as relabels_mod
 from ..edits import gear as gear_mod
 from ..edits import overrides as ov_mod
+from ..ingest import auto_sync as auto_mod
 from ..ingest import backfill as backfill_mod
 from ..seed import synthetic
 from . import auth as auth_mod
@@ -132,6 +134,7 @@ from .schemas import (
     SyncStarted,
     SyncStatus,
     SyncStopResult,
+    AutoSyncStatus,
     TrainingLoad,
     Trends,
 )
@@ -227,6 +230,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     settings.ensure_dirs()
 
+    job = BackgroundJob()
+    # Waits for a manual backfill rather than running alongside it; the manual routes
+    # below return 409 while this runs, for the same reason.
+    auto = auto_mod.AutoSync(settings, settings.auto_sync_hours, is_busy=lambda: job.running)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        auto.start()
+        try:
+            yield
+        finally:
+            auto.stop()
+
     app = FastAPI(
         title="Garmin Analytics",
         version=__version__,
@@ -234,6 +250,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # operationId = handler name (unique within create_app), so generated client
         # types read `api_activities` rather than `api_activities_api_activities_get`.
         generate_unique_id_function=lambda route: route.name,
+        lifespan=lifespan,
     )
     # StaticFiles does not compress, so without this the browser is sent the whole
     # 1.2 MB of JavaScript however politely it asked for gzip. The SPA's first load
@@ -241,8 +258,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # it off the small JSON replies, where the CPU costs more than the bytes save.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-    job = BackgroundJob()
     app.state.job = job
+    app.state.auto_sync = auto
 
     def store() -> Store:
         return Store.open(settings)
@@ -480,6 +497,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from ..ingest import fitbit as fitbit_mod
         from ..ingest import fitbit_sync as fitbit_sync_mod
 
+        if auto.running:
+            raise HTTPException(409, "an automatic sync is running")
         try:
             client = fitbit_mod.FitbitClient.resume(settings.token_dir)
             start = date.fromisoformat(since) if since else None
@@ -1239,6 +1258,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         if job.running:
             raise HTTPException(409, "a sync is already running")
+        if auto.running:
+            raise HTTPException(409, "an automatic sync is running")
 
         phases = payload.phases or list(backfill_mod.PHASES)
         limit = payload.detail_limit
@@ -1256,6 +1277,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         job.start(target)
         return {"status": "started", "phases": phases}
+
+    @app.get("/api/sync/auto", response_model=AutoSyncStatus)
+    def api_sync_auto() -> dict[str, Any]:
+        """Whether the app syncs on its own, how often, and how the last run went."""
+        with store() as st:
+            return auto_mod.status(st, auto)
 
     @app.post("/api/sync/stop", response_model=SyncStopResult)
     def api_sync_stop() -> dict[str, Any]:

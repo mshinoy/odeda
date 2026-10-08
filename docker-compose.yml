@@ -79,7 +79,9 @@ services:
     environment:
       PYTHONPATH: /src
       # The copy lives in this service's own volume. The token cache starts empty,
-      # so this backend is never signed in to Garmin and cannot sync.
+      # so this backend is never signed in to Garmin and cannot sync — and the
+      # automatic sync is off besides, so a reload never tries.
+      GA_AUTO_SYNC_HOURS: "0"
       GA_DATA_DIR: /data
       GA_DB: /data/garmin.db
       GA_RAW_DIR: /data/raw_archive

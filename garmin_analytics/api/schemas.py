@@ -2031,7 +2031,8 @@ class Watermark(_Model):
     """Open vocabulary: a Connect endpoint name, "activities", "export_zip", ..."""
     last_day: str | None
     last_run_at: str | None
-    status: Literal["ok", "error", "partial"] | None
+    status: Literal["ok", "error", "partial", "rate_limited"] | None
+    """`rate_limited` is Google Health's: the place is kept and the next run resumes."""
     note: str | None
 
 
@@ -2080,6 +2081,32 @@ class SyncStartRequest(_Model):
 class SyncStarted(_Model):
     status: Literal["started"]
     phases: list[SyncPhase]
+
+
+class AutoSyncSource(_Model):
+    """How one source fared in the last automatic run."""
+
+    state: Literal["done", "skipped", "error"]
+    """`skipped` when the source is not connected."""
+    message: str
+
+
+class AutoSyncStatus(_Model):
+    """`GET /api/sync/auto`: the scheduler that syncs without the button (D8)."""
+
+    enabled: bool
+    interval_hours: float
+    """0 when off (`GA_AUTO_SYNC_HOURS=0`)."""
+    running: bool
+    """A run is in progress in this process right now."""
+    state: SyncState | None
+    """The last run's outcome; null before the first one."""
+    message: str | None
+    started_at: str | None
+    finished_at: str | None
+    next_run_at: str | None
+    """Null when off. In the past when a run is due and waiting on a manual sync."""
+    sources: dict[Literal["garmin", "fitbit"], AutoSyncSource]
 
 
 class SyncStopResult(_Model):
