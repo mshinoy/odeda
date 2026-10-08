@@ -39,7 +39,7 @@ Paste one of these into a fresh session.
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 0 / 3 |
+| 11 Loose ends | K: `open` | 1 / 3 |
 
 ### Phase 0 — Foundations (done)
 
@@ -175,7 +175,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T45 | Map: open on where most of the activity is, not on every point ever recorded | in progress (loose-ends, 2026-10-08) | — | |
-| T46 | Laps: timed from where each run started on the loop; cut corners do not count | in progress (loose-ends, 2026-10-08) | — | |
+| T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | in progress (loose-ends, 2026-10-08) | — | |
 
 ### Open decisions
@@ -2123,4 +2123,22 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     an out-and-back, 4 runs of 5.0–6.1 km.
   - Some laps are missed: a run that pauses at the line, or whose GPS drifts more than
     50 m off it, loses that lap (Bin Omran: 77 of 79 runs have one timed).
+
+### T46 — Laps: from where the run began, and only whole ones
+- **Goal:** every lap run round a loop is timed, and none that cut the loop short.
+- **Files:** `garmin_analytics/analytics/routes.py`.
+- **Build:**
+  - [x] an attempt that starts on the loop is timed from its own start (`lap_start`);
+    one that reaches the loop from elsewhere, from the route's start line
+  - [x] a lap counts at 94–108% of the route's lap, not 85–120%
+- **Notes:**
+  - **Why laps were lost:** runs often start a few dozen metres from the route's
+    start line (one at 52 m, outside the 50 m gate), or partway round, so the first
+    lap was never closed. 481 of at least 576 laps were timed.
+  - **After:** 497 timed, with the outliers gone. Bin Omran 186 → 198 laps; its record
+    moves from 11:05 to 11:06, the 11:05 having been a short lap.
+  - 95% of laps are within ±4% of the route's lap; the tail beyond 94–108% was corners
+    cut and detours. Segments still use the route's start line, so they stay aligned.
+  - Still missed: a run whose watch stops short of where it began, and one that pauses
+    out of the gate's reach. Those laps are not whole.
 

@@ -596,6 +596,22 @@ class TestLaps:
         assert len(laps) == 1
         assert laps[0]["distance_m"] == pytest.approx(1200, rel=0.03)
 
+    def test_a_lap_much_shorter_than_the_loop_is_not_timed(self):
+        """A cut corner (here 10% short) must not set the record."""
+        laps = R.lap_splits(self._rows(_loop(25.0, 51.0, laps=2, side_m=270)), self.START, 1200)
+        assert laps == []
+
+    def test_laps_are_timed_from_where_the_run_started_on_the_loop(self, store):
+        """Three times round from the far corner: three laps, not two and a bit."""
+        _store_track(store, "ref", _loop(25.0, 51.0, laps=1), day="2026-01-01")
+        loop = _loop(25.0, 51.0, laps=3)
+        quarter = len(_loop(25.0, 51.0, laps=1)) // 2
+        from_far_corner = loop[quarter:] + loop[1: quarter + 1]
+        _store_track(store, "far", from_far_corner, day="2026-01-02")
+        R.cluster_all(store)
+        detail = R.route_detail(store, _route_of(store, "ref"))
+        assert {a["activity_id"]: a["laps"] for a in detail["attempts"]} == {"ref": 1, "far": 3}
+
     def test_half_a_loop_is_not_a_lap(self):
         assert R.lap_splits(self._rows(_loop(25.0, 51.0, laps=0.5)), self.START, 1200) == []
 

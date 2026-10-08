@@ -78,9 +78,11 @@ LOOP_TOL_M = 250.0
 LAP_GATE_M = 50.0
 
 #: A lap shorter or longer than this share of the route's lap is a cut corner, a
-#: detour or a lost signal, and is not timed.
-LAP_MIN_SHARE = 0.85
-LAP_MAX_SHARE = 1.2
+#: detour or a lost signal, and is not timed. On the real history 95% of laps are
+#: within ±4%; the tail beyond these bounds was corners cut, and a cut corner must not
+#: set the record.
+LAP_MIN_SHARE = 0.94
+LAP_MAX_SHARE = 1.08
 
 #: Minimum GPS points and metres for a track to be worth clustering at all.
 MIN_POINTS = 10
@@ -388,6 +390,22 @@ def lap_splits(
                 "distance_m": round(metres, 1),
             })
     return laps
+
+
+def lap_start(rows: Sequence[dict[str, Any]], route_points_json: str,
+              route_start: tuple[float, float]) -> tuple[float, float]:
+    """Where one attempt's laps are timed from: where it started, when that is on the
+    loop — a lap is each time back to where you set off — else the route's own start,
+    for a run that reached the loop from somewhere else.
+
+    Timing every attempt from the route's start line lost a lap whenever a run began a
+    few dozen metres from it (one in six laps on the real history).
+    """
+    if not rows:
+        return route_start
+    first = (float(rows[0]["lat"]), float(rows[0]["lon"]))
+    lat0, on_route, _ground_pts = _route_geometry(route_points_json)
+    return first if on_route.has(_project(first[0], first[1], lat0)) else route_start
 
 
 def _cumulative(rows: Sequence[dict[str, Any]]) -> list[float]:
@@ -1141,11 +1159,12 @@ def lap_times(store: Store, route: dict[str, Any], counted_only: bool = True) ->
     )
     start = (float(route["start_lat"]), float(route["start_lon"]))
     lap_m = float(route["distance_m"])
-    return [
-        lap["seconds"]
-        for m in members
-        for lap in lap_splits(lap_rows(store, m["activity_id"]), start, lap_m)
-    ]
+    times: list[float] = []
+    for m in members:
+        rows = lap_rows(store, m["activity_id"])
+        own = lap_start(rows, route["points"], start)
+        times.extend(lap["seconds"] for lap in lap_splits(rows, own, lap_m))
+    return times
 
 
 def route_detail(store: Store, route_id: int) -> dict[str, Any]:
@@ -1175,7 +1194,8 @@ def route_detail(store: Store, route_id: int) -> dict[str, Any]:
     lap_m = float(route["distance_m"]) if layout == "loop" else None
     start = (float(route["start_lat"]), float(route["start_lon"]))
     for a in attempts:
-        laps = lap_splits(lap_rows(store, a["activity_id"]), start, lap_m) if lap_m else []
+        rows = lap_rows(store, a["activity_id"]) if lap_m else []
+        laps = lap_splits(rows, lap_start(rows, route["points"], start), lap_m) if lap_m else []
         a["laps"] = len(laps) if lap_m else None
         a["lap_times_s"] = [lap["seconds"] for lap in laps]
         a["best_lap_s"] = min(a["lap_times_s"]) if laps else None
