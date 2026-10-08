@@ -1,36 +1,51 @@
 // The all-activities heatmap over a basemap. Lazily loaded by MapPage, because deck.gl
 // and the map library are large and the rest of the view does not need them.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LayersList } from "@deck.gl/core";
 import type { Heatmap } from "@/api/adapters";
 import { useTheme, useTokens } from "@/design/theme";
 import { DensityLegend } from "@/features/map/DensityLegend";
+import { rememberBounds } from "@/features/map/lastBounds";
 import { BaseMap } from "@/map/BaseMap";
-import { heatmapBounds, makeHeatmapLayer } from "@/map/layers/makeHeatmapLayer";
+import { heatmapBounds } from "@/map/heatmapBounds";
+import { makeHeatmapLayer } from "@/map/layers/makeHeatmapLayer";
+import type { MapBounds } from "@/map/types";
 
-/** Rendered only for a grid with cells in it, so the bounds below always exist. */
-export function HeatmapView({ heatmap }: { heatmap: Heatmap }) {
+interface HeatmapViewProps {
+  /** Undefined while the grid loads: the map is already up, the heat comes after. */
+  heatmap: Heatmap | undefined;
+  /** Where the map opens: the grid's own box, or where it last was while it loads. */
+  openingBounds: MapBounds;
+}
+
+export function HeatmapView({ heatmap, openingBounds }: HeatmapViewProps) {
   const theme = useTheme();
   const tokens = useTokens();
 
-  const bounds = useMemo(() => heatmapBounds(heatmap.cells), [heatmap.cells]);
-  // The map reads its opening view once; a later filter is a fitBounds instead.
-  const [initialBounds] = useState(bounds);
+  const bounds = useMemo(() => (heatmap ? heatmapBounds(heatmap.cells) : null), [heatmap]);
+  // The map reads its opening view once; the grid's box, and a later filter, fit to it.
+  const [initialBounds] = useState(openingBounds);
+  useEffect(() => {
+    if (bounds) rememberBounds(bounds);
+  }, [bounds]);
 
-  const layer = useMemo(
-    () => makeHeatmapLayer({ heatmap, tokens, theme }),
+  const layers: LayersList = useMemo(
+    () => (heatmap ? [makeHeatmapLayer({ heatmap, tokens, theme })] : []),
     [heatmap, tokens, theme],
   );
-  const layers: LayersList = useMemo(() => [layer], [layer]);
-
-  if (initialBounds === null) return null;
 
   return (
     <div className="relative h-full w-full">
       <BaseMap layers={layers} initialBounds={initialBounds} fitBounds={bounds} />
-      <div className="absolute bottom-3 left-3">
-        <DensityLegend tokens={tokens} />
-      </div>
+      {heatmap ? (
+        <div className="absolute bottom-3 left-3">
+          <DensityLegend tokens={tokens} />
+        </div>
+      ) : (
+        <div className="bg-background/80 text-muted-foreground absolute top-3 left-3 animate-pulse rounded-md px-2 py-1 text-xs">
+          Loading
+        </div>
+      )}
     </div>
   );
 }

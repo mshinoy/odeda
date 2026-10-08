@@ -65,6 +65,10 @@ class Settings:
     #: Hours between automatic syncs (D8). 0 turns them off. Off unless set, so a
     #: Settings built anywhere but `load_settings` never starts a scheduler by accident.
     auto_sync_hours: float = 0.0
+    #: Recompute the Map's heatmap in the background after the data changes, so the
+    #: first visit finds it ready (`api/cache.py`). Off unless set, like auto-sync;
+    #: `GA_CACHE_WARM=0` turns it off.
+    cache_warm: bool = False
     #: Where the React SPA's production build lands (`npm run build` in frontend/).
     #: A build artifact, not source: absent in a fresh clone, and the API runs without it.
     ui_dir: Path = Path(__file__).resolve().parent / "ui"
@@ -96,4 +100,5 @@ def load_settings() -> Settings:
         cookie_secure=_env_bool("GA_COOKIE_SECURE", False),
         session_ttl_days=int(os.environ.get("GA_SESSION_DAYS", 30)),
         auto_sync_hours=float(os.environ.get("GA_AUTO_SYNC_HOURS", 6)),
+        cache_warm=os.environ.get("GA_CACHE_WARM", "1") != "0",
     )

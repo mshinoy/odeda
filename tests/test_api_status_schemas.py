@@ -25,7 +25,7 @@ from garmin_analytics.analytics import reports as reports_mod
 from garmin_analytics.analytics import trends as trends_mod
 from garmin_analytics.api import auth as auth_mod
 from garmin_analytics.api import schemas
-from garmin_analytics.api import server as server_mod
+from garmin_analytics.api import cache as cache_mod
 from garmin_analytics.api.server import create_app
 from garmin_analytics.db.store import Store
 from garmin_analytics.ingest import backfill as backfill_mod
@@ -65,9 +65,9 @@ DROPPED_BUCKET_KEYS = {"label"}                    # `lo` and `hi` stay
 @pytest.fixture(autouse=True)
 def _fresh_cache():
     """The analytics cache is module-global; never let one test's DB serve another."""
-    server_mod._cache.clear()
+    cache_mod.clear()
     yield
-    server_mod._cache.clear()
+    cache_mod.clear()
 
 
 @pytest.fixture

@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { Heatmap, HeatmapCell } from "@/api/adapters";
 import { hexToRgba } from "@/design/scales";
 import { colorTokens } from "@/design/tokens";
+import { heatmapBounds } from "@/map/heatmapBounds";
 import {
   cellWeight,
   HEATMAP_LAYER_ID,
-  heatmapBounds,
   heatmapColorRange,
   makeHeatmapLayer,
 } from "@/map/layers/makeHeatmapLayer";

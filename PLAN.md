@@ -37,7 +37,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Speed | H: `open` | 0 / 1 |
+| 8 Speed | H: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -143,7 +143,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Speed · Checkpoint H: `open`
+### Phase 8 — Speed · Checkpoint H: `ready for review`
 
 The owner asked why the Map page is slow (2026-10-08). Measured: the heatmap is
 recomputed (~1–1.5 s) on most visits because the analytics cache expires after 30 s,
@@ -151,7 +151,7 @@ and the map library only starts downloading once the heatmap has arrived.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T34 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | in progress (map-speed, 2026-10-08) | — | |
+| T34 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | done | — | The Map opens without waiting for the heatmap, which is ready before it is asked for |
 
 ### Open decisions
 
@@ -175,6 +175,7 @@ its task to `needs decision: <question>`.
 | D8 | Sync runs on its own **every 6 hours**, inside the `app` server process, with `GA_AUTO_SYNC_HOURS` to change it and `0` to turn it off. Four light runs a day keep the data fresh by morning and evening without leaning on Garmin's unofficial API; a manual sync still works whenever wanted. | 2026-10-08 |
 | D9 | The Google Cloud app **stays in Testing**. Leaving it needs a public homepage and privacy-policy URL on a domain the owner controls, which a one-person app does not have. The price is that Google ends the sign-in 7 days after each consent, so it is renewed weekly from Settings, and Settings says when it is due (T32). | 2026-10-08 |
 | D10 | The activity list shows **cards by default**, each with a **Mapbox static image** of the route (one `<img>`, not a live map), a body diagram for gym sessions, HR zones or the sport's icon otherwise; the table stays behind a Cards/Table toggle (T33, DECISIONS D50). | 2026-10-08 |
+| D11 | Analytics are cached **until the data changes**, not for 30 s: the version is the database's mtime plus the WAL's size and mtime (an empty WAL ignored), and the unfiltered heatmap is recomputed in the background once a change settles (`GA_CACHE_WARM=0` turns that off). DECISIONS D51. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -2034,3 +2035,31 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     placeholder and fade in. One card per row at every width (owner's call).
   - Looked at on real data (copy on :8818), light and dark, 1440 px and 390 px: rides,
     runs, strength, swims, other, and the table toggle.
+
+### T34 — Map: the map before the heatmap, the heatmap before the ask
+- **Goal:** the Map page shows a map at once and the heat on it as soon as possible.
+- **Files:** `garmin_analytics/api/cache.py`, `garmin_analytics/api/server.py`,
+  `garmin_analytics/config.py`, `frontend/src/features/map/`, `frontend/src/map/`.
+- **Build:**
+  - [x] the analytics cache keeps an answer until the database changes, seen through
+    the WAL as well as the main file; one write empties it
+  - [x] the unfiltered heatmap is recomputed in the background at startup and once the
+    data settles after a change, never while a sync runs
+  - [x] the map code starts downloading when the page opens, alongside the heatmap
+  - [x] a return visit opens the map where it last was and draws the heat on it when
+    it arrives; a first visit still waits for the heatmap's bounds
+- **Notes:**
+  - **Measured before (real data, production build):** heatmap 1.2–1.55 s whenever
+    the 30 s cache had lapsed, and the map library requested only after it. Map style
+    requested at ~4.1 s in the headless test browser.
+  - **After:** heatmap ~0.02 s from the warmed cache (0.2–0.4 s over HTTP in the test
+    browser); style at ~3.4 s on a first visit and ~1.4 s on a return visit.
+  - **Found on the way:** with no connection held open, SQLite deletes the WAL when
+    the last connection closes and the next one recreates it empty, so counting the
+    WAL's mtime as-is would have emptied the cache on every request. An empty WAL is
+    left out of the version; `test_cache.py` covers it.
+  - Making the aggregation itself faster tops out at ~0.45 s (reading 150k points is
+    0.3 s on its own), so it was left as it is.
+  - The unfiltered view spans every country with a GPS point, so Doha is a small spot
+    on a map of half of Asia. Not changed here; worth its own look.
+

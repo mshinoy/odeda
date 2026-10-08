@@ -7,12 +7,20 @@ import { basemapStyle, mapProvider } from "@/map/basemap";
 import type { BaseMapProps } from "@/map/types";
 import { useTheme } from "@/design/theme";
 
-const MapboxBaseMap = lazy(() =>
-  import("@/map/MapboxBaseMap").then((module) => ({ default: module.MapboxBaseMap })),
-);
-const MaplibreBaseMap = lazy(() =>
-  import("@/map/MaplibreBaseMap").then((module) => ({ default: module.MaplibreBaseMap })),
-);
+const loadMapbox = () =>
+  import("@/map/MapboxBaseMap").then((module) => ({ default: module.MapboxBaseMap }));
+const loadMaplibre = () =>
+  import("@/map/MaplibreBaseMap").then((module) => ({ default: module.MaplibreBaseMap }));
+const MapboxBaseMap = lazy(loadMapbox);
+const MaplibreBaseMap = lazy(loadMaplibre);
+
+/**
+ * Starts downloading the map library in use, for a page that knows it will show a map
+ * but is still waiting for the data to put on it. Safe to call more than once.
+ */
+export function preloadBaseMap(): void {
+  void (mapProvider === "mapbox" ? loadMapbox() : loadMaplibre());
+}
 
 export function BaseMap(props: BaseMapProps) {
   const theme = useTheme();

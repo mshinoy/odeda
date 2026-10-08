@@ -506,3 +506,20 @@ small route, and given once under the list. Without a token the card draws the s
 polyline as an SVG trace, so the list works on MapLibre setups too. Images are lazy and
 the browser keeps them for 12 hours (Mapbox's `max-age`); Mapbox's free tier is 50,000
 static images a month.
+
+### D51 — the analytics cache lasts until the data changes, and is warmed (2026-10-08)
+The cache behind Status, Trends, Reports and the Map's heatmap expired after 30 s, so a
+visit more than 30 s after the last one recomputed the heatmap (~1–1.5 s on the real
+history) although nothing had changed. The 30 s was there because the key was the
+database file's mtime, and in WAL mode a commit does not touch the main file.
+
+The version is now the main file's mtime plus the WAL's size and mtime, so every commit
+moves it and nothing else does. An empty WAL is left out: SQLite deletes the WAL when
+the last connection closes and the next one recreates it empty, which on a quiet server
+is every request. A version change empties the whole cache, which also bounds it.
+
+A background thread (`CacheWarmer`) recomputes the unfiltered heatmap at startup and
+whenever the version has changed and then held still for one 15 s poll, skipping while
+a sync runs, so a sync's commits cost one warm-up at its end. `GA_CACHE_WARM=0` turns it
+off; the tests do.
+

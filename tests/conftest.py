@@ -19,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent))  # so `import fitgen` works
 # No test app ever starts the automatic sync. The tests that exercise the scheduler
 # build their own with the interval they want.
 os.environ["GA_AUTO_SYNC_HOURS"] = "0"
+# Nor warms the cache in the background; `test_cache.py` drives a warmer directly.
+os.environ["GA_CACHE_WARM"] = "0"
 
 
 @pytest.fixture

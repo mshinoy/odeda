@@ -58,6 +58,7 @@ from ..ingest import backfill as backfill_mod
 from ..seed import synthetic
 from . import auth as auth_mod
 from . import gym as gym_mod
+from .cache import CacheWarmer, cached
 from . import preview as preview_mod
 from .schemas import (
     ActivityDetail,
@@ -141,9 +142,6 @@ from .schemas import (
     Trends,
 )
 
-CACHE_TTL_S = 30.0
-_cache: dict[str, tuple[float, float, Any]] = {}
-
 #: Paths reachable without a session. Everything else is gated when a password is set.
 #: `/login` is an SPA route: the fallback serves index.html and React draws the form.
 PUBLIC_PREFIXES = ("/assets/", "/api/health", "/api/auth/", "/login", "/favicon")
@@ -151,25 +149,6 @@ PUBLIC_PREFIXES = ("/assets/", "/api/health", "/api/auth/", "/login", "/favicon"
 UI_NOT_BUILT = (
     "UI not built. Run `npm run build` in frontend/ (or `npm run dev` for development).\n"
 )
-
-
-def _db_mtime(settings: Settings) -> float:
-    try:
-        return settings.db_path.stat().st_mtime
-    except OSError:
-        return 0.0
-
-
-def cached(settings: Settings, key: str, fn: Callable[[], Any]) -> Any:
-    """Memoise on (cache key, database mtime). A sync bumps mtime and invalidates."""
-    mtime = _db_mtime(settings)
-    hit = _cache.get(key)
-    now = time.time()
-    if hit and hit[0] == mtime and now - hit[1] < CACHE_TTL_S:
-        return hit[2]
-    value = fn()
-    _cache[key] = (mtime, now, value)
-    return value
 
 
 class BackgroundJob:
@@ -228,6 +207,30 @@ def _fitbit_page(message: str) -> str:
     )
 
 
+def heatmap_cached(
+    settings: Settings,
+    activity_type: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    precision: int = routes_mod.HEATMAP_PRECISION,
+) -> dict[str, Any]:
+    """`/api/heatmap`'s body, from the cache when the data has not changed since."""
+    key = f"heatmap:{activity_type}:{start}:{end}:{precision}"
+
+    def compute() -> dict[str, Any]:
+        with Store.open(settings) as st:
+            grid = routes_mod.heatmap(st, activity_type, start, end, precision)
+        return _columnar_heatmap(grid)
+
+    return cached(settings, key, compute)
+
+
+def warm_caches(settings: Settings) -> None:
+    """What the cache warmer computes ahead of the first ask: the Map page opens on
+    the unfiltered heatmap, which is the slowest thing any page waits for (~1 s)."""
+    heatmap_cached(settings)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     settings.ensure_dirs()
@@ -236,13 +239,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Waits for a manual backfill rather than running alongside it; the manual routes
     # below return 409 while this runs, for the same reason.
     auto = auto_mod.AutoSync(settings, settings.auto_sync_hours, is_busy=lambda: job.running)
+    warmer = CacheWarmer(
+        settings,
+        warm=lambda: warm_caches(settings),
+        is_busy=lambda: job.running or auto.running,
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         auto.start()
+        if settings.cache_warm:
+            warmer.start()
         try:
             yield
         finally:
+            warmer.stop()
             auto.stop()
 
     app = FastAPI(
@@ -1230,13 +1241,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         precision: int = Query(routes_mod.HEATMAP_PRECISION, ge=2, le=6),
     ) -> dict[str, Any]:
         """Every GPS point ever recorded, snapped to a grid and counted."""
-        key = f"heatmap:{type}:{start}:{end}:{precision}"
-        with store() as st:
-            return cached(
-                settings,
-                key,
-                lambda: _columnar_heatmap(routes_mod.heatmap(st, type, start, end, precision)),
-            )
+        return heatmap_cached(settings, type, start, end, precision)
 
     @app.post("/api/routes/recluster", response_model=ReclusterResult)
     def api_recluster(
