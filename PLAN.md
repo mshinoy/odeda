@@ -37,6 +37,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
+| 8 Training plan | H: `open` | 0 / 8 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -178,13 +179,39 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
 
+### Phase 8 — Training plan · Checkpoint H: `open`
+
+The app knows what the owner **did** and what they are training **for**, and nothing
+about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
+= 75` and `TARGET_PEAK_WEEKLY_KM = 55` are numbers an agent invented, not the plan's.
+The plan itself lives in a Google Calendar the owner keeps by hand — Hal Higdon Novice 1
+remapped to the Qatar week, with the Friday long runs set deliberately above it.
+
+This phase reads that calendar, matches each prescribed session to the activity that
+fulfilled it, and answers three questions the app cannot answer today: **did I do it**,
+**am I still on the curve**, and **does the curve reach 15 January**.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | todo | — | |
+| T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | todo | T34 | |
+| T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | todo | T34 | |
+| T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | todo | T35, T36 | |
+| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | todo | T37 | |
+| T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
+| T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
+| T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
+
 ### Open decisions
 
-None yet. When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets
-its task to `needs decision: <question>`.
+When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its task to
+`needs decision: <question>`.
 
 | ID | Question | Status |
 |---|---|---|
+| D10 | **How is the ICS feed parsed?** RFC 5545 is a large spec and RRULE expansion is where hand-written parsers go wrong. Either (a) a stdlib subset parser that supports what this calendar actually uses — `FREQ=WEEKLY/DAILY`, `INTERVAL`, `BYDAY`, `COUNT`, `UNTIL`, `EXDATE`, `RECURRENCE-ID` — and refuses anything else loudly as `unsupported_rrule` rather than expanding it wrong; or (b) add `icalendar` + `python-dateutil`, breaking the no-new-dependency rule that D7 set. **Recommended: (a)**, for the same reason as D7 — the input is one known feed, and a refusal that names itself is safer than a silent misread. | open |
+| D11 | **Where does the plan live in the UI?** The nav stays at five items (Rules), so a sixth is not available. Either (a) a `/plan` route with no nav item, reached from a plan section on Status; (b) the plan folded entirely into Status with no page of its own; (c) a sixth nav item, amending the rule. **Recommended: (a)** — the week strip answers the daily question on a page the owner already opens, and the twelve-week grid is a page you visit on Sunday, not every day. T40 builds (a) unless told otherwise. | open |
+| D12 | **Does the plan replace `TARGET_PEAK_CTL` and `TARGET_PEAK_WEEKLY_KM`?** Today both are constants in `config.py` that no one chose. Once the plan is imported, the remaining prescribed volume implies both. Either (a) derive them from the plan and keep the constants as the fallback when no plan is loaded; or (b) leave the constants alone and show the plan's numbers beside them. **Recommended: (a)** — a target the app invented is worse than no target, and the race panel's warnings are currently measured against it. | open |
 
 ### Decided
 
@@ -2171,3 +2198,192 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     Numbers of routes merged into another (Bin Omran's old #40, #69, ...) are gone;
     their pages say so.
 
+
+### T34 — Schema v3: the plan's tables
+- **Goal:** the database can hold a prescribed session, where it came from, and which
+  activity fulfilled it, without touching anything that already exists.
+- **Files:** `garmin_analytics/db/schema.sql`, `garmin_analytics/db/store.py`,
+  `tests/test_store.py`.
+- **Build:**
+  - [ ] `plan_sources`: id, kind (`ics`), url, label, etag, last_modified, last_fetch_at,
+    last_error, enabled
+  - [ ] `plan_sessions`: keyed by (`source_id`, `uid`, `recurrence_id`) — day,
+    `start_local`, `end_local`, sport, kind (`easy` · `long` · `quality` · `cross` ·
+    `gym` · `rest` · `race`), `planned_min_m`, `planned_max_m`, `planned_duration_s`,
+    title, description, `parse_status`, `withdrawn_at`
+  - [ ] `plan_links`: `plan_session_id` ↔ `activity_id`, `link_type`
+    (`auto` · `manual` · `ignored`), `score`, `linked_at`; unique on `activity_id`
+  - [ ] `SCHEMA_VERSION` → 3, migration row, and the fresh-install path proved on an
+    empty database
+- **Notes:**
+  - **`withdrawn_at` is the point of the table, not a soft-delete habit.** On 2026-09-19
+    the owner deleted the Saturday Conversational Run series and a year of past
+    instances went with it. A plan table that mirrors the feed would have rewritten
+    October's adherence in November. A row that leaves the feed is stamped and kept, so
+    a past week is always judged against what was prescribed at the time.
+  - `recurrence_id` is what separates one Tuesday from the next inside a single weekly
+    series, and what lets a moved or cancelled instance override its parent.
+  - Nothing here is nullable for convenience: a session with no distance is a session
+    with no distance (`rest`, `gym`), not one whose number was lost.
+
+### T35 — Plan ingest: the ICS feed
+- **Goal:** a private calendar URL becomes rows in `plan_sessions`, repeatably, with
+  nothing kept in the repo and nothing printed to a log.
+- **Files:** `garmin_analytics/ingest/plan_ics.py`, `garmin_analytics/cli.py`,
+  `tests/test_plan_ics.py`, `tests/fixtures.py`.
+- **Build:**
+  - [ ] fetch over stdlib `urllib.request` behind an injectable transport, the way D7
+    set for Fitbit, so the whole path is testable without a network
+  - [ ] `ETag` / `If-Modified-Since` honoured; a 304 is a successful no-op run
+  - [ ] VEVENT parsing: unfolding, escaping, `DTSTART;TZID=`, `DTSTART;VALUE=DATE`,
+    `SUMMARY`, `DESCRIPTION`, `UID`, `RRULE`, `EXDATE`, `RECURRENCE-ID`, `STATUS`
+  - [ ] recurrence expanded from the plan's start to race day + 7, in `Asia/Qatar`, so
+    `day` is the local date `activities.day` already uses
+  - [ ] a rule the parser does not support sets `parse_status='unsupported_rrule'` and
+    is surfaced; it is never expanded on a guess
+  - [ ] a session that is no longer in the feed gets `withdrawn_at`; it is never deleted
+  - [ ] the raw ICS body goes to `raw_documents` like every other source
+  - [ ] `ga plan sync` and `ga plan show --week`
+- **Notes:**
+  - **The feed URL is a credential.** Anyone holding it reads the calendar. It lives in
+    `app_settings`, is masked everywhere it is returned, and must never reach a log line
+    or an error message — including the ones `urllib` writes for you.
+  - DST does not exist in `Asia/Qatar`, which removes the usual recurrence trap. Do not
+    rely on that in the code; the conversion is still explicit.
+  - Expanding from the feed's own window rather than from "today" is what keeps past
+    weeks stable. Re-running the sync must not change a single completed week.
+
+### T36 — Plan parse: prose into a prescription
+- **Goal:** "Long run 18 km" and "Easy run 6.4 km" become numbers the matcher can judge,
+  and the ones it cannot read say so instead of guessing.
+- **Files:** `garmin_analytics/plan/parse.py`, `tests/test_plan_parse.py`.
+- **Build:**
+  - [ ] distances: `6.4 km`, `8-10 km`, `8–10 km` (en dash), `5K`, `21.1 km`; a range
+    sets `planned_min_m` and `planned_max_m`, a single value sets both
+  - [ ] durations: `45 min`, `1h30`, `05:00–08:00` from the event's own times when no
+    distance is given
+  - [ ] sport and kind from keywords — run, ride, gym, rest, race — with the owner's own
+    titles (`DBRC Katara Hills`, `Olympic Track Ride`, `Lusail`) in the fixtures
+  - [ ] **the Monday rule:** a Monday event's description carries that week's `Tue:` and
+    `Fri:` targets, which override the generic text on those days' recurring series
+  - [ ] a `GA: <day> sport=run dist=18km kind=long` line anywhere in a description wins
+    over everything above, and is the only form that is exact rather than inferred
+  - [ ] anything unresolved is `parse_status='unparsed'` with the text kept, never a
+    silent default
+- **Notes:**
+  - **Why the Monday rule exists.** The DBRC Tuesday and Friday entries are single
+    recurring series and cannot hold different text per week, so the owner put each
+    week's numbers in that week's Monday event. Without this rule every Friday in the
+    plan reads as the same prescription and the long-run progression — the whole point
+    of the block — is invisible.
+  - **Why hint lines are worth writing.** The Monday descriptions quote Higdon's
+    prescription *beside* the owner's, deliberately, so the deviation is visible. Two
+    sets of numbers in one paragraph is exactly the input a regex reads backwards. A
+    `GA:` line removes the ambiguity for the dozen events that matter. Agreed with the
+    owner 2026-10-08; the lines are generated from the plan, not typed by hand, and the
+    prose above them is left alone.
+  - Fixtures must be the real event text, copied from the calendar, not text invented to
+    suit the parser. A parser tested on its author's examples proves nothing.
+
+### T37 — Plan analytics: matching, and whether it is being followed
+- **Goal:** every prescribed session gets a verdict, every week gets a number, and the
+  question "is this working" gets an answer built from what the app already measures.
+- **Files:** `garmin_analytics/analytics/plan.py`, `tests/test_plan.py`.
+- **Build:**
+  - [ ] match: same local day and a compatible sport; else ±1 day when that activity is
+    unclaimed and the plan has nothing else on it, flagged `moved`; `manual` always wins
+  - [ ] verdicts: `done` · `short` (under `planned_min_m`) · `over` · `moved` · `missed`
+    · `unplanned` (an activity no session asked for)
+  - [ ] a `rest` session is `done` when nothing was done; a run on a rest day is a
+    violation, not a bonus
+  - [ ] per week: sessions done / prescribed, km done / prescribed, long run yes or no
+  - [ ] weighted adherence, rolling 4 weeks, with the Friday long run worth more than
+    Wednesday's ride, and the weights named in one place
+  - [ ] on-curve: prescribed weekly km against actual, and the CTL the remaining plan
+    implies against the CTL trajectory
+  - [ ] efficacy, from what exists: `performance.decoupling_history` over the long runs,
+    `project_race_time` against the goal, `body.race_projection` against 85 kg
+- **Notes:**
+  - **One activity fulfils at most one session.** The unique constraint on
+    `plan_links.activity_id` is what stops a single long run from satisfying both
+    Thursday and Friday and producing an adherence number nobody earned.
+  - Matching is recomputed, never stored as the truth: an activity retyped by the owner
+    (`v_activities_included`) must move the match with it. Only `manual` and `ignored`
+    links are persisted decisions.
+  - **The honest weakness:** a 16 km run on a day prescribing 16–17 km is `done`, and a
+    16 km run done at the wrong effort is also `done`. Adherence measures compliance,
+    not execution. Decoupling is what says whether the sessions worked, and the two
+    numbers must be shown together or the first one flatters.
+
+### T38 — `/api/plan`
+- **Goal:** the frontend can draw the plan, this week, and the verdict, and the owner can
+  correct a match the matcher got wrong.
+- **Files:** `garmin_analytics/api/server.py`, `garmin_analytics/api/schemas.py`,
+  `frontend/src/api/schema.ts` (generated), `tests/test_api_schemas.py`.
+- **Build:**
+  - [ ] `GET /api/plan` — race, weeks to go, weekly prescribed vs actual, rolling
+    adherence, the efficacy block, the verdict line
+  - [ ] `GET /api/plan/week?start=` — one week's sessions with their verdicts and the
+    activity each matched
+  - [ ] `POST /api/plan/sync`, `GET /api/plan/source`, `PUT /api/plan/source` (the URL in,
+    masked out), `DELETE /api/plan/source`
+  - [ ] `PUT /api/plan/sessions/{id}/link` and `DELETE` — manual link, unlink, ignore
+  - [ ] no plan loaded is a 200 with `source: null`, never a 404 or a 500
+  - [ ] Pydantic models, then `npm run gen:api`, then commit the regenerated types
+- **Notes:**
+  - The empty state is the one that breaks in real use, twice before in this repo
+    (`report` on an empty database, `serve` with no database file). Every endpoint here
+    gets a test against a database with no `plan_sources` row.
+  - The feed URL is returned masked, always, including straight after a `PUT` that set it.
+
+### T39 — Auto-sync: the plan as a third source
+- **Goal:** the plan follows the calendar without anyone pressing anything, the way
+  Garmin and Google Health already do.
+- **Files:** `garmin_analytics/ingest/auto_sync.py`, `tests/test_auto_sync.py`.
+- **Build:**
+  - [ ] `sync_plan` beside `sync_garmin` and `sync_fitbit`; `run_once` totals 3, not 2
+  - [ ] `SOURCE_WATERMARKS` gains `plan`
+  - [ ] no source configured is a skip, not a failure
+  - [ ] a feed that 404s or 401s reports the owner-facing cause: the secret URL was reset
+- **Notes:**
+  - A 304 run is a success with nothing written. It must not look like a failure in
+    Settings, and it must still move `last_run_at`.
+  - Google rotates a calendar's private address when the owner resets it. That is the
+    failure this will actually hit, and the message should say so rather than "404".
+
+### T40 — Status: this week against the plan
+- **Goal:** opening the app answers "am I on it" without reading anything.
+- **Files:** `frontend/src/features/status/`, `frontend/src/features/plan/`,
+  `frontend/src/routes.tsx`, `frontend/src/api/adapters.ts`,
+  `frontend/src/api/queries/`, `frontend/src/charts/`.
+- **Build:**
+  - [ ] a week strip on Status: each prescribed session as done, short, missed or
+    to come, with the next one named — "Friday · long run · 18 km"
+  - [ ] one stat card: rolling 4-week adherence, with its delta
+  - [ ] the race panel's weekly-km bars get the prescribed line over them
+  - [ ] `/plan`: the full grid to race day, a row per week, click a session for the
+    activity that matched it, and a control to re-link or ignore
+  - [ ] the verdict sentence at the top of `/plan`, adherence and efficacy in one line
+  - [ ] no plan loaded: one line and a link to Settings
+- **Notes:**
+  - D11 decides whether `/plan` gets a nav item. Built as a route reached from Status
+    until the owner says otherwise — the nav stays at five (Rules).
+  - Status colours always come with a label (Rules). "Missed" is a word, not just a red
+    square, and red here means a session that did not happen, never a bad day.
+
+### T41 — Settings: the feed, and what it could not read
+- **Goal:** the owner can connect a calendar, see what the parser made of it, and fix the
+  events it could not read.
+- **Files:** `frontend/src/features/settings/`, `frontend/src/api/queries/`.
+- **Build:**
+  - [ ] paste the private ICS URL, see it masked, test it, remove it
+  - [ ] last sync, next sync, last error, and a Sync now that is disabled during a run
+  - [ ] the parse review list: every `unparsed` or `unsupported_rrule` session with its
+    date and its original text, so a silent miss is a visible one
+  - [ ] the sessions the owner has re-linked or ignored by hand, and how to undo that
+- **Notes:**
+  - Where to find the URL belongs in the panel, not in a README: Google Calendar →
+    Settings for that calendar → "Secret address in iCal format".
+  - The parse review list is the honesty mechanism for T36. Without it, a session the
+    parser dropped is simply absent from the adherence denominator and the number
+    silently improves.
