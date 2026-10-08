@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 7 / 9 |
+| 8 Training plan | H: `open` | 7 / 10 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -180,6 +180,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T40 | Status: this week against the plan, and the planned line on the race panel | in progress (patti, 2026-10-08) | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
+| T48 | An ignored session is actually ignored | todo | T37 | |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2416,6 +2417,26 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - The parse review list is the honesty mechanism for T36. Without it, a session the
     parser dropped is simply absent from the adherence denominator and the number
     silently improves.
+
+### T48 — An ignored session is actually ignored
+- **Goal:** the second of the two decisions the owner is allowed to make does something.
+- **Files:** `garmin_analytics/analytics/plan.py`, `garmin_analytics/api/schemas.py`,
+  `frontend/src/api/schema.ts` (generated), `tests/test_plan_adherence.py`,
+  `tests/test_plan_api.py`.
+- **Build:**
+  - [ ] `judge_all` reads `plan_links` rows of type `ignored`, not only `manual`
+  - [ ] an ignored day leaves the adherence denominator, the way an optional one does
+  - [ ] the API says a session is ignored, so the view can show it as a decision rather
+    than losing it silently
+- **Notes:**
+  - Found while building T40's re-link control. `set_link(..., ignore=True)` has always
+    written the row and `_manual_links` has always selected `link_type = 'manual'`, so
+    ignoring a session wrote a decision nothing ever read: the percentage did not move.
+    T34's card says `manual` and `ignored` are both "things the owner said"; only one of
+    them was.
+  - **An ignored session must stay visible.** Dropping it from the response would make
+    the denominator fall for no stated reason, which is the same silent improvement the
+    parse review list exists to prevent (T41).
 
 ### T42 — Targets the plan actually asks for
 - **Goal:** no number in this app that measures the owner against a target is a number
