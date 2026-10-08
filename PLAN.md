@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `open` | 0 / 1 |
-| 8 Training plan | H: `open` | 5 / 9 |
+| 8 Training plan | H: `open` | 6 / 9 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -209,7 +209,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
-| T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
+| T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
 | T42 | Targets come from the plan; the invented constants go | todo | T37 | |
@@ -2603,3 +2603,27 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - Types were generated against a scratch database on port 8831, which was stopped and
     deleted afterwards. The owner's container was not touched. `npm run typecheck` clean.
   - 20 tests; suite green at 1341 passed, 1 skipped.
+
+### T39 — The calendar keeps itself current
+- **Goal:** the plan follows the calendar on the same schedule as everything else,
+  without anyone pressing anything.
+- **Files:** `garmin_analytics/ingest/auto_sync.py`, `garmin_analytics/api/schemas.py`,
+  `frontend/src/api/schema.ts` (generated), `tests/test_auto_sync.py`.
+- **Build:**
+  - [x] `sync_plan` beside `sync_garmin` and `sync_fitbit`; `run_once` totals 3
+  - [x] `SOURCE_WATERMARKS` gains `plan`
+  - [x] no calendar subscribed is a skip, a 304 is a good run that wrote nothing
+  - [x] a feed error reports the owner-facing cause
+- **Notes:**
+  - **The plan runs last, and the order is load-bearing.** Adherence is judged against
+    activities, so reading the calendar before Garmin has been pulled would score this
+    morning's long run as missed until the next run six hours later. A test pins the
+    order rather than trusting the tuple to stay as written.
+  - **Adding a source 500s `/api/sync/auto` until the schema is widened.** `sources` is
+    keyed by `Literal["garmin", "fitbit"]`, so the first run with a `plan` key failed
+    response validation. Same shape as the `rate_limited` watermark status in T30: a
+    value the model does not allow is a 500 on a route nobody touched. The Literal now
+    carries a note to widen it.
+  - A 304 is reported as "Training plan unchanged" rather than as silence, so Settings
+    can tell "looked, nothing new" from "has not looked".
+  - 1349 passed, 1 skipped; `npm run typecheck` clean.

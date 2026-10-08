@@ -226,18 +226,20 @@ class TestRunOnce:
         assert sources["garmin"]["state"] == "error"
         assert sources["fitbit"]["state"] == "done"
 
-    def test_messages_of_both_sources_are_kept(self, store, settings):
+    def test_messages_of_every_source_are_kept(self, store, settings):
         out = A.run_once(
             store, settings,
             garmin=lambda st, s: {"state": "done", "message": "1 new activity."},
             fitbit=lambda st, s: {"state": "skipped", "message": "not connected"},
+            plan=lambda st, s: {"state": "done", "message": "7 prescribed sessions."},
         )
         assert out == {
             "state": "done",
-            "message": "1 new activity.",
+            "message": "1 new activity. 7 prescribed sessions.",
             "sources": {
                 "garmin": {"state": "done", "message": "1 new activity."},
                 "fitbit": {"state": "skipped", "message": "not connected"},
+                "plan": {"state": "done", "message": "7 prescribed sessions."},
             },
         }
 
@@ -402,3 +404,43 @@ class TestSigninExpiryInStatus:
         body = TestClient(create_app(settings)).get("/api/fitbit/status").json()
         assert body["signin_expires_at"] is None
 
+
+
+class TestPlanSource:
+    """The calendar as the third source."""
+
+    def test_no_calendar_is_a_skip_not_a_failure(self, store, settings):
+        out = A.sync_plan(store, settings)
+        assert out["state"] == "skipped"
+
+    def test_an_unchanged_feed_is_a_good_run_that_wrote_nothing(self, store, settings, monkeypatch):
+        from garmin_analytics.ingest import plan_ics
+
+        monkeypatch.setattr(plan_ics, "sync_plan",
+                            lambda st, *a, **k: {"status": "unchanged"})
+        out = A.sync_plan(store, settings)
+        assert out["state"] == "done"
+        assert "unchanged" in out["message"]
+
+    def test_a_dead_address_is_an_error_the_owner_can_act_on(self, store, settings, monkeypatch):
+        from garmin_analytics.ingest import plan_ics
+
+        def boom(st, *a, **k):
+            raise plan_ics.PlanFeedError("the private address was reset")
+
+        monkeypatch.setattr(plan_ics, "sync_plan", boom)
+        out = A.sync_plan(store, settings)
+        assert out["state"] == "error"
+        assert "reset" in out["message"]
+
+    def test_the_plan_runs_after_garmin(self, store, settings):
+        """Adherence is judged against activities. Reading the calendar before Garmin
+        has been pulled scores this morning's long run as missed for six hours."""
+        order = []
+        A.run_once(
+            store, settings,
+            garmin=lambda st, s: order.append("garmin") or {"state": "skipped", "message": ""},
+            fitbit=lambda st, s: order.append("fitbit") or {"state": "skipped", "message": ""},
+            plan=lambda st, s: order.append("plan") or {"state": "skipped", "message": ""},
+        )
+        assert order == ["garmin", "fitbit", "plan"]

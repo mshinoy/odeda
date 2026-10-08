@@ -2163,7 +2163,10 @@ class AutoSyncStatus(_Model):
     finished_at: str | None
     next_run_at: str | None
     """Null when off. In the past when a run is due and waiting on a manual sync."""
-    sources: dict[Literal["garmin", "fitbit"], AutoSyncSource]
+    sources: dict[Literal["garmin", "fitbit", "plan"], AutoSyncSource]
+    """One entry per source the automatic run touched. **Widen this when a source is
+    added**: a key the Literal does not allow makes `/api/sync/auto` answer 500, which
+    is how adding the plan announced itself."""
 
 
 class SyncStopResult(_Model):

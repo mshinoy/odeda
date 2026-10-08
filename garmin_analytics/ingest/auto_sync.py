@@ -167,19 +167,55 @@ def sync_fitbit(
     }
 
 
+def sync_plan(store, settings) -> dict[str, Any]:
+    """The training calendar, if one is subscribed.
+
+    Last of the three deliberately: it is the only source whose usefulness depends on
+    another having run. Adherence is judged against activities, so reading the calendar
+    before Garmin has been pulled would score this morning's long run as missed until
+    the next run six hours later.
+    """
+    from . import plan_ics as plan_mod
+
+    try:
+        result = plan_mod.sync_plan(store)
+    except plan_mod.PlanFeedError as exc:
+        # The message already names the likely cause — usually a reset secret address.
+        return {"state": "error", "message": str(exc)}
+
+    if result["status"] == "skipped":
+        return {"state": "skipped", "message": "No training calendar is subscribed."}
+    if result["status"] == "unchanged":
+        # A 304 is a good run that wrote nothing, not a failure and not silence.
+        return {"state": "done", "message": "Training plan unchanged.", "sessions": 0}
+
+    n = int(result["sessions"])
+    extra = ""
+    if result.get("withdrawn"):
+        extra += f" {result['withdrawn']} no longer in the calendar."
+    if result.get("parsed_unparsed"):
+        extra += f" {result['parsed_unparsed']} could not be read."
+    return {
+        "state": "done",
+        "message": f"{n} prescribed session{'' if n == 1 else 's'}.{extra}",
+        "sessions": n,
+    }
+
+
 def run_once(
     store,
     settings,
     garmin: Callable[[Any, Any], dict[str, Any]] = sync_garmin,
     fitbit: Callable[[Any, Any], dict[str, Any]] = sync_fitbit,
+    plan: Callable[[Any, Any], dict[str, Any]] = sync_plan,
 ) -> dict[str, Any]:
-    """Both sources, one after the other, recorded in the `auto` row of `sync_status`."""
+    """Every source, one after the other, recorded in the `auto` row of `sync_status`."""
     store.set_sync_status(
-        JOB, state="running", phase="garmin", done=0, total=2,
+        JOB, state="running", phase="garmin", done=0, total=3,
         started_at=_now(), finished_at=None, message="automatic sync started",
     )
     sources: dict[str, dict[str, Any]] = {}
-    for done, (name, step) in enumerate((("garmin", garmin), ("fitbit", fitbit))):
+    for done, (name, step) in enumerate((("garmin", garmin), ("fitbit", fitbit), ("plan", plan))):
         store.set_sync_status(JOB, phase=name, done=done)
         try:
             sources[name] = step(store, settings)
@@ -196,7 +232,7 @@ def run_once(
         state = "done"
         message = " ".join(r["message"] for r in sources.values() if r["state"] == "done")
     store.set_sync_status(
-        JOB, state=state, phase="", done=2, finished_at=_now(), message=message,
+        JOB, state=state, phase="", done=3, finished_at=_now(), message=message,
         cursor=json.dumps(sources),
     )
     return {"state": state, "message": message, "sources": sources}
@@ -316,7 +352,7 @@ class AutoSync:
 
 
 #: The watermark that moves when each source syncs, however it was started.
-SOURCE_WATERMARKS = {"garmin": "activities", "fitbit": "fitbit_body"}
+SOURCE_WATERMARKS = {"garmin": "activities", "fitbit": "fitbit_body", "plan": "plan"}
 
 
 def _resolved_since(store, sources: dict[str, Any], finished_at: str | None) -> None:
