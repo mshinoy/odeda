@@ -269,3 +269,34 @@ class TestTuesdayClubDistance:
         )
         got = P.parse_event("Katara Hills - Run - DBRC", description)
         assert (got.min_m, got.max_m) == (8000, 10000)
+
+
+class TestQuotedVersusOwnAnnotation:
+    """Found only once the live calendar was read: the real text puts the owner's own
+    note and Higdon's prescription in two parentheticals side by side."""
+
+    WEEK_9 = (
+        "HIGDON NOVICE 1 - WEEK 9 of 12 || MON (today): 8.0 km easy. || FRI - DBRC long "
+        "run: target 16 km (recovery)  (Higdon prescribes 10K race - lower than you "
+        "already run). || SUN = rest."
+    )
+
+    def test_a_quoted_race_does_not_make_the_session_a_race(self):
+        """`(Higdon prescribes 10K race …)` turned 25 December's recovery long run into
+        a race, which would have weighted it five times its worth."""
+        note = P.parse_week_note(self.WEEK_9)
+        assert note[FRIDAY].kind != "race"
+        assert note[FRIDAY].min_m == 16000
+
+    def test_the_owners_own_parenthetical_still_counts(self):
+        week_6 = (
+            "HIGDON NOVICE 1 - WEEK 6 of 12 || FRI - DBRC long run: target 14 km (easy "
+            "week)  (Higdon prescribes 5K race - lower than you already run). || SUN = rest."
+        )
+        note = P.parse_week_note(week_6)
+        assert note[FRIDAY].kind != "race"
+        assert note[FRIDAY].min_m == 14000
+
+    def test_the_real_race_is_still_a_race(self):
+        note = P.parse_week_note(WEEK_12_RACE)
+        assert note[FRIDAY].kind == "race"

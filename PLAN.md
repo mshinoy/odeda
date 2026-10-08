@@ -2523,7 +2523,15 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - Where a week note and a titled event disagree — W10 says 18-20 km on Monday and
     14.5 km in the event title — **the note wins**, because that is where the owner
     deliberately sets targets above Higdon. Decided with the owner 2026-10-08.
-  - 38 tests. Suite green at 1292 passed, 1 skipped.
+  - **The live calendar found a bug three weeks of fixtures had not.** The real text
+    puts the owner's own annotation and Higdon's beside each other —
+    `target 16 km (recovery)  (Higdon prescribes 10K race - lower than you already
+    run)` — and `kind` was read from the unstripped clause, so 25 December's recovery
+    long run came out as a **race**, which weights five times its worth. A parenthetical
+    naming Higdon is now removed before the kind is read; the owner's own is kept,
+    because `(recovery)` and `(easy week)` are the only place a week's character is
+    written down. Fixed 2026-10-08 against the live feed.
+  - 41 tests. Suite green at 1352 passed, 1 skipped.
 
 ### T37 — Whether the training happened
 - **Goal:** every prescribed day gets a verdict against what was actually done, and

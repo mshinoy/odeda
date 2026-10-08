@@ -71,6 +71,15 @@ _TARGET_CUES = ("TARGET", "CLUB DOES", "CLUB RUNS", "BUILD TOWARD", "BUILD TO")
 _REFERENCE_CUES = ("HIGDON SAYS", "HIGDON PRESCRIBES", "HIGDON ASKS", "PLAN ASKS")
 
 _PAREN = re.compile(r"\([^)]*\)")
+#: A parenthetical that *quotes* someone else's prescription, as opposed to one of the
+#: owner's own annotations. `(recovery)` and `(easy week)` are his; `(Higdon prescribes
+#: 10K race …)` is not, and reading a kind out of it turned a recovery long run into a
+#: race.
+_REFERENCE_PAREN = re.compile(
+    r"\([^)]*(?:%s)[^)]*\)" % "|".join(c.replace(" ", r"\s+") for c in
+                                       ("HIGDON", "PLAN ASKS")),
+    re.IGNORECASE,
+)
 _REFERENCE_CLAUSE = re.compile(
     r"(?:%s)\b[^;.|]*" % "|".join(c.replace(" ", r"\s+") for c in _REFERENCE_CUES),
     re.IGNORECASE,
@@ -157,9 +166,21 @@ def find_kind(text: str) -> str | None:
 
 
 def strip_reference(text: str) -> str:
-    """Remove what is quoted rather than prescribed: parentheticals, and any clause
-    opened by "Higdon says" or "Higdon prescribes" up to the next `;`, `.` or `||`."""
-    return _REFERENCE_CLAUSE.sub(" ", _PAREN.sub(" ", text))
+    """Remove what is quoted rather than prescribed.
+
+    Two different things get removed and the distinction matters: a parenthetical that
+    names Higdon is a reference, while `(recovery)` and `(easy week)` are the owner's
+    own annotations and are the only place a week's character is written down. Stripping
+    every parenthetical lost the first; stripping none of them let `(Higdon prescribes
+    10K race)` turn 25 December's recovery long run into a race.
+    """
+    return _REFERENCE_CLAUSE.sub(" ", _REFERENCE_PAREN.sub(" ", text))
+
+
+def strip_for_distance(text: str) -> str:
+    """As `strip_reference`, and then every remaining parenthetical: an aside holding a
+    number is never this session's target."""
+    return _PAREN.sub(" ", strip_reference(text))
 
 
 def find_distance(text: str) -> tuple[float | None, float | None]:
@@ -169,7 +190,7 @@ def find_distance(text: str) -> tuple[float | None, float | None]:
     anywhere in the text, so a sentence holding both the owner's number and someone
     else's resolves to the owner's.
     """
-    cleaned = strip_reference(text)
+    cleaned = strip_for_distance(text)
     for cue in _TARGET_CUES:
         match = re.search(rf"{cue.replace(' ', r'\s+')}\b(?P<rest>[^;.|]*)", cleaned, re.IGNORECASE)
         if match:
@@ -195,7 +216,7 @@ def _first_distance(text: str) -> tuple[float | None, float | None]:
 
 
 def find_duration(text: str) -> float | None:
-    match = _DURATION.search(strip_reference(text))
+    match = _DURATION.search(strip_for_distance(text))
     if not match:
         return None
     if match.group("m"):
@@ -276,9 +297,9 @@ def parse_week_note(description: str) -> dict[int, Prescription]:
             days = _days_named(clause)
             if not days:
                 continue
-            sport = find_sport(clause)
+            sport = find_sport(strip_reference(clause))
             lo, hi = find_distance(clause)
-            kind = find_kind(clause)
+            kind = find_kind(strip_reference(clause))
             if sport is None and lo is None and kind is None:
                 continue
             pres = Prescription(
