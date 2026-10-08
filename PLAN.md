@@ -35,6 +35,8 @@ Paste one of these into a fresh session.
 | 3 Health & trends | C: `approved` | 5 / 5 |
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
+| 6 Automatic sync | F: `ready for review` | 3 / 3 |
+| 7 Activity cards | G: `open` | 0 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -129,6 +131,16 @@ was eleven days behind. This phase makes the app keep itself current.
 | T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | done | — | Auto-sync: the data stops being as old as the last button press |
 | T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | done | T30 | Settings: it syncs on its own now, and says so |
 | T32 | Google sign-in: show when it expires, warn before, reconnect in one step | done | T31 | Google's weekly sign-out, said before it happens and renewed in one step |
+
+### Phase 7 — Activity cards · Checkpoint G: `open`
+
+The activity list is a table: date, name and five numbers. The owner asked for
+landscape cards, each with a map beside it and the stats its type is about, the way
+Strava shows a feed but laid out for a wide screen.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | in progress (activity-cards, 2026-10-08) | — | |
 
 ### Open decisions
 
@@ -1974,3 +1986,24 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - **Not looked at in a browser.** The screenshot was taken, with a fake token in
     `api-dev`'s scratch cache and removed afterwards, but the tool that reads images
     was unreachable. Its tests cover the three states.
+
+### T33 — Activities: cards with a map beside each
+- **Goal:** each activity in the list says what it was at a glance: where it went, or
+  what it trained, and the numbers its type is judged by.
+- **Files:** `garmin_analytics/api/server.py`, `garmin_analytics/api/schemas.py`,
+  `garmin_analytics/api/preview.py`, `frontend/src/api/adapters.ts`,
+  `frontend/src/features/activities/`, `frontend/src/map/staticMap.ts`.
+- **Build:**
+  - [ ] list rows carry a simplified, encoded GPS track, time in each HR zone, and a gym
+    session's exercises; batched per page, the detail endpoint unchanged
+  - [ ] the map is a Mapbox static image (one `<img>` per card, the route drawn by
+    Mapbox); without a token, an SVG trace of the same track
+  - [ ] no GPS: strength shows a small body diagram shaded by muscle load and its top
+    exercises; anything else shows its HR zones, or its type icon
+  - [ ] the stats on a card follow its kind: pace for runs, speed and power for rides,
+    pace per 100 m for swims, sets, reps and volume for strength
+  - [ ] Cards / Table toggle and a sort menu, both in the URL; cards are the default
+- **Notes:**
+  - Decided with the owner, 2026-10-08: Mapbox static images over live maps (50 WebGL
+    contexts on one page is past what a browser allows), per-type visuals for the 227
+    activities without GPS, and the table kept behind a toggle.
