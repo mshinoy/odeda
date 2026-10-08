@@ -450,3 +450,23 @@ export function formatAgo(iso: string | null | undefined, now: Date = new Date()
   if (hours < 24) return `${hours} h ago`;
   return `${integer.format(Math.floor(hours / 24))} d ago`;
 }
+
+/** The other direction: "in 12 min", "in 4 h", "in 2 d", and "now" once it is due. */
+export function formatIn(iso: string | null | undefined, now: Date = new Date()): string {
+  const then = iso ? parseWallClock(iso) : null;
+  if (!then) return MISSING;
+  const nowWall = Date.UTC(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+  );
+  const minutes = Math.ceil((then.getTime() - nowWall) / 60_000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `in ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `in ${hours} h`;
+  return `in ${integer.format(Math.round(hours / 24))} d`;
+}

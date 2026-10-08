@@ -1,22 +1,29 @@
 import { useGarminStatus } from "@/api/queries/useGarmin";
 import { useSyncEstimate, useStopSync } from "@/api/queries/useSettings";
-import { lastSyncedAt, useStartSync, useSyncStatus } from "@/api/queries/useStatus";
+import { lastSyncedAt, useAutoSync, useStartSync, useSyncStatus } from "@/api/queries/useStatus";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/StatusDot";
 import { WatermarkTable } from "@/features/settings/WatermarkTable";
+import { autoSyncLine, autoSyncProblems } from "@/features/settings/autoSyncSummary";
 import { estimateFacts, formatEstimateRange } from "@/features/settings/syncEstimate";
 import { formatAgo, formatPercent } from "@/lib/format";
 
-/** Start or stop a backfill, see what it would cost, and how far each endpoint got. */
+/**
+ * Start or stop a backfill, see what it would cost, and how far each endpoint got — and
+ * that the app syncs on its own in between, when it last did, and what went wrong.
+ */
 export function SyncPanel() {
   const garmin = useGarminStatus();
   const sync = useSyncStatus();
+  const auto = useAutoSync();
   const estimate = useSyncEstimate();
   const start = useStartSync();
   const stop = useStopSync();
 
   const running = sync.data?.state === "running";
+  // The server refuses a manual sync while an automatic one runs (409); say so instead.
+  const autoRunning = auto.data?.running === true;
   const connected = garmin.data?.connected === true;
 
   return (
@@ -54,13 +61,24 @@ export function SyncPanel() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!connected || start.isPending}
+                disabled={!connected || autoRunning || start.isPending}
                 onClick={() => start.mutate()}
               >
                 Sync now
               </Button>
             )}
           </div>
+
+          {auto.data && (
+            <div className="flex flex-col gap-1">
+              <p className="text-muted-foreground text-sm">{autoSyncLine(auto.data)}</p>
+              {autoSyncProblems(auto.data).map((problem) => (
+                <p key={problem.source} className="text-delta-bad text-sm">
+                  {problem.source}: {problem.message}
+                </p>
+              ))}
+            </div>
+          )}
 
           {!connected && (
             <p className="text-muted-foreground text-sm">Connect a Garmin account above to sync.</p>

@@ -1,5 +1,6 @@
 import { Footprints, Settings } from "lucide-react";
 import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
+import { useAutoSync } from "@/api/queries/useStatus";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -18,6 +19,9 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
 }
 
 export function AppShell() {
+  // Here rather than on Settings: a run that lands while any page is open refreshes it.
+  useAutoSync();
+
   return (
     <div className="min-h-svh">
       <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">

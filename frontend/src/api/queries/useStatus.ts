@@ -10,6 +10,7 @@ export type Summary = components["schemas"]["Summary"];
 export type TrainingLoad = components["schemas"]["TrainingLoad"];
 export type SyncStatus = components["schemas"]["SyncStatus"];
 export type GarminStatus = components["schemas"]["GarminStatus"];
+export type AutoSyncStatus = components["schemas"]["AutoSyncStatus"];
 
 export function useSummary() {
   return useQuery({
@@ -52,6 +53,37 @@ export function useSyncStatus() {
     }
     wasRunning.current = running;
   }, [running, client]);
+
+  return query;
+}
+
+const AUTO_SYNC_POLL_MS = 60_000;
+
+/**
+ * The automatic sync, polled once a minute (every 2 s while it runs).
+ *
+ * Mounted in the shell, so a page left open picks up what a run brought in: when the
+ * last run's `finished_at` moves, everything is refetched — the same thing a manual sync
+ * does when it finishes. A run is seconds long, so watching for it to *stop running*
+ * would usually miss it between polls; the finish time cannot be missed.
+ */
+export function useAutoSync() {
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: queryKeys.autoSync,
+    queryFn: async () => unwrap(await api.GET("/api/sync/auto")),
+    refetchInterval: (q) => (q.state.data?.running ? SYNC_POLL_MS : AUTO_SYNC_POLL_MS),
+  });
+
+  const lastFinished = useRef<string | null | undefined>(undefined);
+  const finished = query.data?.finished_at;
+  useEffect(() => {
+    if (finished === undefined) return;
+    if (lastFinished.current !== undefined && finished !== lastFinished.current) {
+      void client.invalidateQueries();
+    }
+    lastFinished.current = finished;
+  }, [finished, client]);
 
   return query;
 }

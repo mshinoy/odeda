@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatAgo,
+  formatIn,
   formatCountRange,
   formatDays,
   formatRoughDuration,
@@ -403,6 +404,18 @@ describe("formatAgo", () => {
     expect(formatAgo("2026-09-24T09:00:00", now)).toBe("3 h ago");
     expect(formatAgo("2026-09-22T12:00:00", now)).toBe("2 d ago");
     expect(formatAgo(null, now)).toBe("–");
+  });
+});
+
+describe("formatIn", () => {
+  const now = new Date(2026, 8, 24, 12, 0, 0);
+
+  it("counts forward, and says now once it is due", () => {
+    expect(formatIn("2026-09-24T12:11:30", now)).toBe("in 12 min");
+    expect(formatIn("2026-09-24T15:50:00", now)).toBe("in 4 h");
+    expect(formatIn("2026-09-26T12:00:00", now)).toBe("in 2 d");
+    expect(formatIn("2026-09-24T11:00:00", now)).toBe("now");
+    expect(formatIn(null, now)).toBe("–");
   });
 });
 

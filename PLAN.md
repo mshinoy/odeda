@@ -118,7 +118,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | done | T24, T25 | Settings: connect the scale, or import it from a ZIP |
 
-### Phase 6 — Automatic sync · Checkpoint F: `open`
+### Phase 6 — Automatic sync · Checkpoint F: `ready for review`
 
 Both sources are pull-only and only pulled when the owner presses a button, so the
 data is as old as the last time anyone remembered: on 2026-10-08 the newest Garmin day
@@ -127,7 +127,7 @@ was eleven days behind. This phase makes the app keep itself current.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | done | — | Auto-sync: the data stops being as old as the last button press |
-| T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | in progress (auto-sync, 2026-10-08) | T30 | |
+| T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | done | T30 | Settings: it syncs on its own now, and says so |
 
 ### Open decisions
 
@@ -1912,3 +1912,31 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     `--reload` picked up the new code with the scheduler on. Its token cache has always
     been empty, so nothing could leave the machine, but it was recreated so that is true
     by configuration as well as by accident.
+
+### T31 — Settings: it syncs on its own, and says so
+- **Goal:** the owner can see that sync is automatic, when it last ran and next runs,
+  and what to do when a source fails, without reading logs.
+- **Files:** `frontend/src/features/settings/`, `frontend/src/api/queries/useStatus.ts`,
+  `frontend/src/features/shell/AppShell.tsx`, `frontend/src/lib/format.ts`.
+- **Build:**
+  - [x] one line under "Last synced": "Syncs on its own every 6 hours · last ran 2 h ago ·
+    next in 4 h", or that it is running, or off
+  - [x] a source that failed in the last run, by the name the owner knows it by, with
+    its message, which already says what to do
+  - [x] Sync now disabled while an automatic run holds the network (the server would
+    answer 409)
+  - [x] a page left open refreshes when a run lands
+- **Notes:**
+  - **The shell polls, not the panel.** `useAutoSync` is mounted in `AppShell`, once a
+    minute, so whatever page is open is refetched when a run finishes. It watches
+    `finished_at` change rather than `running` go false: a quiet run is a few seconds
+    long and would fall between polls almost every time.
+  - "Last synced" needed no change. `lastSyncedAt` already takes the newest of every
+    watermark's `last_run_at`, and an automatic run moves those like any other.
+  - **Errors are hidden when it is off.** The screenshot showed a failed Garmin run
+    under "Automatic sync is off", which reads as a live problem and is not one. A test
+    pins it.
+  - Looked at in light and dark on :5173 against `api-dev`, with a failed run written
+    into that service's scratch copy of the database and removed afterwards.
+    `FitbitPanel.tsx` fails `prettier --check` on `master` already; it is left alone
+    here.

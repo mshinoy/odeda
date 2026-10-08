@@ -68,6 +68,8 @@ export const queryKeys = {
   /** Read off disk, so opening Settings never depends on the network to render. */
   fitbitStatus: ["fitbit-status"] as const,
   syncStatus: ["sync-status"] as const,
+  /** The scheduler that syncs without the button; polled by the shell. */
+  autoSync: ["auto-sync"] as const,
   syncEstimate: ["sync-estimate"] as const,
   /** The count of the user's edits; an edit anywhere moves it. */
   overrides: ["overrides"] as const,
