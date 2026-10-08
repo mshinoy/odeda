@@ -195,7 +195,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 |---|---|---|---|---|
 | T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | done | — | Schema v3: somewhere to put what was prescribed |
 | T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
-| T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | todo | T34 | |
+| T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | todo | T35, T36 | |
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | todo | T37 | |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
@@ -2453,3 +2453,45 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     sync does reset is `parse_status`, to `pending`, which is what makes an edited
     description get re-read instead of keeping a stale target.
   - 50 new tests. Suite green at 1254 passed, 1 skipped.
+
+### T36 — What the week actually asks for
+- **Goal:** the calendar's prose becomes a prescription the matcher can judge, and
+  whatever cannot be read says so instead of being guessed.
+- **Files:** `garmin_analytics/plan/parse.py`, `tests/test_plan_parse.py`.
+- **Build:**
+  - [x] three layers, most trusted first: a `GA:` hint line, Monday's week note, the
+    event's own title
+  - [x] the week note split on `||` and then on sentences, each clause naming its days
+  - [x] the owner's number beaten out of the Higdon number quoted beside it
+  - [x] ranges kept as ranges; `rest`, `race` and `optional` recognised
+  - [x] proved against all 115 events of the real calendar: 115 `ok`, 0 `unparsed`
+- **Notes:**
+  - **Every fixture in the test file is real text**, copied from the calendar on
+    2026-10-08. Three of the bugs below are invisible to invented examples.
+  - **The Higdon number sits in the same sentence as the owner's.** `target 18 km
+    (Higdon prescribes 11.3 …)` and `Higdon says 7.2 km; club does 8-10 km` both hold two
+    distances and one intention. Parentheticals and any clause opened by "Higdon
+    says/prescribes" are removed before a distance is looked for, then cues — `target`,
+    `club does`, `club runs`, `build toward` — pick the owner's.
+  - **A day can hold two sports and the note is written per day.** Every Monday is an
+    easy run *and* a gym session, so applying Monday's note to both gave the gym a
+    7.2 km target. A note now speaks only for an event of its own sport, or one whose
+    text named no sport. The asymmetry matters: a note that names no sport —
+    `MON (today): 7.2 km easy.` never says "run" — does **not** get to claim an event
+    that does. Reading "no sport stated" as "any sport" was the bug.
+  - **One `||` segment can hold two sentences about different days.** `WED Lusail ride
+    + SAT Olympic ride = Higdon cross-training. SUN = rest.` gave Wednesday and
+    Saturday a rest day. Segments are split on a full stop followed by whitespace —
+    and deliberately *not* on semicolons, because `Higdon says 7.2 km; club does
+    8-10 km` is one thought and splitting it strands the club distance in a clause
+    naming no day.
+  - **Distances require an explicit unit.** The gym description is 2.5 KB holding
+    `1x8-10 per leg` and `2x10-12`. A bare-number reader prescribes an 8-10 km run out
+    of a set of step-ups.
+  - **The Friday series' description is standing advice, not this week's target.** It
+    names six distances, none of them current, and says so itself. A description is only
+    consulted for a number when it is short and holds no `||`.
+  - Where a week note and a titled event disagree — W10 says 18-20 km on Monday and
+    14.5 km in the event title — **the note wins**, because that is where the owner
+    deliberately sets targets above Higdon. Decided with the owner 2026-10-08.
+  - 38 tests. Suite green at 1292 passed, 1 skipped.
