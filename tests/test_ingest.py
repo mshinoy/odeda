@@ -348,6 +348,20 @@ class TestSyncDailyEndpoint:
         assert store.scalar("SELECT COUNT(*) FROM sleep") == 1
         assert store.scalar("SELECT COUNT(*) FROM raw_documents") == 5
 
+    @pytest.mark.parametrize("empty", [None, []], ids=["404", "empty list"])
+    def test_an_endpoint_the_watch_never_fills_still_gets_a_watermark(self, store, empty):
+        """Training readiness answers `[]` every day on the owner's watch. With the
+        watermark tied to days that produced rows, it stayed at none, and every sync
+        re-walked 400 days of it: four minutes of requests per automatic run, found on
+        the first one, 2026-10-08."""
+        endpoint = connect.ENDPOINTS["training_readiness"]
+        connect.sync_daily_endpoint(store, "user", endpoint, dt.date(2026, 10, 1),
+                                    dt.date(2026, 10, 8), fetcher=lambda path: empty)
+        assert store.get_watermark("training_readiness") == "2026-10-08"
+
+        start = connect.default_start(store, "training_readiness", 400, dt.date(2026, 10, 8))
+        assert start == dt.date(2026, 10, 5)
+
     def test_watermark_advances(self, store):
         fetcher = fake_fetcher({"dailySleepData": F.SLEEP})
         connect.sync_daily_endpoint(store, "user", connect.ENDPOINTS["sleep"],

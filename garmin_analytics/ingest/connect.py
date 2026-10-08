@@ -539,6 +539,12 @@ def sync_daily_endpoint(
         payload = fetcher(path)
         if on_day:
             on_day(day)
+        # Reached, whatever came back. A day Garmin answered with nothing is still a day
+        # walked: tying the watermark to days *with data* left an endpoint the watch
+        # never fills (training readiness, here) at no watermark at all, and every sync
+        # re-walked 400 days of it — four minutes each time. Late data is the overlap's
+        # job (`default_start`), not the watermark's.
+        last_ok = day
         if payload is None:
             continue
         fetched += 1
@@ -556,7 +562,6 @@ def sync_daily_endpoint(
                 continue
             store.upsert(endpoint.table, ["day"], {**row, "raw_id": raw_id})
             written += 1
-        last_ok = day
 
     # `fitness` is fed by two endpoints; merge so neither blanks the other's columns.
     if pending_fitness:
