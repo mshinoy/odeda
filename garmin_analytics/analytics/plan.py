@@ -525,6 +525,7 @@ def compute_plan(store, today: date | None = None) -> dict[str, Any]:
             (w for w in weeks if w["week"] == week_of(today.isoformat())), None
         ),
         "next_session": _next_session(judged, today),
+        "decisions": decisions(store),
         "targets": targets(judged, store),
         "unreadable": unreadable,
         "unplanned": unplanned[-20:],
@@ -628,6 +629,33 @@ def race_targets(store, today: date | None = None) -> dict[str, Any]:
     """`targets`, read from the database: what the race panel is allowed to aim at."""
     judged, _ = judge_all(store, today)
     return targets(judged, store)
+
+
+def decisions(store) -> list[dict[str, Any]]:
+    """Every match the owner has overruled by hand, so Settings can list and undo them.
+
+    These are the only two things in the whole plan that are stored rather than
+    recomputed, which is exactly why they need somewhere to be seen: an `auto` match
+    that goes wrong fixes itself on the next read, and one of these never does.
+    """
+    rows = store.query(
+        "SELECT l.plan_session_id AS id, l.link_type, l.activity_id, l.linked_at, "
+        "       s.day, s.title "
+        "FROM plan_links l JOIN plan_sessions s ON s.id = l.plan_session_id "
+        "WHERE l.link_type IN ('manual', 'ignored') "
+        "ORDER BY s.day"
+    )
+    return [
+        {
+            "plan_session_id": int(r["id"]),
+            "day": str(r["day"]),
+            "title": r["title"],
+            "link_type": str(r["link_type"]),
+            "activity_id": r["activity_id"],
+            "linked_at": r["linked_at"],
+        }
+        for r in rows
+    ]
 
 
 def set_link(store, session_id: int, activity_id: str | None, ignore: bool) -> dict[str, Any]:

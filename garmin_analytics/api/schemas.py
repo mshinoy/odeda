@@ -2360,6 +2360,19 @@ class PlanUnplanned(_Model):
     duration_s: float | None = None
 
 
+class PlanDecision(_Model):
+    """A match the owner overruled by hand. The only part of the plan's judgement that
+    is stored rather than recomputed, which is why Settings lists it."""
+
+    plan_session_id: int
+    day: str
+    title: str | None
+    link_type: Literal["manual", "ignored"]
+    activity_id: str | None
+    """Null for `ignored`."""
+    linked_at: str | None
+
+
 class Plan(_Model):
     """`GET /api/plan`. With no calendar subscribed this is a 200 with
     `subscribed: false`, never a 404."""
@@ -2371,6 +2384,7 @@ class Plan(_Model):
     adherence_4wk: float | None
     this_week: PlanWeek | None
     next_session: PlanSession | None
+    decisions: list[PlanDecision]
     targets: PlanTargets
     unreadable: list[PlanUnreadable]
     unplanned: list[PlanUnplanned]

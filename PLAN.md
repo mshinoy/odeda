@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 9 / 10 |
+| 8 Training plan | H: `open` | 10 / 10 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -178,7 +178,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
 | T40 | Status: this week against the plan, and the planned line on the race panel | done | T38 | This week against the plan, and the plan against the race |
-| T41 | Settings: the feed, what it parsed, and what it could not | in progress (patti, 2026-10-08) | T38 | |
+| T41 | Settings: the feed, what it parsed, and what it could not | done | T38 | The calendar, and what it could not read |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
 
@@ -2434,19 +2434,40 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
 ### T41 — Settings: the feed, and what it could not read
 - **Goal:** the owner can connect a calendar, see what the parser made of it, and fix the
   events it could not read.
-- **Files:** `frontend/src/features/settings/`, `frontend/src/api/queries/`.
+- **Files:** `frontend/src/features/settings/`, `frontend/src/api/queries/usePlan.ts`,
+  `garmin_analytics/analytics/plan.py`, `garmin_analytics/api/schemas.py`,
+  `frontend/src/api/schema.ts` (generated), `scripts/dev-standin-plan.py`,
+  `tests/test_plan_api.py`.
 - **Build:**
-  - [ ] paste the private ICS URL, see it masked, test it, remove it
-  - [ ] last sync, next sync, last error, and a Sync now that is disabled during a run
-  - [ ] the parse review list: every `unparsed` or `unsupported_rrule` session with its
+  - [x] paste the private ICS URL, see it masked, test it, remove it
+  - [x] last sync, next sync, last error, and a Sync now that is disabled during a run
+  - [x] the parse review list: every `unparsed` or `unsupported_rrule` session with its
     date and its original text, so a silent miss is a visible one
-  - [ ] the sessions the owner has re-linked or ignored by hand, and how to undo that
+  - [x] the sessions the owner has re-linked or ignored by hand, and how to undo that
 - **Notes:**
   - Where to find the URL belongs in the panel, not in a README: Google Calendar →
-    Settings for that calendar → "Secret address in iCal format".
+    Settings for that calendar → "Secret address in iCal format". The panel says so, and
+    says in the same breath that it is a credential.
   - The parse review list is the honesty mechanism for T36. Without it, a session the
     parser dropped is simply absent from the adherence denominator and the number
-    silently improves.
+    silently improves. It names each entry's date, its own title, and why it was
+    refused — a repeat rule the stdlib subset will not guess at (D10), or no distance
+    and no sport in the text at all.
+  - **The address goes in through a password field and never comes back out.** Every
+    reading of it on this page is the masked form the API returns; nothing in the view
+    has ever held the real one.
+  - **`/api/plan` gained `decisions`** — the manual links and ignores, with the day and
+    title of each. They are the only part of the plan's judgement that is stored rather
+    than recomputed (T34), so they are the only part that can go wrong and stay wrong;
+    Settings lists them with an Undo.
+  - **The plan joins the Sync panel's problem list.** `autoSyncProblems` checked
+    `garmin` and `fitbit` only, so a feed that 404s during an automatic run said nothing
+    anywhere. Google rotating the secret address is the failure this will actually hit.
+  - **`scripts/dev-standin-plan.py` exists because the owner's calendar address is a
+    credential** and is not in this checkout. It writes a Higdon-shaped block — plus
+    two entries the parser is meant to refuse, so the review list has something in it —
+    into the throwaway copy, and refuses to run against any other database.
+  - 1,433 backend tests, 797 frontend tests across 69 files.
 
 ### T48 — An ignored session is actually ignored
 - **Goal:** the second of the two decisions the owner is allowed to make does something.

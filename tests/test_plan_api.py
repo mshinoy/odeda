@@ -180,6 +180,32 @@ class TestIgnoring:
         assert summary["adherence_pct"] < 50
 
 
+class TestDecisions:
+    """T41: Settings lists what the owner overruled, because only those two things
+    are stored. An `auto` match that goes wrong fixes itself; these never do."""
+
+    def test_nothing_overruled_is_an_empty_list_not_a_missing_key(self, client):
+        assert client.get("/api/plan").json()["decisions"] == []
+
+    def test_a_manual_link_and_an_ignore_both_appear(self, planned):
+        week = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()
+        monday = next(s for s in week["sessions"] if s["day"] == "2026-09-28")["session_ids"][0]
+        friday = next(s for s in week["sessions"] if s["day"] == "2026-10-02")["session_ids"][0]
+        planned.put(f"/api/plan/sessions/{monday}/link", json={"activity_id": "a-mon"})
+        planned.put(f"/api/plan/sessions/{friday}/link", json={"ignore": True})
+
+        decisions = planned.get("/api/plan").json()["decisions"]
+        assert {d["link_type"] for d in decisions} == {"manual", "ignored"}
+        assert all(d["title"] for d in decisions)
+
+    def test_undoing_one_takes_it_off_the_list(self, planned):
+        week = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()
+        monday = next(s for s in week["sessions"] if s["day"] == "2026-09-28")["session_ids"][0]
+        planned.put(f"/api/plan/sessions/{monday}/link", json={"activity_id": "a-mon"})
+        planned.delete(f"/api/plan/sessions/{monday}/link")
+        assert planned.get("/api/plan").json()["decisions"] == []
+
+
 class TestTheRacePanelsTargets:
     """D12: `/api/race` used to carry `ctl_target: 75` and `weekly_km_target: 55` on
     every install, synced or not. Both now come from the calendar or not at all."""

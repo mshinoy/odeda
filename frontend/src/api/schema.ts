@@ -3905,11 +3905,38 @@ export interface components {
             adherence_4wk: number | null;
             this_week: components["schemas"]["PlanWeek"] | null;
             next_session: components["schemas"]["PlanSession"] | null;
+            /** Decisions */
+            decisions: components["schemas"]["PlanDecision"][];
             targets: components["schemas"]["PlanTargets"];
             /** Unreadable */
             unreadable: components["schemas"]["PlanUnreadable"][];
             /** Unplanned */
             unplanned: components["schemas"]["PlanUnplanned"][];
+        };
+        /**
+         * PlanDecision
+         * @description A match the owner overruled by hand. The only part of the plan's judgement that
+         *     is stored rather than recomputed, which is why Settings lists it.
+         */
+        PlanDecision: {
+            /** Plan Session Id */
+            plan_session_id: number;
+            /** Day */
+            day: string;
+            /** Title */
+            title: string | null;
+            /**
+             * Link Type
+             * @enum {string}
+             */
+            link_type: "manual" | "ignored";
+            /**
+             * Activity Id
+             * @description Null for `ignored`.
+             */
+            activity_id: string | null;
+            /** Linked At */
+            linked_at: string | null;
         };
         /** PlanLinkRequest */
         PlanLinkRequest: {

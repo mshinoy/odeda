@@ -82,8 +82,36 @@ def feed(today: date | None = None) -> str:
             f"SUMMARY:W{index + 1}: Rest",
             "END:VEVENT",
         ]
+    lines += _unreadable(RACE_DAY - timedelta(days=4 + 7 * (len(weeks) - 1)))
     lines.append("END:VCALENDAR")
     return "\r\n".join(lines) + "\r\n"
+
+
+def _unreadable(first_monday: date) -> list[str]:
+    """Two entries the parser is meant to refuse, so the review list has something in it.
+
+    Settings' parse review list is the honesty mechanism for T36 — a session dropped in
+    silence simply leaves the adherence denominator — and an empty list proves nothing
+    about it.
+    """
+    saturday = (first_monday + timedelta(days=5)).strftime("%Y%m%d")
+    return [
+        # No distance and no sport: nothing to prescribe.
+        "BEGIN:VEVENT",
+        "UID:standin-unparsed",
+        f"DTSTART;TZID=Asia/Qatar:{saturday}T160000",
+        f"DTEND;TZID=Asia/Qatar:{saturday}T170000",
+        "SUMMARY:Catch up with the club",
+        "END:VEVENT",
+        # A repeat rule the stdlib subset refuses rather than guesses at (D10).
+        "BEGIN:VEVENT",
+        "UID:standin-unsupported",
+        f"DTSTART;TZID=Asia/Qatar:{saturday}T053000",
+        f"DTEND;TZID=Asia/Qatar:{saturday}T063000",
+        "RRULE:FREQ=MONTHLY;BYSETPOS=2;BYDAY=SA",
+        "SUMMARY:Monthly time trial 5 km",
+        "END:VEVENT",
+    ]
 
 
 class StandInTransport:

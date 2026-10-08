@@ -58,6 +58,7 @@ function plan(over: Partial<Plan> = {}): Plan {
     adherence_4wk: 80,
     this_week: week("2026-09-28", { sessions_done: 3, sessions_planned: 4 }),
     next_session: null,
+    decisions: [],
     targets: {
       peak_weekly_km: 25.2,
       mean_weekly_km: 20,

@@ -10,6 +10,7 @@ export type PlanWeek = components["schemas"]["PlanWeek"];
 export type PlanWeekDetail = components["schemas"]["PlanWeekDetail"];
 export type PlanSession = components["schemas"]["PlanSession"];
 export type PlanUnplanned = components["schemas"]["PlanUnplanned"];
+export type PlanDecision = components["schemas"]["PlanDecision"];
 export type PlanVerdict = PlanSession["verdict"];
 export type RacePanelData = components["schemas"]["RacePanel"];
 
@@ -35,6 +36,33 @@ export function useRace() {
   return useQuery({
     queryKey: queryKeys.race,
     queryFn: async () => unwrap(await api.GET("/api/race")),
+  });
+}
+
+/** Subscribe, or replace the address with a new one after Google rotates it. */
+export function useSetPlanSource() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ url, label }: { url: string; label?: string }) =>
+      unwrap(await api.PUT("/api/plan/source", { body: { url, label: label ?? null } })),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+/** Unsubscribe. The sessions are withdrawn, not deleted: a judged week stays judged. */
+export function useClearPlanSource() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => unwrap(await api.DELETE("/api/plan/source")),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+export function useSyncPlan() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => unwrap(await api.POST("/api/plan/sync", { body: undefined })),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
   });
 }
 

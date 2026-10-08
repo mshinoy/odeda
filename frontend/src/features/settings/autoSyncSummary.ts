@@ -3,7 +3,11 @@
 import type { AutoSyncStatus } from "@/api/queries/useStatus";
 import { formatAgo, formatIn } from "@/lib/format";
 
-const SOURCE_LABELS = { garmin: "Garmin", fitbit: "Google Health" } as const;
+const SOURCE_LABELS = {
+  garmin: "Garmin",
+  fitbit: "Google Health",
+  plan: "Training plan",
+} as const;
 
 /** 6 → "6 hours", 1 → "hour", 0.5 → "30 minutes". */
 function every(hours: number): string {
@@ -29,7 +33,9 @@ export function autoSyncLine(status: AutoSyncStatus, now: Date = new Date()): st
  */
 export function autoSyncProblems(status: AutoSyncStatus): { source: string; message: string }[] {
   if (!status.enabled) return [];
-  return (["garmin", "fitbit"] as const).flatMap((key) => {
+  // The plan is the third source (T39) and its failure is the one with a remedy the
+  // owner has to act on: Google rotates the secret address whenever it is reset.
+  return (["garmin", "fitbit", "plan"] as const).flatMap((key) => {
     const result = status.sources[key];
     return result?.state === "error"
       ? [{ source: SOURCE_LABELS[key], message: result.message }]
