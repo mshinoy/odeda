@@ -1,4 +1,4 @@
-"""Command line: login | sync | fitbit | import-zip | import-fit | seed | serve | doctor | report.
+"""Command line: login | sync | fitbit | plan | import-zip | import-fit | seed | serve | doctor | report.
 
 Credential handling rule, enforced here: the password is read with `getpass` from a tty
 and passed straight to the Garmin client. It is never an argument, never an environment variable
@@ -8,6 +8,9 @@ Fitbit never asks for a password at all: `fitbit connect` prints a consent URL, 
 owner approves it in their own browser, and pastes back a code that is single-use and
 expires in ten minutes. The app's own client id and secret are read from the
 environment at the point of use.
+
+The training calendar's iCal address is a credential too — it grants read access to the
+whole calendar to anyone holding it — so `plan` prints it only masked, and never logs it.
 """
 
 from __future__ import annotations
@@ -283,6 +286,82 @@ def cmd_import_fitbit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Subscribe to the training calendar, and read what it prescribes.
+
+    The address is a secret — a Google private iCal URL is read access to the whole
+    calendar with no further authentication — so it is only ever echoed masked, and
+    `subscribe` takes it as an argument rather than printing it back.
+    """
+    from .ingest import plan_ics
+
+    try:
+        return _run_plan(args)
+    except plan_ics.PlanFeedError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
+def _run_plan(args: argparse.Namespace) -> int:
+    from .ingest import plan_ics
+
+    with _store() as st:
+        if args.action == "subscribe":
+            if not args.url:
+                print("pass the calendar's secret iCal address with --url", file=sys.stderr)
+                return 2
+            plan_ics.set_source(st, args.url, label=args.label)
+            source = plan_ics.get_source(st)
+            print(f"Subscribed to {plan_ics.mask_url(source['url'])}")
+            print("  run `plan sync` to read it")
+            _emit({"subscribed": plan_ics.mask_url(source["url"])}, args.json)
+            return 0
+
+        if args.action == "unsubscribe":
+            plan_ics.clear_source(st)
+            print("Calendar removed. The sessions it prescribed are kept.")
+            return 0
+
+        source = plan_ics.get_source(st)
+
+        if args.action == "sync":
+            result = plan_ics.sync_plan(st)
+            if result["status"] == "skipped":
+                print("No calendar subscribed. Use `plan subscribe --url …`.")
+                return 0
+            if result["status"] == "unchanged":
+                print("The calendar has not changed since the last run.")
+                _emit(result, args.json)
+                return 0
+            print(f"Read {result['sessions']} prescribed sessions")
+            if result["withdrawn"]:
+                print(f"  {result['withdrawn']} no longer in the calendar, kept and stamped")
+            if result["unsupported"]:
+                print(f"  {result['unsupported']} with a recurrence rule this build cannot read")
+            _emit(result, args.json)
+            return 0
+
+        # status
+        if source is None:
+            print("No calendar subscribed.")
+            return 0
+        rows = plan_ics.sessions(st, start_day=args.since)
+        print(f"  calendar        {plan_ics.mask_url(source['url'])}")
+        print(f"  last looked     {source['last_fetch_at'] or '—'}")
+        print(f"  last error      {source['last_error'] or 'none'}")
+        print(f"  sessions        {len(rows)}"
+              + (f"  ({rows[0]['day']} → {rows[-1]['day']})" if rows else ""))
+        withdrawn = st.scalar(
+            "SELECT COUNT(*) FROM plan_sessions WHERE withdrawn_at IS NOT NULL"
+        )
+        print(f"  withdrawn       {withdrawn}")
+        for row in rows[: args.limit]:
+            when = (row["start_local"] or row["day"]).replace("T", " ")
+            print(f"    {when}  {row['title']}")
+        _emit({"sessions": rows}, args.json)
+        return 0
+
+
 def cmd_seed(args: argparse.Namespace) -> int:
     from .seed.synthetic import DEFAULT_MONTHS, seed_database
 
@@ -547,6 +626,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--since", help="earliest day to pull, ISO date (sync)")
     sp.add_argument("--end", help="last day to pull, ISO date, default today (sync)")
     sp.add_argument("--quiet", action="store_true")
+
+    sp = add("plan", cmd_plan, "subscribe to the training calendar and read it")
+    sp.add_argument("action", choices=("subscribe", "sync", "status", "unsubscribe"))
+    sp.add_argument("--url", help="the calendar's secret iCal address (subscribe)")
+    sp.add_argument("--label", help="what to call it in the UI (subscribe)")
+    sp.add_argument("--since", help="earliest day to list, ISO date (status)")
+    sp.add_argument("--limit", type=int, default=20, help="sessions to list (status)")
 
     sp = add("cluster", cmd_cluster, "(re)group GPS activities into routes")
     sp.add_argument("--threshold", type=float, default=None,

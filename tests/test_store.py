@@ -150,6 +150,16 @@ class TestPlanTables:
             )
         assert store.scalar("SELECT COUNT(*) FROM plan_links") == 2
 
+    def test_unsubscribing_orphans_the_sessions_rather_than_deleting_them(self, store):
+        """`ON DELETE CASCADE` here would delete the history this table exists to keep.
+        Found by T35's test, which dropped a calendar and lost three finished weeks."""
+        src = self._source(store)
+        self._session(store, src, "a", "2026-10-30", "2026-10-30")
+        store.conn.execute("DELETE FROM plan_sources WHERE id = ?", (src,))
+        row = store.query("SELECT source_id, day FROM plan_sessions")[0]
+        assert row["source_id"] is None
+        assert row["day"] == "2026-10-30"
+
     def test_a_withdrawn_session_survives_its_source_row(self, store):
         """A series deleted in the calendar takes its past instances with it. The row
         stays, stamped, so a finished week is still judged against what it prescribed."""

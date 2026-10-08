@@ -194,7 +194,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | done | — | Schema v3: somewhere to put what was prescribed |
-| T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | todo | T34 | |
+| T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
 | T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | todo | T34 | |
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | todo | T35, T36 | |
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | todo | T37 | |
@@ -209,7 +209,6 @@ When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its
 
 | ID | Question | Status |
 |---|---|---|
-| D10 | **How is the ICS feed parsed?** RFC 5545 is a large spec and RRULE expansion is where hand-written parsers go wrong. Either (a) a stdlib subset parser that supports what this calendar actually uses — `FREQ=WEEKLY/DAILY`, `INTERVAL`, `BYDAY`, `COUNT`, `UNTIL`, `EXDATE`, `RECURRENCE-ID` — and refuses anything else loudly as `unsupported_rrule` rather than expanding it wrong; or (b) add `icalendar` + `python-dateutil`, breaking the no-new-dependency rule that D7 set. **Recommended: (a)**, for the same reason as D7 — the input is one known feed, and a refusal that names itself is safer than a silent misread. | open |
 | D11 | **Where does the plan live in the UI?** The nav stays at five items (Rules), so a sixth is not available. Either (a) a `/plan` route with no nav item, reached from a plan section on Status; (b) the plan folded entirely into Status with no page of its own; (c) a sixth nav item, amending the rule. **Recommended: (a)** — the week strip answers the daily question on a page the owner already opens, and the twelve-week grid is a page you visit on Sunday, not every day. T40 builds (a) unless told otherwise. | open |
 | D12 | **Does the plan replace `TARGET_PEAK_CTL` and `TARGET_PEAK_WEEKLY_KM`?** Today both are constants in `config.py` that no one chose. Once the plan is imported, the remaining prescribed volume implies both. Either (a) derive them from the plan and keep the constants as the fallback when no plan is loaded; or (b) leave the constants alone and show the plan's numbers beside them. **Recommended: (a)** — a target the app invented is worse than no target, and the race panel's warnings are currently measured against it. | open |
 
@@ -229,6 +228,7 @@ When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its
 | D14 | The activity list shows **cards by default**, each with a **Mapbox static image** of the route (one `<img>`, not a live map), a body diagram for gym sessions, HR zones or the sport's icon otherwise; the table stays behind a Cards/Table toggle (T33, DECISIONS D50). | 2026-10-08 |
 | D15 | Analytics are cached **until the data changes**, not for 30 s: the version is the database's mtime plus the WAL's size and mtime (an empty WAL ignored), and the unfiltered heatmap is recomputed in the background once a change settles (`GA_CACHE_WARM=0` turns that off). DECISIONS D51. | 2026-10-08 |
 | D16 | Routes are matched on **ground covered**, not distance: a run joins a route when at least **75%** of the distance run was on the route's ground and it covered at least 75% of the route (the owner's "about 25%"). Laps and a short warm-up join; an out-and-back that goes much further does not. A route's shape is one lap; loops are timed by the lap. DECISIONS D52. | 2026-10-08 |
+| D10 | **The ICS feed is parsed by a stdlib subset parser.** `FREQ=WEEKLY` and `FREQ=DAILY` with `INTERVAL`, `BYDAY`, `COUNT`, `UNTIL`, `EXDATE` and `RECURRENCE-ID`; anything else is refused as `unsupported_rrule` and stored once at DTSTART rather than expanded on a guess. No new dependency, consistent with D7. The owner chose this over `icalendar` + `python-dateutil`. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -2414,3 +2414,42 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     in `PRAGMA user_version` moves with `SCHEMA_VERSION`, so an older database re-runs
     the script once and then stops.
   - Suite green at 1202 passed, 1 skipped, plus the six new tests.
+
+### T35 — The calendar, read without trusting it
+- **Goal:** the owner's training calendar becomes rows in `plan_sessions`, repeatably,
+  with the feed's address never leaving the database in readable form.
+- **Files:** `garmin_analytics/ingest/ics.py`, `garmin_analytics/ingest/plan_ics.py`,
+  `garmin_analytics/cli.py`, `garmin_analytics/db/schema.sql`,
+  `tests/test_ics.py`, `tests/test_plan_ics.py`, `tests/test_store.py`.
+- **Build:**
+  - [x] stdlib ICS reader: unfolding, quoted parameters, escaping, `TZID` / UTC /
+    all-day, `DURATION`, and VALARM blocks skipped
+  - [x] the D10 subset expanded; everything else flagged `unsupported_rrule`
+  - [x] `EXDATE`, `RECURRENCE-ID` overrides and `STATUS:CANCELLED`
+  - [x] fetch behind an injectable transport, `ETag` / `If-Modified-Since`, 304 as a
+    successful no-op
+  - [x] sessions that leave the feed are stamped `withdrawn_at`, never deleted; ones
+    that come back are restored rather than duplicated
+  - [x] `ga plan subscribe | sync | status | unsubscribe`
+- **Notes:**
+  - **A reset iCal address does not fail — it succeeds.** Google redirects a revoked
+    private address to a sign-in page, which arrives as 200 with an HTML body and parses
+    as zero sessions. In the UI that reads as "you have no plan", not "the link is
+    dead", so the content type is checked and a non-calendar answer is an error that
+    says the address was probably reset. This is the failure this feed will actually hit.
+  - **Recurrence is expanded in wall-clock time, not absolute time.** Adding seven days
+    to an aware datetime moves a 05:00 session to 04:00 the week the clocks change.
+    `Asia/Qatar` has no daylight saving so it cannot bite the owner, but the app is
+    meant to be run by other people, and a test pins it against `Europe/London`.
+  - **An override keeps the recurrence id of the instance it replaced**, not of its new
+    time. Using the new one leaves the original standing and prescribes the session
+    twice — which is how a moved long run would have become two long runs.
+  - **T34 shipped a bug that T35's test found.** `plan_sessions.source_id` was
+    `NOT NULL ... ON DELETE CASCADE`, so unsubscribing from a calendar deleted every
+    session it had ever prescribed — exactly the history `withdrawn_at` exists to keep.
+    It is now nullable and `ON DELETE SET NULL`, with tests in both files.
+  - **Only structural columns are written here.** `sport`, `kind` and the planned
+    distances belong to T36, so a re-sync never discards a reading of the text. What a
+    sync does reset is `parse_status`, to `pending`, which is what makes an edited
+    description get re-read instead of keeping a stale target.
+  - 50 new tests. Suite green at 1254 passed, 1 skipped.

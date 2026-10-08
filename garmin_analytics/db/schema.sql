@@ -396,7 +396,11 @@ CREATE TABLE IF NOT EXISTS plan_sources (
 -- kept; a past week is always judged against what was prescribed at the time.
 CREATE TABLE IF NOT EXISTS plan_sessions (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    source_id           INTEGER NOT NULL REFERENCES plan_sources (id) ON DELETE CASCADE,
+    -- Nullable, and SET NULL rather than CASCADE: unsubscribing from a calendar must
+    -- not delete the record of what it prescribed, which is the whole reason this
+    -- table keeps withdrawn rows. A session whose source is gone is an orphan with a
+    -- history, not a row to collect.
+    source_id           INTEGER REFERENCES plan_sources (id) ON DELETE SET NULL,
     uid                 TEXT NOT NULL,      -- iCalendar UID
     recurrence_id       TEXT NOT NULL,      -- RECURRENCE-ID, or the expanded instance's date
     day                 TEXT NOT NULL,      -- local date, same basis as activities.day
