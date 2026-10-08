@@ -1,11 +1,22 @@
-# Frontend rebuild plan
+# Build plan
 
-The React app in `frontend/` replaces the old dashboard view by view. This file is the
-plan **and** the tracker. The status tables below are the only place progress is
-recorded: agents pick tasks from them and update them in the same commit as the work, and
-the owner reads them to see what is done. `git log -p PLAN.md` is the history.
+Started as the frontend rebuild (Phases 0–4) and kept going: Phase 5 added a second data
+source, Phase 6 made the app sync itself, Phase 8 reads the owner's training plan. Most
+phases now touch `garmin_analytics/` as much as `frontend/`.
 
-Branch: `frontend-rebuild`.
+This file is the plan **and** the tracker. The status tables below are the only place
+progress is recorded: agents pick tasks from them and update them in the same commit as
+the work, and the owner reads them to see what is done. `git log -p PLAN.md` is the
+history.
+
+**One branch per phase or task**, named for the work (`auto-sync`, `activity-cards`,
+`training-plan`), merged to `master` when its checkpoint is approved. There is no
+long-lived `frontend-rebuild` branch any more.
+
+Phases run in parallel, so **never work in a directory another agent is using**: the
+branch under you can change mid-task. Take a worktree of your own —
+`git worktree add ~/garmin-<task> -b <task>` — and stay in it. Commit a `PLAN.md` edit
+on its own, so two phases touching the file merge cleanly.
 
 ## Starting an agent
 
@@ -251,10 +262,12 @@ until the earlier phase's checkpoint is `approved`.
    subject), which URLs to open, which real activities to try (ID and date), and
    anything it is unsure about. Keep it short, because the owner reads it on one screen.
 2. Saves light and dark screenshots of every page the phase touched to
-   `~/garmin-review/<A|B|C|D>/`. That folder is outside the repo; never commit screenshots.
+   `~/garmin-review/<letter>/` — the phase's own checkpoint letter, now through H.
+   That folder is outside the repo; never commit screenshots.
 3. Sets the checkpoint to `ready for review` in the phase table and the summary table,
    and commits `PLAN.md`.
-4. Pushes: `git push origin frontend-rebuild`. If there is no `origin` remote, it says so
+4. Pushes the phase's branch: `git push origin <branch>`. If there is no `origin` remote,
+   it says so
    in the note instead.
 5. Stops and reports. This is a stop.
 
@@ -662,14 +675,12 @@ Owner feedback:
    - Never start a row whose dependency is not `done`, or a row in a later phase.
 3. **Claim** it with a commit that changes only its status to
    `in progress (<session name>, <date>)`, with subject `Claim <ID>`.
-   - **Sequential mode (default):** commit in the main working tree on `frontend-rebuild`.
-   - **Parallel mode:** create a worktree on a new branch `task/<ID>` from
-     `frontend-rebuild`, commit the claim there, then publish it with
-     `git -C <main-worktree> merge --ff-only task/<ID>`.
-   - If the fast-forward fails, someone else moved the branch. Rebase onto
-     `frontend-rebuild`. If the rebase conflicts on your row, the task has been taken:
-     abandon the branch and pick again.
-   - In parallel mode, never edit files in the main working tree.
+   - Work in a worktree of your own, on a branch named for the task or phase:
+     `git worktree add ~/garmin-<task> -b <task> master`. Commit the claim there.
+   - If another agent has already claimed the row, their claim will conflict with yours
+     when you rebase: the task is taken, so abandon the branch and pick again.
+   - **Never edit files in a directory another agent is working in**, and never assume
+     the branch you started on is still checked out there.
 4. **Build** it following the rules below.
    - Tick the card's `- [ ]` boxes as you finish each one, in the working tree; they are
      committed with the work.
@@ -682,10 +693,9 @@ Owner feedback:
      that phase's count in the summary table.
    - Commit `PLAN.md` **in the same commit** as the work. Commit messages end with the
      attribution lines the session specifies.
-   - In parallel mode, rebase `task/<ID>` onto `frontend-rebuild`. Conflicts in
-     `PLAN.md` touch only rows, so keep both sides. Then
-     `git -C <main-worktree> merge --ff-only task/<ID>` and remove the
-     worktree.
+   - Leave the branch for the owner to merge at the checkpoint. If you do integrate,
+     rebase onto `master` first; conflicts in `PLAN.md` touch only rows, so keep both
+     sides. Remove the worktree when the phase is done, not between tasks.
    - If this was the last row of the phase, go on to the checkpoint.
 7. **Stuck?** Set `blocked: <one line why>` or `needs decision: <the question>`, add a
    row under "Open decisions" if it's a question for the owner, and commit only
@@ -722,6 +732,10 @@ Owner feedback:
   Tailwind, shadcn/ui (+ radix, lucide, cva, cn), ECharts/echarts-for-react,
   react-map-gl, maplibre-gl, mapbox-gl, deck.gl, turf, vitest. uPlot is allowed only if
   raw-stream charts lag.
+  - Python has stayed at its original pins throughout (D7, D10): the Google Health
+    client and the iCalendar reader are both stdlib. Where a format is large but the
+    input is one known feed, read the subset and **refuse the rest loudly** rather than
+    taking a dependency or guessing.
 
 **Design**
 - **The design will keep changing (D1), so keep it central.** Every colour, size, spacing,
@@ -754,6 +768,12 @@ Owner feedback:
 
 **Safety**
 - Never commit tokens, passwords, `.env` files, the database or copies of it.
+- **The training calendar's iCal address is a credential.** It grants read access to the
+  whole calendar with no further authentication. It lives in `plan_sources.url`, is
+  masked everywhere it leaves the API (`plan_ics.mask_url`), and must never reach a log
+  line or an error message — including the ones `urllib` writes for you.
+- Read the live database only through SQLite's **online backup** into a copy, the way
+  `scripts/dev-real-data.sh` does. Never open `/data/garmin.db` for writing.
 - Don't rebuild, stop or reconfigure the owner's running container, and don't edit the
   root `.env`, without asking. Develop against a copy (below). Edits (overrides) are
   tested on the copy, never the live DB.
@@ -763,6 +783,10 @@ Owner feedback:
 ```bash
 # Backend (whenever garmin_analytics/ changed)
 .venv/bin/pytest -q                              # must be fully green
+
+# From a worktree there is no .venv of its own. Borrow the main checkout's interpreter
+# and point PYTHONPATH at your tree, or you will silently test the *other* branch:
+PYTHONPATH=$PWD ~/garmin-analytics/.venv/bin/pytest -q
 
 # Frontend
 cd frontend
@@ -800,19 +824,19 @@ In parallel mode, use your own ports: add the task number to 8818 and 5180, e.g.
 | Tokens, scales, typography | `frontend/src/design/` |
 | Activity kinds (run/ride/swim/walk/strength/other) | `frontend/src/lib/activityKind.ts` |
 | API models | `garmin_analytics/api/schemas.py` |
+| Training plan: the calendar reader | `garmin_analytics/ingest/ics.py` (RFC 5545 subset), `ingest/plan_ics.py` (fetch, withdraw) |
+| Training plan: the prose | `garmin_analytics/plan/parse.py` (`GA:` hint → Monday's week note → the title) |
+| Training plan: the scoring | `garmin_analytics/analytics/plan.py` (collapse → match → weekly) |
+| Training plan: the tables | `plan_sources`, `plan_sessions` (keyed `uid` + `recurrence_id`), `plan_links` |
 | Editable fields, overrides | `garmin_analytics/db/fields.py`; table `overrides` keyed by (`activity_id`, `field`) |
 | Raw Garmin payloads | table `raw_documents`; `activities.raw_id` → `raw_documents.id`; `GET /api/raw/{endpoint}/{ref_key}` |
 | Old UI, for reference | `git show 9770081~1:garmin_analytics/web/app.js` (also `map.js`, `index.html`) |
 
-**Endpoints already typed:**
-- Activities: `/api/activities`, `/api/activities/{id}` (GET, PATCH),
-  `/api/activities/{id}/streams`, `/api/activities/{id}/exercises`, `/api/fields`
-- Status: `/api/summary`, `/api/load`, `/api/readiness`, `/api/readiness/history`,
-  `/api/race`, `/api/health`
-- Sync: `/api/garmin/status`, `/api/sync/status`, `/api/sync/start`, `/api/sync/stop`
-- Raw data: `/api/raw/{endpoint}/{ref_key}`
-
-Everything else still returns `unknown` and has to be typed by the task that first uses it.
+**Typing the API.** Almost every endpoint now has a `response_model`; run
+`npm run gen:api` and the types come out. The exceptions, which still answer loosely
+typed JSON, are the auth routes (`/api/auth/*`), `/api/doctor`,
+`/api/raw/{endpoint}/{ref_key}`, `/api/overrides/bulk`, the Fitbit OAuth callback, and
+several `PUT`/`DELETE` edit routes. A task that first needs one of those types it.
 
 ---
 
