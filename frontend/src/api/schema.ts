@@ -1382,7 +1382,134 @@ export interface components {
             /** Types */
             types: string[];
             /** Rows */
-            rows: components["schemas"]["ActivityRow"][];
+            rows: components["schemas"]["ActivityListRow"][];
+        };
+        /**
+         * ActivityListRow
+         * @description One row of the activity list: `ActivityRow` plus what the list's card draws next
+         *     to its numbers. Only the list sends these; the detail endpoint has its own.
+         */
+        ActivityListRow: {
+            /** Activity Id */
+            activity_id: string;
+            /**
+             * Day
+             * @description Local date of the start, YYYY-MM-DD.
+             */
+            day: string;
+            /** Start Time Local */
+            start_time_local: string;
+            /**
+             * Start Time Utc
+             * @description ISO-8601 UTC with a trailing Z, when the source supplied it.
+             */
+            start_time_utc: string | null;
+            /**
+             * Activity Type
+             * @description Open vocabulary; see `fields.ACTIVITY_TYPES` for the common values.
+             */
+            activity_type: string;
+            /** Activity Name */
+            activity_name: string | null;
+            /** Distance M */
+            distance_m: number | null;
+            /**
+             * Duration S
+             * @description Elapsed time.
+             */
+            duration_s: number | null;
+            /** Moving Time S */
+            moving_time_s: number | null;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Max Hr */
+            max_hr: number | null;
+            /** Avg Speed Mps */
+            avg_speed_mps: number | null;
+            /** Max Speed Mps */
+            max_speed_mps: number | null;
+            /** Elevation Gain M */
+            elevation_gain_m: number | null;
+            /** Calories */
+            calories: number | null;
+            /**
+             * Avg Cadence Spm
+             * @description Steps/min for runs, rpm for rides.
+             */
+            avg_cadence_spm: number | null;
+            /** Avg Power W */
+            avg_power_w: number | null;
+            /** Training Effect Aerobic */
+            training_effect_aerobic: number | null;
+            /** Training Effect Anaerobic */
+            training_effect_anaerobic: number | null;
+            /**
+             * Trimp
+             * @description Banister TRIMP, computed at normalise time.
+             */
+            trimp: number | null;
+            /**
+             * Raw Id
+             * @description `raw_documents.id` of the payload this row was normalised from.
+             */
+            raw_id: number | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Rpe
+             * @description Perceived effort, 1..10.
+             */
+            rpe: number | null;
+            /**
+             * Race
+             * @description 0/1, resolved at the response boundary: the user's flag if they set one, else
+             *     Garmin's `eventType` in the raw payload, else 0. Garmin tagged 1 of ~487
+             *     activities as a race, so this is mostly the user's to set (see `api/gym.py`).
+             */
+            race: number;
+            /**
+             * Private
+             * @description 0/1 flag, or null when never set.
+             */
+            private: number | null;
+            /**
+             * Excluded From Stats
+             * @description 0/1 flag, or null when never set. Excluded activities leave every aggregate.
+             */
+            excluded_from_stats: number | null;
+            /**
+             * Override Count
+             * @description How many fields on this activity carry a user edit.
+             */
+            override_count: number;
+            /**
+             * Gear Ids
+             * @description Comma-separated `gear_id`s on this activity (SQLite `group_concat`), or null
+             *     when none. Order is not guaranteed.
+             */
+            gear_ids: string | null;
+            /** Route Id */
+            route_id: number | null;
+            /** Total Sets */
+            total_sets: number | null;
+            /** Total Reps */
+            total_reps: number | null;
+            /**
+             * Preview Polyline
+             * @description The GPS track as a Google encoded polyline (precision 5), simplified to at most
+             *     150 points for a small static map; null without GPS.
+             */
+            preview_polyline: string | null;
+            /**
+             * Hr Zones
+             * @description Seconds in each HR zone, by zone; empty when the activity has none.
+             */
+            hr_zones: components["schemas"]["HrZone"][];
+            /**
+             * Exercises
+             * @description A gym session's exercises, relabels applied; empty for anything else.
+             */
+            exercises: components["schemas"]["Exercise"][];
         };
         /**
          * ActivityRouteRequest

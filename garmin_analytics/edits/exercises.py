@@ -25,6 +25,7 @@ rejects is a correction the user cannot make. Only the shape is checked.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any
 
 from ..db.store import Store, utcnow
@@ -90,16 +91,28 @@ def clean_label(category: Any, sub_category: Any = None) -> str:
 
 def list_relabels(store: Store, activity_id: str) -> dict[int, dict[str, Any]]:
     """Every relabel on one activity, by exercise index."""
+    return relabels_for(store, [activity_id]).get(activity_id, {})
+
+
+def relabels_for(
+    store: Store, activity_ids: Sequence[str]
+) -> dict[str, dict[int, dict[str, Any]]]:
+    """Every relabel on each of `activity_ids`, by activity and then exercise index, in
+    one query. An activity with none is absent."""
+    if not activity_ids:
+        return {}
     rows = store.query(
-        "SELECT field, value, garmin_value_at_edit, created_at, updated_at "
-        "FROM overrides WHERE activity_id = ? AND field LIKE ?",
-        (activity_id, f"{RELABEL_PREFIX}%"),
+        "SELECT activity_id, field, value, garmin_value_at_edit, created_at, updated_at "
+        f"FROM overrides WHERE activity_id IN ({','.join('?' * len(activity_ids))}) "
+        "AND field LIKE ?",
+        (*activity_ids, f"{RELABEL_PREFIX}%"),
     )
-    out: dict[int, dict[str, Any]] = {}
+    out: dict[str, dict[int, dict[str, Any]]] = {}
     for row in rows:
         index = relabel_index(row["field"])
         if index is not None:
-            out[index] = row
+            activity_id = row.pop("activity_id")
+            out.setdefault(activity_id, {})[index] = row
     return out
 
 

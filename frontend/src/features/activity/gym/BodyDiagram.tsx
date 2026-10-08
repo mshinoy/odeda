@@ -49,48 +49,83 @@ function BodyView({
   highlighted,
   onHover,
 }: BodyDiagramProps & { view: BodyView }) {
+  return (
+    <figure className="flex flex-col items-center gap-2">
+      <BodyFigure
+        view={view}
+        load={load}
+        maxLoad={maxLoad}
+        highlighted={highlighted}
+        onHover={onHover}
+        className="h-[330px] w-auto"
+      />
+      <figcaption className="text-muted-foreground text-xs">{BODY_VIEW_LABELS[view]}</figcaption>
+    </figure>
+  );
+}
+
+interface BodyFigureProps {
+  view: BodyView;
+  load: MuscleLoad;
+  maxLoad: number;
+  /** Muscles to outline; none when the figure is only a picture. */
+  highlighted?: ReadonlySet<Muscle>;
+  onHover?: (muscle: Muscle | null) => void;
+  /** Sets the size; the figure keeps its proportions. */
+  className: string;
+}
+
+const NOTHING_HIGHLIGHTED: ReadonlySet<Muscle> = new Set();
+
+/**
+ * One side of the body, each muscle shaded by its share of the busiest one's load. The
+ * session page makes it interactive; an activity card shows it small, as a picture.
+ */
+export function BodyFigure({
+  view,
+  load,
+  maxLoad,
+  highlighted = NOTHING_HIGHLIGHTED,
+  onHover,
+  className,
+}: BodyFigureProps) {
   const tokens = useTokens();
   const muscles = Object.entries(MUSCLE_PATHS[view]) as [Muscle, string][];
 
   return (
-    <figure className="flex flex-col items-center gap-2">
-      <svg
-        viewBox={BODY_VIEW_BOX}
-        className="h-[330px] w-auto"
-        role="img"
-        aria-label={`Muscles trained, ${BODY_VIEW_LABELS[view].toLowerCase()} view`}
-      >
-        <g fill={tokens.surfaceMuted} stroke={tokens.axis} strokeWidth={0.8} strokeLinejoin="round">
-          <circle cx={HEAD.cx} cy={HEAD.cy} r={HEAD.r} />
-          {BODY_OUTLINE.map((d) => (
-            <path key={d} d={d} />
-          ))}
-        </g>
-        {muscles.map(([muscle, d]) => {
-          const value = load[muscle] ?? 0;
-          const marked = highlighted.has(muscle);
-          return (
-            <path
-              key={muscle}
-              d={d}
-              fill={
-                value > 0 && maxLoad > 0
-                  ? metricColor(tokens, value / maxLoad)
-                  : tokens.surfaceMuted
-              }
-              stroke={marked ? tokens.ink : tokens.axis}
-              strokeWidth={marked ? 1.8 : 0.8}
-              strokeLinejoin="round"
-              className="transition-[stroke,stroke-width] duration-150"
-              onPointerEnter={() => onHover(muscle)}
-              onPointerLeave={() => onHover(null)}
-            >
-              <title>{MUSCLE_LABELS[muscle]}</title>
-            </path>
-          );
-        })}
-      </svg>
-      <figcaption className="text-muted-foreground text-xs">{BODY_VIEW_LABELS[view]}</figcaption>
-    </figure>
+    <svg
+      viewBox={BODY_VIEW_BOX}
+      className={className}
+      role="img"
+      aria-label={`Muscles trained, ${BODY_VIEW_LABELS[view].toLowerCase()} view`}
+    >
+      <g fill={tokens.surfaceMuted} stroke={tokens.axis} strokeWidth={0.8} strokeLinejoin="round">
+        <circle cx={HEAD.cx} cy={HEAD.cy} r={HEAD.r} />
+        {BODY_OUTLINE.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </g>
+      {muscles.map(([muscle, d]) => {
+        const value = load[muscle] ?? 0;
+        const marked = highlighted.has(muscle);
+        return (
+          <path
+            key={muscle}
+            d={d}
+            fill={
+              value > 0 && maxLoad > 0 ? metricColor(tokens, value / maxLoad) : tokens.surfaceMuted
+            }
+            stroke={marked ? tokens.ink : tokens.axis}
+            strokeWidth={marked ? 1.8 : 0.8}
+            strokeLinejoin="round"
+            className="transition-[stroke,stroke-width] duration-150"
+            onPointerEnter={onHover && (() => onHover(muscle))}
+            onPointerLeave={onHover && (() => onHover(null))}
+          >
+            <title>{MUSCLE_LABELS[muscle]}</title>
+          </path>
+        );
+      })}
+    </svg>
   );
 }

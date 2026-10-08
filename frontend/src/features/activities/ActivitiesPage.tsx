@@ -3,6 +3,7 @@ import type { ActivityPage } from "@/api/queries/useActivities";
 import { useActivities } from "@/api/queries/useActivities";
 import { ActivityFilters } from "@/features/activities/ActivityFilters";
 import { ActivityResults, type ResultsPage } from "@/features/activities/ActivityResults";
+import { toCardView } from "@/features/activities/cardView";
 import {
   clearFilters,
   hasFilters,
@@ -15,7 +16,9 @@ import {
 } from "@/features/activities/listState";
 import { CompareBar } from "@/features/activities/CompareBar";
 import { toRowView } from "@/features/activities/rowView";
+import { SortSelect } from "@/features/activities/SortSelect";
 import { useListState } from "@/features/activities/useListState";
+import { ViewToggle } from "@/features/activities/ViewToggle";
 import { formatCountRange } from "@/lib/format";
 import { useUiStore } from "@/store/ui";
 
@@ -23,7 +26,9 @@ function toResultsPage(data: ActivityPage, state: ListState): ResultsPage {
   const first = (state.page - 1) * PAGE_SIZE + 1;
   const today = new Date();
   return {
-    rows: data.rows.map((row) => toRowView(row, today)),
+    // Only the view on screen is built.
+    rows: state.view === "table" ? data.rows.map((row) => toRowView(row, today)) : [],
+    cards: state.view === "cards" ? data.rows.map((row) => toCardView(row, today)) : [],
     total: data.total,
     rangeLabel: formatCountRange(first, first + data.rows.length - 1, data.total),
     page: state.page,
@@ -53,8 +58,22 @@ export function ActivitiesPage() {
         onSearch={(q) => update(withFilters(state, { q }), { replace: true })}
       />
       <CompareBar selected={selectedIds} onClear={clearSelected} />
+      <div className="flex items-center gap-3">
+        <span className="text-muted-foreground text-sm tabular-nums">{results?.rangeLabel}</span>
+        <div className="ml-auto flex items-center gap-2">
+          {state.view === "cards" && (
+            <SortSelect
+              sort={state.sort}
+              order={state.order}
+              onSort={(column) => update(toggleSort(state, column))}
+            />
+          )}
+          <ViewToggle value={state.view} onChange={(view) => update({ ...state, view })} />
+        </div>
+      </div>
       <ActivityResults
         results={results}
+        view={state.view}
         selected={selected}
         onSelect={toggleSelected}
         error={query.error}

@@ -1,7 +1,7 @@
 // The activity list's sort, filters and page, and how they live in the URL. The URL is
 // the only copy, so Back, reload and a shared link all show the same list.
 //
-//   /activities?type=running&start=2026-01-01&end=&q=tempo&sort=pace&page=2
+//   /activities?type=running&start=2026-01-01&end=&q=tempo&sort=pace&page=2&view=table
 //
 // A missing `start`/`end` means the store's time range; an empty one means no bound
 // (so "all time" is `start=&end=`). Defaults are left out of the URL.
@@ -12,6 +12,9 @@ export const PAGE_SIZE = 50;
 
 export type SortColumn = "date" | "type" | "distance" | "pace" | "time" | "hr";
 export type SortOrder = "asc" | "desc";
+
+/** Cards with a map or picture beside each activity, or the dense table. */
+export type ListView = "cards" | "table";
 
 export interface ListState {
   /** A Garmin activity type, e.g. `running`; null for every type. */
@@ -29,6 +32,7 @@ export interface ListState {
   order: SortOrder;
   /** 1-based. */
   page: number;
+  view: ListView;
 }
 
 interface SortDefinition {
@@ -53,6 +57,7 @@ const SORTS: Record<SortColumn, SortDefinition> = {
 };
 
 const DEFAULT_SORT: SortColumn = "date";
+const DEFAULT_VIEW: ListView = "cards";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -91,6 +96,7 @@ export function parseListState(params: URLSearchParams, defaultRange: DateRange)
     sort,
     order: isSortOrder(orderParam) ? orderParam : SORTS[sort].firstOrder,
     page: parsePage(params.get("page")),
+    view: params.get("view") === "table" ? "table" : DEFAULT_VIEW,
   };
 }
 
@@ -106,6 +112,7 @@ export function serializeListState(state: ListState, defaultRange: DateRange): U
   if (state.sort !== DEFAULT_SORT) params.set("sort", state.sort);
   if (state.order !== SORTS[state.sort].firstOrder) params.set("order", state.order);
   if (state.page > 1) params.set("page", String(state.page));
+  if (state.view !== DEFAULT_VIEW) params.set("view", state.view);
   return params;
 }
 

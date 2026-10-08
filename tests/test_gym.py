@@ -99,6 +99,19 @@ class TestTotalsOnActivityRows:
         assert self._totals(rows[RUN_ID]) == (None, None)
         assert self._totals(rows[EXPORTED_ID]) == (None, None)
 
+    def test_list_rows_carry_the_exercises_for_the_card(self, client):
+        rows = {r["activity_id"]: r for r in client.get("/api/activities").json()["rows"]}
+        assert rows[GYM_ID]["exercises"] == EXPECTED_EXERCISES
+        assert rows[RUN_ID]["exercises"] == []
+        # The whole export file is not this session's payload, so it has no exercises.
+        assert rows[EXPORTED_ID]["exercises"] == []
+
+    def test_list_rows_show_a_relabel(self, client):
+        client.put(f"/api/activities/{GYM_ID}/exercises/2", json={"category": "SQUAT"})
+        rows = {r["activity_id"]: r for r in client.get("/api/activities").json()["rows"]}
+        relabelled = rows[GYM_ID]["exercises"][2]
+        assert (relabelled["category"], relabelled["edited"]) == ("SQUAT", True)
+
     @pytest.mark.parametrize("query", [
         "type=strength_training", "q=strength", "has_gps=false", "sort=day&order=asc",
         "start=2026-09-15", "edited=false",

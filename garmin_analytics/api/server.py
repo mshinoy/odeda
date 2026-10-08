@@ -58,6 +58,7 @@ from ..ingest import backfill as backfill_mod
 from ..seed import synthetic
 from . import auth as auth_mod
 from . import gym as gym_mod
+from . import preview as preview_mod
 from .schemas import (
     ActivityDetail,
     Aggregate,
@@ -766,11 +767,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         with store() as st:
             total = st.scalar(f"{gym_mod.COUNT_SQL}{clause}", params)
-            rows = gym_mod.activity_rows(
+            rows = preview_mod.with_card_extras(
                 st,
-                f"{clause} ORDER BY {sort} {order.upper()}, activity_id DESC "
-                "LIMIT ? OFFSET ?",
-                [*params, limit, offset],
+                gym_mod.activity_rows(
+                    st,
+                    f"{clause} ORDER BY {sort} {order.upper()}, activity_id DESC "
+                    "LIMIT ? OFFSET ?",
+                    [*params, limit, offset],
+                ),
             )
             types = [
                 r["activity_type"]

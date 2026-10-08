@@ -34,6 +34,8 @@ ADDED_ROW_KEYS = ["total_sets", "total_reps"]
 #: Columns the view holds raw and the API resolves at the boundary (T07): `race` is
 #: the user's override falling back to the payload's eventType, so it is never null.
 RESOLVED_ROW_KEYS = ["race"]
+#: What only the list sends, for its cards (T33); checked in `test_preview.py`.
+LIST_ONLY_ROW_KEYS = ["preview_polyline", "hr_zones", "exercises"]
 
 
 @pytest.fixture
@@ -206,7 +208,8 @@ class TestPayloadsUnchangedExceptDrops:
             "SELECT * FROM v_activities ORDER BY day DESC, activity_id DESC"
         )
         assert body["total"] == len(view)
-        _strict_equal(body["rows"], _as_json([_with_gym_totals(r) for r in view]))
+        rows = [{k: v for k, v in r.items() if k not in LIST_ONLY_ROW_KEYS} for r in body["rows"]]
+        _strict_equal(rows, _as_json([_with_gym_totals(r) for r in view]))
         edited = next(r for r in body["rows"] if r["activity_id"] == sample_ids["gps_run"])
         assert edited["override_count"] == 5 and edited["rpe"] == 7 and edited["private"] == 1
         assert edited["gear_ids"] and edited["route_id"] is not None

@@ -41,6 +41,20 @@ export interface ActivitySummary {
   totalReps: number | null;
 }
 
+/** A row of the activity list: the summary plus what its card shows beside the numbers. */
+export interface ActivityListItem extends ActivitySummary {
+  maxSpeedMps: number | null;
+  avgPowerW: number | null;
+  /** Steps/min for runs and walks, rpm for rides. */
+  avgCadenceSpm: number | null;
+  /** The GPS track as a Google encoded polyline, simplified for a small map; null indoors. */
+  previewPolyline: string | null;
+  /** Empty when the activity has no zones. */
+  hrZones: HrZoneTime[];
+  /** A gym session's exercises; empty for anything else. */
+  exercises: Exercise[];
+}
+
 /**
  * One column per channel, all the same length, one entry per recorded sample.
  * Index `i` is the same moment in every column, and the index the map and the charts
@@ -287,6 +301,18 @@ export function toActivitySummary(row: Schemas["ActivityRow"]): ActivitySummary 
     edited: row.override_count > 0,
     totalSets: row.total_sets,
     totalReps: row.total_reps,
+  };
+}
+
+export function toActivityListItem(row: Schemas["ActivityListRow"]): ActivityListItem {
+  return {
+    ...toActivitySummary(row),
+    maxSpeedMps: row.max_speed_mps,
+    avgPowerW: row.avg_power_w,
+    avgCadenceSpm: row.avg_cadence_spm,
+    previewPolyline: row.preview_polyline,
+    hrZones: row.hr_zones.map(({ zone, seconds }) => ({ zone, seconds })),
+    exercises: row.exercises.map(toExercise),
   };
 }
 

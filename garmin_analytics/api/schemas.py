@@ -109,16 +109,6 @@ class ActivityRow(_Model):
     total_reps: int | None
 
 
-class ActivityList(_Model):
-    """A page of activities, plus every activity type present (most common first)."""
-
-    total: int
-    limit: int
-    offset: int
-    types: list[str]
-    rows: list[ActivityRow]
-
-
 class HrZone(_Model):
     zone: int
     seconds: float
@@ -272,6 +262,29 @@ class ActivityExercises(_Model):
     """Garmin's `activeSets`, passed through."""
     total_reps: int | None
     exercises: list[Exercise]
+
+
+class ActivityListRow(ActivityRow):
+    """One row of the activity list: `ActivityRow` plus what the list's card draws next
+    to its numbers. Only the list sends these; the detail endpoint has its own."""
+
+    preview_polyline: str | None
+    """The GPS track as a Google encoded polyline (precision 5), simplified to at most
+    150 points for a small static map; null without GPS."""
+    hr_zones: list[HrZone]
+    """Seconds in each HR zone, by zone; empty when the activity has none."""
+    exercises: list[Exercise]
+    """A gym session's exercises, relabels applied; empty for anything else."""
+
+
+class ActivityList(_Model):
+    """A page of activities, plus every activity type present (most common first)."""
+
+    total: int
+    limit: int
+    offset: int
+    types: list[str]
+    rows: list[ActivityListRow]
 
 
 class ExerciseRelabelRequest(_Model):

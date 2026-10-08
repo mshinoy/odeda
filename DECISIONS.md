@@ -482,3 +482,22 @@ the API is unaffected. In development Vite proxies `/api` to `VITE_API_URL`.
 
 Either way the browser sees one origin: the `ga_session` cookie keeps working as
 `SameSite=Lax`, and there is still no CORS middleware to get wrong.
+
+### D50 — activity cards: Mapbox static images, routes simplified on the server (2026-10-08)
+The activity list became cards, each with the route beside it (T33). A live map per
+card is out: 50 WebGL contexts on one page is past the ~16 a browser allows. Each card
+is one `<img>` from Mapbox's Static Images API instead, the route drawn by Mapbox in
+the sport's colour on the theme's style, with the token the app already has.
+
+The list sends the track as a Google encoded polyline, Douglas–Peucker simplified to at
+most 150 points (`api/preview.py`): about 1 KB, well inside the API's 8 KB URL limit,
+and finer than a 240 px card can show. Simplifying costs ~0.3 s for a page of 50 on
+this box, so the result is cached in the server process, keyed by the GPS point count,
+which a re-sync of the samples changes. A page seen before answers as fast as before
+(~30 ms); a cold one ~0.2–0.4 s.
+
+Mapbox's logo and attribution are turned off on the images, where they would sit on a
+small route, and given once under the list. Without a token the card draws the same
+polyline as an SVG trace, so the list works on MapLibre setups too. Images are lazy and
+the browser keeps them for 12 hours (Mapbox's `max-age`); Mapbox's free tier is 50,000
+static images a month.

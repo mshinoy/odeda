@@ -36,7 +36,7 @@ Paste one of these into a fresh session.
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
-| 7 Activity cards | G: `open` | 0 / 1 |
+| 7 Activity cards | G: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -132,7 +132,7 @@ was eleven days behind. This phase makes the app keep itself current.
 | T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | done | T30 | Settings: it syncs on its own now, and says so |
 | T32 | Google sign-in: show when it expires, warn before, reconnect in one step | done | T31 | Google's weekly sign-out, said before it happens and renewed in one step |
 
-### Phase 7 — Activity cards · Checkpoint G: `open`
+### Phase 7 — Activity cards · Checkpoint G: `ready for review`
 
 The activity list is a table: date, name and five numbers. The owner asked for
 landscape cards, each with a map beside it and the stats its type is about, the way
@@ -140,7 +140,7 @@ Strava shows a feed but laid out for a wide screen.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | in progress (activity-cards, 2026-10-08) | — | |
+| T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
 ### Open decisions
 
@@ -163,6 +163,7 @@ its task to `needs decision: <question>`.
 | D7 | The Fitbit client uses **stdlib `urllib.request`** behind a one-method transport, not a new HTTP library. It is four calls against a documented JSON API, and an injectable transport is what makes the whole OAuth flow testable without an account (T23). No new Python or npm dependency in this phase. | 2026-09-26 |
 | D8 | Sync runs on its own **every 6 hours**, inside the `app` server process, with `GA_AUTO_SYNC_HOURS` to change it and `0` to turn it off. Four light runs a day keep the data fresh by morning and evening without leaning on Garmin's unofficial API; a manual sync still works whenever wanted. | 2026-10-08 |
 | D9 | The Google Cloud app **stays in Testing**. Leaving it needs a public homepage and privacy-policy URL on a domain the owner controls, which a one-person app does not have. The price is that Google ends the sign-in 7 days after each consent, so it is renewed weekly from Settings, and Settings says when it is due (T32). | 2026-10-08 |
+| D10 | The activity list shows **cards by default**, each with a **Mapbox static image** of the route (one `<img>`, not a live map), a body diagram for gym sessions, HR zones or the sport's icon otherwise; the table stays behind a Cards/Table toggle (T33, DECISIONS D50). | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -1994,16 +1995,27 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   `garmin_analytics/api/preview.py`, `frontend/src/api/adapters.ts`,
   `frontend/src/features/activities/`, `frontend/src/map/staticMap.ts`.
 - **Build:**
-  - [ ] list rows carry a simplified, encoded GPS track, time in each HR zone, and a gym
+  - [x] list rows carry a simplified, encoded GPS track, time in each HR zone, and a gym
     session's exercises; batched per page, the detail endpoint unchanged
-  - [ ] the map is a Mapbox static image (one `<img>` per card, the route drawn by
+  - [x] the map is a Mapbox static image (one `<img>` per card, the route drawn by
     Mapbox); without a token, an SVG trace of the same track
-  - [ ] no GPS: strength shows a small body diagram shaded by muscle load and its top
+  - [x] no GPS: strength shows a small body diagram shaded by muscle load and its top
     exercises; anything else shows its HR zones, or its type icon
-  - [ ] the stats on a card follow its kind: pace for runs, speed and power for rides,
+  - [x] the stats on a card follow its kind: pace for runs, speed and power for rides,
     pace per 100 m for swims, sets, reps and volume for strength
-  - [ ] Cards / Table toggle and a sort menu, both in the URL; cards are the default
+  - [x] Cards / Table toggle and a sort menu, both in the URL; cards are the default
 - **Notes:**
   - Decided with the owner, 2026-10-08: Mapbox static images over live maps (50 WebGL
     contexts on one page is past what a browser allows), per-type visuals for the 227
     activities without GPS, and the table kept behind a toggle.
+  - **Cost, measured on the real database:** the list went from ~30 ms to ~0.5 s for a
+    page of 50 before the route cache; with it, a page seen before is back to ~30 ms and
+    a cold one is 0.2–0.4 s. Simplifying in Python is most of a cold page.
+  - **What the real data has:** 265 of 492 activities have GPS. HR zones exist for few
+    (14 of the latest 50; none of the swims), so most indoor cards show the sport's
+    icon. A dive at full zoom over the sea is a route on plain water colour: correct,
+    not a failed image.
+  - The sort menu replaces the table's headers in the cards view only; the table keeps
+    its headers.
+  - Looked at on real data (copy on :8818), light and dark, 1440 px and 390 px: rides,
+    runs, strength, swims, other, and the table toggle.

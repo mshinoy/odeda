@@ -24,6 +24,7 @@ const defaults: ListState = {
   sort: "date",
   order: "desc",
   page: 1,
+  view: "cards",
 };
 
 function parse(query: string): ListState {
@@ -38,7 +39,7 @@ describe("parseListState", () => {
   it("reads every parameter", () => {
     expect(
       parse(
-        "type=running&start=2026-01-01&end=2026-03-31&q=tempo&race=1&sort=distance&order=asc&page=3",
+        "type=running&start=2026-01-01&end=2026-03-31&q=tempo&race=1&sort=distance&order=asc&page=3&view=table",
       ),
     ).toEqual({
       type: "running",
@@ -50,6 +51,7 @@ describe("parseListState", () => {
       sort: "distance",
       order: "asc",
       page: 3,
+      view: "table",
     });
   });
 
@@ -91,6 +93,7 @@ describe("serializeListState", () => {
       sort: "pace",
       order: "desc",
       page: 2,
+      view: "cards",
     };
     expect(serializeListState(state, range).toString()).toBe(
       "type=strength_training&start=2026-01-01&q=legs&sort=pace&order=desc&page=2",
@@ -264,5 +267,20 @@ describe("the races filter", () => {
     const races = withFilters(defaults, { race: true });
     expect(hasFilters(races)).toBe(true);
     expect(clearFilters(races).race).toBe(false);
+  });
+});
+
+describe("the view", () => {
+  it("is cards unless the URL says table, and only the table is written", () => {
+    expect(parse("view=table").view).toBe("table");
+    expect(parse("view=grid").view).toBe("cards");
+    expect(serializeListState({ ...defaults, view: "table" }, range).toString()).toBe("view=table");
+    expect(serializeListState(defaults, range).toString()).toBe("");
+  });
+
+  it("survives a filter change and a sort, like the rest of the state", () => {
+    const table = { ...defaults, view: "table" as const };
+    expect(withFilters(table, { q: "tempo" }).view).toBe("table");
+    expect(toggleSort(table, "distance").view).toBe("table");
   });
 });
