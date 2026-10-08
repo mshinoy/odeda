@@ -26,9 +26,12 @@ DEFAULT_HR_REST = 52
 DEFAULT_HR_MAX = 187
 DEFAULT_SEX = "male"  # only affects the Banister TRIMP exponent
 
-# --- Training-plan targets used by the race panel ------------------------------------
-TARGET_PEAK_CTL = 75.0
-TARGET_PEAK_WEEKLY_KM = 55.0
+# There are deliberately no training targets here. `TARGET_PEAK_CTL = 75` and
+# `TARGET_PEAK_WEEKLY_KM = 55` used to live at this spot and were invented by an agent,
+# against a plan that never asks for more than 36 km in a week — so the race panel
+# warned "a long way short" on weeks the owner had followed exactly. The targets now
+# come from the subscribed calendar (`analytics/plan.race_targets`), and with no
+# calendar there are none (D12).
 
 
 def _env_path(name: str, default: Path) -> Path:

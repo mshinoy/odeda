@@ -148,6 +148,34 @@ class TestThePlan:
         assert summary["adherence_pct"] < 50
 
 
+class TestTheRacePanelsTargets:
+    """D12: `/api/race` used to carry `ctl_target: 75` and `weekly_km_target: 55` on
+    every install, synced or not. Both now come from the calendar or not at all."""
+
+    def test_no_calendar_means_no_goal_line(self, client):
+        race = client.get("/api/race").json()
+        assert race["ctl_target"] is None
+        assert race["weekly_km_target"] is None
+        assert race["ctl_per_week_needed"] is None
+        assert race["targets"]["source"] == "none"
+
+    def test_the_volume_target_is_the_plans_peak_week(self, planned):
+        race = planned.get("/api/race").json()
+        assert race["weekly_km_target"] == pytest.approx(25.2, abs=0.1)
+        assert race["targets"]["source"] == "plan"
+
+    def test_a_plan_with_no_load_to_price_it_still_has_no_ctl_target(self, planned):
+        """The fixture's one activity carries no TRIMP, so there is no load per
+        kilometre to turn the plan's kilometres into a CTL. Volume target, no CTL
+        target — the panel draws one goal line, not an invented second."""
+        race = planned.get("/api/race").json()
+        assert race["weekly_km_target"] is not None
+        assert race["ctl_target"] is None
+
+    def test_the_config_endpoint_no_longer_publishes_targets(self, client):
+        assert "targets" not in client.get("/api/config").json()
+
+
 class TestSync:
     def test_a_sync_reports_what_it_read(self, client, store, monkeypatch):
         monkeypatch.setattr(plan_ics, "UrllibTransport", lambda *a, **k: FakeTransport())

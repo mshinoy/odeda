@@ -213,8 +213,23 @@ class TestRacePanel:
         out = R.compute_race(seeded_store, today=date(2026, 9, 22))
         assert out["race"]["date"] == "2027-01-15"
         assert out["race"]["start_local"] == "07:35"
-        assert out["ctl_target"] == config.TARGET_PEAK_CTL
         assert isinstance(out["weekly_km"], list)
+
+    def test_no_plan_means_no_target_rather_than_an_invented_one(self, seeded_store):
+        """D12. A store with activities and no subscribed calendar is every install
+        before the owner connects one, and it gets curves without a goal line."""
+        out = R.compute_race(seeded_store, today=date(2026, 9, 22))
+        assert out["ctl_target"] is None
+        assert out["weekly_km_target"] is None
+        assert out["ctl_per_week_needed"] is None
+        assert out["targets"]["source"] == "none"
+        assert any("no target" in n["text"] for n in out["notes"])
+
+    def test_no_note_compares_volume_against_a_number_nobody_set(self, seeded_store):
+        """The note this replaces read "28-day average N km/wk against a 55 km target
+        peak — a long way short", on an athlete whose plan never asks for 55."""
+        out = R.compute_race(seeded_store, today=date(2026, 9, 22))
+        assert not any("target peak" in n["text"] for n in out["notes"])
 
     def test_trailing_weekly_km_ignores_the_partial_current_week(self, seeded_store):
         """Anchoring on calendar weeks would report a volume drop that is really a Tuesday."""

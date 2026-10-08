@@ -1471,8 +1471,31 @@ class RaceNote(_Model):
     text: str
 
 
+class PlanTargets(_Model):
+    """Derived from the plan, replacing the constants that were invented (D12).
+
+    It lives up here, above the race panel that embeds it, rather than down in the
+    training-plan section it otherwise belongs to.
+    """
+
+    peak_weekly_km: float | None
+    """The plan's biggest prescribed running week."""
+    mean_weekly_km: float | None = None
+    source: Literal["plan", "none"]
+    ctl_target: float | None = None
+    """`peak_weekly_km` priced in `load_per_km`, divided over seven days: the CTL a
+    week held at the plan's peak settles at. Null with no plan or no recent running."""
+    load_per_km: float | None = None
+    """TRIMP per kilometre from the owner's last 90 days of running — the thing that
+    makes `ctl_target` derived rather than invented."""
+
+
 class RacePanel(_Model):
-    """`GET /api/race`: countdown, projection and the CTL / volume gap to target."""
+    """`GET /api/race`: countdown, projection and the CTL / volume gap to target.
+
+    Every target here is the plan's, and every one of them is null with no calendar
+    subscribed — the panel then draws its curves without a goal line rather than
+    inventing one (D12)."""
 
     race: RaceInfo
     today: str
@@ -1482,16 +1505,21 @@ class RacePanel(_Model):
     projection: RaceProjection | None
     """Null with no usable best effort."""
     ctl_now: float
-    ctl_target: float
+    ctl_target: float | None
+    """The plan's peak week priced in the owner's own load per km. Null with no plan,
+    or with no recent running to price it from."""
     ctl_per_week_needed: float | None
-    """Straight-line CTL gain per week to reach the target; null inside the last
-    week."""
+    """Straight-line CTL gain per week to reach the target; null inside the last week,
+    and null with no target."""
     tsb_now: float | None
     weekly_km: list[RaceWeekKm]
     """The last 26 weeks with any running."""
     weekly_km_avg_4wk: float
     """Running km/week over the 28 days ending on the last activity."""
-    weekly_km_target: float
+    weekly_km_target: float | None
+    """The plan's biggest prescribed week. Null with no plan."""
+    targets: PlanTargets
+    """Where the two targets above came from, so the panel can label them derived."""
     recent_bests: list[PersonalBest]
     """Bests from the last 120 days of activities."""
     notes: list[RaceNote]
@@ -2234,18 +2262,16 @@ class ConfigAthlete(_Model):
     sex: str
 
 
-class ConfigTargets(_Model):
-    peak_ctl: Number
-    peak_weekly_km: Number
-
-
 class AppConfig(_Model):
     """`GET /api/config`: non-secret configuration, so a view can label its own
-    assumptions. Nothing here is a credential."""
+    assumptions. Nothing here is a credential.
+
+    There is no `targets` block any more. The two numbers it held were invented, and
+    the real ones belong to the plan rather than to the deployment, so they are on
+    `/api/plan` and `/api/race` (D12)."""
 
     race: ConfigRace
     athlete: ConfigAthlete
-    targets: ConfigTargets
     auth_required: bool
     version: str
 
@@ -2308,14 +2334,6 @@ class PlanSession(_Model):
     actual_s: float | None
     moved_from: str | None
     """The day the fulfilling activity actually happened, when it was not this one."""
-
-
-class PlanTargets(_Model):
-    """Derived from the plan, replacing the constants that were invented (D12)."""
-
-    peak_weekly_km: float | None
-    mean_weekly_km: float | None = None
-    source: Literal["plan", "none"]
 
 
 class PlanUnreadable(_Model):

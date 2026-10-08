@@ -13,6 +13,7 @@ from typing import Mapping, Sequence
 from .. import config
 from . import load as load_mod
 from . import performance as perf
+from . import plan as plan_mod
 from . import trends as trends_mod
 
 # Component weights. They sum to 1.0; components with no data are dropped and the
@@ -305,10 +306,19 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
     weeks = weekly_distance(store)
     avg_km = trailing_weekly_km(store, 28)
 
+    # D12: the targets are the plan's, or there are none. With no calendar subscribed
+    # this panel draws its curves without a goal line rather than inventing one.
+    targets = plan_mod.race_targets(store, today)
+    km_target = targets["peak_weekly_km"]
+    ctl_target = targets["ctl_target"]
+
     # Straight-line CTL requirement to hit the target by race week.
     weeks_left = max(days_to_go / 7.0, 0.0)
-    ctl_gap = config.TARGET_PEAK_CTL - ctl
-    ctl_per_week_needed = round(ctl_gap / weeks_left, 2) if weeks_left >= 1 else None
+    ctl_per_week_needed = (
+        round((ctl_target - ctl) / weeks_left, 2)
+        if ctl_target is not None and weeks_left >= 1
+        else None
+    )
 
     # Each note carries its own severity. Guessing severity from the wording in the
     # frontend gets it backwards — "already above target" contains the word "above".
@@ -319,28 +329,34 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
 
     if days_to_go < 0:
         note("warning", "Race date has passed.")
-    if ctl >= config.TARGET_PEAK_CTL:
-        note("good", f"CTL {ctl:.0f} is at or above the {config.TARGET_PEAK_CTL:.0f} target.")
+    if ctl_target is None:
+        note(
+            "good",
+            "No training plan is connected, so there is no target to measure against — "
+            "connect the calendar in Settings.",
+        )
+    elif ctl >= ctl_target:
+        note("good", f"CTL {ctl:.0f} is at or above the {ctl_target:.0f} the plan implies.")
     elif ctl_per_week_needed is not None:
         note(
             "warning" if ctl_per_week_needed > 5 else "good",
-            f"Needs +{ctl_per_week_needed:.1f} CTL/week to reach {config.TARGET_PEAK_CTL:.0f} "
-            f"by race day — sustainable is roughly +3 to +5.",
+            f"Needs +{ctl_per_week_needed:.1f} CTL/week to reach {ctl_target:.0f} by race "
+            f"day — sustainable is roughly +3 to +5.",
         )
     if load.get("ramp_flag"):
         note("warning", f"Ramp rate {load.get('ramp_pct')}%/wk is above the 10% flag — back off.")
-    if avg_km:
-        if avg_km < config.TARGET_PEAK_WEEKLY_KM * 0.6:
+    if avg_km and km_target:
+        if avg_km < km_target * 0.6:
             note(
                 "warning",
-                f"28-day average {avg_km:.0f} km/wk against a "
-                f"{config.TARGET_PEAK_WEEKLY_KM:.0f} km target peak — a long way short.",
+                f"28-day average {avg_km:.0f} km/wk against the plan's "
+                f"{km_target:.0f} km peak week — a long way short.",
             )
-        elif avg_km < config.TARGET_PEAK_WEEKLY_KM * 0.9:
+        elif avg_km < km_target * 0.9:
             note(
                 "good",
-                f"28-day average {avg_km:.0f} km/wk, building toward the "
-                f"{config.TARGET_PEAK_WEEKLY_KM:.0f} km target peak.",
+                f"28-day average {avg_km:.0f} km/wk, building toward the plan's "
+                f"{km_target:.0f} km peak week.",
             )
 
     return {
@@ -356,12 +372,13 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
         "weeks_to_go": round(weeks_left, 1),
         "projection": projection,
         "ctl_now": round(ctl, 1),
-        "ctl_target": config.TARGET_PEAK_CTL,
+        "ctl_target": ctl_target,
         "ctl_per_week_needed": ctl_per_week_needed,
         "tsb_now": current.get("tsb"),
         "weekly_km": weeks[-26:],
         "weekly_km_avg_4wk": avg_km,
-        "weekly_km_target": config.TARGET_PEAK_WEEKLY_KM,
+        "weekly_km_target": km_target,
+        "targets": targets,
         "recent_bests": bests_recent,
         "notes": notes,
     }

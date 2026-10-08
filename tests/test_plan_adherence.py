@@ -269,6 +269,73 @@ class TestWeekly:
         assert A.rolling_adherence(weeks, window=4) == pytest.approx(76.7, abs=0.1)
 
 
+class TestTargets:
+    """D12. The two constants this replaces were invented by an agent: 55 km/week
+    against a plan whose biggest week is 35.7, and a CTL of 75 that nothing produced.
+    """
+
+    WEEK = [
+        session("2026-12-07", P.SPORT_RUN, lo=7200, kind="easy"),
+        session("2026-12-11", P.SPORT_RUN, lo=18000, kind="long"),
+        session("2026-12-14", P.SPORT_RUN, lo=10000, kind="easy"),
+    ]
+
+    def _judged(self):
+        judged, _ = A.match(A.collapse(self.WEEK), [], TODAY)
+        return judged
+
+    def test_the_peak_is_the_plans_own_biggest_week(self):
+        out = A.targets(self._judged())
+        assert out["peak_weekly_km"] == pytest.approx(25.2, abs=0.1)
+        assert out["source"] == "plan"
+
+    def test_no_plan_is_null_targets_not_a_number_nobody_chose(self):
+        out = A.targets([])
+        assert out == {
+            "peak_weekly_km": None, "mean_weekly_km": None,
+            "ctl_target": None, "load_per_km": None, "source": "none",
+        }
+
+    def test_without_a_store_the_ctl_target_is_not_guessed(self):
+        """The kilometres are the plan's; the price of a kilometre is the athlete's,
+        and there is nowhere to read it from here."""
+        assert A.targets(self._judged())["ctl_target"] is None
+
+    def test_load_per_km_comes_from_the_owners_own_running(self, store):
+        _insert_runs(store, [("2026-12-07", 10000, 60.0), ("2026-12-11", 10000, 80.0)])
+        assert A.load_per_km(store) == pytest.approx(7.0, abs=0.01)
+
+    def test_load_per_km_is_none_before_there_is_any_running(self, store):
+        assert A.load_per_km(store) is None
+
+    def test_the_ctl_target_is_the_peak_week_priced_in_that_load(self, store):
+        """CTL is a 42-day average of daily load, so a week held at the plan's peak
+        settles at peak_km * load_per_km / 7. No constant appears in it."""
+        _insert_runs(store, [("2026-12-07", 10000, 70.0)])
+        out = A.targets(self._judged(), store)
+        assert out["load_per_km"] == pytest.approx(7.0, abs=0.01)
+        assert out["ctl_target"] == pytest.approx(25.2 * 7.0 / 7.0, abs=0.2)
+
+    def test_a_run_with_no_load_recorded_cannot_price_anything(self, store):
+        """Every activity in the `planned` API fixture is like this. A zero would make
+        the target zero, which reads as "you have arrived"."""
+        _insert_runs(store, [("2026-12-07", 10000, None)])
+        out = A.targets(self._judged(), store)
+        assert out["load_per_km"] is None
+        assert out["ctl_target"] is None
+        assert out["peak_weekly_km"] == pytest.approx(25.2, abs=0.1)
+
+
+def _insert_runs(store, rows):
+    for day, metres, load in rows:
+        store.conn.execute(
+            "INSERT INTO activities (activity_id, day, start_time_local, activity_type, "
+            "distance_m, duration_s, trimp) VALUES (?, ?, ?, 'running', ?, 3600, ?)",
+            (f"a-{day}", day, f"{day}T06:00:00", metres, load),
+        )
+    store.conn.commit()
+
+
 class TestRestDayDoesNotStarveARealSession:
     def test_a_rest_prescription_settles_after_the_others(self):
         """Defensive: a rest day claims *any* activity on it, so if one were ever

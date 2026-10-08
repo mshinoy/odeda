@@ -496,7 +496,7 @@ def compute_plan(store, today: date | None = None) -> dict[str, Any]:
             (w for w in weeks if w["week"] == week_of(today.isoformat())), None
         ),
         "next_session": _next_session(judged, today),
-        "targets": targets(judged, today),
+        "targets": targets(judged, store),
         "unreadable": unreadable,
         "unplanned": unplanned[-20:],
     }
@@ -529,23 +529,76 @@ def _next_session(judged: Sequence[Judged], today: date) -> dict[str, Any] | Non
     return _as_dict(min(upcoming, key=lambda j: j.planned.day))
 
 
-def targets(judged: Sequence[Judged], today: date | None = None) -> dict[str, Any]:
+#: How many days of the owner's own running the load-per-kilometre is read from. Long
+#: enough to average out one hard week, short enough to be this block's fitness rather
+#: than last year's.
+LOAD_SAMPLE_DAYS = 90
+
+
+def load_per_km(store, days: int = LOAD_SAMPLE_DAYS) -> float | None:
+    """TRIMP per kilometre over the owner's last `days` of running.
+
+    This is the exchange rate that turns the plan's kilometres into a CTL, and it is
+    the reason the CTL target can be called derived rather than invented: the same
+    kilometre costs a different load at a different fitness, in a different month, in
+    Doha. Theirs is the only honest source for it.
+    """
+    hi = store.scalar("SELECT MAX(day) FROM v_activities_included")
+    if not hi:
+        return None
+    lo = (date.fromisoformat(str(hi)) - timedelta(days=days - 1)).isoformat()
+    rows = store.query(
+        "SELECT SUM(COALESCE(trimp, 0)) AS load, SUM(COALESCE(distance_m, 0)) AS dist "
+        "FROM v_activities_included "
+        "WHERE activity_type = 'running' AND day BETWEEN ? AND ?",
+        (lo, hi),
+    )
+    total_load = float(rows[0]["load"] or 0.0)
+    total_km = float(rows[0]["dist"] or 0.0) / 1000.0
+    if total_load <= 0 or total_km <= 0:
+        return None
+    return round(total_load / total_km, 2)
+
+
+def targets(judged: Sequence[Judged], store: Any | None = None) -> dict[str, Any]:
     """The plan's own peak, replacing the constants an agent invented (D12).
 
     `TARGET_PEAK_WEEKLY_KM` was 55 against a plan that never asks for more than 36, so
     the race panel warned "a long way short" on weeks followed exactly. With no plan
     loaded these are `None` and the panel shows its curves without a goal line, which is
     honest in a way an invented number is not.
+
+    The CTL target is the plan's peak week priced in the owner's own load per kilometre.
+    CTL is a 42-day average of daily load, so a week held at the peak settles at
+    `peak_km * load_per_km / 7` — no constant anywhere in it. It needs a `store`,
+    because the price comes from their training and not from the calendar; without one,
+    or with no running to read, the plan's kilometres stand on their own.
     """
     weeks = weekly(judged)
     planned = [float(w["planned_km"]) for w in weeks if w["planned_km"]]
     if not planned:
-        return {"peak_weekly_km": None, "source": "none"}
+        return {
+            "peak_weekly_km": None,
+            "mean_weekly_km": None,
+            "ctl_target": None,
+            "load_per_km": None,
+            "source": "none",
+        }
+    peak = round(max(planned), 1)
+    per_km = load_per_km(store) if store is not None else None
     return {
-        "peak_weekly_km": round(max(planned), 1),
+        "peak_weekly_km": peak,
         "mean_weekly_km": round(sum(planned) / len(planned), 1),
+        "ctl_target": None if per_km is None else round(peak * per_km / 7.0, 1),
+        "load_per_km": per_km,
         "source": "plan",
     }
+
+
+def race_targets(store, today: date | None = None) -> dict[str, Any]:
+    """`targets`, read from the database: what the race panel is allowed to aim at."""
+    judged, _ = judge_all(store, today)
+    return targets(judged, store)
 
 
 def set_link(store, session_id: int, activity_id: str | None, ignore: bool) -> dict[str, Any]:

@@ -1398,10 +1398,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
             "athlete": {"hr_rest": settings.hr_rest, "hr_max": settings.hr_max,
                         "sex": settings.sex},
-            "targets": {
-                "peak_ctl": config.TARGET_PEAK_CTL,
-                "peak_weekly_km": config.TARGET_PEAK_WEEKLY_KM,
-            },
+            # No targets block: they belong to the plan, not to the deployment, and
+            # are on /api/plan and /api/race (D12).
             "auth_required": app.state.auth_required,
             "version": __version__,
         }

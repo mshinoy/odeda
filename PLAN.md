@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 6 / 9 |
+| 8 Training plan | H: `open` | 7 / 9 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -179,7 +179,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
-| T42 | Targets come from the plan; the invented constants go | in progress (patti, 2026-10-08) | T37 | |
+| T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2416,6 +2416,45 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - The parse review list is the honesty mechanism for T36. Without it, a session the
     parser dropped is simply absent from the adherence denominator and the number
     silently improves.
+
+### T42 — Targets the plan actually asks for
+- **Goal:** no number in this app that measures the owner against a target is a number
+  an agent made up.
+- **Files:** `garmin_analytics/config.py`, `garmin_analytics/analytics/plan.py`,
+  `garmin_analytics/analytics/readiness.py`, `garmin_analytics/api/schemas.py`,
+  `garmin_analytics/api/server.py`, `frontend/src/api/schema.ts` (generated),
+  `tests/test_plan_adherence.py`, `tests/test_plan_api.py`, `tests/test_readiness.py`.
+- **Build:**
+  - [x] `TARGET_PEAK_CTL` and `TARGET_PEAK_WEEKLY_KM` deleted from `config.py`
+  - [x] `plan.targets` grows a derived CTL target; `plan.load_per_km` prices a
+    kilometre from the owner's own last 90 days of running
+  - [x] `compute_race` takes both targets from `plan.race_targets`, and carries the
+    `targets` block so a panel can label them derived
+  - [x] every target on `/api/race` is nullable; with no calendar they are all null
+  - [x] the two notes that compared volume and CTL to the constants now quote the
+    plan's own peak, or say there is no plan to measure against
+  - [x] `/api/config` loses its `targets` block; types regenerated
+- **Notes:**
+  - **The CTL target is arithmetic, not a guess.** CTL is a 42-day average of daily
+    load, so a week held at the plan's peak settles at `peak_km × load_per_km / 7`.
+    The only input that is not the calendar's is the price of a kilometre, and that is
+    read from the owner's own running — which is what lets it be called derived.
+  - **Measured on the real database** (a copy, 2026-10-08): 12.53 TRIMP/km over the
+    last 90 days, and 12.62 over 28 — stable enough to price a plan with. His plan's
+    35.7 km peak week therefore implies **CTL 63.9**, against the 75 that was invented
+    and a current CTL of 19.2. The old 55 km/week would have implied 98.5.
+  - **Deleting a target is the honest empty state.** With no calendar subscribed the
+    panel gets `null` everywhere and one note saying so. The alternative — keeping a
+    default "until the owner connects something" — is the bug this task exists to
+    remove, in a quieter form.
+  - **Proved end to end on the real data** by loading a stand-in Higdon-shaped feed
+    into the throwaway copy: `/api/race` went from all-null to `weekly_km_target 44.1`,
+    `ctl_target 78.9`, `+4.2 CTL/week needed`, with every number traceable to a session
+    in the calendar. The owner's real feed is not in this checkout, so the stand-in's
+    peak is not his 35.7.
+  - Nothing in the frontend read either constant, so there is no visible change; the
+    `/status` and `/settings` screenshots were taken to prove exactly that, and deleted.
+  - 1,426 backend tests, 751 frontend tests.
 
 ### T34 — Schema v3: somewhere to put what was prescribed
 - **Goal:** the database can hold a prescribed session, where it came from and which
