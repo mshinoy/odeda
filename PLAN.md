@@ -127,7 +127,7 @@ was eleven days behind. This phase makes the app keep itself current.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | done | — | Auto-sync: the data stops being as old as the last button press |
-| T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | todo | T30 | |
+| T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | in progress (auto-sync, 2026-10-08) | T30 | |
 
 ### Open decisions
 
