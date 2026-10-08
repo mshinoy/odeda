@@ -3,6 +3,7 @@ import type { FitbitImportResult, FitbitStatus, FitbitSyncResult } from "@/api/q
 import {
   fitbitStage,
   importSummary,
+  signinNotice,
   storedSummary,
   syncSummary,
 } from "@/features/settings/fitbitSummary";
@@ -110,5 +111,45 @@ describe("what an import did", () => {
     expect(importSummary({ ...imported, written: 0, units_found: [] })).toBe(
       "0 weigh-ins from 12 files.",
     );
+  });
+});
+
+describe("signinNotice", () => {
+  // Local components, like a browser clock; the expiry is a UTC instant from the server.
+  const now = new Date(2026, 9, 8, 12, 0, 0);
+  const inHours = (hours: number) => new Date(now.getTime() + hours * 3_600_000).toISOString();
+
+  it("says when to renew, a week out", () => {
+    const notice = signinNotice({ ...status, signin_expires_at: inHours(7 * 24) }, now);
+    expect(notice?.tone).toBe("neutral");
+    expect(notice?.urgent).toBe(false);
+    expect(notice?.text).toBe(
+      "Sign-in lasts 7 days while the Google app is in Testing — renew by Oct 15 (in 7 d).",
+    );
+  });
+
+  it("warns inside the last day, and opens the reconnect steps", () => {
+    const notice = signinNotice({ ...status, signin_expires_at: inHours(5) }, now);
+    expect(notice).toEqual({
+      tone: "warning",
+      text: "Google ends the sign-in in 5 h. Reconnect now and weigh-ins never stop.",
+      urgent: true,
+    });
+  });
+
+  it("says plainly when it has ended", () => {
+    const notice = signinNotice({ ...status, signin_expires_at: inHours(-3) }, now);
+    expect(notice?.tone).toBe("critical");
+    expect(notice?.text).toBe(
+      "Google ended the sign-in 3 h ago. Reconnect to bring weigh-ins back.",
+    );
+  });
+
+  it("says nothing it does not know", () => {
+    expect(signinNotice({ ...status, signin_expires_at: null }, now)).toBeNull();
+    expect(signinNotice(status, now)).toBeNull();
+    expect(
+      signinNotice({ ...status, connected: false, signin_expires_at: inHours(5) }, now),
+    ).toBeNull();
   });
 });

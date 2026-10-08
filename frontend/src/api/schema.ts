@@ -2405,6 +2405,12 @@ export interface components {
              *     character for character.
              */
             redirect_uri: string;
+            /**
+             * Signin Expires At
+             * @description When Google ends this sign-in: 7 days after consent while the app is in Testing
+             *     (D9). Null when not connected, or connected before this was recorded.
+             */
+            signin_expires_at?: string | null;
             /** Status */
             status: string;
         };
@@ -2438,6 +2444,12 @@ export interface components {
              *     character for character.
              */
             redirect_uri: string;
+            /**
+             * Signin Expires At
+             * @description When Google ends this sign-in: 7 days after consent while the app is in Testing
+             *     (D9). Null when not connected, or connected before this was recorded.
+             */
+            signin_expires_at?: string | null;
             /** Status */
             status: string;
             /** Removed Files */
@@ -2503,6 +2515,12 @@ export interface components {
              *     character for character.
              */
             redirect_uri: string;
+            /**
+             * Signin Expires At
+             * @description When Google ends this sign-in: 7 days after consent while the app is in Testing
+             *     (D9). Null when not connected, or connected before this was recorded.
+             */
+            signin_expires_at?: string | null;
         };
         /**
          * FitbitSyncResult

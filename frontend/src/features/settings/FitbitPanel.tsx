@@ -11,7 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FitbitImportForm } from "@/features/settings/FitbitImportForm";
-import { fitbitStage, storedSummary, syncSummary } from "@/features/settings/fitbitSummary";
+import {
+  fitbitStage,
+  signinNotice,
+  storedSummary,
+  syncSummary,
+} from "@/features/settings/fitbitSummary";
 import { errorMessage } from "@/features/settings/garminSignIn";
 
 /**
@@ -22,12 +27,12 @@ import { errorMessage } from "@/features/settings/garminSignIn";
  * both the fallback if Google retires the Web API and the fastest way to load years of
  * history without touching the 150-an-hour budget.
  */
-export function FitbitPanel() {
-  const status = useFitbitStatus();
+/**
+ * Open Google's consent page, then finish with the address it lands on. The same steps
+ * connect for the first time and renew a sign-in Google is about to end (D9).
+ */
+function ConsentSteps({ label, onDone }: { label: string; onDone?: () => void }) {
   const connect = useFitbitConnect();
-  const disconnect = useFitbitDisconnect();
-  const sync = useFitbitSync();
-
   const [redirect, setRedirect] = useState("");
   const [consentUrl, setConsentUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -44,7 +49,67 @@ export function FitbitPanel() {
     }
   }
 
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <Button type="button" variant="outline" size="sm" onClick={() => void openConsent()}>
+          {label}
+        </Button>
+      </div>
+
+      {consentUrl && (
+        <p className="text-muted-foreground text-xs break-all">
+          Blocked as a popup? Open{" "}
+          <a className="underline" href={consentUrl} target="_blank" rel="noreferrer">
+            {consentUrl}
+          </a>
+        </p>
+      )}
+
+      <p className="text-muted-foreground text-sm">
+        Approve the weight permission, then paste the address you land on — unless it landed back
+        here, in which case you are already connected.
+      </p>
+
+      <Input
+        aria-label="Fitbit redirect address"
+        placeholder="http://localhost:8000/api/fitbit/callback?code=…"
+        value={redirect}
+        onChange={(event) => setRedirect(event.target.value)}
+      />
+      <div>
+        <Button
+          type="button"
+          size="sm"
+          disabled={connect.isPending || redirect.trim() === ""}
+          onClick={() =>
+            connect.mutate(redirect.trim(), {
+              // The code is a credential while it lives, and single-use besides.
+              onSettled: () => setRedirect(""),
+              onSuccess: () => {
+                setConsentUrl(null);
+                onDone?.();
+              },
+            })
+          }
+        >
+          Finish connecting
+        </Button>
+      </div>
+      {connect.error && <p className="text-delta-bad text-sm">{connect.error.message}</p>}
+      {localError && <p className="text-delta-bad text-sm">{localError}</p>}
+    </div>
+  );
+}
+
+export function FitbitPanel() {
+  const status = useFitbitStatus();
+  const disconnect = useFitbitDisconnect();
+  const sync = useFitbitSync();
+  const [reconnecting, setReconnecting] = useState(false);
+
   const stage = status.data ? fitbitStage(status.data) : null;
+  const notice = status.data ? signinNotice(status.data) : null;
 
   return (
     <section className="flex flex-col gap-4">
@@ -60,10 +125,10 @@ export function FitbitPanel() {
             label="No Google Health app registered. Nothing can connect until there is one."
           />
           <p className="text-muted-foreground text-sm">
-            Create a Web application OAuth client in Google Cloud, enable the Google Health API,
-            and put its client ID and secret in the environment as GOOGLE_HEALTH_CLIENT_ID and
-            GOOGLE_HEALTH_CLIENT_SECRET, then restart. While the client is unverified you also
-            have to add yourself as a test user on its Audience page, or consent will fail.
+            Create a Web application OAuth client in Google Cloud, enable the Google Health API, and
+            put its client ID and secret in the environment as GOOGLE_HEALTH_CLIENT_ID and
+            GOOGLE_HEALTH_CLIENT_SECRET, then restart. While the client is unverified you also have
+            to add yourself as a test user on its Audience page, or consent will fail.
           </p>
           <p className="text-muted-foreground text-xs break-all">
             The redirect URL it has to be registered with is {status.data.redirect_uri}
@@ -74,49 +139,7 @@ export function FitbitPanel() {
       {status.data && stage === "not_connected" && (
         <div className="flex max-w-lg flex-col gap-3">
           <StatusDot tone="neutral" label="Not connected. No weigh-ins can arrive." />
-          <div>
-            <Button type="button" variant="outline" size="sm" onClick={() => void openConsent()}>
-              Connect Fitbit
-            </Button>
-          </div>
-
-          {consentUrl && (
-            <p className="text-muted-foreground text-xs break-all">
-              Blocked as a popup? Open{" "}
-              <a className="underline" href={consentUrl} target="_blank" rel="noreferrer">
-                {consentUrl}
-              </a>
-            </p>
-          )}
-
-          <p className="text-muted-foreground text-sm">
-            Approve the weight permission, then paste the address you land on — unless it landed
-            back here, in which case you are already connected.
-          </p>
-
-          <Input
-            aria-label="Fitbit redirect address"
-            placeholder="http://localhost:8000/api/fitbit/callback?code=…"
-            value={redirect}
-            onChange={(event) => setRedirect(event.target.value)}
-          />
-          <div>
-            <Button
-              type="button"
-              size="sm"
-              disabled={connect.isPending || redirect.trim() === ""}
-              onClick={() =>
-                connect.mutate(redirect.trim(), {
-                  // The code is a credential while it lives, and single-use besides.
-                  onSettled: () => setRedirect(""),
-                  onSuccess: () => setConsentUrl(null),
-                })
-              }
-            >
-              Finish connecting
-            </Button>
-          </div>
-          {connect.error && <p className="text-delta-bad text-sm">{connect.error.message}</p>}
+          <ConsentSteps label="Connect Fitbit" />
         </div>
       )}
 
@@ -136,6 +159,9 @@ export function FitbitPanel() {
               >
                 {sync.isPending ? "Syncing…" : "Sync weigh-ins"}
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setReconnecting((open) => !open)}>
+                Reconnect
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -146,6 +172,10 @@ export function FitbitPanel() {
               </Button>
             </div>
           </div>
+          {notice && <StatusDot tone={notice.tone} label={notice.text} />}
+          {(reconnecting || notice?.urgent) && (
+            <ConsentSteps label="Open Google to reconnect" onDone={() => setReconnecting(false)} />
+          )}
           {sync.data && (
             <p className="text-muted-foreground text-sm" role="status">
               {syncSummary(sync.data)}
@@ -155,8 +185,6 @@ export function FitbitPanel() {
           {disconnect.error && <p className="text-delta-bad text-sm">{disconnect.error.message}</p>}
         </div>
       )}
-
-      {localError && <p className="text-delta-bad text-sm">{localError}</p>}
 
       <FitbitImportForm />
     </section>

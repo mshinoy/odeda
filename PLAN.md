@@ -118,7 +118,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | done | T24, T25 | Settings: connect the scale, or import it from a ZIP |
 
-### Phase 6 — Automatic sync · Checkpoint F: `open`
+### Phase 6 — Automatic sync · Checkpoint F: `ready for review`
 
 Both sources are pull-only and only pulled when the owner presses a button, so the
 data is as old as the last time anyone remembered: on 2026-10-08 the newest Garmin day
@@ -128,7 +128,7 @@ was eleven days behind. This phase makes the app keep itself current.
 |---|---|---|---|---|
 | T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | done | — | Auto-sync: the data stops being as old as the last button press |
 | T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | done | T30 | Settings: it syncs on its own now, and says so |
-| T32 | Google sign-in: show when it expires, warn before, reconnect in one step | in progress (auto-sync, 2026-10-08) | T31 | |
+| T32 | Google sign-in: show when it expires, warn before, reconnect in one step | done | T31 | Google's weekly sign-out, said before it happens and renewed in one step |
 
 ### Open decisions
 
@@ -1942,3 +1942,35 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     into that service's scratch copy of the database and removed afterwards.
     `FitbitPanel.tsx` fails `prettier --check` on `master` already; it is left alone
     here.
+
+### T32 — Google sign-in: when it ends, said before it does
+- **Goal:** the weekly reconnect that D9 costs happens before a sync fails, not after.
+- **Files:** `garmin_analytics/ingest/fitbit.py`, `garmin_analytics/ingest/fitbit_sync.py`,
+  `garmin_analytics/ingest/auto_sync.py`, `frontend/src/features/settings/`.
+- **Build:**
+  - [x] the token cache records when Google issued the refresh token, carried through
+    refreshes that do not rotate it; the sign-in ends 7 days after, or when Google says
+    (`refresh_token_expires_in`)
+  - [x] `/api/fitbit/status` reports `signin_expires_at`, from the cache, no network call
+  - [x] Settings: "renew by Oct 15 (in 7 d)" in grey, amber inside the last day, red once
+    ended, and a Reconnect button. The consent steps open on their own once it is urgent.
+  - [x] a refused refresh says what happened (the Testing sign-out) instead of blaming
+    spent codes. A refused code still talks about codes.
+  - [x] an automatic run's failure is not shown once that source has synced cleanly
+    since
+- **Notes:**
+  - **Found on the first real automatic run**, 2026-10-08 08:06: `invalid_grant: Token
+    has been expired or revoked`, eleven days after consent. The app is in Testing, and
+    leaving it needs a homepage and privacy-policy URL on an owned domain (D9).
+  - **The clock counts from consent, not from the last refresh.** A refresh that keeps
+    the refresh token carries the issue time forward. Only a rotated one restarts it.
+  - A cache written before this has no issue time and shows no date. No guess is made:
+    the file's mtime is the last *access-token* refresh, which happens hourly.
+  - **The stale error was seen, not imagined.** The owner reconnected and synced by hand
+    at 08:21. Settings went on showing the 08:06 failure, and would have until 14:06.
+  - The consent steps are one component now, used to connect and to reconnect.
+    Connecting over a live connection overwrites the cache, so no disconnect step is
+    needed.
+  - **Not looked at in a browser.** The screenshot was taken, with a fake token in
+    `api-dev`'s scratch cache and removed afterwards, but the tool that reads images
+    was unreachable. Its tests cover the three states.

@@ -345,6 +345,21 @@ class TestApi:
         finished = A._epoch(body["finished_at"])
         assert A._epoch(body["next_run_at"]) == finished + 6 * HOUR
 
+    def test_a_failure_fixed_since_by_hand_is_not_shown(self, settings, store):
+        """2026-10-08: Google Health was reconnected and synced by hand at 08:21, and
+        Settings went on showing the 08:06 automatic run's expired-token error."""
+        A.run_once(store, settings,
+                   garmin=lambda st, s: {"state": "done", "message": "0 new activities."},
+                   fitbit=lambda st, s: {"state": "error", "message": "invalid_grant"})
+        auto = A.AutoSync(settings, 6)
+        assert A.status(store, auto)["sources"]["fitbit"]["state"] == "error"
+
+        store.set_watermark(fitbit_sync_mod.ENDPOINT, "2026-10-08", "ok")
+        store.conn.execute("UPDATE sync_watermark SET last_run_at = '2999-01-01T00:00:00Z' "
+                           "WHERE endpoint = ?", (fitbit_sync_mod.ENDPOINT,))
+        assert A.status(store, auto)["sources"]["fitbit"] == {
+            "state": "done", "message": "Synced since, without a problem."}
+
     def test_the_server_starts_and_stops_the_scheduler(self, settings):
         app = create_app(replace(settings, auto_sync_hours=6))
         with TestClient(app):
@@ -370,3 +385,20 @@ class TestApi:
         assert res.status_code == 200, res.text
         statuses = {w["endpoint"]: w["status"] for w in res.json()["watermarks"]}
         assert statuses[fitbit_sync_mod.ENDPOINT] == "rate_limited"
+
+
+class TestSigninExpiryInStatus:
+    """T32: Settings is told when Google will end the sign-in, without a network call."""
+
+    def test_reported_from_the_cache(self, settings):
+        F = fitbit_mod
+        F.save_tokens(F.Tokens("a", "r", expires_at=0.0, refresh_issued_at=1_800_000_000.0),
+                      settings.token_dir)
+        body = TestClient(create_app(settings)).get("/api/fitbit/status").json()
+        assert body["connected"] is True
+        assert body["signin_expires_at"] == A._stamp(1_800_000_000.0 + 7 * 24 * HOUR)
+
+    def test_null_when_not_connected(self, settings):
+        body = TestClient(create_app(settings)).get("/api/fitbit/status").json()
+        assert body["signin_expires_at"] is None
+

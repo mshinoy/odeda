@@ -1065,6 +1065,9 @@ class FitbitStatus(_Model):
     redirect_uri: str
     """What has to be an Authorized redirect URI on the Google Cloud OAuth client,
     character for character."""
+    signin_expires_at: str | None = None
+    """When Google ends this sign-in: 7 days after consent while the app is in Testing
+    (D9). Null when not connected, or connected before this was recorded."""
 
 
 class FitbitAuthorizeUrl(_Model):

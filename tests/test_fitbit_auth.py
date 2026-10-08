@@ -320,6 +320,78 @@ class TestRefreshRotation:
         assert saved["access_token"] == "access-2"
 
 
+class TestSigninLifetime:
+    """D9: the app stays in Testing, where Google ends a sign-in 7 days after consent.
+
+    Google does not put that in the token response, so the issue time is recorded at
+    consent and carried through every refresh that keeps the same refresh token. That,
+    not the last refresh, is what the 7 days count from.
+    """
+
+    DAY = 24 * 3600
+
+    def _exchanged(self, now=1000.0, payload=TOKEN_PAYLOAD):
+        pending = F.begin_authorization("test-client-id", "http://localhost:8000/cb")
+        return F.exchange_code(CREDS, pending, "code", FakeTransport(response(200, payload)),
+                               now=now)
+
+    def test_consent_starts_the_seven_days(self):
+        tokens = self._exchanged(now=1000.0)
+        assert tokens.refresh_issued_at == 1000.0
+        assert tokens.signin_expires_at() == 1000.0 + 7 * self.DAY
+
+    def test_a_refresh_that_keeps_the_token_keeps_the_clock(self):
+        held = self._exchanged(now=1000.0)
+        transport = FakeTransport(response(200, {"access_token": "access-2", "expires_in": 3600}))
+        refreshed = F.refresh_tokens(CREDS, held, transport, now=1000.0 + 3 * self.DAY)
+        assert refreshed.refresh_issued_at == 1000.0
+        assert refreshed.signin_expires_at() == 1000.0 + 7 * self.DAY
+
+    def test_a_rotated_refresh_token_restarts_it(self):
+        held = self._exchanged(now=1000.0)
+        rotated = F.refresh_tokens(CREDS, held, FakeTransport(response(200, REFRESHED_PAYLOAD)),
+                                   now=5000.0)
+        assert rotated.refresh_issued_at == 5000.0
+
+    def test_googles_own_figure_wins_when_it_sends_one(self):
+        tokens = self._exchanged(
+            now=1000.0, payload={**TOKEN_PAYLOAD, "refresh_token_expires_in": 3 * self.DAY}
+        )
+        assert tokens.signin_expires_at() == 1000.0 + 3 * self.DAY
+        transport = FakeTransport(response(200, {"access_token": "access-2", "expires_in": 3600}))
+        refreshed = F.refresh_tokens(CREDS, tokens, transport, now=2000.0)
+        assert refreshed.signin_expires_at() == 1000.0 + 3 * self.DAY
+
+    def test_it_survives_the_cache(self, tmp_path):
+        F.save_tokens(self._exchanged(now=1000.0), tmp_path)
+        assert F.load_tokens(tmp_path).signin_expires_at() == 1000.0 + 7 * self.DAY
+
+    def test_a_cache_from_before_this_was_recorded_has_no_expiry(self, tmp_path):
+        """The real cache on the volume was written before T32: no guess is made."""
+        F.token_file(tmp_path).write_text(json.dumps(
+            {"access_token": "a", "refresh_token": "r", "expires_at": 1.0, "scope": "",
+             "user_id": ""}))
+        assert F.load_tokens(tmp_path).signin_expires_at() is None
+
+    def test_a_refused_refresh_names_the_testing_limit(self):
+        """The message this replaces blamed spent codes and rotated tokens, which sent the
+        owner looking in the wrong place on the first real expiry, 2026-10-08."""
+        expired = {"error": "invalid_grant", "error_description": "Token has been expired or revoked."}
+        with pytest.raises(F.NeedsReauthorization) as caught:
+            F.refresh_tokens(CREDS, F.Tokens("a", "r", expires_at=0.0),
+                             FakeTransport(response(400, expired)), now=0.0)
+        message = str(caught.value)
+        assert "Token has been expired or revoked" in message
+        assert "7 days" in message and "reconnect Google Health in Settings" in message
+        assert "code is single-use" not in message
+
+    def test_a_refused_code_still_talks_about_codes(self):
+        pending = F.begin_authorization("test-client-id", "http://localhost:8000/cb")
+        bad = {"error": "invalid_grant", "error_description": "Malformed auth code."}
+        with pytest.raises(F.NeedsReauthorization, match="code is single-use"):
+            F.exchange_code(CREDS, pending, "code", FakeTransport(response(400, bad)), now=0.0)
+
+
 class TestExpiry:
     def test_a_token_inside_its_eight_hours_is_used_as_is(self, tmp_path):
         client, transport = a_client(tmp_path, response(200, {"weight": []}))

@@ -22,7 +22,8 @@ and resumed without losing its place.
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Callable
 
 from . import fitbit as fitbit_mod
@@ -206,6 +207,11 @@ def status(store, token_dir) -> dict[str, Any]:
     render is a page that can fail to render.
     """
     watermark = store.get_watermark(ENDPOINT)
+    try:
+        tokens = fitbit_mod.load_tokens(Path(token_dir))
+    except fitbit_mod.FitbitError:
+        tokens = None
+    expires = tokens.signin_expires_at() if tokens else None
     row = store.query(
         "SELECT COUNT(*) AS n, MIN(day) AS first_day, MAX(day) AS last_day "
         "FROM body_composition"
@@ -214,6 +220,11 @@ def status(store, token_dir) -> dict[str, Any]:
         "connected": fitbit_mod.is_connected(token_dir),
         "credentials_configured": fitbit_mod.Credentials.configured(),
         "user_id": fitbit_mod.connected_account(token_dir),
+        "signin_expires_at": (
+            datetime.fromtimestamp(expires, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if expires is not None
+            else None
+        ),
         "last_synced_day": watermark,
         "weigh_ins": int(row["n"] or 0),
         "first_day": row["first_day"],

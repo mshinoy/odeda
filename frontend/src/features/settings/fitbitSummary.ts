@@ -6,7 +6,7 @@
 // no app registered yet, registered but not authorised, connected with no data, and
 // connected with history.
 import type { FitbitImportResult, FitbitStatus, FitbitSyncResult } from "@/api/queries/useFitbit";
-import { formatInteger, MISSING } from "@/lib/format";
+import { formatAgo, formatDate, formatIn, formatInteger, MISSING } from "@/lib/format";
 
 export type FitbitStage = "no_credentials" | "not_connected" | "connected";
 
@@ -64,4 +64,45 @@ export function importSummary(result: FitbitImportResult): string {
     `${formatInteger(result.written)} weigh-ins from ${formatInteger(result.members_scanned)}` +
     ` files${units}.`
   );
+}
+
+const DAY_MS = 86_400_000;
+
+export interface SigninNotice {
+  tone: "neutral" | "warning" | "critical";
+  text: string;
+  /** Expiring or expired: the reconnect steps open on their own. */
+  urgent: boolean;
+}
+
+/**
+ * When Google ends the sign-in (D9: an app in Testing is signed out 7 days after
+ * consent), said plainly enough that the weekly reconnect happens before a sync fails.
+ * Null when there is nothing to say: not connected, or a sign-in from before the date
+ * was recorded.
+ */
+export function signinNotice(status: FitbitStatus, now: Date = new Date()): SigninNotice | null {
+  const iso = status.signin_expires_at;
+  if (!status.connected || !iso) return null;
+  const left = new Date(iso).getTime() - now.getTime();
+  if (Number.isNaN(left)) return null;
+  if (left <= 0) {
+    return {
+      tone: "critical",
+      text: `Google ended the sign-in ${formatAgo(iso, now)}. Reconnect to bring weigh-ins back.`,
+      urgent: true,
+    };
+  }
+  if (left < DAY_MS) {
+    return {
+      tone: "warning",
+      text: `Google ends the sign-in ${formatIn(iso, now)}. Reconnect now and weigh-ins never stop.`,
+      urgent: true,
+    };
+  }
+  return {
+    tone: "neutral",
+    text: `Sign-in lasts 7 days while the Google app is in Testing — renew by ${formatDate(iso, now)} (${formatIn(iso, now)}).`,
+    urgent: false,
+  };
 }

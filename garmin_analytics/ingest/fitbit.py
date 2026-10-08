@@ -68,6 +68,13 @@ ACCESS_TOKEN_TTL_S = 3600
 #: mid-run and spend a call finding out.
 EXPIRY_SKEW_S = 300
 
+#: How long Google honours a refresh token for an app whose publishing status is
+#: *Testing* (D9): seven days from consent, after which every refresh is answered
+#: `invalid_grant` and only a fresh consent gets back in. Google does not say so in the
+#: token response, so it is assumed here; `refresh_token_expires_in`, when Google does
+#: send it, wins.
+TESTING_REFRESH_TTL_S = 7 * 24 * 3600
+
 #: Where the token cache lands inside `GA_TOKEN_DIR`. Named, not globbed, so
 #: `disconnect` cannot be talked into deleting Garmin's cache next to it.
 TOKEN_FILENAME = "fitbit_tokens.json"
@@ -274,6 +281,19 @@ class Tokens:
     expires_at: float
     scope: str = ""
     user_id: str = ""
+    #: Unix seconds: when Google issued the refresh token. Carried through refreshes
+    #: that do not rotate it. None in a cache written before this was recorded.
+    refresh_issued_at: float | None = None
+    #: Unix seconds, only when Google said (`refresh_token_expires_in`).
+    refresh_expires_at: float | None = None
+
+    def signin_expires_at(self) -> float | None:
+        """When this sign-in stops working: Google's word, else consent plus 7 days."""
+        if self.refresh_expires_at is not None:
+            return self.refresh_expires_at
+        if self.refresh_issued_at is not None:
+            return self.refresh_issued_at + TESTING_REFRESH_TTL_S
+        return None
 
     def expired(self, now: float | None = None, skew_s: int = EXPIRY_SKEW_S) -> bool:
         return (now if now is not None else time.time()) >= self.expires_at - skew_s
@@ -285,6 +305,8 @@ class Tokens:
             "expires_at": self.expires_at,
             "scope": self.scope,
             "user_id": self.user_id,
+            "refresh_issued_at": self.refresh_issued_at,
+            "refresh_expires_at": self.refresh_expires_at,
         }
 
     @classmethod
@@ -293,6 +315,7 @@ class Tokens:
         payload: Mapping[str, Any],
         now: float,
         fallback_refresh: str = "",
+        previous: "Tokens | None" = None,
     ) -> "Tokens":
         """Build a token pair from a token-endpoint response.
 
@@ -305,9 +328,14 @@ class Tokens:
         An *authorization-code* exchange with no refresh token is still fatal: it means
         `access_type=offline` was missing and the connection would die within the hour.
         Callers signal that case by passing no fallback.
+
+        `previous` is the pair being refreshed. A refresh that carries the held refresh
+        token forward also carries forward when it was issued, because that, not the
+        refresh, is what the 7-day Testing limit counts from.
         """
         access = str(payload.get("access_token") or "")
-        refresh = str(payload.get("refresh_token") or "") or fallback_refresh
+        issued = str(payload.get("refresh_token") or "")
+        refresh = issued or fallback_refresh
         if not access or not refresh:
             raise FitbitError(
                 "Google returned a token response with no refresh token; a session that "
@@ -316,12 +344,24 @@ class Tokens:
             )
         expires_in = payload.get("expires_in")
         ttl = float(expires_in) if isinstance(expires_in, (int, float)) else ACCESS_TOKEN_TTL_S
+
+        refresh_ttl = payload.get("refresh_token_expires_in")
+        if issued or previous is None:
+            issued_at: float | None = now
+            refresh_expires_at: float | None = None
+        else:
+            issued_at = previous.refresh_issued_at
+            refresh_expires_at = previous.refresh_expires_at
+        if isinstance(refresh_ttl, (int, float)) and not isinstance(refresh_ttl, bool):
+            refresh_expires_at = now + float(refresh_ttl)
         return cls(
             access_token=access,
             refresh_token=refresh,
             expires_at=now + ttl,
             scope=str(payload.get("scope") or ""),
             user_id=str(payload.get("user_id") or ""),
+            refresh_issued_at=issued_at,
+            refresh_expires_at=refresh_expires_at,
         )
 
     def __repr__(self) -> str:  # pragma: no cover - only reachable from a traceback
@@ -374,7 +414,13 @@ def load_tokens(token_dir: Path) -> Tokens | None:
         expires_at=float(raw.get("expires_at") or 0.0),
         scope=str(raw.get("scope") or ""),
         user_id=str(raw.get("user_id") or ""),
+        refresh_issued_at=_optional_float(raw.get("refresh_issued_at")),
+        refresh_expires_at=_optional_float(raw.get("refresh_expires_at")),
     )
+
+
+def _optional_float(value: Any) -> float | None:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
 def forget_tokens(token_dir: Path) -> int:
@@ -519,6 +565,7 @@ def _token_request(
     transport: Transport,
     now: float,
     fallback_refresh: str = "",
+    previous: Tokens | None = None,
 ) -> Tokens:
     # Google's token endpoint takes the client secret as a form field, not as an HTTP
     # Basic header. Sending Basic instead gets an `invalid_client` that says nothing
@@ -535,11 +582,11 @@ def _token_request(
         _form(payload_body),
     )
     if response.status >= 400:
-        raise _auth_error(response)
+        raise _auth_error(response, refreshing=body.get("grant_type") == "refresh_token")
     payload = response.json()
     if not isinstance(payload, Mapping):
         raise FitbitError("Google's token endpoint returned something unexpected.")
-    return Tokens.from_token_response(payload, now, fallback_refresh)
+    return Tokens.from_token_response(payload, now, fallback_refresh, previous)
 
 
 def exchange_code(
@@ -598,6 +645,7 @@ def refresh_tokens(
         transport,
         now if now is not None else time.time(),
         fallback_refresh=tokens.refresh_token,
+        previous=tokens,
     )
 
 
@@ -660,15 +708,23 @@ def error_message(response: Response) -> str:
     return f"HTTP {response.status}"
 
 
-def _auth_error(response: Response) -> FitbitError:
+def _auth_error(response: Response, refreshing: bool = False) -> FitbitError:
     detail = error_message(response)
     if response.status == 429:
         return RateLimited(retry_after_s=retry_after(response))
+    if response.status in (400, 401) and refreshing:
+        # The common cause by far is D9: an app in Testing is signed out seven days
+        # after consent. The old message blamed spent codes, which sent the owner
+        # looking for a fault in the wrong place.
+        return NeedsReauthorization(
+            f"Google has ended the sign-in ({detail}). While the Google Cloud app is in "
+            "Testing, Google signs it out 7 days after you connect — reconnect Google "
+            "Health in Settings."
+        )
     if response.status in (400, 401):
         return NeedsReauthorization(
             f"Google would not issue a token ({detail}). Authorise the app again — a "
-            "code is single-use and expires in ten minutes, and a refresh token that "
-            "has been rotated is already spent."
+            "code is single-use and expires in ten minutes."
         )
     return FitbitError(f"Google's token endpoint failed ({detail}).")
 

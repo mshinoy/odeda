@@ -315,6 +315,27 @@ class AutoSync:
                 self._not_before = self.clock() + self.poll_s
 
 
+#: The watermark that moves when each source syncs, however it was started.
+SOURCE_WATERMARKS = {"garmin": "activities", "fitbit": "fitbit_body"}
+
+
+def _resolved_since(store, sources: dict[str, Any], finished_at: str | None) -> None:
+    """Clear a failure that a later successful sync has already fixed.
+
+    Without this, reconnecting Google Health and syncing by hand still left Settings
+    showing the automatic run's error until the next run, hours later.
+    """
+    for name, result in sources.items():
+        mark = SOURCE_WATERMARKS.get(name)
+        if result.get("state") != "error" or not mark or not finished_at:
+            continue
+        row = store.query(
+            "SELECT last_run_at, status FROM sync_watermark WHERE endpoint = ?", (mark,)
+        )
+        if row and row[0]["status"] == "ok" and (row[0]["last_run_at"] or "") > finished_at:
+            sources[name] = {"state": "done", "message": "Synced since, without a problem."}
+
+
 def status(store, scheduler: AutoSync) -> dict[str, Any]:
     """What Settings shows: on or off, how often, the last run and the next."""
     row = last_run(store) or {}
@@ -323,6 +344,7 @@ def status(store, scheduler: AutoSync) -> dict[str, Any]:
         sources = json.loads(row["cursor"]) if row.get("cursor") else {}
     except ValueError:
         sources = {}
+    _resolved_since(store, sources, row.get("finished_at"))
     return {
         "enabled": scheduler.enabled,
         "interval_hours": scheduler.interval_s / 3600.0,
