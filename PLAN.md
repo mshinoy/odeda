@@ -118,6 +118,17 @@ rows. This phase fills it and makes it mean something against the training data.
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | done | T24, T25 | Settings: connect the scale, or import it from a ZIP |
 
+### Phase 6 — Automatic sync · Checkpoint F: `open`
+
+Both sources are pull-only and only pulled when the owner presses a button, so the
+data is as old as the last time anyone remembered: on 2026-10-08 the newest Garmin day
+was eleven days behind. This phase makes the app keep itself current.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | in progress (auto-sync, 2026-10-08) | — | |
+| T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | todo | T30 | |
+
 ### Open decisions
 
 None yet. When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets
@@ -137,6 +148,7 @@ its task to `needs decision: <question>`.
 | D5 | A day with several weigh-ins keeps the **earliest** one. The table is keyed by day and a morning reading before food and water is the comparable one; taking the last reading would mix a 07:00 measurement with a 21:00 one and call the difference a trend. The whole day's readings stay in `raw_documents`. | 2026-09-26 |
 | D6 | Body composition gets no nav item — the nav stays at five (Rules). The trend, the fat/lean split, weigh-in consistency and the race-day projection go on **Health**, next to the other daily measurements; weight against training load and pace per kg go on **Trends**, next to the performance work they qualify. | 2026-09-26 |
 | D7 | The Fitbit client uses **stdlib `urllib.request`** behind a one-method transport, not a new HTTP library. It is four calls against a documented JSON API, and an injectable transport is what makes the whole OAuth flow testable without an account (T23). No new Python or npm dependency in this phase. | 2026-09-26 |
+| D8 | Sync runs on its own **every 6 hours**, inside the `app` server process, with `GA_AUTO_SYNC_HOURS` to change it and `0` to turn it off. Four light runs a day keep the data fresh by morning and evening without leaning on Garmin's unofficial API; a manual sync still works whenever wanted. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
