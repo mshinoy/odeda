@@ -208,7 +208,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
 | T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
-| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | todo | T37 | |
+| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | in progress (training-plan, 2026-10-08) | T37 | |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
