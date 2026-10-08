@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `open` | 0 / 1 |
-| 8 Training plan | H: `open` | 4 / 9 |
+| 8 Training plan | H: `open` | 5 / 9 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -208,7 +208,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
 | T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
-| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | in progress (training-plan, 2026-10-08) | T37 | |
+| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
@@ -2563,3 +2563,43 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     live database and the real calendar: Monday 5 Oct prescribed a 5 km easy run and the
     owner rode 25.4 km, which comes out as one `substituted` day rather than two
     failures. 29 tests; suite green at 1321 passed, 1 skipped.
+
+### T38 — The plan, over HTTP
+- **Goal:** the frontend can draw the plan and the week, and the owner can correct a
+  match the matcher got wrong.
+- **Files:** `garmin_analytics/api/server.py`, `garmin_analytics/api/schemas.py`,
+  `garmin_analytics/analytics/plan.py`, `garmin_analytics/ingest/plan_ics.py`,
+  `garmin_analytics/db/schema.sql`, `garmin_analytics/db/store.py`,
+  `frontend/src/api/schema.ts` (generated), `tests/test_plan_api.py`.
+- **Build:**
+  - [x] `GET /api/plan`, `GET /api/plan/week?start=`
+  - [x] `PUT`/`DELETE /api/plan/source` (address in, masked out), `POST /api/plan/sync`
+  - [x] `PUT`/`DELETE /api/plan/sessions/{id}/link` — manual link, ignore, clear
+  - [x] no calendar subscribed answers 200 with `subscribed: false`
+  - [x] Pydantic models, `npm run gen:api`, regenerated types committed
+- **Notes:**
+  - **T35 and T36 were never actually joined.** The sync wrote `parse_status =
+    'pending'` and nothing ever read it, so every stored session had a null sport and a
+    null distance. `plan_ics.apply_parse` closes it and runs at the end of a sync. It is
+    a separate function because the two fail differently: the fetch is network and
+    credentials, this is only reading, and re-running it costs nothing.
+  - **The week notes have to be indexed across every live session before any row can be
+    parsed.** The note governing a Friday is written on the preceding Monday's event, so
+    a row cannot be read by looking only at itself.
+  - `collapse()` needed three columns the schema did not have — `optional`, `recurring`
+    and `parse_source`. Added to `schema.sql` *and* to `ADDED_COLUMNS`, so a database
+    created by an earlier build of v3 gains them instead of having to be thrown away.
+  - **Only `manual` and `ignored` links are stored.** `auto` matches are recomputed on
+    every read, so retyping an activity moves its match with it; storing them would
+    freeze a judgement that is meant to follow the data.
+  - An activity already linked elsewhere is a **409 naming the session that holds it**.
+    The unique index would refuse it anyway, but "already linked to session 12" is more
+    use than a constraint violation.
+  - **Two test bugs worth remembering.** Fixtures were dated in December, and the
+    endpoints judge against the real clock, so every session was `upcoming` and the week
+    scored 100%; plan fixtures must sit in the past. And the sync route builds its own
+    transport, so testing it needs `UrllibTransport` monkeypatched — otherwise the test
+    reaches the network and 502s.
+  - Types were generated against a scratch database on port 8831, which was stopped and
+    deleted afterwards. The owner's container was not touched. `npm run typecheck` clean.
+  - 20 tests; suite green at 1341 passed, 1 skipped.

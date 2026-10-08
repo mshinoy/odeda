@@ -256,8 +256,10 @@ def sync_plan(
         etag=response.header("ETag"),
         last_modified=response.header("Last-Modified"),
     )
+    parsed = apply_parse(store)
     store.set_watermark("plan", last_day=max((i.day for i in instances), default=None))
-    return {"status": "ok", **result}
+    return {"status": "ok", **result, "parsed_ok": parsed.get("ok", 0),
+            "parsed_unparsed": parsed.get("unparsed", 0)}
 
 
 def _write(store, source_id: int, instances, raw_id: int) -> dict[str, int]:
@@ -292,6 +294,7 @@ def _write(store, source_id: int, instances, raw_id: int) -> dict[str, int]:
                     # `ok` or `unparsed`; re-setting it on every sync is what makes an
                     # edited description get re-read rather than keeping a stale target.
                     "parse_status": "unsupported_rrule" if inst.unsupported_rrule else "pending",
+                    "recurring": 1 if inst.recurring else 0,
                     "withdrawn_at": None,
                     "raw_id": raw_id,
                 },
@@ -345,3 +348,62 @@ def sessions(store, start_day: str | None = None, end_day: str | None = None) ->
         sql += " AND day <= ?"
         params.append(end_day)
     return store.query(sql + " ORDER BY day, start_local", params)
+
+
+# ---------------------------------------------------------------------------
+# Reading the prose into the rows
+# ---------------------------------------------------------------------------
+
+
+def apply_parse(store, only_pending: bool = True) -> dict[str, int]:
+    """Fill `sport`, `kind` and the planned distances from each session's own text.
+
+    Separate from the fetch because they fail differently and are re-run for different
+    reasons: the fetch is network and credentials, this is only reading. Re-running it
+    costs nothing and is how an edited description takes effect, which is why a sync
+    resets `parse_status` to `pending` rather than leaving a stale reading in place.
+
+    The week notes are indexed across *every* live session first, because the note that
+    governs a Friday is written on the preceding Monday's event — a row cannot be parsed
+    by looking only at itself.
+    """
+    from ..plan import parse as P
+
+    live = store.query(
+        "SELECT id, day, title, description FROM plan_sessions WHERE withdrawn_at IS NULL"
+    )
+    notes = P.week_notes_by_week(live)
+
+    rows = [r for r in live if not only_pending] or live
+    if only_pending:
+        pending = {
+            r["id"]
+            for r in store.query(
+                "SELECT id FROM plan_sessions WHERE parse_status = 'pending' "
+                "AND withdrawn_at IS NULL"
+            )
+        }
+        rows = [r for r in live if r["id"] in pending]
+
+    counts = {"ok": 0, "unparsed": 0}
+    with store.tx():
+        for row in rows:
+            day = date.fromisoformat(str(row["day"]))
+            year, week, _ = day.isocalendar()
+            pres, status = P.resolve(
+                str(row["title"] or ""),
+                str(row["description"] or ""),
+                day.weekday(),
+                notes.get(f"{year}-W{week:02d}", {}),
+            )
+            counts[status] = counts.get(status, 0) + 1
+            store.conn.execute(
+                "UPDATE plan_sessions SET sport = ?, kind = ?, planned_min_m = ?, "
+                "planned_max_m = ?, planned_duration_s = ?, optional = ?, "
+                "parse_source = ?, parse_status = ? WHERE id = ?",
+                (
+                    pres.sport, pres.kind, pres.min_m, pres.max_m, pres.duration_s,
+                    1 if pres.optional else 0, pres.source or None, status, row["id"],
+                ),
+            )
+    return counts

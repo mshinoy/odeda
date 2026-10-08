@@ -349,6 +349,9 @@ class Instance:
     summary: str
     description: str
     unsupported_rrule: str = ""
+    #: True when this came out of an RRULE series. The matcher needs it: a dated one-off
+    #: is a more specific prescription than one instance of a standing weekly entry.
+    recurring: bool = False
 
     @property
     def day(self) -> str:
@@ -507,6 +510,7 @@ def _instance(
     return Instance(
         uid=event.uid,
         recurrence_id=rid or moment.ics(),
+        recurring=bool(event.rrule) or rid is not None,
         start=local,
         end=local.shifted(duration) if duration is not None else None,
         summary=event.summary,

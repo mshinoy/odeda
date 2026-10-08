@@ -413,7 +413,10 @@ CREATE TABLE IF NOT EXISTS plan_sessions (
     planned_duration_s  REAL,
     title               TEXT,
     description         TEXT,
-    parse_status        TEXT NOT NULL,      -- ok | unparsed | unsupported_rrule
+    optional            INTEGER NOT NULL DEFAULT 0,  -- `(optional)`; owed nothing, scored nothing
+    recurring           INTEGER NOT NULL DEFAULT 0,  -- an instance of an RRULE series
+    parse_source        TEXT,               -- hint | week-note | title: which layer decided
+    parse_status        TEXT NOT NULL,      -- pending | ok | unparsed | unsupported_rrule
     withdrawn_at        TEXT,               -- set when it leaves the feed; never deleted
     raw_id              INTEGER REFERENCES raw_documents (id),
     UNIQUE (source_id, uid, recurrence_id)

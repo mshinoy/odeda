@@ -43,6 +43,7 @@ from ..analytics import aggregate as agg_mod
 from ..analytics import body as body_mod
 from ..analytics import load as load_mod
 from ..analytics import performance as perf
+from ..analytics import plan as plan_mod
 from ..analytics import readiness as ready_mod
 from ..analytics import reports as reports_mod
 from ..analytics import routes as routes_mod
@@ -54,6 +55,7 @@ from ..edits import exercises as relabels_mod
 from ..edits import gear as gear_mod
 from ..edits import overrides as ov_mod
 from ..ingest import auto_sync as auto_mod
+from ..ingest import plan_ics as plan_ics_mod
 from ..ingest import backfill as backfill_mod
 from ..seed import synthetic
 from . import auth as auth_mod
@@ -103,6 +105,12 @@ from .schemas import (
     Health,
     Heatmap,
     Performance,
+    Plan,
+    PlanLinkRequest,
+    PlanLinkResult,
+    PlanSourceRequest,
+    PlanSyncResult,
+    PlanWeekDetail,
     RacePanel,
     ReclusterRequest,
     Reports,
@@ -656,6 +664,62 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_race() -> dict[str, Any]:
         with store() as st:
             return _race(st)
+
+    # -- training plan -------------------------------------------------------
+
+    @app.get("/api/plan", response_model=Plan)
+    def api_plan() -> dict[str, Any]:
+        with store() as st:
+            return plan_mod.compute_plan(st)
+
+    @app.get("/api/plan/week", response_model=PlanWeekDetail)
+    def api_plan_week(start: str = Query(..., description="any day in the week")) -> dict[str, Any]:
+        try:
+            date.fromisoformat(start)
+        except ValueError as exc:
+            raise HTTPException(422, "start must be an ISO date") from exc
+        with store() as st:
+            return plan_mod.compute_week(st, start)
+
+    @app.put("/api/plan/source", response_model=Plan)
+    def api_plan_subscribe(payload: PlanSourceRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                plan_ics_mod.set_source(st, payload.url, payload.label)
+            except plan_ics_mod.PlanFeedError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            return plan_mod.compute_plan(st)
+
+    @app.delete("/api/plan/source", response_model=Plan)
+    def api_plan_unsubscribe() -> dict[str, Any]:
+        with store() as st:
+            plan_ics_mod.clear_source(st)
+            return plan_mod.compute_plan(st)
+
+    @app.post("/api/plan/sync", response_model=PlanSyncResult)
+    def api_plan_sync() -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_ics_mod.sync_plan(st)
+            except plan_ics_mod.PlanFeedError as exc:
+                # The message already says what to do about it, and naming the calendar
+                # is the owner's problem to fix, not a server fault.
+                raise HTTPException(502, str(exc)) from exc
+
+    @app.put("/api/plan/sessions/{session_id}/link", response_model=PlanLinkResult)
+    def api_plan_link(session_id: int, payload: PlanLinkRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.set_link(st, session_id, payload.activity_id, payload.ignore)
+            except LookupError as exc:
+                raise HTTPException(404, str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(409, str(exc)) from exc
+
+    @app.delete("/api/plan/sessions/{session_id}/link", response_model=PlanLinkResult)
+    def api_plan_unlink(session_id: int) -> dict[str, Any]:
+        with store() as st:
+            return plan_mod.clear_link(st, session_id)
 
     @app.get("/api/reports", response_model=Reports)
     def api_reports() -> dict[str, Any]:

@@ -178,17 +178,21 @@ class TestWithdrawal:
             "SELECT COUNT(*) FROM plan_sessions WHERE withdrawn_at IS NULL"
         ) == 6
 
-    def test_an_edited_description_is_marked_for_re_reading(self, subscribed):
-        """The owner rewrites a week's target after a bad Friday. The stored prose has
-        to follow, and the prose parser has to be told to look again."""
+    def test_an_edited_description_changes_the_target(self, subscribed):
+        """The owner rewrites a week's target after a bad Friday. The stored prose has to
+        follow, and so does the number read out of it — a sync that kept the old target
+        would leave him judged against a session he had already cancelled."""
         edited = FRIDAY_SERIES.replace("Fri target 14-15 km", "Fri target 12 km (easy)")
         transport = FakeTransport(ok(feed(FRIDAY_SERIES)), ok(feed(edited)))
         plan_ics.sync_plan(subscribed, transport, today=TODAY)
-        subscribed.conn.execute("UPDATE plan_sessions SET parse_status = 'ok'")
+        before = plan_ics.sessions(subscribed)[0]
+        assert (before["planned_min_m"], before["planned_max_m"]) == (14000, 15000)
+
         plan_ics.sync_plan(subscribed, transport, today=TODAY)
-        rows = plan_ics.sessions(subscribed)
-        assert rows[0]["description"] == "Week 1 — Fri target 12 km (easy)"
-        assert rows[0]["parse_status"] == "pending"
+        after = plan_ics.sessions(subscribed)[0]
+        assert after["description"] == "Week 1 — Fri target 12 km (easy)"
+        assert after["planned_min_m"] == 12000
+        assert after["parse_status"] == "ok"
 
     def test_a_sync_does_not_discard_what_the_prose_parser_read(self, subscribed):
         """T36 fills sport, kind and the distances. A re-sync must leave them alone, or

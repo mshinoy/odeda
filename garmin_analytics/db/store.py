@@ -23,6 +23,11 @@ SCHEMA_VERSION = 3
 ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("activity_samples", "lat", "REAL"),
     ("activity_samples", "lon", "REAL"),
+    # Added while v3 was still being built, so a database created by an earlier build of
+    # v3 gains them rather than needing to be thrown away.
+    ("plan_sessions", "optional", "INTEGER NOT NULL DEFAULT 0"),
+    ("plan_sessions", "recurring", "INTEGER NOT NULL DEFAULT 0"),
+    ("plan_sessions", "parse_source", "TEXT"),
 )
 
 

@@ -379,3 +379,227 @@ def rolling_adherence(weeks: Sequence[Mapping[str, Any]], window: int = 4) -> fl
     if not usable:
         return None
     return round(sum(float(w["adherence_pct"]) for w in usable) / len(usable), 1)
+
+
+# ---------------------------------------------------------------------------
+# Store-backed
+# ---------------------------------------------------------------------------
+
+
+def _sessions(store, start: str | None = None, end: str | None = None) -> list[dict[str, Any]]:
+    sql = (
+        "SELECT id, day, sport, kind, planned_min_m, planned_max_m, title, "
+        "       recurring, optional, parse_source AS source, parse_status "
+        "FROM plan_sessions WHERE withdrawn_at IS NULL"
+    )
+    params: list[Any] = []
+    if start:
+        sql += " AND day >= ?"
+        params.append(start)
+    if end:
+        sql += " AND day <= ?"
+        params.append(end)
+    return store.query(sql + " ORDER BY day, start_local", params)
+
+
+def _activities(store, start: str | None = None, end: str | None = None) -> list[dict[str, Any]]:
+    """From `v_activities_included`, so an activity the owner retyped is matched on its
+    *effective* type and one excluded from stats cannot fulfil a session."""
+    sql = (
+        "SELECT activity_id, day, activity_type, activity_name, distance_m, "
+        "       duration_s, moving_time_s, trimp "
+        "FROM v_activities_included WHERE 1 = 1"
+    )
+    params: list[Any] = []
+    if start:
+        sql += " AND day >= ?"
+        params.append(start)
+    if end:
+        sql += " AND day <= ?"
+        params.append(end)
+    return store.query(sql + " ORDER BY day", params)
+
+
+def _manual_links(store) -> dict[int, str]:
+    return {
+        int(r["plan_session_id"]): str(r["activity_id"])
+        for r in store.query(
+            "SELECT plan_session_id, activity_id FROM plan_links "
+            "WHERE link_type = 'manual' AND activity_id IS NOT NULL"
+        )
+    }
+
+
+def judge_all(store, today: date | None = None) -> tuple[list[Judged], list[dict[str, Any]]]:
+    sessions = _sessions(store)
+    if not sessions:
+        return [], []
+    lo = min(str(s["day"]) for s in sessions)
+    hi = max(str(s["day"]) for s in sessions)
+    window_lo = (date.fromisoformat(lo) - timedelta(days=MOVE_TOLERANCE_DAYS)).isoformat()
+    window_hi = (date.fromisoformat(hi) + timedelta(days=MOVE_TOLERANCE_DAYS)).isoformat()
+    return match(
+        collapse(sessions),
+        _activities(store, window_lo, window_hi),
+        today=today,
+        manual=_manual_links(store),
+    )
+
+
+def _as_dict(item: Judged) -> dict[str, Any]:
+    p = item.planned
+    return {
+        "day": p.day,
+        "sport": p.sport,
+        "kind": p.kind,
+        "planned_min_m": p.min_m,
+        "planned_max_m": p.max_m,
+        "title": p.title,
+        "optional": p.optional,
+        "session_ids": p.session_ids,
+        "verdict": item.verdict,
+        "activity_id": item.activity_id,
+        "actual_sport": item.actual_sport,
+        "actual_m": item.actual_m,
+        "actual_s": item.actual_s,
+        "moved_from": item.moved_from,
+    }
+
+
+def compute_plan(store, today: date | None = None) -> dict[str, Any]:
+    """Everything `/api/plan` needs. No calendar subscribed is an empty plan, not an
+    error: the endpoint answers 200 with `subscribed: false` and the UI says what to do."""
+    from ..ingest import plan_ics
+
+    today = today or date.today()
+    source = plan_ics.get_source(store)
+    judged, unplanned = judge_all(store, today)
+    weeks = weekly(judged)
+
+    unreadable = store.query(
+        "SELECT id, day, title, description, parse_status FROM plan_sessions "
+        "WHERE withdrawn_at IS NULL AND parse_status IN ('unparsed', 'unsupported_rrule') "
+        "ORDER BY day"
+    )
+    return {
+        "subscribed": source is not None,
+        "source": None if source is None else {
+            "label": source["label"],
+            "url_masked": plan_ics.mask_url(str(source["url"])),
+            "last_fetch_at": source["last_fetch_at"],
+            "last_error": source["last_error"],
+        },
+        "today": today.isoformat(),
+        "weeks": weeks,
+        "adherence_4wk": rolling_adherence(weeks),
+        "this_week": next(
+            (w for w in weeks if w["week"] == week_of(today.isoformat())), None
+        ),
+        "next_session": _next_session(judged, today),
+        "targets": targets(judged, today),
+        "unreadable": unreadable,
+        "unplanned": unplanned[-20:],
+    }
+
+
+def compute_week(store, start: str, today: date | None = None) -> dict[str, Any]:
+    """One week, session by session, with whatever fulfilled each."""
+    today = today or date.today()
+    judged, unplanned = judge_all(store, today)
+    week = week_of(start)
+    days = [_as_dict(j) for j in judged if week_of(j.planned.day) == week]
+    summary = next((w for w in weekly(judged) if w["week"] == week), None)
+    return {
+        "week": week,
+        "start": _monday(week),
+        "summary": summary,
+        "sessions": days,
+        "unplanned": [a for a in unplanned if week_of(str(a["day"])) == week],
+    }
+
+
+def _next_session(judged: Sequence[Judged], today: date) -> dict[str, Any] | None:
+    upcoming = [
+        j for j in judged
+        if j.verdict == "upcoming" and j.planned.sport != P.SPORT_REST
+        and date.fromisoformat(j.planned.day) >= today
+    ]
+    if not upcoming:
+        return None
+    return _as_dict(min(upcoming, key=lambda j: j.planned.day))
+
+
+def targets(judged: Sequence[Judged], today: date | None = None) -> dict[str, Any]:
+    """The plan's own peak, replacing the constants an agent invented (D12).
+
+    `TARGET_PEAK_WEEKLY_KM` was 55 against a plan that never asks for more than 36, so
+    the race panel warned "a long way short" on weeks followed exactly. With no plan
+    loaded these are `None` and the panel shows its curves without a goal line, which is
+    honest in a way an invented number is not.
+    """
+    weeks = weekly(judged)
+    planned = [float(w["planned_km"]) for w in weeks if w["planned_km"]]
+    if not planned:
+        return {"peak_weekly_km": None, "source": "none"}
+    return {
+        "peak_weekly_km": round(max(planned), 1),
+        "mean_weekly_km": round(sum(planned) / len(planned), 1),
+        "source": "plan",
+    }
+
+
+def set_link(store, session_id: int, activity_id: str | None, ignore: bool) -> dict[str, Any]:
+    """Record the owner's own decision about a session.
+
+    Only `manual` and `ignored` are stored. `auto` matches are the matcher's output and
+    are recomputed every read, so retyping an activity moves its match with it — storing
+    them would freeze a judgement that is supposed to follow the data.
+    """
+    from ..db.store import utcnow
+
+    exists = store.scalar("SELECT id FROM plan_sessions WHERE id = ?", (session_id,))
+    if exists is None:
+        raise LookupError(f"no plan session {session_id}")
+
+    if ignore:
+        with store.tx():
+            store.conn.execute(
+                "INSERT INTO plan_links (plan_session_id, activity_id, link_type, linked_at) "
+                "VALUES (?, NULL, 'ignored', ?) "
+                "ON CONFLICT (plan_session_id) DO UPDATE SET "
+                "activity_id = NULL, link_type = 'ignored', linked_at = excluded.linked_at",
+                (session_id, utcnow()),
+            )
+        return {"plan_session_id": session_id, "activity_id": None, "link_type": "ignored"}
+
+    if activity_id is None:
+        return clear_link(store, session_id)
+
+    if store.scalar("SELECT activity_id FROM activities WHERE activity_id = ?", (activity_id,)) is None:
+        raise LookupError(f"no activity {activity_id}")
+
+    taken = store.scalar(
+        "SELECT plan_session_id FROM plan_links WHERE activity_id = ? AND plan_session_id <> ?",
+        (activity_id, session_id),
+    )
+    if taken is not None:
+        # The database would refuse this anyway; saying which session holds it is more
+        # use than a constraint violation.
+        raise ValueError(f"activity {activity_id} is already linked to session {taken}")
+
+    with store.tx():
+        store.conn.execute(
+            "INSERT INTO plan_links (plan_session_id, activity_id, link_type, linked_at) "
+            "VALUES (?, ?, 'manual', ?) "
+            "ON CONFLICT (plan_session_id) DO UPDATE SET "
+            "activity_id = excluded.activity_id, link_type = 'manual', "
+            "linked_at = excluded.linked_at",
+            (session_id, activity_id, utcnow()),
+        )
+    return {"plan_session_id": session_id, "activity_id": activity_id, "link_type": "manual"}
+
+
+def clear_link(store, session_id: int) -> dict[str, Any]:
+    with store.tx():
+        store.conn.execute("DELETE FROM plan_links WHERE plan_session_id = ?", (session_id,))
+    return {"plan_session_id": session_id, "activity_id": None, "link_type": "cleared"}

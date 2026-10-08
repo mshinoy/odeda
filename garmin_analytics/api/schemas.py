@@ -2245,3 +2245,145 @@ class AppConfig(_Model):
     targets: ConfigTargets
     auth_required: bool
     version: str
+
+
+# ---------------------------------------------------------------------------
+# Training plan
+# ---------------------------------------------------------------------------
+
+PlanVerdict = Literal[
+    "done", "short", "missed", "substituted", "rest-kept", "rest-broken", "upcoming"
+]
+"""What became of a prescribed day. There is deliberately no `over`: running further
+than prescribed is not a deviation."""
+
+
+class PlanSource(_Model):
+    """The subscribed calendar. The address is **always masked** — a private iCal URL is
+    read access to the whole calendar to anyone holding it."""
+
+    label: str | None
+    url_masked: str
+    last_fetch_at: str | None
+    last_error: str | None
+
+
+class PlanWeek(_Model):
+    week: str
+    """ISO week, `2026-W50`."""
+    start: str
+    sessions_planned: int
+    """Excludes optional sessions and days still to come."""
+    sessions_done: int
+    adherence_pct: float | None
+    """Weighted: the long run counts for more than an easy day. Null when the week
+    prescribed nothing that could be judged."""
+    planned_km: float
+    actual_km: float
+    long_run: PlanVerdict | None
+    substitutions: int
+
+
+class PlanSession(_Model):
+    """One prescribed day, and what fulfilled it."""
+
+    day: str
+    sport: str | None
+    kind: str | None
+    planned_min_m: float | None
+    planned_max_m: float | None
+    """Equal to `planned_min_m` unless the plan gave a range (`8-10 km`)."""
+    title: str
+    optional: bool
+    session_ids: list[int]
+    """The calendar events collapsed into this one prescription."""
+    verdict: PlanVerdict
+    activity_id: str | None
+    actual_sport: str | None
+    """Set and different from `sport` when the session was substituted."""
+    actual_m: float | None
+    actual_s: float | None
+    moved_from: str | None
+    """The day the fulfilling activity actually happened, when it was not this one."""
+
+
+class PlanTargets(_Model):
+    """Derived from the plan, replacing the constants that were invented (D12)."""
+
+    peak_weekly_km: float | None
+    mean_weekly_km: float | None = None
+    source: Literal["plan", "none"]
+
+
+class PlanUnreadable(_Model):
+    """A session the parser could not resolve. Shown in Settings so a silent miss is a
+    visible one."""
+
+    id: int
+    day: str
+    title: str | None
+    description: str | None
+    parse_status: str
+
+
+class PlanUnplanned(_Model):
+    activity_id: str
+    day: str
+    activity_type: str
+    activity_name: str | None = None
+    distance_m: float | None = None
+    duration_s: float | None = None
+
+
+class Plan(_Model):
+    """`GET /api/plan`. With no calendar subscribed this is a 200 with
+    `subscribed: false`, never a 404."""
+
+    subscribed: bool
+    source: PlanSource | None
+    today: str
+    weeks: list[PlanWeek]
+    adherence_4wk: float | None
+    this_week: PlanWeek | None
+    next_session: PlanSession | None
+    targets: PlanTargets
+    unreadable: list[PlanUnreadable]
+    unplanned: list[PlanUnplanned]
+
+
+class PlanWeekDetail(_Model):
+    """`GET /api/plan/week`."""
+
+    week: str
+    start: str
+    summary: PlanWeek | None
+    sessions: list[PlanSession]
+    unplanned: list[PlanUnplanned]
+
+
+class PlanSourceRequest(_Model):
+    url: str
+    """The calendar's secret iCal address. Stored, never returned."""
+    label: str | None = None
+
+
+class PlanSyncResult(_Model):
+    status: Literal["ok", "unchanged", "skipped"]
+    reason: str | None = None
+    sessions: int = 0
+    withdrawn: int = 0
+    unsupported: int = 0
+    parsed_ok: int = 0
+    parsed_unparsed: int = 0
+
+
+class PlanLinkRequest(_Model):
+    activity_id: str | None = None
+    """Null with `ignore` true, or to clear the link."""
+    ignore: bool = False
+
+
+class PlanLinkResult(_Model):
+    plan_session_id: int
+    activity_id: str | None
+    link_type: Literal["manual", "ignored", "cleared"]
