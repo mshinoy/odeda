@@ -37,7 +37,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `open` | 0 / 1 |
-| 8 Training plan | H: `open` | 3 / 9 |
+| 8 Training plan | H: `open` | 4 / 9 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -196,7 +196,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | done | — | Schema v3: somewhere to put what was prescribed |
 | T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
 | T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
-| T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | todo | T35, T36 | |
+| T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | todo | T37 | |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
@@ -2500,3 +2500,42 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     14.5 km in the event title — **the note wins**, because that is where the owner
     deliberately sets targets above Higdon. Decided with the owner 2026-10-08.
   - 38 tests. Suite green at 1292 passed, 1 skipped.
+
+### T37 — Whether the training happened
+- **Goal:** every prescribed day gets a verdict against what was actually done, and
+  every week gets a number that means something.
+- **Files:** `garmin_analytics/analytics/plan.py`, `tests/test_plan_adherence.py`.
+- **Build:**
+  - [x] a day's events collapsed into one prescription per sport (D13: more specific wins)
+  - [x] verdicts: `done` · `short` · `missed` · `substituted` · `rest-kept` ·
+    `rest-broken` · `upcoming`
+  - [x] a ride on a run day is one substitution, not two failures
+  - [x] weighted weekly adherence, planned against actual km, rolling 4-week
+  - [x] run against the owner's real database and real calendar
+- **Notes:**
+  - **Three rules here came from the owner and all three invert the obvious code.**
+    A day prescribes one session per sport, not one per calendar event — the club entry
+    says where and when, the Higdon entry says how far, and they are one run described
+    twice. Running further than prescribed is not a deviation, so there is no `over`
+    verdict. And a ride on a run day is a substitution, not a missed run *plus* an
+    unplanned ride.
+  - **No sport-conversion ratio is applied, deliberately.** The rules that trade ridden
+    kilometres for run ones are guesswork with arithmetic on top, and burying one here
+    would put it invisibly into every weekly number. A substituted day is reported with
+    both sports and left unscored. When it is settled, the honest axis is load, which is
+    already computed per activity and is sport-neutral.
+  - **Sessions are weighted.** The owner's weekly volume is nearly flat at 28-36 km
+    while the long run climbs 14 → 20 km, so the long run is close to the whole
+    stimulus and an unweighted percentage would hide losing it behind three easy
+    sessions that happened.
+  - **A rest day claims any activity on it**, which is how `rest-broken` is detected —
+    so rest prescriptions are settled *after* every other one, or a rest day could take
+    the activity a real session on the same date was waiting for. Found by test.
+  - Exact-day matches are made for every day before any session reaches into a
+    neighbour, and a session may never reach into a day the plan itself spent:
+    otherwise Friday's long run gets credited with Saturday's prescribed ride.
+  - A 5% shortfall is not a miss. GPS alone moves a long run by tens of metres.
+  - **Proved on real data, not only on fixtures.** Against a read-only snapshot of the
+    live database and the real calendar: Monday 5 Oct prescribed a 5 km easy run and the
+    owner rode 25.4 km, which comes out as one `substituted` day rather than two
+    failures. 29 tests; suite green at 1321 passed, 1 skipped.
