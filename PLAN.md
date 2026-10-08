@@ -36,8 +36,8 @@ Paste one of these into a fresh session.
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
-| 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 0 / 8 |
+| 7 Activity cards | G: `open` | 0 / 1 |
+| 8 Training plan | H: `open` | 3 / 9 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -201,6 +201,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | todo | T35 | |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
+| T42 | Targets come from the plan; the invented constants go | todo | T37 | |
 
 ### Open decisions
 
@@ -210,7 +211,6 @@ When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its
 | ID | Question | Status |
 |---|---|---|
 | D11 | **Where does the plan live in the UI?** The nav stays at five items (Rules), so a sixth is not available. Either (a) a `/plan` route with no nav item, reached from a plan section on Status; (b) the plan folded entirely into Status with no page of its own; (c) a sixth nav item, amending the rule. **Recommended: (a)** — the week strip answers the daily question on a page the owner already opens, and the twelve-week grid is a page you visit on Sunday, not every day. T40 builds (a) unless told otherwise. | open |
-| D12 | **Does the plan replace `TARGET_PEAK_CTL` and `TARGET_PEAK_WEEKLY_KM`?** Today both are constants in `config.py` that no one chose. Once the plan is imported, the remaining prescribed volume implies both. Either (a) derive them from the plan and keep the constants as the fallback when no plan is loaded; or (b) leave the constants alone and show the plan's numbers beside them. **Recommended: (a)** — a target the app invented is worse than no target, and the race panel's warnings are currently measured against it. | open |
 
 ### Decided
 
@@ -229,6 +229,8 @@ When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its
 | D15 | Analytics are cached **until the data changes**, not for 30 s: the version is the database's mtime plus the WAL's size and mtime (an empty WAL ignored), and the unfiltered heatmap is recomputed in the background once a change settles (`GA_CACHE_WARM=0` turns that off). DECISIONS D51. | 2026-10-08 |
 | D16 | Routes are matched on **ground covered**, not distance: a run joins a route when at least **75%** of the distance run was on the route's ground and it covered at least 75% of the route (the owner's "about 25%"). Laps and a short warm-up join; an out-and-back that goes much further does not. A route's shape is one lap; loops are timed by the lap. DECISIONS D52. | 2026-10-08 |
 | D10 | **The ICS feed is parsed by a stdlib subset parser.** `FREQ=WEEKLY` and `FREQ=DAILY` with `INTERVAL`, `BYDAY`, `COUNT`, `UNTIL`, `EXDATE` and `RECURRENCE-ID`; anything else is refused as `unsupported_rrule` and stored once at DTSTART rather than expanded on a guess. No new dependency, consistent with D7. The owner chose this over `icalendar` + `python-dateutil`. | 2026-10-08 |
+| D12 | **The race panel's targets are derived from the plan, and the constants are removed.** `TARGET_PEAK_CTL = 75` and `TARGET_PEAK_WEEKLY_KM = 55` were invented by an agent, and the owner's plan peaks at **35.7 km/week** — so the panel was warning "a long way short" on weeks he was following exactly. Weekly km comes straight from the plan; the CTL target is computed from his own recent pace and labelled as derived. With no calendar connected the targets are `None` and the panel shows the curves without a goal line rather than inventing one. T42. | 2026-10-08 |
+| D13 | **Where a day's events disagree, the more specific event wins.** A dated one-off beats an instance of a recurring series, so 12 Jan's `W12: Run 3.2 km` beats the club series' standing 8-10 km and the taper is respected. This reverses what was said earlier about the Monday week note always winning. The rule lives behind one function so it can be changed once real weeks have been scored. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
