@@ -118,7 +118,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | done | T24, T25 | Settings: connect the scale, or import it from a ZIP |
 
-### Phase 6 — Automatic sync · Checkpoint F: `ready for review`
+### Phase 6 — Automatic sync · Checkpoint F: `open`
 
 Both sources are pull-only and only pulled when the owner presses a button, so the
 data is as old as the last time anyone remembered: on 2026-10-08 the newest Garmin day
@@ -128,6 +128,7 @@ was eleven days behind. This phase makes the app keep itself current.
 |---|---|---|---|---|
 | T30 | Auto-sync: Garmin and Google Health every 6 hours, in the server process | done | — | Auto-sync: the data stops being as old as the last button press |
 | T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | done | T30 | Settings: it syncs on its own now, and says so |
+| T32 | Google sign-in: show when it expires, warn before, reconnect in one step | in progress (auto-sync, 2026-10-08) | T31 | |
 
 ### Open decisions
 
@@ -149,6 +150,7 @@ its task to `needs decision: <question>`.
 | D6 | Body composition gets no nav item — the nav stays at five (Rules). The trend, the fat/lean split, weigh-in consistency and the race-day projection go on **Health**, next to the other daily measurements; weight against training load and pace per kg go on **Trends**, next to the performance work they qualify. | 2026-09-26 |
 | D7 | The Fitbit client uses **stdlib `urllib.request`** behind a one-method transport, not a new HTTP library. It is four calls against a documented JSON API, and an injectable transport is what makes the whole OAuth flow testable without an account (T23). No new Python or npm dependency in this phase. | 2026-09-26 |
 | D8 | Sync runs on its own **every 6 hours**, inside the `app` server process, with `GA_AUTO_SYNC_HOURS` to change it and `0` to turn it off. Four light runs a day keep the data fresh by morning and evening without leaning on Garmin's unofficial API; a manual sync still works whenever wanted. | 2026-10-08 |
+| D9 | The Google Cloud app **stays in Testing**. Leaving it needs a public homepage and privacy-policy URL on a domain the owner controls, which a one-person app does not have. The price is that Google ends the sign-in 7 days after each consent, so it is renewed weekly from Settings, and Settings says when it is due (T32). | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
