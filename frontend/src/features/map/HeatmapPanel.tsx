@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { readLastBounds } from "@/features/map/lastBounds";
 import { preloadBaseMap } from "@/map/loadBaseMap";
-import { heatmapBounds } from "@/map/heatmapBounds";
+import { heatmapFocusBounds } from "@/map/heatmapBounds";
 import { supportsWebGL } from "@/map/webgl";
 
 // deck.gl and the map libraries are large; load them only when a page shows a map, but
@@ -53,7 +53,7 @@ export function HeatmapPanel({ heatmap, error, filtered, onClearFilters }: Heatm
     );
   }
 
-  const openingBounds = heatmap ? heatmapBounds(heatmap.cells) : lastBounds;
+  const openingBounds = heatmap ? heatmapFocusBounds(heatmap.cells) : lastBounds;
   if (!openingBounds) return <Skeleton className="h-full w-full rounded-none" />;
 
   return (

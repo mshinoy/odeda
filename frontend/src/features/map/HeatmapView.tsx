@@ -7,7 +7,7 @@ import { useTheme, useTokens } from "@/design/theme";
 import { DensityLegend } from "@/features/map/DensityLegend";
 import { rememberBounds } from "@/features/map/lastBounds";
 import { BaseMap } from "@/map/BaseMap";
-import { heatmapBounds } from "@/map/heatmapBounds";
+import { heatmapFocusBounds } from "@/map/heatmapBounds";
 import { makeHeatmapLayer } from "@/map/layers/makeHeatmapLayer";
 import type { MapBounds } from "@/map/types";
 
@@ -22,7 +22,7 @@ export function HeatmapView({ heatmap, openingBounds }: HeatmapViewProps) {
   const theme = useTheme();
   const tokens = useTokens();
 
-  const bounds = useMemo(() => (heatmap ? heatmapBounds(heatmap.cells) : null), [heatmap]);
+  const bounds = useMemo(() => (heatmap ? heatmapFocusBounds(heatmap.cells) : null), [heatmap]);
   // The map reads its opening view once; the grid's box, and a later filter, fit to it.
   const [initialBounds] = useState(openingBounds);
   useEffect(() => {

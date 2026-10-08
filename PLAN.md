@@ -39,7 +39,7 @@ Paste one of these into a fresh session.
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 1 / 3 |
+| 11 Loose ends | K: `open` | 2 / 3 |
 
 ### Phase 0 — Foundations (done)
 
@@ -174,7 +174,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T45 | Map: open on where most of the activity is, not on every point ever recorded | in progress (loose-ends, 2026-10-08) | — | |
+| T45 | Map: open on where most of the activity is, not on every point ever recorded | done | — | The Map opens on home, not on every country there is a point in |
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | in progress (loose-ends, 2026-10-08) | — | |
 
@@ -2141,4 +2141,16 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     cut and detours. Segments still use the route's start line, so they stay aligned.
   - Still missed: a run whose watch stops short of where it began, and one that pauses
     out of the gate's reach. Those laps are not whole.
+
+### T45 — Map: open on home
+- **Goal:** the Map opens on where the activity is, with home more than a dot.
+- **Files:** `frontend/src/map/heatmapBounds.ts`, `frontend/src/features/map/`.
+- **Build:**
+  - [x] the opening view and every refit cover the busiest ~55 km square by GPS points
+    and the squares round it (`heatmapFocusBounds`), not every cell
+- **Notes:**
+  - The unfiltered real history spanned Qatar to south India and Saudi Arabia, so the
+    map opened on half of Asia. It now opens on Doha, Lusail and Al Wakra.
+  - A filter to one trip makes that trip the busiest square, so it opens there. The
+    heat elsewhere is still drawn: zooming out shows it.
 
