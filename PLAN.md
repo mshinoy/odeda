@@ -177,7 +177,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
-| T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
+| T40 | Status: this week against the plan, and the planned line on the race panel | in progress (patti, 2026-10-08) | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 
