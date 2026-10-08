@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 10 / 10 |
+| 8 Training plan | H: `ready for review` | 10 / 10 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -157,7 +157,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Training plan · Checkpoint H: `open`
+### Phase 8 — Training plan · Checkpoint H: `ready for review`
 
 The app knows what the owner **did** and what they are training **for**, and nothing
 about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
@@ -655,6 +655,96 @@ yet; `health-real-no-weight.png` is the real one, showing the section correctly 
   mode. All three now have tests. It is worth noting that the tests did not find them.
 
 1,141 backend tests, 706 frontend tests across 59 files.
+
+Owner feedback:
+
+### Checkpoint H — Training plan
+
+Ten tasks. The app now knows what you were **supposed** to do, and will say whether you
+did it. Checkpoints F and G are still unreviewed above this one.
+
+| | |
+|---|---|
+| `cdb488c` | Schema v3: somewhere to put what was prescribed |
+| `fa27c01` | The calendar, read without trusting it |
+| `3b6136a` | What the week actually asks for |
+| `de1c355` | Whether the training happened |
+| `e30ac24` | The plan, over HTTP |
+| `9fde028` | GA_PLAN_ICS_URL, so the address can be declared instead of pasted |
+| `679ce05` | The calendar keeps itself current |
+| `0cf645b` | Targets the plan actually asks for |
+| `b4051e3` | A decision nobody read |
+| `b5479fa` | This week against the plan, and the plan against the race |
+| `cec0e55` | The calendar, and what it could not read |
+
+**Start here: nothing is connected yet, and that is the first thing to do.** Open
+`/settings` → Training plan, and paste the secret iCal address (Google Calendar →
+that calendar's settings → "Secret address in iCal format"). Until you do, `/plan`
+says one line, the race panel draws its curves with no goal line, and that is
+deliberate — see below.
+
+**The three that matter most.**
+
+- **Two numbers that were measuring you against nothing are gone.** `TARGET_PEAK_CTL =
+  75` and `TARGET_PEAK_WEEKLY_KM = 55` were invented by an agent in Phase 0. Your plan's
+  biggest week is about 35.7 km, so the race panel was warning "a long way short" on
+  weeks you had followed exactly. Volume now comes straight from the calendar. The
+  fitness target is that peak week priced in **your own** load per kilometre — 12.53
+  TRIMP/km over your last 90 days, stable at 12.62 over 28 — which turns 35.7 km/week
+  into **CTL 63.9**, against the 19.2 you are at now. With no calendar connected both
+  are null and nothing is drawn. The old 55 km/week would have implied 98.5.
+- **Ignoring a session did nothing at all, for the whole of this phase.** The endpoint
+  accepted it, wrote the row, answered 200, and the matcher only ever read the *manual*
+  links. Found while wiring the button that calls it. It works now, and it was worth the
+  separate commit: `b4051e3` is the one to revert if the behaviour is wrong.
+- **Adherence never appears alone.** A 16 km run at the wrong effort is `done` exactly
+  like a good one, so `/plan` says the percentage and "N of the last 6 long runs held
+  together to the end" in the same breath. On your real data the second sentence is the
+  one with something to say.
+
+**To look at** (on http://localhost:5173):
+
+- `/plan` — the new tab, sixth in the nav (D11). The verdict sentence, adherence, the
+  plan's peak week and the fitness it implies, then a row per week to race day. Click a
+  week: every prescribed day, the activity that fulfilled it, and the controls to
+  re-link or ignore. The opened week is in the URL, so `/plan?week=2026-09-21` is a
+  link you can keep.
+- `/status` — the race panel now draws your weekly kilometres with the plan's
+  prescription as a dashed step over them, running on past the last bar to January.
+  Below it, this week session by session, what is next, and four-week adherence.
+- `/settings` → Training plan — the address (masked, always), when it was last read,
+  Sync now, and the two lists: what the parser refused, and what you overruled by hand.
+
+**The screenshots are of a plan that is not yours.** Your calendar's address is a
+credential and is not in this repository, so `~/garmin-review/H/` was taken against your
+**real activities** with a stand-in Higdon block written into the throwaway copy by
+`scripts/dev-standin-plan.py`. Every verdict in them is real — Sep 21 at 69%, the
+Wednesday run swapped for your Sep 23 ride, the Sep 25 long run matched — but the
+prescriptions are invented, and the stand-in's peak week (44.1 km) is higher than your
+real 35.7. `no-plan-status.png` and `no-plan-plan.png` are the honest ones: that is what
+you will actually see until you paste the address.
+
+**Unsure about:**
+
+- **Nothing in this phase has met your real calendar.** The ICS parser, the prose
+  parser, the matcher and the whole adherence calculation were built against written
+  fixtures and are exercised here against a feed I wrote to look like yours. The first
+  real sync is the test, and the parse review list in Settings is where it will tell
+  you what it could not read.
+- **A re-link only offers activities within a day of the session**, because that is all
+  the matcher will honour (`analytics/plan._claim` looks at the session's day and the
+  two either side). If the activity that really fulfilled Friday happened on Monday,
+  there is no way to say so. That may want widening once you have used it.
+- **The grid prints "—" for every week still to come**, because a session is
+  deliberately not counted until its day is over. It is honest and it is also fifteen
+  rows of nothing; a column showing what each future week asks for might be better.
+- **`/api/config` lost its `targets` block.** Nothing in the app read it, but it is an
+  API change.
+- **The efficacy line counts long runs with usable heart rate**, and says so when there
+  are none. It does not yet use `project_race_time` against a goal time, because there
+  is no goal time anywhere in the app — only a race date.
+
+1,433 backend tests, 797 frontend tests across 69 files.
 
 Owner feedback:
 
