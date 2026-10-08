@@ -744,7 +744,7 @@ you will actually see until you paste the address.
   are none. It does not yet use `project_race_time` against a goal time, because there
   is no goal time anywhere in the app — only a race date.
 
-1,433 backend tests, 797 frontend tests across 69 files.
+1,436 backend tests, 797 frontend tests across 69 files.
 
 Owner feedback:
 
@@ -2557,7 +2557,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     credential** and is not in this checkout. It writes a Higdon-shaped block — plus
     two entries the parser is meant to refuse, so the review list has something in it —
     into the throwaway copy, and refuses to run against any other database.
-  - 1,433 backend tests, 797 frontend tests across 69 files.
+  - 1,436 backend tests, 797 frontend tests across 69 files.
 
 ### T48 — An ignored session is actually ignored
 - **Goal:** the second of the two decisions the owner is allowed to make does something.
