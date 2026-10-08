@@ -47,7 +47,7 @@ Paste one of these into a fresh session.
 | 4 Settings & finish | D: `ready for review` | 7 / 7 |
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
-| 7 Activity cards | G: `open` | 0 / 1 |
+| 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 8 Training plan | H: `open` | 6 / 9 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
@@ -157,6 +157,30 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
+### Phase 8 — Training plan · Checkpoint H: `open`
+
+The app knows what the owner **did** and what they are training **for**, and nothing
+about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
+= 75` and `TARGET_PEAK_WEEKLY_KM = 55` are numbers an agent invented, not the plan's.
+The plan itself lives in a Google Calendar the owner keeps by hand — Hal Higdon Novice 1
+remapped to the Qatar week, with the Friday long runs set deliberately above it.
+
+This phase reads that calendar, matches each prescribed session to the activity that
+fulfilled it, and answers three questions the app cannot answer today: **did I do it**,
+**am I still on the curve**, and **does the curve reach 15 January**.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | done | — | Schema v3: somewhere to put what was prescribed |
+| T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
+| T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
+| T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
+| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
+| T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
+| T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
+| T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
+| T42 | Targets come from the plan; the invented constants go | todo | T37 | |
+
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
 The owner asked why the Map page is slow (2026-10-08). Measured: the heatmap is
@@ -189,30 +213,6 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T45 | Map: open on where most of the activity is, not on every point ever recorded | done | — | The Map opens on home, not on every country there is a point in |
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
-
-### Phase 8 — Training plan · Checkpoint H: `open`
-
-The app knows what the owner **did** and what they are training **for**, and nothing
-about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
-= 75` and `TARGET_PEAK_WEEKLY_KM = 55` are numbers an agent invented, not the plan's.
-The plan itself lives in a Google Calendar the owner keeps by hand — Hal Higdon Novice 1
-remapped to the Qatar week, with the Friday long runs set deliberately above it.
-
-This phase reads that calendar, matches each prescribed session to the activity that
-fulfilled it, and answers three questions the app cannot answer today: **did I do it**,
-**am I still on the curve**, and **does the curve reach 15 January**.
-
-| ID | Task | Status | Depends on | Commit |
-|---|---|---|---|---|
-| T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | done | — | Schema v3: somewhere to put what was prescribed |
-| T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | done | T34 | The calendar, read without trusting it |
-| T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | done | T34 | What the week actually asks for |
-| T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
-| T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
-| T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
-| T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
-| T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
-| T42 | Targets come from the plan; the invented constants go | todo | T37 | |
 
 ### Open decisions
 
