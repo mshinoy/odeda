@@ -363,3 +363,73 @@ CREATE TABLE IF NOT EXISTS sessions (
     label       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions (expires_at);
+
+-- ---------------------------------------------------------------------------
+-- Training plan (v3): what was prescribed, and what fulfilled it
+-- ---------------------------------------------------------------------------
+
+-- A subscribed calendar. `url` is a *secret* — anyone holding a Google private
+-- iCal address can read the whole calendar — so it is masked everywhere it leaves
+-- the API and must never reach a log line.
+CREATE TABLE IF NOT EXISTS plan_sources (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind           TEXT NOT NULL,          -- 'ics'
+    url            TEXT NOT NULL,
+    label          TEXT,
+    etag           TEXT,                   -- for If-None-Match; a 304 is a good no-op run
+    last_modified  TEXT,
+    last_fetch_at  TEXT,
+    last_error     TEXT,
+    enabled        INTEGER NOT NULL DEFAULT 1,
+    UNIQUE (kind, url)
+);
+
+-- One prescribed session. Identified the way iCalendar identifies it: `uid` names the
+-- event or the series, and `recurrence_id` names one instance within a series — which
+-- is what lets a single weekly rule hold a different prescription each week, and lets
+-- one instance be moved or cancelled without touching its siblings.
+--
+-- `withdrawn_at` is the point of this table rather than a soft-delete habit. A series
+-- deleted in the calendar takes its past instances with it (that is what Google does),
+-- so a table that mirrored the feed would quietly rewrite finished weeks and move an
+-- adherence number that was already earned. A row that leaves the feed is stamped and
+-- kept; a past week is always judged against what was prescribed at the time.
+CREATE TABLE IF NOT EXISTS plan_sessions (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id           INTEGER NOT NULL REFERENCES plan_sources (id) ON DELETE CASCADE,
+    uid                 TEXT NOT NULL,      -- iCalendar UID
+    recurrence_id       TEXT NOT NULL,      -- RECURRENCE-ID, or the expanded instance's date
+    day                 TEXT NOT NULL,      -- local date, same basis as activities.day
+    start_local         TEXT,               -- ISO-8601 local, null for an all-day event
+    end_local           TEXT,
+    sport               TEXT,               -- running | cycling | strength | rest | other
+    kind                TEXT,               -- easy | long | quality | cross | gym | rest | race
+    planned_min_m       REAL,               -- a range sets both; a single value sets both equal
+    planned_max_m       REAL,
+    planned_duration_s  REAL,
+    title               TEXT,
+    description         TEXT,
+    parse_status        TEXT NOT NULL,      -- ok | unparsed | unsupported_rrule
+    withdrawn_at        TEXT,               -- set when it leaves the feed; never deleted
+    raw_id              INTEGER REFERENCES raw_documents (id),
+    UNIQUE (source_id, uid, recurrence_id)
+);
+CREATE INDEX IF NOT EXISTS idx_plan_sessions_day ON plan_sessions (day);
+CREATE INDEX IF NOT EXISTS idx_plan_sessions_live ON plan_sessions (withdrawn_at, day);
+
+-- Which activity fulfilled which prescribed session. Only decisions the owner made by
+-- hand are stored: `auto` rows are the matcher's own output, rewritten on every run so
+-- that retyping an activity moves its match with it.
+--
+-- The UNIQUE on `activity_id` is load-bearing: without it one long run could satisfy
+-- both Thursday and Friday and hand out an adherence number nobody earned.
+CREATE TABLE IF NOT EXISTS plan_links (
+    plan_session_id  INTEGER NOT NULL REFERENCES plan_sessions (id) ON DELETE CASCADE,
+    activity_id      TEXT REFERENCES activities (activity_id),
+    link_type        TEXT NOT NULL,         -- auto | manual | ignored
+    score            REAL,
+    linked_at        TEXT NOT NULL,
+    PRIMARY KEY (plan_session_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_plan_links_activity
+    ON plan_links (activity_id) WHERE activity_id IS NOT NULL;

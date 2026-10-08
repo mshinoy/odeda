@@ -16,7 +16,7 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 from ..config import Settings, load_settings
 from . import fields as fields_mod
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 #: Columns added to existing tables after v1 shipped. Applied with ALTER TABLE only
 #: when missing, so upgrading a v1 database in place keeps its data.
@@ -106,7 +106,7 @@ def migrate(conn: sqlite3.Connection, schema_path: Path | None = None) -> int:
         conn.execute(
             "INSERT OR REPLACE INTO schema_migrations (version, name, applied_at) "
             "VALUES (?, ?, ?)",
-            (SCHEMA_VERSION, "v2: gps, overrides, gear, routes, app state", utcnow()),
+            (SCHEMA_VERSION, "v3: the training plan", utcnow()),
         )
     conn.execute(f"PRAGMA user_version = {want}")
     conn.commit()

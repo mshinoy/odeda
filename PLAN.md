@@ -193,7 +193,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | todo | — | |
+| T34 | Schema v3: `plan_sources`, `plan_sessions`, `plan_links`, and the migration | done | — | Schema v3: somewhere to put what was prescribed |
 | T35 | `ingest/plan_ics.py`: fetch a private ICS feed, expand recurrence, withdraw what vanishes | todo | T34 | |
 | T36 | `plan/parse.py`: prose → a prescription, with `GA:` hint lines winning | todo | T34 | |
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | todo | T35, T36 | |
@@ -2387,3 +2387,30 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - The parse review list is the honesty mechanism for T36. Without it, a session the
     parser dropped is simply absent from the adherence denominator and the number
     silently improves.
+
+### T34 — Schema v3: somewhere to put what was prescribed
+- **Goal:** the database can hold a prescribed session, where it came from and which
+  activity fulfilled it, without changing anything that already exists.
+- **Files:** `garmin_analytics/db/schema.sql`, `garmin_analytics/db/store.py`,
+  `tests/test_store.py`.
+- **Build:**
+  - [x] `plan_sources`, `plan_sessions`, `plan_links`
+  - [x] `SCHEMA_VERSION` → 3, migration row `v3: the training plan`
+  - [x] an existing database gains the tables in place, keeping its rows
+- **Notes:**
+  - **Three constraints carry the adherence maths, and each has its own test.**
+    `UNIQUE (source_id, uid, recurrence_id)` is what lets one weekly rule hold a
+    different prescription each week — keyed on `uid` alone, week 2 overwrites week 1.
+    The partial `UNIQUE` on `plan_links.activity_id` stops one long run from satisfying
+    both Thursday and Friday; partial, because `ignored` and `missed` links hold NULL
+    and several may exist at once. `withdrawn_at` keeps a row whose series was deleted
+    in the calendar, which is the only reason a finished week stays judged against what
+    it actually prescribed.
+  - `plan_links` stores decisions, not results. `auto` rows are the matcher's own output
+    and are rewritten every run, so retyping an activity moves its match with it; only
+    `manual` and `ignored` are things the owner said.
+  - **Additive only.** No existing table, view or stored value changed, which is what
+    makes the upgrade a `CREATE TABLE IF NOT EXISTS` and nothing else. The fingerprint
+    in `PRAGMA user_version` moves with `SCHEMA_VERSION`, so an older database re-runs
+    the script once and then stops.
+  - Suite green at 1202 passed, 1 skipped, plus the six new tests.

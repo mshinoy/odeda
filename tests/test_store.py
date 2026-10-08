@@ -22,11 +22,41 @@ class TestMigrations:
         assert rows == 1
         conn.close()
 
+    def test_an_existing_database_gains_the_plan_tables_in_place(self, settings):
+        """v3 adds tables and nothing else, so an upgrade must keep every row.
+
+        The stamp is cleared rather than the schema rolled back: `migrate` skips
+        entirely when the fingerprint already matches, so that is what a database
+        written by an older build looks like from here.
+        """
+        conn = S.connect(settings.db_path)
+        S.migrate(conn, settings.schema_path)
+        conn.execute(
+            "INSERT INTO activities (activity_id, day, start_time_local, activity_type) "
+            "VALUES ('keep-me', '2026-10-30', '2026-10-30T05:00:00', 'running')"
+        )
+        conn.execute("DROP TABLE plan_sessions")
+        conn.execute("DROP TABLE plan_links")
+        conn.execute("DROP TABLE plan_sources")
+        conn.execute("PRAGMA user_version = 0")
+        conn.commit()
+
+        assert S.migrate(conn, settings.schema_path) == S.SCHEMA_VERSION
+        tables = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        )}
+        assert {"plan_sources", "plan_sessions", "plan_links"} <= tables
+        assert conn.execute(
+            "SELECT COUNT(*) FROM activities WHERE activity_id = 'keep-me'"
+        ).fetchone()[0] == 1
+        conn.close()
+
     def test_every_expected_table_exists(self, store):
         counts = store.table_counts()
         for table in ("raw_documents", "sync_watermark", "activities", "activity_hr_zones",
                       "activity_samples", "best_efforts", "sleep", "daily_wellness",
-                      "hrv_daily", "fitness", "body_composition"):
+                      "hrv_daily", "fitness", "body_composition",
+                      "plan_sources", "plan_sessions", "plan_links"):
             assert table in counts
 
     def test_v_daily_view_exists_and_is_queryable(self, store):
@@ -40,6 +70,98 @@ class TestMigrations:
                 "INSERT INTO activity_hr_zones (activity_id, zone, seconds) VALUES (?, ?, ?)",
                 ("does-not-exist", 1, 60),
             )
+
+
+class TestPlanTables:
+    """The two constraints the adherence maths leans on, and the one that keeps history."""
+
+    @staticmethod
+    def _source(store) -> int:
+        store.conn.execute(
+            "INSERT INTO plan_sources (kind, url, label) VALUES ('ics', 'https://x/basic.ics', 'Training')"
+        )
+        return int(store.scalar("SELECT id FROM plan_sources"))
+
+    @staticmethod
+    def _session(store, source_id: int, uid: str, rid: str, day: str) -> int:
+        store.conn.execute(
+            "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, parse_status) "
+            "VALUES (?, ?, ?, ?, 'ok')",
+            (source_id, uid, rid, day),
+        )
+        return int(store.scalar("SELECT MAX(id) FROM plan_sessions"))
+
+    @staticmethod
+    def _activity(store, activity_id: str, day: str) -> None:
+        store.conn.execute(
+            "INSERT INTO activities (activity_id, day, start_time_local, activity_type) "
+            "VALUES (?, ?, ?, 'running')",
+            (activity_id, day, f"{day}T05:00:00"),
+        )
+
+    def test_one_instance_per_recurrence_not_per_series(self, store):
+        """A weekly series carries a different prescription each week, so the identity
+        has to include the instance. Keyed on `uid` alone, week 2 would overwrite week 1."""
+        src = self._source(store)
+        self._session(store, src, "dbrc-friday", "2026-10-30", "2026-10-30")
+        self._session(store, src, "dbrc-friday", "2026-11-06", "2026-11-06")
+        assert store.scalar("SELECT COUNT(*) FROM plan_sessions") == 2
+
+    def test_the_same_instance_cannot_be_stored_twice(self, store):
+        import sqlite3
+
+        src = self._source(store)
+        self._session(store, src, "dbrc-friday", "2026-10-30", "2026-10-30")
+        with pytest.raises(sqlite3.IntegrityError):
+            self._session(store, src, "dbrc-friday", "2026-10-30", "2026-10-30")
+
+    def test_one_activity_cannot_fulfil_two_sessions(self, store):
+        """Without this, a single long run satisfies both Thursday and Friday and the
+        adherence number is one nobody earned."""
+        import sqlite3
+
+        src = self._source(store)
+        thursday = self._session(store, src, "gym", "2026-10-29", "2026-10-29")
+        friday = self._session(store, src, "long", "2026-10-30", "2026-10-30")
+        self._activity(store, "act-1", "2026-10-30")
+        store.conn.execute(
+            "INSERT INTO plan_links (plan_session_id, activity_id, link_type, linked_at) "
+            "VALUES (?, 'act-1', 'auto', '2026-10-30T06:00:00Z')",
+            (friday,),
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            store.conn.execute(
+                "INSERT INTO plan_links (plan_session_id, activity_id, link_type, linked_at) "
+                "VALUES (?, 'act-1', 'auto', '2026-10-30T06:00:00Z')",
+                (thursday,),
+            )
+
+    def test_a_missed_session_can_be_recorded_without_an_activity(self, store):
+        """`ignored` and `missed` have no activity. The uniqueness is partial for that
+        reason: several sessions may hold a NULL activity at once."""
+        src = self._source(store)
+        a = self._session(store, src, "a", "2026-10-29", "2026-10-29")
+        b = self._session(store, src, "b", "2026-10-30", "2026-10-30")
+        for sid in (a, b):
+            store.conn.execute(
+                "INSERT INTO plan_links (plan_session_id, activity_id, link_type, linked_at) "
+                "VALUES (?, NULL, 'ignored', '2026-10-30T06:00:00Z')",
+                (sid,),
+            )
+        assert store.scalar("SELECT COUNT(*) FROM plan_links") == 2
+
+    def test_a_withdrawn_session_survives_its_source_row(self, store):
+        """A series deleted in the calendar takes its past instances with it. The row
+        stays, stamped, so a finished week is still judged against what it prescribed."""
+        src = self._source(store)
+        sid = self._session(store, src, "saturday-club-run", "2026-09-12", "2026-09-12")
+        store.conn.execute(
+            "UPDATE plan_sessions SET withdrawn_at = '2026-09-19T16:00:00Z' WHERE id = ?",
+            (sid,),
+        )
+        row = store.query("SELECT day, withdrawn_at FROM plan_sessions WHERE id = ?", (sid,))[0]
+        assert row["day"] == "2026-09-12"
+        assert row["withdrawn_at"] == "2026-09-19T16:00:00Z"
 
 
 class TestRawArchive:
