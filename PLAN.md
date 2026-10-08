@@ -38,6 +38,7 @@ Paste one of these into a fresh session.
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 8 Speed | H: `ready for review` | 1 / 1 |
+| 9 Routes that know laps | I: `open` | 0 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -152,6 +153,18 @@ and the map library only starts downloading once the heatmap has arrived.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T34 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | done | — | The Map opens without waiting for the heatmap, which is ready before it is asked for |
+
+### Phase 9 — Routes that know laps · Checkpoint I: `open`
+
+70 routes for 265 GPS activities (2026-10-08): two laps of a loop can never join one,
+because routes are matched on total distance within 25%, and a route's shape is
+whichever run created it. The owner's loops (Bin Omran, ~1.6 km; another at
+25.345, 51.522, ~1.4 km) are run 2–9 times a session; the QSC out-and-backs turn at
+different points.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T35 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | in progress (route-grouping, 2026-10-08) | — | |
 
 ### Open decisions
 
