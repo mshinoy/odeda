@@ -10,7 +10,7 @@ const STATIC_API = "https://api.mapbox.com/styles/v1";
 const MAX_SIDE_PX = 1280;
 
 export interface StaticMapRequest {
-  /** Google encoded polyline, precision 5, as the list's `previewPolyline`. */
+  /** Google encoded polyline, precision 5, as `GET /api/activities/previews` sends it. */
   polyline: string;
   theme: Theme;
   /** The route's colour, `#rrggbb`, from the design tokens. */

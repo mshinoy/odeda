@@ -2017,5 +2017,9 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     not a failed image.
   - The sort menu replaces the table's headers in the cards view only; the table keeps
     its headers.
+  - **Routes come after the cards** (owner, same day: "the content shows up first and
+    then the maps load"). The list sends `has_gps`; `GET /api/activities/previews`
+    sends a page's routes. Cards are on screen in ~50 ms; maps fill in behind a
+    placeholder and fade in. One card per row at every width (owner's call).
   - Looked at on real data (copy on :8818), light and dark, 1440 px and 390 px: rides,
     runs, strength, swims, other, and the table toggle.

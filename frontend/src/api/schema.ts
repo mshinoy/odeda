@@ -594,6 +594,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activities/previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Activity Previews
+         * @description The routes the activity list's cards draw, for one page of `ids`.
+         */
+        get: operations["api_activity_previews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activities/{activity_id}": {
         parameters: {
             query?: never;
@@ -1495,11 +1515,11 @@ export interface components {
             /** Total Reps */
             total_reps: number | null;
             /**
-             * Preview Polyline
-             * @description The GPS track as a Google encoded polyline (precision 5), simplified to at most
-             *     150 points for a small static map; null without GPS.
+             * Has Gps
+             * @description True when the activity has a route to draw. The route itself comes from
+             *     `GET /api/activities/previews`, so the list does not wait for it.
              */
-            preview_polyline: string | null;
+            has_gps: boolean;
             /**
              * Hr Zones
              * @description Seconds in each HR zone, by zone; empty when the activity has none.
@@ -1510,6 +1530,21 @@ export interface components {
              * @description A gym session's exercises, relabels applied; empty for anything else.
              */
             exercises: components["schemas"]["Exercise"][];
+        };
+        /**
+         * ActivityPreviews
+         * @description `GET /api/activities/previews`: each asked-for activity's route for its card.
+         */
+        ActivityPreviews: {
+            /**
+             * Polylines
+             * @description Activity id -> the GPS track as a Google encoded polyline (precision 5),
+             *     simplified to at most 150 points for a small static map. Activities without GPS,
+             *     or unknown, are absent.
+             */
+            polylines: {
+                [key: string]: string;
+            };
         };
         /**
          * ActivityRouteRequest
@@ -6002,6 +6037,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_activity_previews: {
+        parameters: {
+            query: {
+                ids: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPreviews"];
                 };
             };
             /** @description Validation Error */

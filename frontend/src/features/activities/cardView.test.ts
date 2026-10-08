@@ -35,7 +35,7 @@ const run: ActivityListItem = {
   totalReps: null,
   avgPowerW: null,
   avgCadenceSpm: 172,
-  previewPolyline: "_p~iF~ps|U_ulLnnqC",
+  hasGps: true,
   hrZones: [
     { zone: 1, seconds: 300 },
     { zone: 2, seconds: 2400 },
@@ -70,7 +70,7 @@ const gym: ActivityListItem = {
   avgSpeedMps: 0,
   elevationGainM: null,
   avgCadenceSpm: null,
-  previewPolyline: null,
+  hasGps: false,
   totalSets: 9,
   totalReps: 72,
   exercises: [exercise("BENCH_PRESS", 4), exercise("ROW", 3), exercise("UNKNOWN", 2)],
@@ -100,7 +100,7 @@ describe("toCardView", () => {
         { label: "Training effect", value: "3.1" },
       ],
       exercises: [],
-      visual: { kind: "map", polyline: "_p~iF~ps|U_ulLnnqC" },
+      visual: { kind: "map" },
     });
   });
 
@@ -156,7 +156,7 @@ describe("toCardView", () => {
   });
 
   it("shows HR zones for an indoor activity, and nothing when there are none", () => {
-    const indoor = { ...run, type: "treadmill_running", previewPolyline: null };
+    const indoor = { ...run, type: "treadmill_running", hasGps: false };
     expect(toCardView(indoor, today).visual.kind).toBe("zones");
     expect(toCardView({ ...indoor, hrZones: [] }, today).visual).toEqual({ kind: "none" });
   });

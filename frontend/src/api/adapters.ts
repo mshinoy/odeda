@@ -47,8 +47,8 @@ export interface ActivityListItem extends ActivitySummary {
   avgPowerW: number | null;
   /** Steps/min for runs and walks, rpm for rides. */
   avgCadenceSpm: number | null;
-  /** The GPS track as a Google encoded polyline, simplified for a small map; null indoors. */
-  previewPolyline: string | null;
+  /** True when there is a route to draw; the route itself comes from `toActivityPreviews`. */
+  hasGps: boolean;
   /** Empty when the activity has no zones. */
   hrZones: HrZoneTime[];
   /** A gym session's exercises; empty for anything else. */
@@ -310,10 +310,17 @@ export function toActivityListItem(row: Schemas["ActivityListRow"]): ActivityLis
     maxSpeedMps: row.max_speed_mps,
     avgPowerW: row.avg_power_w,
     avgCadenceSpm: row.avg_cadence_spm,
-    previewPolyline: row.preview_polyline,
+    hasGps: row.has_gps,
     hrZones: row.hr_zones.map(({ zone, seconds }) => ({ zone, seconds })),
     exercises: row.exercises.map(toExercise),
   };
+}
+
+/** Each card's route as a Google encoded polyline, by activity id; absent without GPS. */
+export type ActivityPreviews = Readonly<Record<string, string>>;
+
+export function toActivityPreviews(raw: Schemas["ActivityPreviews"]): ActivityPreviews {
+  return raw.polylines;
 }
 
 /** `gear_ids` comes from SQLite's group_concat: "3,7" or null. */

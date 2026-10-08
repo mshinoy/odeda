@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Activity, Bike, Dumbbell, Footprints, Waves, type LucideIcon } from "lucide-react";
 import type { HrZoneTime } from "@/api/adapters";
+import { Skeleton } from "@/components/ui/skeleton";
 import { zoneName, zoneShares } from "@/charts/hrZones/buildHrZonesOption";
 import { hrZoneColor, kindColor } from "@/design/scales";
 import { useTheme, useTokens } from "@/design/theme";
@@ -10,6 +11,7 @@ import type { CardVisual as Visual } from "@/features/activities/cardView";
 import type { ActivityKind } from "@/lib/activityKind";
 import { formatDuration } from "@/lib/format";
 import { decodePolyline } from "@/lib/polyline";
+import { cn } from "@/lib/utils";
 import { traceSvgPath } from "@/map/routeTrace";
 import { staticMapUrl } from "@/map/staticMap";
 
@@ -20,13 +22,17 @@ export const VISUAL_HEIGHT = 180;
 interface CardVisualProps {
   visual: Visual;
   kind: ActivityKind;
+  /** The route for a map: undefined while it is on its way, null if none came. */
+  polyline: string | null | undefined;
 }
 
 /** The left of an activity card: the route, the muscles worked, the HR zones, or the sport. */
-export function CardVisual({ visual, kind }: CardVisualProps) {
+export function CardVisual({ visual, kind, polyline }: CardVisualProps) {
   switch (visual.kind) {
     case "map":
-      return <RouteImage polyline={visual.polyline} kind={kind} />;
+      if (polyline === undefined) return <Skeleton className="h-full w-full rounded-none" />;
+      if (polyline === null) return <KindIcon kind={kind} />;
+      return <RouteImage polyline={polyline} kind={kind} />;
     case "body":
       return (
         <div className="flex h-full items-center justify-center gap-3 py-3">
@@ -48,11 +54,16 @@ export function CardVisual({ visual, kind }: CardVisualProps) {
   }
 }
 
-/** The route on a Mapbox static map; the bare trace without a token, or if the image fails. */
+/**
+ * The route on a Mapbox static map, fading in over a placeholder once it has loaded; the
+ * bare trace without a token, or if the image fails.
+ */
 function RouteImage({ polyline, kind }: { polyline: string; kind: ActivityKind }) {
   const theme = useTheme();
   const tokens = useTokens();
   const [failed, setFailed] = useState(false);
+  // Keyed by URL, so a theme switch shows the placeholder again until the new image is in.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const color = kindColor(tokens, kind);
   const src = staticMapUrl({
     polyline,
@@ -63,17 +74,25 @@ function RouteImage({ polyline, kind }: { polyline: string; kind: ActivityKind }
   });
 
   if (!src || failed) return <RouteTrace polyline={polyline} color={color} />;
+  const loaded = loadedSrc === src;
   return (
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      decoding="async"
-      width={VISUAL_WIDTH}
-      height={VISUAL_HEIGHT}
-      className="h-full w-full object-cover"
-      onError={() => setFailed(true)}
-    />
+    <div className="relative h-full w-full">
+      {!loaded && <Skeleton className="absolute inset-0 rounded-none" />}
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        width={VISUAL_WIDTH}
+        height={VISUAL_HEIGHT}
+        className={cn(
+          "relative h-full w-full object-cover transition-opacity duration-200",
+          loaded ? "opacity-100" : "opacity-0",
+        )}
+        onLoad={() => setLoadedSrc(src)}
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
 

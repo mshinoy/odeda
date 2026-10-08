@@ -86,19 +86,9 @@ class TestListRows:
     def _row(self, client, type_: str) -> dict:
         return client.get(f"/api/activities?type={type_}&limit=1").json()["rows"][0]
 
-    def test_an_outdoor_run_carries_its_route(self, client, seeded_store):
-        row = self._row(client, "running")
-        points = decode_polyline(row["preview_polyline"])
-        assert 2 <= len(points) <= MAX_POINTS
-        first = seeded_store.query(
-            "SELECT lat, lon FROM activity_samples WHERE activity_id = ? AND lat IS NOT NULL "
-            "ORDER BY elapsed_s LIMIT 1",
-            (row["activity_id"],),
-        )[0]
-        assert points[0] == pytest.approx((first["lat"], first["lon"]), abs=1e-5)
-
-    def test_an_indoor_run_has_none(self, client):
-        assert self._row(client, "treadmill_running")["preview_polyline"] is None
+    def test_says_which_activities_have_a_route(self, client):
+        assert self._row(client, "running")["has_gps"] is True
+        assert self._row(client, "treadmill_running")["has_gps"] is False
 
     def test_hr_zones_are_the_stored_ones(self, client, seeded_store):
         row = self._row(client, "running")
@@ -112,14 +102,47 @@ class TestListRows:
     def test_every_row_has_the_card_fields(self, client):
         rows = client.get("/api/activities?limit=100").json()["rows"]
         for row in rows:
-            assert {"preview_polyline", "hr_zones", "exercises"} <= row.keys()
+            assert {"has_gps", "hr_zones", "exercises"} <= row.keys()
+            assert "preview_polyline" not in row  # the list does not wait for routes
             if row["total_sets"] is None:
                 assert row["exercises"] == []
 
     def test_the_detail_endpoint_is_unchanged(self, client):
         aid = self._row(client, "running")["activity_id"]
         act = client.get(f"/api/activities/{aid}").json()["activity"]
-        assert "preview_polyline" not in act
+        assert "has_gps" not in act
+
+
+class TestPreviews:
+    def _ids(self, client, type_: str, n: int = 3) -> list[str]:
+        rows = client.get(f"/api/activities?type={type_}&limit={n}").json()["rows"]
+        return [r["activity_id"] for r in rows]
+
+    def test_an_outdoor_run_has_its_route(self, client, seeded_store):
+        aid = self._ids(client, "running", 1)[0]
+        body = client.get("/api/activities/previews", params={"ids": [aid]}).json()
+        points = decode_polyline(body["polylines"][aid])
+        assert 2 <= len(points) <= MAX_POINTS
+        first = seeded_store.query(
+            "SELECT lat, lon FROM activity_samples WHERE activity_id = ? AND lat IS NOT NULL "
+            "ORDER BY elapsed_s LIMIT 1",
+            (aid,),
+        )[0]
+        assert points[0] == pytest.approx((first["lat"], first["lon"]), abs=1e-5)
+
+    def test_only_activities_with_gps_are_in_it(self, client):
+        runs = self._ids(client, "running")
+        indoor = self._ids(client, "treadmill_running")
+        body = client.get("/api/activities/previews", params={"ids": runs + indoor + ["nope"]})
+        assert body.status_code == 200
+        assert set(body.json()["polylines"]) == set(runs)
+
+    def test_a_page_at_most(self, client):
+        res = client.get("/api/activities/previews", params={"ids": [str(i) for i in range(201)]})
+        assert res.status_code == 400
+
+    def test_ids_are_required(self, client):
+        assert client.get("/api/activities/previews").status_code == 422
 
 
 class TestRouteCache:
@@ -135,17 +158,16 @@ class TestRouteCache:
                 [(activity_id, float(i), lat, lon) for i, (lat, lon) in enumerate(track)],
             )
 
-    def _route(self, store, activity_id: str) -> list[tuple[float, float]]:
-        rows = preview_mod.with_card_extras(store, [{"activity_id": activity_id, "total_sets": None}])
-        return decode_polyline(rows[0]["preview_polyline"])
-
     def test_a_resynced_track_is_drawn_again(self, store):
         self._add(store, "a1", [(25.0, 51.0), (25.01, 51.01)])
-        assert self._route(store, "a1") == [(25.0, 51.0), (25.01, 51.01)]
+        first = preview_mod.polylines(store, ["a1"])["a1"]
+        assert decode_polyline(first) == [(25.0, 51.0), (25.01, 51.01)]
         self._add(store, "a1", [(25.0, 51.0), (25.02, 51.0), (25.02, 51.02)])
-        assert self._route(store, "a1") == [(25.0, 51.0), (25.02, 51.0), (25.02, 51.02)]
+        again = preview_mod.polylines(store, ["a1"])["a1"]
+        assert decode_polyline(again) == [(25.0, 51.0), (25.02, 51.0), (25.02, 51.02)]
 
     def test_an_activity_without_gps_has_no_route(self, store):
         self._add(store, "a2", [])
-        rows = preview_mod.with_card_extras(store, [{"activity_id": "a2", "total_sets": None}])
-        assert rows[0]["preview_polyline"] is None
+        assert preview_mod.polylines(store, ["a2"]) == {}
+        row = preview_mod.with_card_extras(store, [{"activity_id": "a2", "total_sets": None}])[0]
+        assert row["has_gps"] is False

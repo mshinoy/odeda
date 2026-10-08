@@ -70,6 +70,7 @@ from .schemas import (
     ActivityGearRequest,
     ActivityGearResult,
     ActivityList,
+    ActivityPreviews,
     ActivityRouteRequest,
     ActivityRouteResult,
     ActivityStreams,
@@ -785,6 +786,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ]
             return {"total": total, "limit": limit, "offset": offset, "types": types,
                     "rows": rows}
+
+    #: More than a page of cards is never asked for at once.
+    MAX_PREVIEWS = 200
+
+    # Declared before `/api/activities/{activity_id}`, which would otherwise take
+    # "previews" for an id.
+    @app.get("/api/activities/previews", response_model=ActivityPreviews)
+    def api_activity_previews(ids: list[str] = Query(...)) -> dict[str, Any]:
+        """The routes the activity list's cards draw, for one page of `ids`."""
+        if len(ids) > MAX_PREVIEWS:
+            raise HTTPException(400, f"at most {MAX_PREVIEWS} ids at once")
+        with store() as st:
+            return {"polylines": preview_mod.polylines(st, ids)}
 
     @app.get("/api/activities/{activity_id}", response_model=ActivityDetail)
     def api_activity(activity_id: str) -> dict[str, Any]:

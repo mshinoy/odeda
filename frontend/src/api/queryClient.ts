@@ -34,6 +34,8 @@ export const queryKeys = {
   activities: (params: ActivityListParams) => ["activities", params] as const,
   /** Under `activities` so a sync invalidates it too; a string, so no params key collides. */
   activityTypes: ["activities", "types"] as const,
+  /** Also under `activities`; the ids are one page of the list, in its order. */
+  activityPreviews: (ids: readonly string[]) => ["activities", "previews", ids] as const,
   activity: (id: string) => ["activity", id] as const,
   streams: (id: string) => ["streams", id] as const,
   exercises: (id: string) => ["exercises", id] as const,

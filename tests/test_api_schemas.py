@@ -35,7 +35,7 @@ ADDED_ROW_KEYS = ["total_sets", "total_reps"]
 #: the user's override falling back to the payload's eventType, so it is never null.
 RESOLVED_ROW_KEYS = ["race"]
 #: What only the list sends, for its cards (T33); checked in `test_preview.py`.
-LIST_ONLY_ROW_KEYS = ["preview_polyline", "hr_zones", "exercises"]
+LIST_ONLY_ROW_KEYS = ["has_gps", "hr_zones", "exercises"]
 
 
 @pytest.fixture

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ActivityPage } from "@/api/queries/useActivities";
 import { useActivities } from "@/api/queries/useActivities";
+import { useActivityPreviews } from "@/api/queries/useActivityPreviews";
 import { ActivityFilters } from "@/features/activities/ActivityFilters";
 import { ActivityResults, type ResultsPage } from "@/features/activities/ActivityResults";
 import { toCardView } from "@/features/activities/cardView";
@@ -42,6 +43,18 @@ export function ActivitiesPage() {
   const query = useActivities(toApiParams(state));
   const { data } = query;
   const results = useMemo(() => (data ? toResultsPage(data, state) : undefined), [data, state]);
+  // The routes come after the list, so the cards are on screen while they load. While
+  // the next page loads, the dimmed page on screen keeps its own, already cached.
+  const routeIds = useMemo(
+    () =>
+      state.view === "cards" && data
+        ? data.rows.filter((row) => row.hasGps).map((row) => row.id)
+        : [],
+    [state.view, data],
+  );
+  const previews = useActivityPreviews(routeIds);
+  // No routes to ask for, or asking failed: the map cards show their sport instead.
+  const routes = routeIds.length === 0 || previews.isError ? {} : previews.data;
 
   // The selection is cross-view state: /compare reads the same ids.
   const selectedIds = useUiStore((s) => s.selectedActivityIds);
@@ -74,6 +87,7 @@ export function ActivitiesPage() {
       <ActivityResults
         results={results}
         view={state.view}
+        previews={routes}
         selected={selected}
         onSelect={toggleSelected}
         error={query.error}

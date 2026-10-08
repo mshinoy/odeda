@@ -1,3 +1,4 @@
+import type { ActivityPreviews } from "@/api/adapters";
 import { EmptyState } from "@/components/EmptyState";
 import { ActivityCard } from "@/features/activities/ActivityCard";
 import { ActivityCards } from "@/features/activities/ActivityCards";
@@ -29,6 +30,8 @@ interface ActivityResultsProps {
   /** Undefined until the first page arrives. */
   results: ResultsPage | undefined;
   view: ListView;
+  /** The cards' routes; undefined until they arrive, after the cards. */
+  previews: ActivityPreviews | undefined;
   /** The ticked activities, for the compare picker. */
   selected: ReadonlySet<string>;
   onSelect: (id: string) => void;
@@ -46,6 +49,7 @@ interface ActivityResultsProps {
 export function ActivityResults({
   results,
   view,
+  previews,
   selected,
   onSelect,
   error,
@@ -69,6 +73,7 @@ export function ActivityResults({
                 <ActivityCard
                   key={card.id}
                   card={card}
+                  polyline={previews === undefined ? undefined : (previews[card.id] ?? null)}
                   selected={selected.has(card.id)}
                   onSelect={onSelect}
                 />

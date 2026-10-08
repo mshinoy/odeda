@@ -2,7 +2,12 @@
 
 A card shows a picture next to its numbers: the route on a static map, or, without
 GPS, the HR zones or a gym session's exercises. Each is read here for a whole page of
-rows at once, one query per kind, so a page of 50 costs four queries, not 200.
+rows at once, one query per kind, so a page of 50 costs a handful of queries, not 200.
+
+The routes are not in the list response. Simplifying a page of them the first time
+takes a few hundred milliseconds, and the cards should not wait for it: the list says
+only which activities have GPS (one indexed count), and the page asks for the routes
+separately (`GET /api/activities/previews`), drawing the cards meanwhile.
 
 The route goes out as a Google encoded polyline (precision 5), simplified to at most
 `MAX_POINTS` points. That is the format Mapbox's Static Images API takes in its URL,
@@ -119,17 +124,17 @@ def _encode_value(value: int) -> str:
 
 
 def with_card_extras(st: Store, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """`rows` with `preview_polyline`, `hr_zones` and `exercises` added to each."""
+    """`rows` with `has_gps`, `hr_zones` and `exercises` added to each."""
     ids = [r["activity_id"] for r in rows]
     if not ids:
         return rows
-    polylines = _polylines(st, ids)
+    counts = _gps_counts(st, ids)
     zones = _hr_zones(st, ids)
     exercises = _exercises(st, [r["activity_id"] for r in rows if r.get("total_sets") is not None])
     return [
         {
             **r,
-            "preview_polyline": polylines.get(r["activity_id"]),
+            "has_gps": counts.get(r["activity_id"], 0) >= 2,
             "hr_zones": zones.get(r["activity_id"], []),
             "exercises": exercises.get(r["activity_id"], []),
         }
@@ -148,8 +153,9 @@ def _placeholders(ids: Sequence[str]) -> str:
 _route_cache: dict[tuple[str, str], tuple[int, str | None]] = {}
 
 
-def _polylines(st: Store, ids: Sequence[str]) -> dict[str, str]:
-    counts = dict(
+def _gps_counts(st: Store, ids: Sequence[str]) -> dict[str, int]:
+    """GPS points per activity; an activity with none is absent."""
+    return dict(
         st.conn.execute(
             "SELECT activity_id, COUNT(*) FROM activity_samples "
             f"WHERE activity_id IN ({_placeholders(ids)}) AND lat IS NOT NULL "
@@ -157,6 +163,13 @@ def _polylines(st: Store, ids: Sequence[str]) -> dict[str, str]:
             list(ids),
         ).fetchall()
     )
+
+
+def polylines(st: Store, ids: Sequence[str]) -> dict[str, str]:
+    """The encoded route of each of `ids` that has GPS; the others are absent."""
+    if not ids:
+        return {}
+    counts = _gps_counts(st, ids)
     db = str(st.settings.db_path)
     stale = [i for i, n in counts.items() if _route_cache.get((db, i), (None,))[0] != n]
     if stale:

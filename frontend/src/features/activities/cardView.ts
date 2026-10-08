@@ -36,7 +36,7 @@ export interface CardStat {
  * worked, the HR zones of anything else, or just the sport's colour.
  */
 export type CardVisual =
-  | { kind: "map"; polyline: string }
+  | { kind: "map" }
   | { kind: "body"; load: MuscleLoad; maxLoad: number }
   | { kind: "zones"; zones: HrZoneTime[] }
   | { kind: "none" };
@@ -189,7 +189,8 @@ function volumeOf(exercises: readonly Exercise[]): string {
 // ---------------------------------------------------------------- the picture
 
 function visualOf(item: ActivityListItem): CardVisual {
-  if (item.previewPolyline) return { kind: "map", polyline: item.previewPolyline };
+  // The route itself arrives after the card does (`useActivityPreviews`).
+  if (item.hasGps) return { kind: "map" };
   if (isGym(item)) {
     const load = muscleLoad(item.exercises);
     const maxLoad = maxMuscleLoad(load);

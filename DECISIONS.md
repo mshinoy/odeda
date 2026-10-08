@@ -489,12 +489,17 @@ card is out: 50 WebGL contexts on one page is past the ~16 a browser allows. Eac
 is one `<img>` from Mapbox's Static Images API instead, the route drawn by Mapbox in
 the sport's colour on the theme's style, with the token the app already has.
 
-The list sends the track as a Google encoded polyline, Douglas–Peucker simplified to at
-most 150 points (`api/preview.py`): about 1 KB, well inside the API's 8 KB URL limit,
-and finer than a 240 px card can show. Simplifying costs ~0.3 s for a page of 50 on
-this box, so the result is cached in the server process, keyed by the GPS point count,
-which a re-sync of the samples changes. A page seen before answers as fast as before
-(~30 ms); a cold one ~0.2–0.4 s.
+The track goes out as a Google encoded polyline, Douglas–Peucker simplified to at most
+150 points (`api/preview.py`): about 1 KB, well inside the API's 8 KB URL limit, and
+finer than a 240 px card can show. Simplifying costs ~0.3 s for a page of 50 on this
+box, so the result is cached in the server process, keyed by the GPS point count,
+which a re-sync of the samples changes.
+
+The routes are **not in the list response**. With them in it, a page not seen before
+took 0.25–0.4 s and nothing was drawn until it arrived. The list says only `has_gps`
+(one indexed count, ~50 ms for the page), the cards draw at once with a placeholder
+where the map goes, and the page then asks `GET /api/activities/previews?ids=…` for
+that page's routes; each image fades in once loaded.
 
 Mapbox's logo and attribution are turned off on the images, where they would sit on a
 small route, and given once under the list. Without a token the card draws the same

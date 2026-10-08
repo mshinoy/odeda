@@ -268,13 +268,22 @@ class ActivityListRow(ActivityRow):
     """One row of the activity list: `ActivityRow` plus what the list's card draws next
     to its numbers. Only the list sends these; the detail endpoint has its own."""
 
-    preview_polyline: str | None
-    """The GPS track as a Google encoded polyline (precision 5), simplified to at most
-    150 points for a small static map; null without GPS."""
+    has_gps: bool
+    """True when the activity has a route to draw. The route itself comes from
+    `GET /api/activities/previews`, so the list does not wait for it."""
     hr_zones: list[HrZone]
     """Seconds in each HR zone, by zone; empty when the activity has none."""
     exercises: list[Exercise]
     """A gym session's exercises, relabels applied; empty for anything else."""
+
+
+class ActivityPreviews(_Model):
+    """`GET /api/activities/previews`: each asked-for activity's route for its card."""
+
+    polylines: dict[str, str]
+    """Activity id -> the GPS track as a Google encoded polyline (precision 5),
+    simplified to at most 150 points for a small static map. Activities without GPS,
+    or unknown, are absent."""
 
 
 class ActivityList(_Model):

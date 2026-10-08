@@ -8,11 +8,11 @@ interface ActivityCardsProps {
   children: ReactNode;
 }
 
-/** One card per row, two side by side on a wide screen. */
+/** One card per row, at every width. */
 export function ActivityCards({ stale, children }: ActivityCardsProps) {
   return (
     <div
-      className={cn("grid gap-4 transition-opacity 2xl:grid-cols-2", stale && "opacity-60")}
+      className={cn("flex flex-col gap-4 transition-opacity", stale && "opacity-60")}
       aria-busy={stale}
     >
       {children}

@@ -5,6 +5,8 @@ import { CardVisual } from "@/features/activities/CardVisual";
 
 interface ActivityCardProps {
   card: ActivityCardView;
+  /** The card's route: undefined while it is on its way, null if it has none. */
+  polyline: string | null | undefined;
   /** Ticked for comparison. */
   selected: boolean;
   onSelect: (id: string) => void;
@@ -14,11 +16,14 @@ interface ActivityCardProps {
  * One activity, landscape: its picture on the left, its numbers on the right. The whole
  * card opens it; the name is the link, stretched over the card.
  */
-export function ActivityCard({ card, selected, onSelect }: ActivityCardProps) {
+export function ActivityCard({ card, polyline, selected, onSelect }: ActivityCardProps) {
   return (
     <article className="bg-card hover:border-foreground/25 relative flex flex-col overflow-hidden rounded-xl border transition-colors sm:flex-row">
-      <div className="bg-muted aspect-[4/3] w-full shrink-0 sm:aspect-auto sm:min-h-[180px] sm:w-[240px]">
-        <CardVisual visual={card.visual} kind={card.kind} />
+      {/* The picture fills the panel and never sizes it: the numbers set the card's height. */}
+      <div className="bg-muted relative aspect-[4/3] w-full shrink-0 sm:aspect-auto sm:min-h-[180px] sm:w-[240px]">
+        <div className="absolute inset-0">
+          <CardVisual visual={card.visual} kind={card.kind} polyline={polyline} />
+        </div>
       </div>
       <div className="@container flex min-w-0 flex-1 flex-col gap-3 p-4">
         <header className="flex items-start gap-3">
