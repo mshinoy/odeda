@@ -7,7 +7,9 @@ import {
   formatDistance,
   formatDuration,
   formatHeartRate,
+  formatInteger,
   formatSportSpeed,
+  MISSING,
 } from "@/lib/format";
 
 export interface AttemptRowView {
@@ -19,9 +21,16 @@ export interface AttemptRowView {
   time: string;
   pace: string;
   hr: string;
-  /** How much slower than the route's best this attempt was, e.g. "+1:12"; "" for the best. */
+  /** Round a loop: laps timed, and the fastest of them. "" on any other route. */
+  laps: string;
+  bestLap: string;
+  /**
+   * How much slower than the route's best this attempt was, e.g. "+1:12"; "" for the
+   * best. Round a loop the comparison is lap against lap: the attempt's fastest lap
+   * against the fastest ever.
+   */
   behind: string;
-  /** The fastest counted attempt: the table marks it. */
+  /** The fastest counted attempt, or round a loop the one with the fastest lap. */
   best: boolean;
   /** Excluded from the route's stats by the user; the row is dimmed and says so. */
   excluded: boolean;
@@ -29,6 +38,8 @@ export interface AttemptRowView {
 
 interface AttemptContext {
   kind: ActivityKind;
+  /** Round a loop, attempts are compared by their laps. */
+  loop: boolean;
   stats: RouteStats;
   bestActivityId: string | null;
   today?: Date;
@@ -36,7 +47,7 @@ interface AttemptContext {
 
 export function toAttemptRowView(
   attempt: RouteAttempt,
-  { kind, stats, bestActivityId, today = new Date() }: AttemptContext,
+  { kind, loop, stats, bestActivityId, today = new Date() }: AttemptContext,
 ): AttemptRowView {
   return {
     id: attempt.activityId,
@@ -47,8 +58,12 @@ export function toAttemptRowView(
     time: formatDuration(attempt.movingTimeS),
     pace: formatSportSpeed(attempt.avgSpeedMps, kind),
     hr: formatHeartRate(attempt.avgHr),
-    behind: behindBest(attempt, stats),
-    best: attempt.activityId === bestActivityId,
+    laps: loop ? (attempt.laps ? formatInteger(attempt.laps) : MISSING) : "",
+    bestLap: loop ? formatDuration(attempt.bestLapS) : "",
+    behind: loop
+      ? gap(attempt, attempt.bestLapS, stats.bestLapS)
+      : gap(attempt, attempt.movingTimeS, stats.bestTimeS),
+    best: attempt.activityId === (loop ? stats.bestLapActivityId : bestActivityId),
     excluded: attempt.excluded,
   };
 }
@@ -57,10 +72,10 @@ export function toAttemptRowView(
  * Empty for the best attempt and for anything the stats leave out: a gap against a
  * best that an excluded attempt did not compete for would be meaningless.
  */
-function behindBest(attempt: RouteAttempt, stats: RouteStats): string {
-  if (attempt.excluded || attempt.movingTimeS === null || stats.bestTimeS === null) return "";
-  const gap = attempt.movingTimeS - stats.bestTimeS;
-  return gap <= 0 ? "" : `+${formatDuration(gap)}`;
+function gap(attempt: RouteAttempt, seconds: number | null, best: number | null): string {
+  if (attempt.excluded || seconds === null || best === null) return "";
+  const behind = seconds - best;
+  return behind <= 0 ? "" : `+${formatDuration(behind)}`;
 }
 
 /** Newest first: the question on a route page is "how am I doing now". */

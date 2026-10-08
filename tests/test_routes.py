@@ -415,3 +415,230 @@ class TestPayloads:
         out = R.compare(store, ["a", "b"])
         assert out["count"] == 2
         assert all(x["track"]["has_gps"] for x in out["attempts"])
+
+
+# ---------------------------------------------------------------------------
+# Laps and ground (T35): a route is the ground run, not the distance
+# ---------------------------------------------------------------------------
+
+
+def _loop(lat0, lon0, side_m=300, laps=1.0, jitter_m=0.0, seed=1, approach_m=0):
+    """A square loop of `side_m` sides (4 x side_m round), run `laps` times, 10 m a
+    sample, anticlockwise from its south-west corner. `approach_m` first runs up to
+    that corner from the south, the way a run from home reaches its loop."""
+    import random
+
+    rng = random.Random(seed)
+    lon_m = DEG / math.cos(math.radians(lat0))
+    corners = [(0, 0), (side_m, 0), (side_m, side_m), (0, side_m)]
+    out = [(lat0 - (approach_m - i * 10) * DEG, lon0) for i in range(approach_m // 10)]
+    steps = int(round(4 * side_m * laps / 10))
+    for k in range(steps + 1):
+        d = (k * 10) % (4 * side_m)
+        edge, along = divmod(d, side_m)
+        (x0, y0), (x1, y1) = corners[edge], corners[(edge + 1) % 4]
+        t = along / side_m
+        x, y = x0 + t * (x1 - x0), y0 + t * (y1 - y0)
+        lat = lat0 + y * DEG
+        lon = lon0 + x * lon_m
+        if jitter_m:
+            lat += rng.gauss(0, jitter_m) * DEG
+            lon += rng.gauss(0, jitter_m) * lon_m
+        out.append((lat, lon))
+    return out
+
+
+def _out_and_back(lat0, lon0, out_m, times=1, jitter_m=0.0, seed=1):
+    """North `out_m` metres and back, `times` over, 10 m a sample."""
+    leg = _line(lat0, lon0, out_m // 10 + 1, jitter_m=jitter_m, seed=seed)
+    one = leg + leg[-2::-1]
+    track = list(one)
+    for _ in range(times - 1):
+        track += one[1:]
+    return track
+
+
+def _route_of(store, activity_id):
+    return store.query(
+        "SELECT route_id FROM route_members WHERE activity_id = ?", (activity_id,)
+    )[0]["route_id"]
+
+
+class TestGround:
+    def test_laps_add_no_ground(self):
+        one = R.ground_length(_loop(25.0, 51.0, laps=1))
+        three = R.ground_length(_loop(25.0, 51.0, laps=3))
+        assert one == pytest.approx(1200, rel=0.05)
+        assert three == pytest.approx(one, rel=0.05)
+
+    def test_the_way_back_adds_no_ground(self):
+        # The turn itself adds a few metres: the first steps back are still the turn.
+        assert R.ground_length(_out_and_back(25.0, 51.0, 1000)) == pytest.approx(1000, rel=0.1)
+
+    def test_any_number_of_laps_matches_the_loop(self):
+        route = _loop(25.0, 51.0, laps=1)
+        for laps in (1, 1.6, 2, 5):
+            run = _loop(25.0, 51.0, laps=laps, jitter_m=5, seed=int(laps * 10))
+            assert R.match_score(run, route) > 0.9, laps
+
+    def test_a_warm_up_to_the_loop_still_matches(self):
+        route = _loop(25.0, 51.0, laps=1)
+        run = _loop(25.0, 51.0, laps=3, approach_m=300, jitter_m=4)
+        assert R.match_score(run, route) >= R.MATCH_THRESHOLD
+
+    def test_a_run_mostly_somewhere_else_does_not_match(self):
+        """1 lap of the loop, then 3 km out along the road: mostly not the loop."""
+        route = _loop(25.0, 51.0, laps=1)
+        run = _loop(25.0, 51.0, laps=1) + _line(25.0, 51.0, 300)[1:]
+        assert R.match_score(run, route) < R.MATCH_THRESHOLD
+
+    def test_half_a_loop_does_not_match_it(self):
+        route = _loop(25.0, 51.0, laps=1)
+        assert R.match_score(_loop(25.0, 51.0, laps=0.5), route) < R.MATCH_THRESHOLD
+
+
+class TestFirstLap:
+    def test_three_laps_give_one(self):
+        lap = R.first_lap(_loop(25.0, 51.0, laps=3))
+        assert R.path_length(lap) == pytest.approx(1200, rel=0.03)
+
+    def test_an_out_and_back_is_its_own_lap(self):
+        track = _out_and_back(25.0, 51.0, 1000)
+        assert R.first_lap(track) == track
+
+    def test_a_track_that_never_comes_back_is_its_own_lap(self):
+        track = _line(25.0, 51.0, 200)
+        assert R.first_lap(track) == track
+
+
+class TestLapClustering:
+    def test_one_two_and_five_laps_are_one_route_one_lap_long(self, store):
+        # Little noise: GPS scatter lengthens a measured path, and the length is checked.
+        for i, laps in enumerate((1, 2, 5, 1.6, 3)):
+            _store_track(store, f"lap{i}", _loop(25.0, 51.0, laps=laps, jitter_m=1, seed=i),
+                         day=f"2026-01-0{i + 1}")
+        out = R.cluster_all(store)
+        assert out["routes"] == 1
+        route = store.query("SELECT distance_m, is_loop FROM routes")[0]
+        assert route["distance_m"] == pytest.approx(1200, rel=0.05)
+        assert route["is_loop"] == 1
+
+    def test_the_first_run_being_several_laps_does_not_matter(self, store):
+        _store_track(store, "five", _loop(25.0, 51.0, laps=5, jitter_m=4, seed=1), day="2026-01-01")
+        _store_track(store, "one", _loop(25.0, 51.0, laps=1, jitter_m=4, seed=2), day="2026-01-02")
+        out = R.cluster_all(store)
+        assert out["routes"] == 1
+
+    def test_out_and_back_once_or_twice_to_the_same_turn_is_one_route(self, store):
+        _store_track(store, "once", _out_and_back(25.0, 51.0, 1500, jitter_m=4, seed=1))
+        _store_track(store, "twice", _out_and_back(25.0, 51.0, 1500, times=2, jitter_m=4, seed=2))
+        assert R.cluster_all(store)["routes"] == 1
+
+    def test_a_turn_a_fifth_further_is_the_same_route(self, store):
+        _store_track(store, "short", _out_and_back(25.0, 51.0, 1500, jitter_m=4, seed=1),
+                     day="2026-01-01")
+        _store_track(store, "further", _out_and_back(25.0, 51.0, 1800, jitter_m=4, seed=2),
+                     day="2026-01-02")
+        assert R.cluster_all(store)["routes"] == 1
+
+    def test_a_turn_twice_as_far_is_another_route(self, store):
+        _store_track(store, "short", _out_and_back(25.0, 51.0, 1500, jitter_m=4, seed=1),
+                     day="2026-01-01")
+        _store_track(store, "long", _out_and_back(25.0, 51.0, 3000, jitter_m=4, seed=2),
+                     day="2026-01-02")
+        assert R.cluster_all(store)["routes"] == 2
+
+    def test_fresh_rebuilds_untouched_routes_and_keeps_edited_ones(self, store):
+        for i in range(3):
+            _store_track(store, f"loop{i}", _loop(25.0, 51.0, laps=1 + i, jitter_m=4, seed=i))
+        _store_track(store, "named", _line(25.2, 51.3, 150))
+        R.cluster_all(store)
+        named = _route_of(store, "named")
+        R.rename(store, named, "Corniche")
+
+        out = R.cluster_all(store, fresh=True)
+        assert out["routes"] == 2
+        assert _route_of(store, "named") == named  # pinned: kept, same id
+        assert store.query("SELECT name FROM routes WHERE route_id = ?", (named,))[0]["name"] == "Corniche"
+
+
+class TestLaps:
+    START = (25.0, 51.0)
+
+    def _rows(self, track, speed=3.0):
+        return [
+            {"lat": lat, "lon": lon, "elapsed_s": i * 10.0 / speed, "distance_m": i * 10.0}
+            for i, (lat, lon) in enumerate(track)
+        ]
+
+    def test_every_full_lap_is_timed(self):
+        laps = R.lap_splits(self._rows(_loop(25.0, 51.0, laps=3)), self.START, 1200)
+        assert len(laps) == 3
+        assert [lap["seconds"] for lap in laps] == pytest.approx([400.0] * 3, abs=5)
+
+    def test_a_part_lap_at_the_end_is_not_timed(self):
+        laps = R.lap_splits(self._rows(_loop(25.0, 51.0, laps=2.6)), self.START, 1200)
+        assert len(laps) == 2
+
+    def test_laps_start_at_the_line_not_at_the_first_sample(self):
+        """A run from home reaches the loop first; the approach is not a lap."""
+        track = _loop(25.0, 51.0, laps=2, approach_m=500)
+        laps = R.lap_splits(self._rows(track), self.START, 1200)
+        assert len(laps) == 2
+        assert all(lap["distance_m"] == pytest.approx(1200, rel=0.03) for lap in laps)
+
+    def test_once_round_from_elsewhere_on_the_loop_is_one_lap(self):
+        """Started at the far corner: never crosses the line, but it is one lap."""
+        loop = _loop(25.0, 51.0, laps=1)
+        half = len(loop) // 2
+        from_far_corner = loop[half:] + loop[1: half + 1]
+        laps = R.lap_splits(self._rows(from_far_corner), self.START, 1200)
+        assert len(laps) == 1
+        assert laps[0]["distance_m"] == pytest.approx(1200, rel=0.03)
+
+    def test_half_a_loop_is_not_a_lap(self):
+        assert R.lap_splits(self._rows(_loop(25.0, 51.0, laps=0.5)), self.START, 1200) == []
+
+    def test_route_detail_reports_laps_and_the_best_one(self, store):
+        _store_track(store, "easy", _loop(25.0, 51.0, laps=3), day="2026-01-01", speed=3.0)
+        _store_track(store, "fast", _loop(25.0, 51.0, laps=2), day="2026-01-02", speed=4.0)
+        R.cluster_all(store)
+        detail = R.route_detail(store, _route_of(store, "easy"))
+        by_id = {a["activity_id"]: a for a in detail["attempts"]}
+        assert by_id["easy"]["laps"] == 3
+        assert by_id["fast"]["laps"] == 2
+        stats = detail["stats"]
+        assert stats["laps"] == 5
+        assert stats["best_lap_activity_id"] == "fast"
+        assert stats["best_lap_s"] == pytest.approx(300, abs=5)  # 1200 m at 4 m/s
+        assert stats["lap_m"] == pytest.approx(1200, rel=0.05)
+
+    def test_an_out_and_back_is_one_and_has_no_laps(self, store):
+        _store_track(store, "oab", _out_and_back(25.0, 51.0, 1500))
+        R.cluster_all(store)
+        detail = R.route_detail(store, _route_of(store, "oab"))
+        assert detail["route"]["layout"] == "out_and_back"
+        assert detail["attempts"][0]["laps"] is None
+        assert detail["stats"]["best_lap_s"] is None
+
+    def test_layouts(self):
+        assert R.route_layout(_loop(25.0, 51.0), True) == "loop"
+        assert R.route_layout(_out_and_back(25.0, 51.0, 1500), True) == "out_and_back"
+        assert R.route_layout(_line(25.0, 51.0, 150), False) == "one_way"
+
+    def test_segments_on_a_loop_are_one_lap_long(self, store):
+        _store_track(store, "three", _loop(25.0, 51.0, laps=3))
+        R.cluster_all(store)
+        route_id = _route_of(store, "three")
+        idx = [r["seg_index"] for r in store.query(
+            "SELECT seg_index FROM route_segment_efforts WHERE route_id = ?", (route_id,))]
+        assert idx == list(range(6))  # 1200 m in 200 m segments, not 3600 m
+
+    def test_the_list_shows_lap_times_for_loops_only(self, store):
+        _store_track(store, "loop3", _loop(25.0, 51.0, laps=3), day="2026-01-01", speed=3.0)
+        _store_track(store, "oab", _out_and_back(25.2, 51.3, 1500), day="2026-01-02")
+        R.cluster_all(store)
+        by_layout = {r["layout"]: r for r in R.list_routes(store)}
+        assert by_layout["loop"]["best_lap_s"] == pytest.approx(400, abs=5)
+        assert by_layout["loop"]["median_lap_s"] == pytest.approx(400, abs=5)
+        assert by_layout["out_and_back"]["best_lap_s"] is None

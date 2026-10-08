@@ -113,6 +113,7 @@ describe("makeRouteOutlineLayer", () => {
     distanceM: 27700,
     elevationGainM: 40,
     isLoop: false,
+    layout: "one_way",
     pinned: false,
     path: [
       [51.5, 25.3],

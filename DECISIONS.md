@@ -523,3 +523,26 @@ whenever the version has changed and then held still for one 15 s poll, skipping
 a sync runs, so a sync's commits cost one warm-up at its end. `GA_CACHE_WARM=0` turns it
 off; the tests do.
 
+### D52 — routes are ground, not distance; loops are timed by the lap (2026-10-08)
+Routes were matched on total distance (within 25%) and a symmetric path overlap, with
+the first run's whole track as the shape. The owner runs short loops several times a
+session (Bin Omran, ~1.6 km, 2–5 times), so the same loop became six routes, one per
+lap count, and the times on them compared sessions of different lengths.
+
+Now a run matches a route when both of these are at least 75%: the share of the
+distance run that was on the route's ground (laps count each time round), and the share
+of the route's ground that was run. Laps and a short warm-up to get there join; a run
+that carries on far past the route, or covers only part of it, does not. 75% is the
+owner's choice of "about 25% difference" for out-and-backs with different turns
+(simulated on the real history at 70/75/80%: 48/50/54 routes).
+
+A route's shape is one lap — up to the first return to the start once most of the
+ground is covered — and the median such lap among its members. Loops are timed lap by
+lap from the start line; the record is the fastest lap, not the shortest session.
+Layout (loop, out and back, one way) is worked out from the shape, since an
+out-and-back also ends where it began.
+
+A sync now files only activities with no route yet. Refiling every activity against
+routes whose shapes have moved reshuffled a few runs on each pass; a full rebuild is
+an explicit `fresh` recluster instead, which keeps every route the user has edited.
+

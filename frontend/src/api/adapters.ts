@@ -135,15 +135,22 @@ export interface RouteOption {
   attempts: number;
 }
 
+/** What shape a route is: round a loop, out to a turn and back, or one way. */
+export type RouteLayout = Schemas["RouteSummary"]["layout"];
+
 /** A clustered route, as the route list shows it: `RouteOption` plus how it has gone. */
 export interface RouteListItem extends RouteOption {
   kind: ActivityKind;
   isLoop: boolean;
+  layout: RouteLayout;
   /** True once the user renamed, merged or split it; reclustering leaves it alone. */
   pinned: boolean;
   /** Seconds, over the attempts that count; null when none of them was timed. */
   bestTimeS: number | null;
   medianTimeS: number | null;
+  /** For a loop, one lap's times, over the attempts that count; null otherwise. */
+  bestLapS: number | null;
+  medianLapS: number | null;
   firstDay: string | null;
   lastDay: string | null;
 }
@@ -157,9 +164,10 @@ export interface Route {
   distanceM: number;
   elevationGainM: number | null;
   isLoop: boolean;
+  layout: RouteLayout;
   /** True once the user renamed, merged or split it; reclustering leaves it alone. */
   pinned: boolean;
-  /** The representative polyline, `[lon, lat]` as deck.gl and GeoJSON both want it. */
+  /** One lap of it (once round a loop, out and back once), `[lon, lat]` as deck.gl and GeoJSON both want it. */
   path: [number, number][];
 }
 
@@ -177,6 +185,11 @@ export interface RouteAttempt {
   excluded: boolean;
   /** The user filed it on this route by hand, rather than the clusterer matching it. */
   manual: boolean;
+  /** Full laps timed, on a loop; null on a route that is not one. */
+  laps: number | null;
+  /** Each timed lap, in order, start line to start line. */
+  lapTimesS: number[];
+  bestLapS: number | null;
 }
 
 /** A route's headline numbers, over the attempts that count. */
@@ -188,6 +201,14 @@ export interface RouteStats {
   improvementS: number | null;
   firstDay: string | null;
   lastDay: string | null;
+  /** For a loop: one lap's length, and the laps timed round it; null and 0 otherwise. */
+  lapM: number | null;
+  laps: number;
+  bestLapS: number | null;
+  /** The attempt the fastest lap was in, for marking it in the table. */
+  bestLapActivityId: string | null;
+  bestLapDay: string | null;
+  medianLapS: number | null;
 }
 
 export interface RouteDetail {
@@ -477,9 +498,12 @@ function toRouteListItem(route: Schemas["RouteSummary"]): RouteListItem {
     ...toRouteOption(route),
     kind: activityKind(route.activity_type),
     isLoop: route.is_loop,
+    layout: route.layout,
     pinned: route.pinned,
     bestTimeS: route.best_moving_time_s,
     medianTimeS: route.median_moving_time_s,
+    bestLapS: route.best_lap_s,
+    medianLapS: route.median_lap_s,
     firstDay: route.first_day,
     lastDay: route.last_day,
   };
@@ -512,6 +536,7 @@ export function toRouteDetail(raw: Schemas["RouteDetail"]): RouteDetail {
       distanceM: route.distance_m,
       elevationGainM: route.elevation_gain_m,
       isLoop: route.is_loop,
+      layout: route.layout,
       pinned: route.pinned,
       path: toCoordinates(route.points),
     },
@@ -524,6 +549,12 @@ export function toRouteDetail(raw: Schemas["RouteDetail"]): RouteDetail {
       improvementS: raw.stats.improvement_s,
       firstDay: raw.stats.first_day,
       lastDay: raw.stats.last_day,
+      lapM: raw.stats.lap_m,
+      laps: raw.stats.laps,
+      bestLapS: raw.stats.best_lap_s,
+      bestLapActivityId: raw.stats.best_lap_activity_id,
+      bestLapDay: raw.stats.best_lap_day,
+      medianLapS: raw.stats.median_lap_s,
     },
     bestActivityId: raw.best_attempt?.activity_id ?? null,
   };
@@ -541,6 +572,9 @@ function toRouteAttempt(raw: Schemas["RouteAttempt"]): RouteAttempt {
     avgSpeedMps: raw.avg_speed_mps,
     excluded: raw.excluded_from_stats === 1,
     manual: raw.assigned === "manual",
+    laps: raw.laps,
+    lapTimesS: raw.lap_times_s,
+    bestLapS: raw.best_lap_s,
   };
 }
 

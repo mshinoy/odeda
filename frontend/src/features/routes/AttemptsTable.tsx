@@ -8,31 +8,39 @@ const headCell = "px-3 py-2 text-left font-normal text-muted-foreground";
 const numericHead = cn(headCell, "text-right whitespace-nowrap");
 const wideOnly = "hidden md:table-cell";
 
+interface AttemptsTableProps {
+  rows: readonly AttemptRowView[];
+  /** Round a loop: the laps, the fastest of them, and how far behind the best lap. */
+  loop: boolean;
+}
+
 /** Every attempt, newest first. The whole row opens the activity. */
-export function AttemptsTable({ rows }: { rows: readonly AttemptRowView[] }) {
+export function AttemptsTable({ rows, loop }: AttemptsTableProps) {
   return (
     <table className="w-full text-sm">
       <thead className="border-b">
         <tr>
           <th className={cn(headCell, "whitespace-nowrap")}>Date</th>
           <th className={cn(headCell, "w-full")}>Activity</th>
+          {loop && <th className={numericHead}>Laps</th>}
+          {loop && <th className={numericHead}>Best lap</th>}
           <th className={cn(numericHead, wideOnly)}>Distance</th>
-          <th className={numericHead}>Time</th>
-          <th className={numericHead}>Behind best</th>
+          <th className={cn(numericHead, loop && wideOnly)}>Time</th>
+          <th className={numericHead}>{loop ? "Behind best lap" : "Behind best"}</th>
           <th className={cn(numericHead, wideOnly)}>Pace</th>
           <th className={cn(numericHead, wideOnly)}>Avg HR</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((row) => (
-          <AttemptRow key={row.id} row={row} />
+          <AttemptRow key={row.id} row={row} loop={loop} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function AttemptRow({ row }: { row: AttemptRowView }) {
+function AttemptRow({ row, loop }: { row: AttemptRowView; loop: boolean }) {
   return (
     <tr
       className={cn(
@@ -51,8 +59,10 @@ function AttemptRow({ row }: { row: AttemptRowView }) {
         {row.best && <Tag>Best</Tag>}
         {row.excluded && <Tag>Excluded</Tag>}
       </td>
+      {loop && <td className={numericCell}>{row.laps}</td>}
+      {loop && <td className={numericCell}>{row.bestLap}</td>}
       <td className={cn(numericCell, wideOnly)}>{row.distance}</td>
-      <td className={numericCell}>{row.time}</td>
+      <td className={cn(numericCell, loop && wideOnly)}>{row.time}</td>
       <td className={cn(numericCell, "text-muted-foreground")}>{row.behind}</td>
       <td className={cn(numericCell, wideOnly)}>{row.pace}</td>
       <td className={cn(numericCell, wideOnly)}>{row.hr}</td>

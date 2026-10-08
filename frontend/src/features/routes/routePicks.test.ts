@@ -19,9 +19,12 @@ function route(overrides: Partial<RouteListItem> = {}): RouteListItem {
     distanceM: 5020,
     attempts: 25,
     isLoop: true,
+    layout: "loop",
     pinned: false,
     bestTimeS: 1980,
     medianTimeS: 2488,
+    bestLapS: null,
+    medianLapS: null,
     firstDay: "2024-02-01",
     lastDay: "2025-02-24",
     ...overrides,
@@ -40,6 +43,9 @@ function attempt(overrides: Partial<RouteAttempt> = {}): RouteAttempt {
     avgSpeedMps: 2.018,
     excluded: false,
     manual: false,
+    laps: null,
+    lapTimesS: [],
+    bestLapS: null,
     ...overrides,
   };
 }

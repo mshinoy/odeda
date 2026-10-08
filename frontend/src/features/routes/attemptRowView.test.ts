@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RouteAttempt, RouteStats } from "@/api/adapters";
 import { toAttemptRows, toAttemptRowView } from "@/features/routes/attemptRowView";
+import { MISSING } from "@/lib/format";
 
 const today = new Date(2026, 8, 25);
 
@@ -11,6 +12,12 @@ const stats: RouteStats = {
   improvementS: -662.9,
   firstDay: "2024-01-18",
   lastDay: "2026-09-15",
+  lapM: null,
+  laps: 0,
+  bestLapS: null,
+  bestLapActivityId: null,
+  bestLapDay: null,
+  medianLapS: null,
 };
 
 function attempt(overrides: Partial<RouteAttempt> = {}): RouteAttempt {
@@ -25,11 +32,14 @@ function attempt(overrides: Partial<RouteAttempt> = {}): RouteAttempt {
     avgSpeedMps: 2.75,
     excluded: false,
     manual: false,
+    laps: null,
+    lapTimesS: [],
+    bestLapS: null,
     ...overrides,
   };
 }
 
-const context = { kind: "run" as const, stats, bestActivityId: "best", today };
+const context = { kind: "run" as const, loop: false, stats, bestActivityId: "best", today };
 
 describe("toAttemptRowView", () => {
   it("formats the row and links to the activity", () => {
@@ -42,6 +52,8 @@ describe("toAttemptRowView", () => {
       time: "30:35",
       pace: "6:04 /km",
       hr: "145 bpm",
+      laps: "",
+      bestLap: "",
       behind: "+1:52",
       best: false,
       excluded: false,
@@ -65,6 +77,32 @@ describe("toAttemptRowView", () => {
 
   it("names an untitled activity rather than leaving the cell empty", () => {
     expect(toAttemptRowView(attempt({ name: null }), context).name).toBe("Untitled");
+  });
+});
+
+describe("round a loop", () => {
+  const loopStats = { ...stats, lapM: 1641, laps: 9, bestLapS: 665, bestLapActivityId: "fast" };
+  const loopContext = { ...context, loop: true, stats: loopStats };
+
+  it("shows the laps and compares the fastest lap with the route's", () => {
+    const row = toAttemptRowView(
+      attempt({ laps: 3, lapTimesS: [700, 690, 712], bestLapS: 690 }),
+      loopContext,
+    );
+    expect([row.laps, row.bestLap, row.behind, row.best]).toEqual(["3", "11:30", "+0:25", false]);
+  });
+
+  it("marks the attempt with the fastest lap, not the shortest session", () => {
+    const row = toAttemptRowView(attempt({ activityId: "fast", laps: 1, bestLapS: 665 }), {
+      ...loopContext,
+      bestActivityId: "a1",
+    });
+    expect([row.best, row.behind]).toEqual([true, ""]);
+  });
+
+  it("says when an attempt had no full lap", () => {
+    const row = toAttemptRowView(attempt({ laps: 0 }), loopContext);
+    expect([row.laps, row.bestLap, row.behind]).toEqual([MISSING, MISSING, ""]);
   });
 });
 

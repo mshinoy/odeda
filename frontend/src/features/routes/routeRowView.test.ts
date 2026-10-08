@@ -14,9 +14,12 @@ function route(overrides: Partial<RouteListItem> = {}): RouteListItem {
     distanceM: 5071.3,
     attempts: 65,
     isLoop: true,
+    layout: "loop",
     pinned: false,
     bestTimeS: 1722.9,
     medianTimeS: 2526.6,
+    bestLapS: 601.5,
+    medianLapS: 729,
     firstDay: "2024-01-18",
     lastDay: "2026-09-15",
     ...overrides,
@@ -34,18 +37,26 @@ describe("toRouteRowView", () => {
       shape: "Loop",
       attempts: "65",
       distance: "5.1 km",
-      best: "28:43",
-      median: "42:07",
+      best: "10:02",
+      median: "12:09",
       last: "Sep 15",
     });
   });
 
   it("names the shape the clusterer found", () => {
-    expect(toRouteRowView(route({ isLoop: false }), today).shape).toBe("Out and back");
+    expect(toRouteRowView(route({ layout: "out_and_back" }), today).shape).toBe("Out and back");
+    expect(toRouteRowView(route({ isLoop: false, layout: "one_way" }), today).shape).toBe(
+      "One way",
+    );
   });
 
-  it("shows a dash rather than a zero for a route with no timed attempt", () => {
-    const untimed = toRouteRowView(route({ bestTimeS: null, medianTimeS: null }), today);
+  it("times a loop by the lap and any other route by the attempt", () => {
+    const outAndBack = toRouteRowView(route({ layout: "out_and_back" }), today);
+    expect([outAndBack.best, outAndBack.median]).toEqual(["28:43", "42:07"]);
+  });
+
+  it("shows a dash rather than a zero for a route with no timed attempt or lap", () => {
+    const untimed = toRouteRowView(route({ bestLapS: null, medianLapS: null }), today);
     expect([untimed.best, untimed.median]).toEqual([MISSING, MISSING]);
   });
 

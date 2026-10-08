@@ -26,6 +26,10 @@ FieldType = Literal["text", "real", "int", "bool"]
 #: The UI editor to render for an editable field.
 FieldEditor = Literal["text", "textarea", "select", "number", "bool"]
 
+#: What shape a route is (`analytics/routes.route_layout`): round a loop, out to a
+#: turn and back the same way, or from one place to another.
+RouteLayout = Literal["loop", "out_and_back", "one_way"]
+
 #: `gear.kind`; enforced on every write in `edits/gear.py`.
 GearKind = Literal["shoe", "bike", "strap", "other"]
 
@@ -623,6 +627,8 @@ class RouteSummary(_Model):
     activity_type: str
     distance_m: float
     is_loop: bool
+    """Starts and ends in the same place: a loop or an out-and-back."""
+    layout: RouteLayout
     pinned: bool
     """True once the user renamed, merged or split it: reclustering leaves it alone."""
     start_lat: float
@@ -638,6 +644,10 @@ class RouteSummary(_Model):
     avg_moving_time_s: float | None
     best_moving_time_s: float | None
     median_moving_time_s: float | None
+    best_lap_s: float | None
+    """For a loop: the fastest lap round it, over the attempts that count; null for a
+    route that is not a loop, or one with no full lap timed."""
+    median_lap_s: float | None
     """Typical time on this route. SQLite has no median aggregate, so it is taken at
     the response boundary over the same attempts the other times come from."""
     avg_hr: float | None
@@ -684,6 +694,8 @@ class Route(_Model):
     distance_km: float
     elevation_gain_m: float | None
     is_loop: bool
+    """Starts and ends in the same place: a loop or an out-and-back."""
+    layout: RouteLayout
     pinned: bool
     """True once the user renamed, merged or split it: reclustering leaves it alone."""
     start_lat: float
@@ -719,6 +731,11 @@ class RouteAttempt(_Model):
     match_score: float | None
     """How well the clusterer matched the track, 0-1; null once filed by hand."""
     assigned: Literal["auto", "manual"]
+    laps: int | None
+    """Full laps timed in this attempt, on a loop; null on a route that is not one."""
+    lap_times_s: list[float]
+    """Each timed lap, in order, start line to start line; empty when none."""
+    best_lap_s: float | None
 
 
 class RouteStats(_Model):
@@ -734,6 +751,15 @@ class RouteStats(_Model):
     Null with fewer than two timed attempts."""
     first_day: str | None
     last_day: str | None
+    lap_m: float | None
+    """One lap of the route, for a loop; null otherwise. Lap times are over this."""
+    laps: int
+    """Laps timed over every counted attempt."""
+    best_lap_s: float | None
+    """The fastest lap ever round the loop, and the attempt it was in."""
+    best_lap_activity_id: str | None
+    best_lap_day: str | None
+    median_lap_s: float | None
 
 
 class RouteDetail(_Model):
@@ -845,6 +871,9 @@ class ReclusterRequest(_Model):
     threshold: float | None = None
     """How similar two tracks must be to count as the same route, 0-1; the
     clusterer's own default when not given."""
+    fresh: bool = False
+    """Rebuild the routes from the tracks: every route nobody has renamed, merged,
+    split or filed an activity on by hand is removed first."""
 
 
 class CompareActivity(_Model):
@@ -890,6 +919,9 @@ class ReclusterResult(_Model):
     no_gps: int
     too_short: int
     kept_manual: int
+    already_filed: int = 0
+    """Already on a route and left there (every activity, on a `fresh` rebuild, is
+    filed again instead)."""
 
 
 class ActivityRouteRequest(_Model):

@@ -4095,6 +4095,13 @@ export interface components {
              *     clusterer's own default when not given.
              */
             threshold?: number | null;
+            /**
+             * Fresh
+             * @description Rebuild the routes from the tracks: every route nobody has renamed, merged,
+             *     split or filed an activity on by hand is removed first.
+             * @default false
+             */
+            fresh: boolean;
         };
         /**
          * ReclusterResult
@@ -4118,6 +4125,13 @@ export interface components {
             too_short: number;
             /** Kept Manual */
             kept_manual: number;
+            /**
+             * Already Filed
+             * @description Already on a route and left there (every activity, on a `fresh` rebuild, is
+             *     filed again instead).
+             * @default 0
+             */
+            already_filed: number;
         };
         /** Records */
         Records: {
@@ -4227,8 +4241,16 @@ export interface components {
             distance_km: number;
             /** Elevation Gain M */
             elevation_gain_m: number | null;
-            /** Is Loop */
+            /**
+             * Is Loop
+             * @description Starts and ends in the same place: a loop or an out-and-back.
+             */
             is_loop: boolean;
+            /**
+             * Layout
+             * @enum {string}
+             */
+            layout: "loop" | "out_and_back" | "one_way";
             /**
              * Pinned
              * @description True once the user renamed, merged or split it: reclustering leaves it alone.
@@ -4319,6 +4341,18 @@ export interface components {
              * @enum {string}
              */
             assigned: "auto" | "manual";
+            /**
+             * Laps
+             * @description Full laps timed in this attempt, on a loop; null on a route that is not one.
+             */
+            laps: number | null;
+            /**
+             * Lap Times S
+             * @description Each timed lap, in order, start line to start line; empty when none.
+             */
+            lap_times_s: number[];
+            /** Best Lap S */
+            best_lap_s: number | null;
         };
         /** RouteDeleteResult */
         RouteDeleteResult: {
@@ -4540,6 +4574,27 @@ export interface components {
             first_day: string | null;
             /** Last Day */
             last_day: string | null;
+            /**
+             * Lap M
+             * @description One lap of the route, for a loop; null otherwise. Lap times are over this.
+             */
+            lap_m: number | null;
+            /**
+             * Laps
+             * @description Laps timed over every counted attempt.
+             */
+            laps: number;
+            /**
+             * Best Lap S
+             * @description The fastest lap ever round the loop, and the attempt it was in.
+             */
+            best_lap_s: number | null;
+            /** Best Lap Activity Id */
+            best_lap_activity_id: string | null;
+            /** Best Lap Day */
+            best_lap_day: string | null;
+            /** Median Lap S */
+            median_lap_s: number | null;
         };
         /**
          * RouteSummary
@@ -4558,8 +4613,16 @@ export interface components {
             activity_type: string;
             /** Distance M */
             distance_m: number;
-            /** Is Loop */
+            /**
+             * Is Loop
+             * @description Starts and ends in the same place: a loop or an out-and-back.
+             */
             is_loop: boolean;
+            /**
+             * Layout
+             * @enum {string}
+             */
+            layout: "loop" | "out_and_back" | "one_way";
             /**
              * Pinned
              * @description True once the user renamed, merged or split it: reclustering leaves it alone.
@@ -4589,12 +4652,20 @@ export interface components {
             avg_moving_time_s: number | null;
             /** Best Moving Time S */
             best_moving_time_s: number | null;
+            /** Median Moving Time S */
+            median_moving_time_s: number | null;
             /**
-             * Median Moving Time S
+             * Best Lap S
+             * @description For a loop: the fastest lap round it, over the attempts that count; null for a
+             *     route that is not a loop, or one with no full lap timed.
+             */
+            best_lap_s: number | null;
+            /**
+             * Median Lap S
              * @description Typical time on this route. SQLite has no median aggregate, so it is taken at
              *     the response boundary over the same attempts the other times come from.
              */
-            median_moving_time_s: number | null;
+            median_lap_s: number | null;
             /** Avg Hr */
             avg_hr: number | null;
             /** Distance Km */

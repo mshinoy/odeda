@@ -9,6 +9,7 @@ import { MergeRoutesDialog } from "@/features/routes/MergeRoutesDialog";
 import { RenameRouteDialog } from "@/features/routes/RenameRouteDialog";
 import { SplitRouteDialog } from "@/features/routes/SplitRouteDialog";
 import { toAttemptRows } from "@/features/routes/attemptRowView";
+import { LAYOUT_LABELS } from "@/features/routes/routeLayout";
 import { RouteStats } from "@/features/routes/RouteStats";
 import { activityTypeLabel } from "@/lib/activityKind";
 import { supportsWebGL } from "@/map/webgl";
@@ -29,6 +30,7 @@ export function RoutePage() {
       detail
         ? toAttemptRows(detail.attempts, {
             kind: detail.route.kind,
+            loop: detail.route.layout === "loop",
             stats: detail.stats,
             bestActivityId: detail.bestActivityId,
           })
@@ -50,7 +52,7 @@ export function RoutePage() {
               kind={detail.route.kind}
               label={activityTypeLabel(detail.route.activityType)}
             />
-            <span>{detail.route.isLoop ? "Loop" : "Out and back"}</span>
+            <span>{LAYOUT_LABELS[detail.route.layout]}</span>
             <Link to="/routes" className="hover:text-foreground underline underline-offset-4">
               All routes
             </Link>
@@ -79,7 +81,7 @@ export function RoutePage() {
         )}
       </section>
 
-      <AttemptsTable rows={rows} />
+      <AttemptsTable rows={rows} loop={detail.route.layout === "loop"} />
     </div>
   );
 }

@@ -606,9 +606,16 @@ class TestRoutes:
     def test_recluster_counts_what_it_did(self, rw_client):
         body = rw_client.post("/api/routes/recluster", json={}).json()
         assert set(body) == {"activities", "routes", "created", "joined", "no_gps",
-                             "too_short", "kept_manual"}
+                             "too_short", "kept_manual", "already_filed"}
         assert body["activities"] == sum(
-            body[k] for k in ("created", "joined", "no_gps", "too_short", "kept_manual"))
+            body[k] for k in ("created", "joined", "no_gps", "too_short", "kept_manual",
+                              "already_filed"))
+        # The seed is already clustered, so a plain re-run files nothing new; a fresh
+        # one files everything again.
+        assert body["already_filed"] > 0
+        fresh = rw_client.post("/api/routes/recluster", json={"fresh": True}).json()
+        assert fresh["already_filed"] == 0
+        assert fresh["created"] + fresh["joined"] > 0
         # An empty body is allowed and means the clusterer's own threshold.
         assert rw_client.post("/api/routes/recluster").status_code == 200
         assert rw_client.post("/api/routes/recluster",

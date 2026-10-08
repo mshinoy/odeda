@@ -476,9 +476,12 @@ describe("gear and routes", () => {
         attempts: 23,
         kind: "run",
         isLoop: false,
+        layout: "out_and_back",
         pinned: true,
         bestTimeS: 2890.0,
         medianTimeS: 3050.0,
+        bestLapS: null,
+        medianLapS: null,
         firstDay: "2025-01-04",
         lastDay: "2026-09-20",
       },
@@ -500,6 +503,7 @@ function routeSummary(overrides: Partial<Schemas["RouteSummary"]> = {}): Schemas
     activity_type: "running",
     distance_m: 10120.5,
     is_loop: false,
+    layout: "out_and_back",
     pinned: true,
     start_lat: 25.29,
     start_lon: 51.53,
@@ -514,6 +518,8 @@ function routeSummary(overrides: Partial<Schemas["RouteSummary"]> = {}): Schemas
     avg_moving_time_s: 3140.0,
     best_moving_time_s: 2890.0,
     median_moving_time_s: 3050.0,
+    best_lap_s: null,
+    median_lap_s: null,
     avg_hr: 158.0,
     distance_km: 10.12,
     ...overrides,
@@ -570,6 +576,7 @@ describe("toRouteDetail", () => {
         distance_km: 5.07,
         elevation_gain_m: 29.7,
         is_loop: true,
+        layout: "loop",
         pinned: false,
         start_lat: 25.301,
         start_lon: 51.495,
@@ -598,6 +605,12 @@ describe("toRouteDetail", () => {
         improvement_s: -662.9,
         first_day: "2024-01-18",
         last_day: "2026-09-15",
+        lap_m: 5071.3,
+        laps: 2,
+        best_lap_s: 1700.5,
+        best_lap_activity_id: "best",
+        best_lap_day: "2026-09-15",
+        median_lap_s: 2100.0,
       },
       best_attempt: attempt("best", "2026-09-15"),
       worst_attempt: attempt("old", "2024-01-18"),
@@ -623,6 +636,9 @@ describe("toRouteDetail", () => {
       excluded_from_stats: null,
       match_score: 0.96,
       assigned: "auto",
+      laps: 1,
+      lap_times_s: [2499.9],
+      best_lap_s: 2499.9,
     };
   }
 
@@ -643,8 +659,16 @@ describe("toRouteDetail", () => {
       improvementS: -662.9,
       firstDay: "2024-01-18",
       lastDay: "2026-09-15",
+      lapM: 5071.3,
+      laps: 2,
+      bestLapS: 1700.5,
+      bestLapActivityId: "best",
+      bestLapDay: "2026-09-15",
+      medianLapS: 2100.0,
     });
     expect(result.bestActivityId).toBe("best");
+    expect(result.route.layout).toBe("loop");
+    expect(result.attempts[0]).toMatchObject({ laps: 1, lapTimesS: [2499.9], bestLapS: 2499.9 });
   });
 
   it("reads a null excluded_from_stats as not excluded", () => {

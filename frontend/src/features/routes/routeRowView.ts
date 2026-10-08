@@ -3,6 +3,7 @@
 import type { RouteListItem } from "@/api/adapters";
 import { activityTypeLabel, type ActivityKind } from "@/lib/activityKind";
 import { formatDate, formatDistance, formatDuration, formatInteger } from "@/lib/format";
+import { LAYOUT_LABELS } from "@/features/routes/routeLayout";
 
 export interface RouteRowView {
   id: number;
@@ -10,10 +11,12 @@ export interface RouteRowView {
   name: string;
   kind: ActivityKind;
   typeLabel: string;
-  /** "Loop" or "Out and back": the shape the clusterer found. */
+  /** "Loop", "Out and back" or "One way": the shape the clusterer found. */
   shape: string;
   attempts: string;
+  /** One time round: a loop's lap, an out-and-back there and back once. */
   distance: string;
+  /** Times for that one time round: a loop's laps, any other route's attempts. */
   best: string;
   median: string;
   /** The day of the most recent attempt. */
@@ -27,11 +30,12 @@ export function toRouteRowView(route: RouteListItem, today: Date = new Date()): 
     name: route.name,
     kind: route.kind,
     typeLabel: activityTypeLabel(route.activityType),
-    shape: route.isLoop ? "Loop" : "Out and back",
+    shape: LAYOUT_LABELS[route.layout],
     attempts: formatInteger(route.attempts),
     distance: formatDistance(route.distanceM),
-    best: formatDuration(route.bestTimeS),
-    median: formatDuration(route.medianTimeS),
+    // Round a loop, an attempt is any number of laps, so its time is no record: the lap is.
+    best: formatDuration(route.layout === "loop" ? route.bestLapS : route.bestTimeS),
+    median: formatDuration(route.layout === "loop" ? route.medianLapS : route.medianTimeS),
     last: formatDate(route.lastDay, today),
   };
 }

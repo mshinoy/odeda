@@ -38,7 +38,7 @@ Paste one of these into a fresh session.
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 8 Speed | H: `ready for review` | 1 / 1 |
-| 9 Routes that know laps | I: `open` | 0 / 1 |
+| 9 Routes that know laps | I: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -154,7 +154,7 @@ and the map library only starts downloading once the heatmap has arrived.
 |---|---|---|---|---|
 | T34 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | done | — | The Map opens without waiting for the heatmap, which is ready before it is asked for |
 
-### Phase 9 — Routes that know laps · Checkpoint I: `open`
+### Phase 9 — Routes that know laps · Checkpoint I: `ready for review`
 
 70 routes for 265 GPS activities (2026-10-08): two laps of a loop can never join one,
 because routes are matched on total distance within 25%, and a route's shape is
@@ -164,7 +164,7 @@ different points.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T35 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | in progress (route-grouping, 2026-10-08) | — | |
+| T35 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
 ### Open decisions
 
@@ -189,6 +189,7 @@ its task to `needs decision: <question>`.
 | D9 | The Google Cloud app **stays in Testing**. Leaving it needs a public homepage and privacy-policy URL on a domain the owner controls, which a one-person app does not have. The price is that Google ends the sign-in 7 days after each consent, so it is renewed weekly from Settings, and Settings says when it is due (T32). | 2026-10-08 |
 | D10 | The activity list shows **cards by default**, each with a **Mapbox static image** of the route (one `<img>`, not a live map), a body diagram for gym sessions, HR zones or the sport's icon otherwise; the table stays behind a Cards/Table toggle (T33, DECISIONS D50). | 2026-10-08 |
 | D11 | Analytics are cached **until the data changes**, not for 30 s: the version is the database's mtime plus the WAL's size and mtime (an empty WAL ignored), and the unfiltered heatmap is recomputed in the background once a change settles (`GA_CACHE_WARM=0` turns that off). DECISIONS D51. | 2026-10-08 |
+| D12 | Routes are matched on **ground covered**, not distance: a run joins a route when at least **75%** of the distance run was on the route's ground and it covered at least 75% of the route (the owner's "about 25%"). Laps and a short warm-up join; an out-and-back that goes much further does not. A route's shape is one lap; loops are timed by the lap. DECISIONS D52. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -2075,4 +2076,35 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     0.3 s on its own), so it was left as it is.
   - The unfiltered view spans every country with a GPS point, so Doha is a small spot
     on a map of half of Asia. Not changed here; worth its own look.
+
+### T35 — Routes: a loop is one route however many times round
+- **Goal:** the owner's loops are one route each, with the fastest lap round them; an
+  out-and-back to the same turn is one route unless it goes much further.
+- **Files:** `garmin_analytics/analytics/routes.py`, `garmin_analytics/api/`,
+  `garmin_analytics/cli.py`, `frontend/src/features/routes/`.
+- **Build:**
+  - [x] match on ground: share of the distance run on the route, and share of the
+    route run, both at least 75%; no distance filter
+  - [x] a route's shape is one lap (`first_lap`), the median lap among clean ones;
+    untouched routes are renamed from it; layout is loop, out and back or one way
+  - [x] laps timed from the start line (`lap_splits`), a run once round from anywhere
+    on the loop counted as a lap; fastest, median and per-attempt laps on the route
+    page, best and median lap on the list
+  - [x] segments on a loop are one lap long, averaged over an attempt's laps
+  - [x] a sync files only new activities (no reshuffling); `fresh` (API, and
+    `garmin-analytics cluster --fresh`) rebuilds every route nobody has edited
+- **Notes:**
+  - **On the real history (fresh rebuild):** 70 routes → 52 (25 loops, 19 out and
+    backs, 8 one way). Bin Omran: 79 runs, a 1.64 km lap, 186 laps, fastest 11:05.
+    The loop at 25.345, 51.522: 43 runs, 1.43 km, 173 laps, fastest 10:02. Lusail
+    circuit (cycling): 3 rides, 5.43 km, 12 laps, fastest 12:40 (25.7 km/h).
+  - **The live database is not regrouped yet.** After deploying, run
+    `garmin-analytics cluster --fresh` once (the owner's call: it rewrites the routes
+    table). No route had been edited by hand, so nothing the owner decided is lost.
+  - A fresh rebuild takes ~15 s on this box; a sync with one new run ~0.2 s. The route
+    list (1.1 s) and pages (≤0.3 s) are cached until the data changes.
+  - The owner's "5.1 km Lusail loop" is the cycling circuit; the Lusail Marina runs are
+    an out-and-back, 4 runs of 5.0–6.1 km.
+  - Some laps are missed: a run that pauses at the line, or whose GPS drifts more than
+    50 m off it, loses that lap (Bin Omran: 77 of 79 runs have one timed).
 

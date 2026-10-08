@@ -356,7 +356,7 @@ def cmd_cluster(args: argparse.Namespace) -> int:
 
     with _store() as st:
         kwargs = {} if args.threshold is None else {"threshold": args.threshold}
-        result = routes_mod.cluster_all(st, progress=print, **kwargs)
+        result = routes_mod.cluster_all(st, progress=print, fresh=args.fresh, **kwargs)
     print(
         f"  {result['activities']} activities → {result['routes']} routes "
         f"({result['created']} new, {result['joined']} matched, "
@@ -551,6 +551,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("cluster", cmd_cluster, "(re)group GPS activities into routes")
     sp.add_argument("--threshold", type=float, default=None,
                     help="path-overlap needed to call two tracks the same route")
+    sp.add_argument("--fresh", action="store_true",
+                    help="rebuild every route nobody has edited, instead of matching "
+                         "against the existing ones")
 
     sp = add("seed", cmd_seed, "generate synthetic data for demos and tests")
     sp.add_argument("--months", type=int, default=None)

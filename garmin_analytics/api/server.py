@@ -1153,18 +1153,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/routes", response_model=RouteList)
     def api_routes(type: str | None = None) -> dict[str, Any]:
-        with store() as st:
-            rows = routes_mod.list_routes(st, type)
-            medians = _route_median_times(st)
-            for row in rows:
-                row["median_moving_time_s"] = medians.get(int(row["route_id"]))
-            return {"routes": rows}
+        # Lap times read every attempt's track, so the list is kept until the data
+        # changes, as the route pages are.
+        def compute() -> dict[str, Any]:
+            with store() as st:
+                rows = routes_mod.list_routes(st, type)
+                medians = _route_median_times(st)
+                for row in rows:
+                    row["median_moving_time_s"] = medians.get(int(row["route_id"]))
+                return {"routes": rows}
+
+        return cached(settings, f"routes:{type}", compute)
 
     @app.get("/api/routes/{route_id}", response_model=RouteDetail)
     def api_route(route_id: int) -> dict[str, Any]:
+        # Lap times read every attempt's track: ~0.5 s on a route run 80 times, so
+        # the answer is kept until the data changes.
         with store() as st:
             try:
-                return _columnar_route_detail(routes_mod.route_detail(st, route_id))
+                return cached(
+                    settings,
+                    f"route:{route_id}",
+                    lambda: _columnar_route_detail(routes_mod.route_detail(st, route_id)),
+                )
             except LookupError as exc:
                 raise HTTPException(404, str(exc)) from exc
 
@@ -1250,7 +1261,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Re-run clustering. Routes the user has pinned are left alone."""
         threshold = routes_mod.MATCH_THRESHOLD if payload.threshold is None else payload.threshold
         with store() as st:
-            return routes_mod.cluster_all(st, threshold=threshold)
+            return routes_mod.cluster_all(st, threshold=threshold, fresh=payload.fresh)
 
     # -- sync ----------------------------------------------------------------
 
