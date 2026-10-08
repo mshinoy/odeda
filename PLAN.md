@@ -179,7 +179,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
 | T40 | Status: this week against the plan, and the planned line on the race panel | todo | T38 | |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
-| T42 | Targets come from the plan; the invented constants go | todo | T37 | |
+| T42 | Targets come from the plan; the invented constants go | in progress (patti, 2026-10-08) | T37 | |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
