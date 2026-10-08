@@ -210,7 +210,6 @@ When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its
 
 | ID | Question | Status |
 |---|---|---|
-| D11 | **Where does the plan live in the UI?** The nav stays at five items (Rules), so a sixth is not available. Either (a) a `/plan` route with no nav item, reached from a plan section on Status; (b) the plan folded entirely into Status with no page of its own; (c) a sixth nav item, amending the rule. **Recommended: (a)** — the week strip answers the daily question on a page the owner already opens, and the twelve-week grid is a page you visit on Sunday, not every day. T40 builds (a) unless told otherwise. | open |
 
 ### Decided
 
@@ -231,6 +230,7 @@ When an agent needs the owner, it adds a row here (`D4`, `D5`, …) and sets its
 | D10 | **The ICS feed is parsed by a stdlib subset parser.** `FREQ=WEEKLY` and `FREQ=DAILY` with `INTERVAL`, `BYDAY`, `COUNT`, `UNTIL`, `EXDATE` and `RECURRENCE-ID`; anything else is refused as `unsupported_rrule` and stored once at DTSTART rather than expanded on a guess. No new dependency, consistent with D7. The owner chose this over `icalendar` + `python-dateutil`. | 2026-10-08 |
 | D12 | **The race panel's targets are derived from the plan, and the constants are removed.** `TARGET_PEAK_CTL = 75` and `TARGET_PEAK_WEEKLY_KM = 55` were invented by an agent, and the owner's plan peaks at **35.7 km/week** — so the panel was warning "a long way short" on weeks he was following exactly. Weekly km comes straight from the plan; the CTL target is computed from his own recent pace and labelled as derived. With no calendar connected the targets are `None` and the panel shows the curves without a goal line rather than inventing one. T42. | 2026-10-08 |
 | D13 | **Where a day's events disagree, the more specific event wins.** A dated one-off beats an instance of a recurring series, so 12 Jan's `W12: Run 3.2 km` beats the club series' standing 8-10 km and the taper is respected. This reverses what was said earlier about the Monday week note always winning. The rule lives behind one function so it can be changed once real weeks have been scored. | 2026-10-08 |
+| D11 | **The plan gets both: a `/plan` tab in the nav, and a "This week" strip on Status.** The five-item rule was written before the plan existed and is amended in Rules. The owner's framing is that **Status is a home dashboard**, not a peer page — it carries a summary from whichever tabs matter, and is meant to become configurable — so a strip on Status does not make the tab redundant. The strip answers "what today, am I on it"; the tab holds the twelve-week grid. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -746,8 +746,11 @@ Owner feedback:
   empty.
 - Loading states are skeletons, not spinners. Empty states are one short line plus an
   action. Transitions 150–200 ms; no decorative animation except route playback.
-- Nav stays at five items: Status · Activities · Map · Health · Trends. Settings and
-  Gear sit behind the corner icon.
+- Nav is Status · Plan · Activities · Map · Health · Trends. Settings and Gear sit
+  behind the corner icon. **Status is the home dashboard, not a peer page** — it carries
+  a summary from whichever tabs the owner cares about, and is intended to become
+  configurable. So a section appearing on Status is normal and does not mean its tab is
+  redundant. (Amended by D11; this read "five items" before the plan existed.)
 
 **Safety**
 - Never commit tokens, passwords, `.env` files, the database or copies of it.
