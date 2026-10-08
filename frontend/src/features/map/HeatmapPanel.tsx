@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { readLastBounds } from "@/features/map/lastBounds";
-import { preloadBaseMap } from "@/map/BaseMap";
+import { preloadBaseMap } from "@/map/loadBaseMap";
 import { heatmapBounds } from "@/map/heatmapBounds";
 import { supportsWebGL } from "@/map/webgl";
 
