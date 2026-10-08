@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 8 / 10 |
+| 8 Training plan | H: `open` | 9 / 10 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 3 / 3 |
@@ -177,7 +177,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T37 | `analytics/plan.py`: match planned sessions to activities, and score adherence | done | T35, T36 | Whether the training happened |
 | T38 | `/api/plan`: the plan, the week, a manual re-link, and a sync | done | T37 | The plan, over HTTP |
 | T39 | Auto-sync: the plan as a third source beside Garmin and Google Health | done | T35 | The calendar keeps itself current |
-| T40 | Status: this week against the plan, and the planned line on the race panel | in progress (patti, 2026-10-08) | T38 | |
+| T40 | Status: this week against the plan, and the planned line on the race panel | done | T38 | This week against the plan, and the plan against the race |
 | T41 | Settings: the feed, what it parsed, and what it could not | todo | T38 | |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
@@ -2387,19 +2387,49 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `frontend/src/routes.tsx`, `frontend/src/api/adapters.ts`,
   `frontend/src/api/queries/`, `frontend/src/charts/`.
 - **Build:**
-  - [ ] a week strip on Status: each prescribed session as done, short, missed or
+  - [x] a week strip on Status: each prescribed session as done, short, missed or
     to come, with the next one named — "Friday · long run · 18 km"
-  - [ ] one stat card: rolling 4-week adherence, with its delta
-  - [ ] the race panel's weekly-km bars get the prescribed line over them
-  - [ ] `/plan`: the full grid to race day, a row per week, click a session for the
+  - [x] one stat card: rolling 4-week adherence, with its delta
+  - [x] the race panel's weekly-km bars get the prescribed line over them
+  - [x] `/plan`: the full grid to race day, a row per week, click a session for the
     activity that matched it, and a control to re-link or ignore
-  - [ ] the verdict sentence at the top of `/plan`, adherence and efficacy in one line
-  - [ ] no plan loaded: one line and a link to Settings
+  - [x] the verdict sentence at the top of `/plan`, adherence and efficacy in one line
+  - [x] no plan loaded: one line and a link to Settings
 - **Notes:**
-  - D11 decides whether `/plan` gets a nav item. Built as a route reached from Status
-    until the owner says otherwise — the nav stays at five (Rules).
+  - **D11 was decided while this was queued, so `/plan` is in the nav.** Six items now:
+    Status · Plan · Activities · Map · Health · Trends. The Rules line was amended with
+    D11 and the "nav stays at five" comment in `AppShell.tsx` is gone.
   - Status colours always come with a label (Rules). "Missed" is a word, not just a red
     square, and red here means a session that did not happen, never a bad day.
+  - **The race panel had no weekly-km bars to put a line over**, because `/api/race`
+    had been typed since Phase 0 and never drawn. It is drawn now: the bars are
+    kilometres run, the dashed step over them is what the plan asked for, and because
+    both are kilometres they share the one y-axis the rules allow. The line continues
+    past the last bar, which is the half of the chart that answers "does the curve
+    reach January".
+  - **Adherence is never shown without the efficacy line under it.** A 16 km run at the
+    wrong effort is `done` exactly like a good one (T37), so the page says "29% over
+    the last four" and "0 of the last 6 long runs held together to the end" in the same
+    breath. On the owner's real data the second sentence is the one that matters.
+  - **The opened week is in the URL** (`/plan?week=2026-09-21`), like every other
+    view's state, which also makes it screenshot-able.
+  - **The re-link control only offers activities the matcher would accept** — unclaimed
+    ones within a day of the session. A manual link is read on the session's own day
+    and the two either side (`analytics/plan._claim`), so a button offering Sunday's
+    run for Wednesday's session would silently do nothing.
+  - **T48 came out of this task.** Wiring the Ignore button showed it had never done
+    anything; it is fixed in its own commit, and this one shows an ignored session as
+    "Ignored" with "Count it again" beside it.
+  - **Looked at on the owner's real activities with a stand-in plan**, because his
+    calendar's address is a credential and is not in this checkout.
+    `scripts/dev-standin-plan.py` writes a Higdon-shaped block into the throwaway copy
+    and refuses to run anywhere else. Against his real runs that gives 29% adherence
+    over four weeks, Sep 21 at 69%, a Wednesday run swapped for the Sep 23 ride, and
+    the Sep 25 long run matched — every verdict traceable to an activity.
+  - **Proved the corrections move the numbers**: ignoring the missed Monday in the week
+    of Sep 21 took it from 3/5 at 69% to 3/4 at 82% and the rolling figure from 29% to
+    32%; undoing it put both back.
+  - 1,433 backend tests, 784 frontend tests across 68 files.
 
 ### T41 — Settings: the feed, and what it could not read
 - **Goal:** the owner can connect a calendar, see what the parser made of it, and fix the

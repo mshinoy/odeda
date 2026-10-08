@@ -6,6 +6,7 @@ import { GearPage } from "@/features/gear/GearPage";
 import { HealthPage } from "@/features/health/HealthPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
+import { PlanPage } from "@/features/plan/PlanPage";
 import { RoutePage } from "@/features/routes/RoutePage";
 import { RoutesPage } from "@/features/routes/RoutesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/status" replace /> },
           { path: "status", element: <StatusPage /> },
+          { path: "plan", element: <PlanPage /> },
           { path: "activities", element: <ActivitiesPage /> },
           { path: "activities/:id", element: <ActivityPage /> },
           { path: "map", element: <MapPage /> },

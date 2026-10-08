@@ -3,8 +3,10 @@ import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
 import { useAutoSync } from "@/api/queries/useStatus";
 import { cn } from "@/lib/utils";
 
+// Six since D11 added the plan: Status · Plan · Activities · Map · Health · Trends.
 const navItems = [
   { to: "/status", label: "Status" },
+  { to: "/plan", label: "Plan" },
   { to: "/activities", label: "Activities" },
   { to: "/map", label: "Map" },
   { to: "/health", label: "Health" },
@@ -33,7 +35,7 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
-          {/* The nav stays five items; Gear and Settings sit in the corner. */}
+          {/* Gear and Settings stay in the corner, out of the nav. */}
           <NavLink
             to="/gear"
             aria-label="Gear"

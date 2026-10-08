@@ -66,6 +66,13 @@ export const queryKeys = {
   readinessHistory: (days: number) => ["readiness-history", days] as const,
   /** Body composition, on the same window as the rest of Health. */
   body: (days: number) => ["body", days] as const,
+  /** The whole plan under one prefix: a re-link or a calendar sync re-judges every
+   *  week, so the grid, this week's strip and a week's detail all go together. */
+  planAll: ["plan"] as const,
+  plan: ["plan", "all"] as const,
+  planWeek: (start: string) => ["plan", "week", start] as const,
+  /** The race panel's own payload: countdown, 26 weeks of km, and the plan's targets. */
+  race: ["race"] as const,
   garminStatus: ["garmin-status"] as const,
   /** Read off disk, so opening Settings never depends on the network to render. */
   fitbitStatus: ["fitbit-status"] as const,
