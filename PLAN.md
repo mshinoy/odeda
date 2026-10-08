@@ -39,7 +39,7 @@ Paste one of these into a fresh session.
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 2 / 3 |
+| 11 Loose ends | K: `ready for review` | 3 / 3 |
 
 ### Phase 0 — Foundations (done)
 
@@ -167,7 +167,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `open`
+### Phase 11 — Loose ends · Checkpoint K: `ready for review`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -176,7 +176,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 |---|---|---|---|---|
 | T45 | Map: open on where most of the activity is, not on every point ever recorded | done | — | The Map opens on home, not on every country there is a point in |
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
-| T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | in progress (loose-ends, 2026-10-08) | — | |
+| T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
 
 ### Open decisions
 
@@ -2153,4 +2153,21 @@ Everything else still returns `unknown` and has to be typed by the task that fir
     map opened on half of Asia. It now opens on Doha, Lusail and Al Wakra.
   - A filter to one trip makes that trip the busiest square, so it opens there. The
     heat elsewhere is still drawn: zooming out shows it.
+
+### T47 — Routes keep their numbers
+- **Goal:** `/routes/31` is the same loop before and after a regroup.
+- **Files:** `garmin_analytics/analytics/routes.py`, `frontend/src/features/routes/RoutePage.tsx`.
+- **Build:**
+  - [x] `keep_route_ids`: each route takes the number most of its activities had, if
+    free; contested numbers go to the route with more of those activities. A fresh
+    rebuild calls it, so it renumbers nothing that still exists
+  - [x] the clusterer's names carry the kept number
+  - [x] a route page for a number that no longer exists says it was merged or
+    regrouped, with a link to all routes
+- **Notes:**
+  - **Today's regroup undone on the live database** from the 11:31 dev snapshot's
+    memberships (the last copy from before the regroup): 51 of 52 routes got their
+    old numbers back; Bin Omran is #31 again, the 1.4 km loop #28, the QSC loop #4.
+    Numbers of routes merged into another (Bin Omran's old #40, #69, ...) are gone;
+    their pages say so.
 

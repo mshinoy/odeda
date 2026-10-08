@@ -658,3 +658,44 @@ class TestLaps:
         assert by_layout["loop"]["best_lap_s"] == pytest.approx(400, abs=5)
         assert by_layout["loop"]["median_lap_s"] == pytest.approx(400, abs=5)
         assert by_layout["out_and_back"]["best_lap_s"] is None
+
+
+class TestRouteNumbers:
+    def _ids(self, store):
+        return {r["activity_id"]: r["route_id"] for r in store.query(
+            "SELECT activity_id, route_id FROM route_members")}
+
+    def test_a_fresh_rebuild_keeps_the_numbers(self, store):
+        for i in range(3):
+            _store_track(store, f"loop{i}", _loop(25.0, 51.0, laps=1 + i, jitter_m=3, seed=i))
+        for i in range(2):
+            _store_track(store, f"oab{i}", _out_and_back(25.2, 51.3, 1500, jitter_m=3, seed=i))
+        R.cluster_all(store)
+        before = self._ids(store)
+        names = {r["route_id"]: r["name"] for r in store.query("SELECT route_id, name FROM routes")}
+
+        R.cluster_all(store, fresh=True)
+        assert self._ids(store) == before
+        after = {r["route_id"]: r["name"] for r in store.query("SELECT route_id, name FROM routes")}
+        assert after == names  # the number in the name is the kept one
+
+    def test_merged_routes_keep_the_bigger_ones_number(self, store):
+        # Three routes made by hand-filing, then a rebuild that sees one loop.
+        for i in range(3):
+            _store_track(store, f"a{i}", _loop(25.0, 51.0, laps=1, jitter_m=3, seed=i))
+        R.cluster_all(store)
+        route = _route_of(store, "a0")
+        previous = {"a0": 7, "a1": 7, "a2": 9}
+        moved = R.keep_route_ids(store, previous)
+        assert moved == {route: 7}
+        assert set(self._ids(store).values()) == {7}
+        assert store.query("SELECT COUNT(*) n FROM route_segment_efforts WHERE route_id = 7")[0]["n"] > 0
+        assert store.query("SELECT name FROM routes")[0]["name"].endswith("#7")
+
+    def test_a_number_in_use_is_not_taken(self, store):
+        _store_track(store, "a", _loop(25.0, 51.0, laps=1))
+        _store_track(store, "b", _out_and_back(25.2, 51.3, 1500))
+        R.cluster_all(store)
+        ra, rb = _route_of(store, "a"), _route_of(store, "b")
+        assert R.keep_route_ids(store, {"a": rb}) == {}
+        assert (_route_of(store, "a"), _route_of(store, "b")) == (ra, rb)

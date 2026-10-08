@@ -1,8 +1,10 @@
 import { lazy, Suspense, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ApiError } from "@/api/client";
 import { useRoute, useRouteSegments } from "@/api/queries/useRoute";
 import { EmptyState } from "@/components/EmptyState";
 import { KindBadge } from "@/components/KindBadge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttemptsTable } from "@/features/routes/AttemptsTable";
 import { MergeRoutesDialog } from "@/features/routes/MergeRoutesDialog";
@@ -39,6 +41,19 @@ export function RoutePage() {
   );
 
   if (!Number.isInteger(routeId)) return <EmptyState message="No such route." />;
+  if (error instanceof ApiError && error.status === 404) {
+    // Merged into another route, or regrouped away: the list has where its runs went.
+    return (
+      <EmptyState
+        message="This route no longer exists: it was merged into another or regrouped."
+        action={
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/routes">All routes</Link>
+          </Button>
+        }
+      />
+    );
+  }
   if (error) return <EmptyState message={error.message} />;
   if (isPending || !detail) return <Skeleton className="h-96 w-full" />;
 

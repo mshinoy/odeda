@@ -740,9 +740,15 @@ def cluster_all(
 
     `fresh` rebuilds instead: it first removes every route the clusterer made and
     nobody has touched — not pinned, no activity filed on it by hand — then files
-    every activity again from the tracks. What the user decided stays.
+    every activity again from the tracks. What the user decided stays, and the routes
+    it rebuilds keep the numbers their activities had (`keep_route_ids`).
     """
+    previous: dict[str, int] = {}
     if fresh:
+        previous = {
+            r["activity_id"]: int(r["route_id"])
+            for r in store.query("SELECT activity_id, route_id FROM route_members")
+        }
         store.conn.execute(
             "DELETE FROM routes WHERE pinned = 0 AND route_id NOT IN "
             "(SELECT route_id FROM route_members WHERE assigned = 'manual')"
@@ -769,12 +775,73 @@ def cluster_all(
 
     for route_id in touched:
         refresh_route(store, route_id, recompute_segments=recompute_segments)
+    if previous:
+        keep_route_ids(store, previous)
 
     return {
         "activities": len(ids),
         "routes": int(store.scalar("SELECT COUNT(*) FROM routes") or 0),
         **counts,
     }
+
+
+def keep_route_ids(store: Store, previous: dict[str, int]) -> dict[int, int]:
+    """Give each route back the number its activities were filed under before a
+    regroup, so `/routes/31` is still the loop it was. Returns {old id: kept id}.
+
+    `previous` is activity id → route id from before. Each route takes the number most
+    of its activities had, if no route has it now; where two routes want the same
+    number, the one with more of those activities gets it. A route whose activities
+    all come from routes that were merged into another keeps the number it has.
+    """
+    members: dict[int, list[str]] = {}
+    for r in store.query("SELECT activity_id, route_id FROM route_members"):
+        members.setdefault(int(r["route_id"]), []).append(r["activity_id"])
+    taken = set(members)
+    claims: list[tuple[int, int, int]] = []  # (activities that had it, wanted id, route)
+    for route_id, aids in members.items():
+        votes: dict[int, int] = {}
+        for aid in aids:
+            if aid in previous:
+                votes[previous[aid]] = votes.get(previous[aid], 0) + 1
+        for wanted, n in votes.items():
+            claims.append((n, wanted, route_id))
+
+    moved: dict[int, int] = {}
+    done: set[int] = set()
+    for _n, wanted, route_id in sorted(claims, reverse=True):
+        if route_id in done:
+            continue
+        if wanted == route_id:  # it already has the number its activities had
+            done.add(route_id)
+            continue
+        if wanted in taken:
+            continue
+        _renumber(store, route_id, wanted)
+        taken.discard(route_id)
+        taken.add(wanted)
+        done.add(route_id)
+        moved[route_id] = wanted
+    store.conn.commit()
+    return moved
+
+
+def _renumber(store: Store, old: int, new: int) -> None:
+    """Move a route to another number, its members and segment efforts with it, and
+    rename it if its name is the clusterer's (which carries the number)."""
+    store.conn.execute("PRAGMA defer_foreign_keys = ON")
+    store.conn.execute("UPDATE routes SET route_id = ? WHERE route_id = ?", (new, old))
+    store.conn.execute("UPDATE route_members SET route_id = ? WHERE route_id = ?", (new, old))
+    store.conn.execute(
+        "UPDATE route_segment_efforts SET route_id = ? WHERE route_id = ?", (new, old)
+    )
+    route = store.conn.execute(
+        "SELECT name, pinned, points, distance_m, is_loop FROM routes WHERE route_id = ?", (new,)
+    ).fetchone()
+    if route and not route["pinned"]:
+        pts = [(p[0], p[1]) for p in json.loads(route["points"])]
+        name = _auto_name(float(route["distance_m"]), route_layout(pts, bool(route["is_loop"])), new)
+        store.conn.execute("UPDATE routes SET name = ? WHERE route_id = ?", (name, new))
 
 
 def refresh_route(store: Store, route_id: int, recompute_segments: bool = True) -> None:
