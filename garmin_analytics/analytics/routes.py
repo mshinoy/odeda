@@ -63,7 +63,7 @@ GROUND_STEP_M = 20.0
 TOLERANCE_M = 45.0
 
 #: Both shares `match_score` takes must reach this. 0.75 is the owner's "about 25%"
-#: (PLAN D12): on the real history, out-and-backs whose turns differ by about a
+#: (PLAN D16): on the real history, out-and-backs whose turns differ by about a
 #: quarter of the route group together, and one that runs much further does not.
 MATCH_THRESHOLD = 0.75
 

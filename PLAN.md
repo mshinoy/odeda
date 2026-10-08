@@ -37,8 +37,8 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Speed | H: `ready for review` | 1 / 1 |
-| 9 Routes that know laps | I: `ready for review` | 1 / 1 |
+| 9 Speed | I: `ready for review` | 1 / 1 |
+| 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -144,7 +144,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Speed · Checkpoint H: `ready for review`
+### Phase 9 — Speed · Checkpoint I: `ready for review`
 
 The owner asked why the Map page is slow (2026-10-08). Measured: the heatmap is
 recomputed (~1–1.5 s) on most visits because the analytics cache expires after 30 s,
@@ -152,9 +152,9 @@ and the map library only starts downloading once the heatmap has arrived.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T34 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | done | — | The Map opens without waiting for the heatmap, which is ready before it is asked for |
+| T43 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | done | — | The Map opens without waiting for the heatmap, which is ready before it is asked for |
 
-### Phase 9 — Routes that know laps · Checkpoint I: `ready for review`
+### Phase 10 — Routes that know laps · Checkpoint J: `ready for review`
 
 70 routes for 265 GPS activities (2026-10-08): two laps of a loop can never join one,
 because routes are matched on total distance within 25%, and a route's shape is
@@ -164,7 +164,7 @@ different points.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T35 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
+| T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
 ### Open decisions
 
@@ -187,9 +187,9 @@ its task to `needs decision: <question>`.
 | D7 | The Fitbit client uses **stdlib `urllib.request`** behind a one-method transport, not a new HTTP library. It is four calls against a documented JSON API, and an injectable transport is what makes the whole OAuth flow testable without an account (T23). No new Python or npm dependency in this phase. | 2026-09-26 |
 | D8 | Sync runs on its own **every 6 hours**, inside the `app` server process, with `GA_AUTO_SYNC_HOURS` to change it and `0` to turn it off. Four light runs a day keep the data fresh by morning and evening without leaning on Garmin's unofficial API; a manual sync still works whenever wanted. | 2026-10-08 |
 | D9 | The Google Cloud app **stays in Testing**. Leaving it needs a public homepage and privacy-policy URL on a domain the owner controls, which a one-person app does not have. The price is that Google ends the sign-in 7 days after each consent, so it is renewed weekly from Settings, and Settings says when it is due (T32). | 2026-10-08 |
-| D10 | The activity list shows **cards by default**, each with a **Mapbox static image** of the route (one `<img>`, not a live map), a body diagram for gym sessions, HR zones or the sport's icon otherwise; the table stays behind a Cards/Table toggle (T33, DECISIONS D50). | 2026-10-08 |
-| D11 | Analytics are cached **until the data changes**, not for 30 s: the version is the database's mtime plus the WAL's size and mtime (an empty WAL ignored), and the unfiltered heatmap is recomputed in the background once a change settles (`GA_CACHE_WARM=0` turns that off). DECISIONS D51. | 2026-10-08 |
-| D12 | Routes are matched on **ground covered**, not distance: a run joins a route when at least **75%** of the distance run was on the route's ground and it covered at least 75% of the route (the owner's "about 25%"). Laps and a short warm-up join; an out-and-back that goes much further does not. A route's shape is one lap; loops are timed by the lap. DECISIONS D52. | 2026-10-08 |
+| D14 | The activity list shows **cards by default**, each with a **Mapbox static image** of the route (one `<img>`, not a live map), a body diagram for gym sessions, HR zones or the sport's icon otherwise; the table stays behind a Cards/Table toggle (T33, DECISIONS D50). | 2026-10-08 |
+| D15 | Analytics are cached **until the data changes**, not for 30 s: the version is the database's mtime plus the WAL's size and mtime (an empty WAL ignored), and the unfiltered heatmap is recomputed in the background once a change settles (`GA_CACHE_WARM=0` turns that off). DECISIONS D51. | 2026-10-08 |
+| D16 | Routes are matched on **ground covered**, not distance: a run joins a route when at least **75%** of the distance run was on the route's ground and it covered at least 75% of the route (the owner's "about 25%"). Laps and a short warm-up join; an out-and-back that goes much further does not. A route's shape is one lap; loops are timed by the lap. DECISIONS D52. | 2026-10-08 |
 
 ### Parked (not planned; ask the owner before starting)
 
@@ -2050,7 +2050,9 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - Looked at on real data (copy on :8818), light and dark, 1440 px and 390 px: rides,
     runs, strength, swims, other, and the table toggle.
 
-### T34 — Map: the map before the heatmap, the heatmap before the ask
+### T43 — Map: the map before the heatmap, the heatmap before the ask
+- **Numbered T34 in its commits** ("Claim T34"): renumbered once the `training-plan`
+  branch, which had taken Phase 8, T34–T42 and D10–D13 meanwhile, was found.
 - **Goal:** the Map page shows a map at once and the heat on it as soon as possible.
 - **Files:** `garmin_analytics/api/cache.py`, `garmin_analytics/api/server.py`,
   `garmin_analytics/config.py`, `frontend/src/features/map/`, `frontend/src/map/`.
@@ -2077,7 +2079,9 @@ Everything else still returns `unknown` and has to be typed by the task that fir
   - The unfiltered view spans every country with a GPS point, so Doha is a small spot
     on a map of half of Asia. Not changed here; worth its own look.
 
-### T35 — Routes: a loop is one route however many times round
+### T44 — Routes: a loop is one route however many times round
+- **Numbered T35 in its commits** ("Claim T35"): renumbered with T43, for the same
+  reason.
 - **Goal:** the owner's loops are one route each, with the fastest lap round them; an
   out-and-back to the same turn is one route unless it goes much further.
 - **Files:** `garmin_analytics/analytics/routes.py`, `garmin_analytics/api/`,
