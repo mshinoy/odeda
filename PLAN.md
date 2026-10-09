@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 11 / 12 |
+| 8 Training plan | H: `open` | 12 / 12 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `open` | 3 / 4 |
@@ -182,7 +182,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
 | T49 | The plan has a start day, and the owner sets it | done | T37, T41 | The plan starts when the owner says it starts |
-| T50 | A future week reports no sessions and kilometres anyway | in progress (patti, 2026-10-09) | T37 | |
+| T50 | A week counted its sessions and its kilometres over different days | done | T37 | A week counts the same days twice |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2741,18 +2741,26 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
 - **Goal:** one week summary cannot hold two different opinions about what it contains.
 - **Files:** `garmin_analytics/analytics/plan.py`, `tests/test_plan_adherence.py`.
 - **Build:**
-  - [ ] `planned_km` counts the same sessions `sessions_planned` counts
-  - [ ] whichever way optional sessions go, both fields go together
+  - [x] a week carries `sessions_prescribed`, over the same days as `planned_km`
+  - [x] `sessions_planned` keeps its meaning and stays adherence's denominator
+  - [x] every place the two are shown as a pair uses the one that matches the distance
 - **Notes:**
   - Found while reviewing H on the owner's real feed. In `weekly()`, `sessions_planned`
-    is `len(counted)` — `counts` excludes a day still to come, an optional session and
-    one the owner ignored — but `planned_km` sums over `items`, every session in the
-    bucket. So next week reads **`planned 0 sessions, 30.0 km`**, which looks like a
-    rendering fault and is arithmetic.
-  - It is one word, `items` → `counted`, but the decision is not: a *prescribed* week
-    arguably does have kilometres before it is due. Whatever is chosen, the two fields
-    have to agree, and `PlanWeek.sessions_planned`'s docstring already says what the
-    rule is meant to be.
+    is `len(counted)` — `counts` drops a day still to come, an optional session and one
+    the owner ignored — but `planned_km` sums over `items`, the whole week. Shown
+    together in the Status strip, a half-finished week read `1 of 6 sessions · 11.3 of
+    30.0 km`, the 6 covering days so far and the 30.0 covering all seven.
+  - **The one-word fix would have been a worse bug.** The card first said `items` →
+    `counted`. `targets` takes the plan's **peak** week from `planned_km`, and a build's
+    peak is in the future, so a due-only sum reports the biggest week *run so far* and
+    creeps upward every week. Measured on a 10→30 km ramp with today a third of the way
+    in: peak 30.0 km → 18.0 km. D12's whole point is that the goal line is the plan's,
+    not a number that moves. There is a test for it.
+  - So the two counts stay, because they answer two questions, and the pair that gets
+    displayed is the one that covers the same days as the distance beside it.
+  - The week grid was already right: it keys off `adherence_pct !== null` and prints
+    `—` and "9.0 km to run" for a week with nothing due. Only the Status strip and the
+    verdict sentence were comparing unlike things.
 
 ### T51 — `npm run gen:api` regenerates against the owner's running container
 - **Goal:** the generated types come from the code in this checkout.

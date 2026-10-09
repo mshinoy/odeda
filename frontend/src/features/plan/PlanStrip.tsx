@@ -65,7 +65,7 @@ export function PlanStrip({ plan, week }: { plan: Plan; week: PlanWeekDetail | u
 
       {summary && (
         <span className="text-muted-foreground text-xs">
-          {summary.sessions_done} of {summary.sessions_planned} sessions ·{" "}
+          {summary.sessions_done} of {summary.sessions_prescribed} sessions ·{" "}
           {formatDecimal(summary.actual_km)} of {formatDecimal(summary.planned_km)} km
         </span>
       )}

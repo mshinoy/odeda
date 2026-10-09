@@ -17,6 +17,7 @@ function week(start: string, over: Partial<PlanWeek> = {}): PlanWeek {
   return {
     week: start,
     start,
+    sessions_prescribed: 4,
     sessions_planned: 4,
     sessions_done: 4,
     adherence_pct: 100,

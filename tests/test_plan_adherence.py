@@ -392,3 +392,51 @@ class TestRestDayDoesNotStarveARealSession:
         assert run.verdict == "done"
         assert rest.verdict == "rest-kept"
         assert unplanned == []
+
+
+class TestAWeekCountsTheSameDaysTwice:
+    """T50. A week was reporting its sessions over the days so far and its kilometres
+    over all seven, then showing the two as a pair."""
+
+    #: Wednesday of a Mon-Sun week; Thu/Fri/Sat/Sun are still to come.
+    MIDWEEK = date(2026, 9, 9)
+
+    def week(self):
+        days = A.collapse([
+            session("2026-09-07", lo=6400, title="Easy run 6.4 km"),
+            session("2026-09-08", lo=8000, title="Easy run 8 km"),
+            session("2026-09-09", lo=6400, title="Easy run 6.4 km"),
+            session("2026-09-11", lo=18000, kind="long", title="Long Run - DBRC"),
+            session("2026-09-13", lo=9600, title="Easy run 9.6 km"),
+        ])
+        judged, _ = A.match(days, [activity("2026-09-07", metres=6400)], today=self.MIDWEEK)
+        return A.weekly(judged)[0]
+
+    def test_the_pair_shown_together_covers_the_same_days(self):
+        w = self.week()
+        assert w["sessions_prescribed"] == 5
+        assert w["planned_km"] == 48.4  # all five, the same five
+
+    def test_adherence_still_only_judges_what_is_due(self):
+        """The fix must not start marking Friday missed on Wednesday.
+
+        Two, not three: Wednesday *is* today, and a session with nothing done against it
+        yet is `upcoming` rather than missed until the day is over.
+        """
+        w = self.week()
+        assert w["sessions_planned"] == 2
+        assert w["sessions_planned"] < w["sessions_prescribed"]
+        assert w["sessions_done"] == 1
+
+    def test_the_peak_target_still_comes_from_the_whole_plan(self):
+        """Why `planned_km` cannot follow the due-only count: a build's peak week is in
+        the future, so a due-only sum would report the biggest week run so far."""
+        days = A.collapse([
+            session(d, lo=km * 1000, kind="long", title=f"Long run {km} km")
+            for d, km in [
+                ("2026-09-04", 10), ("2026-09-11", 18), ("2026-09-18", 24),
+                ("2026-09-25", 30),
+            ]
+        ])
+        judged, _ = A.match(days, [], today=date(2026, 9, 14))  # peak still ahead
+        assert A.targets(judged)["peak_weekly_km"] == 30.0

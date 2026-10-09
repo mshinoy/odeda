@@ -342,7 +342,23 @@ def week_of(day: str) -> str:
 
 
 def weekly(judged: Sequence[Judged]) -> list[dict[str, Any]]:
-    """Per-week totals. Adherence is weighted, because the sessions are not equal."""
+    """Per-week totals. Adherence is weighted, because the sessions are not equal.
+
+    Two session counts, deliberately, because two different questions get asked of a
+    week and one number cannot answer both:
+
+    * `sessions_prescribed` — everything the week asks for, over the same days as
+      `planned_km`. These two are the pair to show together.
+    * `sessions_planned` — only what can be judged yet: `counts` drops an optional
+      session, one the owner ignored, and any day still to come. This is adherence's
+      denominator, and on Tuesday it is smaller than the week.
+
+    They were previously shown as a pair, so a half-finished week read `1 of 6 sessions ·
+    11.3 of 30.0 km` with the 6 covering days so far and the 30.0 covering all seven.
+    `planned_km` cannot follow `counts` instead: `targets` takes the plan's **peak** week
+    from it, and a build's peak is in the future, so a due-only sum would report the
+    biggest week run so far and creep upwards every week (30 km plan → 18 km target).
+    """
     buckets: dict[str, list[Judged]] = defaultdict(list)
     for item in judged:
         buckets[week_of(item.planned.day)].append(item)
@@ -364,6 +380,7 @@ def weekly(judged: Sequence[Judged]) -> list[dict[str, Any]]:
             {
                 "week": week,
                 "start": _monday(week),
+                "sessions_prescribed": len(items),
                 "sessions_planned": len(counted),
                 "sessions_done": sum(1 for i in counted if i.credited),
                 "adherence_pct": round(100.0 * earned / weight, 1) if weight else None,

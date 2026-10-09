@@ -4190,8 +4190,18 @@ export interface components {
             /** Start */
             start: string;
             /**
+             * Sessions Prescribed
+             * @description Everything the week asks for, over the same days as `planned_km`. Show these two
+             *     together; pairing `sessions_planned` with `planned_km` compares days so far against
+             *     all seven.
+             * @default 0
+             */
+            sessions_prescribed: number;
+            /**
              * Sessions Planned
-             * @description Excludes optional sessions and days still to come.
+             * @description Only what can be judged yet: excludes optional sessions, ones the owner ignored,
+             *     and days still to come. Adherence's denominator, so mid-week it is below
+             *     `sessions_prescribed`.
              */
             sessions_planned: number;
             /** Sessions Done */
@@ -4202,7 +4212,11 @@ export interface components {
              *     prescribed nothing that could be judged.
              */
             adherence_pct: number | null;
-            /** Planned Km */
+            /**
+             * Planned Km
+             * @description What the whole week asks for, including days not yet due — `targets` reads the
+             *     plan's peak week from this, and a build's peak is ahead of today.
+             */
             planned_km: number;
             /** Actual Km */
             actual_km: number;

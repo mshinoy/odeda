@@ -51,7 +51,7 @@ export function PlanWeekRow({ week, current, open, onToggle }: PlanWeekRowProps)
         {formatDate(week.start)}
       </span>
       <span className="tabular-nums">
-        {judged ? `${week.sessions_done}/${week.sessions_planned}` : "—"}
+        {judged ? `${week.sessions_done}/${week.sessions_prescribed}` : "—"}
       </span>
       <span className="text-muted-foreground">
         {judged

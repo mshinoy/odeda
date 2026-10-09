@@ -2305,13 +2305,21 @@ class PlanWeek(_Model):
     week: str
     """ISO week, `2026-W50`."""
     start: str
+    sessions_prescribed: int = 0
+    """Everything the week asks for, over the same days as `planned_km`. Show these two
+    together; pairing `sessions_planned` with `planned_km` compares days so far against
+    all seven."""
     sessions_planned: int
-    """Excludes optional sessions and days still to come."""
+    """Only what can be judged yet: excludes optional sessions, ones the owner ignored,
+    and days still to come. Adherence's denominator, so mid-week it is below
+    `sessions_prescribed`."""
     sessions_done: int
     adherence_pct: float | None
     """Weighted: the long run counts for more than an easy day. Null when the week
     prescribed nothing that could be judged."""
     planned_km: float
+    """What the whole week asks for, including days not yet due — `targets` reads the
+    plan's peak week from this, and a build's peak is ahead of today."""
     actual_km: float
     long_run: PlanVerdict | None
     substitutions: int

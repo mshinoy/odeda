@@ -79,7 +79,7 @@ export function verdictSentence(plan: Plan): string {
       : `Nothing prescribed this week. ${formatPercent(adherence)} over the last four.`;
   }
 
-  const done = `${week.sessions_done} of ${week.sessions_planned} sessions this week`;
+  const done = `${week.sessions_done} of ${week.sessions_prescribed} sessions this week`;
   if (adherence === null) return `${done}.`;
   return `${done}, and ${formatPercent(adherence)} over the last four.`;
 }
