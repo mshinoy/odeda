@@ -181,6 +181,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T41 | Settings: the feed, what it parsed, and what it could not | done | T38 | The calendar, and what it could not read |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
+| T49 | The plan has a start day, and the owner sets it | in progress (patti, 2026-10-09) | T37, T41 | |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2691,3 +2692,30 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - A 304 is reported as "Training plan unchanged" rather than as silence, so Settings
     can tell "looked, nothing new" from "has not looked".
   - 1349 passed, 1 skipped; `npm run typecheck` clean.
+
+### T49 — The plan has a start day, and the owner sets it
+- **Goal:** the plan starts when the owner says it starts, not when the oldest recurring
+  event in their calendar happens to start.
+- **Files:** `garmin_analytics/db/store.py`, `garmin_analytics/db/schema.sql`,
+  `garmin_analytics/ingest/plan_ics.py`, `garmin_analytics/analytics/plan.py`,
+  `garmin_analytics/api/server.py`, `garmin_analytics/api/schemas.py`,
+  `frontend/src/api/schema.ts` (generated), `frontend/src/api/queries/usePlan.ts`,
+  `frontend/src/features/settings/PlanPanel.tsx`, `tests/test_plan_start_day.py`.
+- **Build:**
+  - [ ] `plan_sources.start_day`, nullable, added to an existing database in place
+  - [ ] sessions before it leave every figure: weeks, adherence, targets, next session
+  - [ ] `PUT /api/plan/start` sets it, `null` clears it back to the whole calendar
+  - [ ] Settings: a date field that says what it does, and clears
+  - [ ] a start day after the race, or an unparseable one, is refused
+- **Notes:**
+  - **Found on the owner's real calendar.** Their feed is a general calendar, not a
+    training-only one: `Katara Hills - Run - DBRC` is a weekly club run with 285
+    instances going back to 2021-08-10. `window()` caps only the *end* of recurrence
+    expansion, so `/api/plan` returned 285 weeks from 2021-W32 and a `mean_weekly_km`
+    of 10.3 averaged over five years — four of them single-session weeks that were
+    never part of this plan.
+  - **The line is drawn in analytics, not in ingest.** Narrowing the expansion window
+    would stamp `withdrawn_at` on everything before the start day, which means "it left
+    the feed" — a different fact, and a lossy one. Filtering reads instead keeps every
+    row, so moving the start day is reversible and needs no re-sync. That is what makes
+    it a reset control rather than a delete.
