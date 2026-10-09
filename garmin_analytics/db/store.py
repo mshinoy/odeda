@@ -16,7 +16,14 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 from ..config import Settings, load_settings
 from . import fields as fields_mod
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
+
+#: What each version did, for the `schema_migrations` row. The newest is what a database
+#: reaching the current version is stamped with.
+MIGRATION_NAMES: dict[int, str] = {
+    3: "v3: the training plan",
+    4: "v4: the plan's start day",
+}
 
 #: Columns added to existing tables after v1 shipped. Applied with ALTER TABLE only
 #: when missing, so upgrading a v1 database in place keeps its data.
@@ -28,6 +35,10 @@ ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("plan_sessions", "optional", "INTEGER NOT NULL DEFAULT 0"),
     ("plan_sessions", "recurring", "INTEGER NOT NULL DEFAULT 0"),
     ("plan_sessions", "parse_source", "TEXT"),
+    # v4. The version bump is what makes this reach an existing database at all: the
+    # fingerprint is keyed on SCHEMA_VERSION and the *field registry*, which a new
+    # plan column does not touch, so without it the migration would be skipped.
+    ("plan_sources", "start_day", "TEXT"),
 )
 
 
@@ -111,7 +122,7 @@ def migrate(conn: sqlite3.Connection, schema_path: Path | None = None) -> int:
         conn.execute(
             "INSERT OR REPLACE INTO schema_migrations (version, name, applied_at) "
             "VALUES (?, ?, ?)",
-            (SCHEMA_VERSION, "v3: the training plan", utcnow()),
+            (SCHEMA_VERSION, MIGRATION_NAMES[SCHEMA_VERSION], utcnow()),
         )
     conn.execute(f"PRAGMA user_version = {want}")
     conn.commit()

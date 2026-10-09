@@ -458,8 +458,23 @@ def _ignored_links(store) -> set[int]:
     }
 
 
+def plan_start_day(store) -> str | None:
+    """The day the owner says this block began, or None for the whole calendar.
+
+    Read here, at the one place every figure is built from, so that weeks, adherence,
+    targets and the next session cannot disagree about where the plan starts.
+    """
+    from ..ingest import plan_ics
+
+    source = plan_ics.get_source(store)
+    if source is None:
+        return None
+    day = source["start_day"]
+    return None if day is None else str(day)
+
+
 def judge_all(store, today: date | None = None) -> tuple[list[Judged], list[dict[str, Any]]]:
-    sessions = _sessions(store)
+    sessions = _sessions(store, start=plan_start_day(store))
     if not sessions:
         return [], []
     lo = min(str(s["day"]) for s in sessions)
@@ -517,6 +532,7 @@ def compute_plan(store, today: date | None = None) -> dict[str, Any]:
             "url_masked": plan_ics.mask_url(str(source["url"])),
             "last_fetch_at": source["last_fetch_at"],
             "last_error": source["last_error"],
+            "start_day": source["start_day"],
         },
         "today": today.isoformat(),
         "weeks": weeks,

@@ -109,6 +109,7 @@ from .schemas import (
     PlanLinkRequest,
     PlanLinkResult,
     PlanSourceRequest,
+    PlanStartRequest,
     PlanSyncResult,
     PlanWeekDetail,
     RacePanel,
@@ -686,6 +687,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             try:
                 plan_ics_mod.set_source(st, payload.url, payload.label)
+            except plan_ics_mod.PlanFeedError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            return plan_mod.compute_plan(st)
+
+    @app.put("/api/plan/start", response_model=Plan)
+    def api_plan_start(payload: PlanStartRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                plan_ics_mod.set_start_day(st, payload.start_day)
             except plan_ics_mod.PlanFeedError as exc:
                 raise HTTPException(400, str(exc)) from exc
             return plan_mod.compute_plan(st)

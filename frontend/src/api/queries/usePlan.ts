@@ -49,6 +49,21 @@ export function useSetPlanSource() {
   });
 }
 
+/**
+ * Move the day the plan starts, or pass null to use the whole calendar.
+ *
+ * Nothing is deleted, so this is a reset rather than a purge: the sessions before the
+ * line stay in the database and come back the moment it moves again.
+ */
+export function useSetPlanStart() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (startDay: string | null) =>
+      unwrap(await api.PUT("/api/plan/start", { body: { start_day: startDay } })),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
 /** Unsubscribe. The sessions are withdrawn, not deleted: a judged week stays judged. */
 export function useClearPlanSource() {
   const client = useQueryClient();

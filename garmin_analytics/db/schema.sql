@@ -381,6 +381,11 @@ CREATE TABLE IF NOT EXISTS plan_sources (
     last_fetch_at  TEXT,
     last_error     TEXT,
     enabled        INTEGER NOT NULL DEFAULT 1,
+    -- The day this training block began. NULL means "whatever the calendar holds",
+    -- which is right for a calendar kept only for training and wrong for a general one:
+    -- a weekly club run that has sat in it for years would otherwise backfill the plan
+    -- with sessions nobody ever prescribed.
+    start_day      TEXT,
     UNIQUE (kind, url)
 );
 

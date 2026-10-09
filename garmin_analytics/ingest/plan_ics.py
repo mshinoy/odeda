@@ -136,14 +136,43 @@ def set_source(store, url: str, label: str | None = None, kind: str = "ics") -> 
     url = url.strip()
     if not url.lower().startswith(("http://", "https://")):
         raise PlanFeedError("that does not look like a calendar address")
+    # Replacing a rotated address is not starting a new plan, so the start day survives
+    # it. Deleting the old row would otherwise silently widen the plan back to the whole
+    # calendar, which is the bug T49 exists to remove, arriving by a side door.
+    previous = get_source(store)
+    carried = None if previous is None else previous["start_day"]
     with store.tx():
         store.conn.execute("DELETE FROM plan_sources WHERE url <> ?", (url,))
         store.upsert(
             "plan_sources",
             ["kind", "url"],
-            {"kind": kind, "url": url, "label": label, "enabled": 1},
+            {"kind": kind, "url": url, "label": label, "enabled": 1, "start_day": carried},
         )
     return int(store.scalar("SELECT id FROM plan_sources WHERE url = ?", (url,)))
+
+
+def set_start_day(store, day: str | None) -> None:
+    """Draw the line the plan begins at, or pass `None` to use the whole calendar.
+
+    Validated here rather than at the edge because it is a fact about the plan, not about
+    HTTP: a start day after the race would silence every week there is.
+    """
+    if day is not None:
+        day = day.strip()
+        try:
+            parsed = date.fromisoformat(day)
+        except ValueError as exc:
+            raise PlanFeedError("a start day must be a date, as 2026-09-01") from exc
+        if parsed > config.RACE_DATE:
+            raise PlanFeedError(
+                f"that is after race day ({config.RACE_DATE.isoformat()}), "
+                "which would leave nothing prescribed"
+            )
+        day = parsed.isoformat()
+    if get_source(store) is None:
+        raise PlanFeedError("no calendar is subscribed")
+    with store.tx():
+        store.conn.execute("UPDATE plan_sources SET start_day = ?", (day,))
 
 
 def get_source(store) -> dict[str, Any] | None:

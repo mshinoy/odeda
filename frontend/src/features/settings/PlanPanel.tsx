@@ -4,6 +4,7 @@ import {
   useClearPlanSource,
   usePlan,
   useSetPlanSource,
+  useSetPlanStart,
   useSyncPlan,
 } from "@/api/queries/usePlan";
 import { useAutoSync } from "@/api/queries/useStatus";
@@ -35,7 +36,9 @@ export function PlanPanel() {
   const clearSource = useClearPlanSource();
   const sync = useSyncPlan();
   const unlink = useClearPlanLink();
+  const setStart = useSetPlanStart();
   const [url, setUrl] = useState("");
+  const [startDay, setStartDay] = useState<string | null>(null);
 
   const running = auto.data?.running ?? false;
   const status = plan.data ? feedStatus(plan.data) : null;
@@ -118,6 +121,40 @@ export function PlanPanel() {
               label="Replace"
             />
             {setSource.error && <p className="text-delta-bad text-sm">{setSource.error.message}</p>}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t pt-3">
+            <p className="text-sm">Plan starts</p>
+            <p className="text-muted-foreground text-xs">
+              Sessions before this day are left out of every figure — adherence, weekly kilometres
+              and the race targets. Set it when a block begins to start the plan over. Clear it to
+              use the whole calendar, which counts any long-standing repeating event as far back as
+              it goes.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                aria-label="Plan start day"
+                type="date"
+                value={startDay ?? plan.data.source.start_day ?? ""}
+                onChange={(event) => setStartDay(event.target.value)}
+              />
+              <Button
+                size="sm"
+                disabled={setStart.isPending || (startDay ?? "") === ""}
+                onClick={() => setStart.mutate(startDay ?? null)}
+              >
+                Set
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={setStart.isPending || plan.data.source.start_day == null}
+                onClick={() => setStart.mutate(null, { onSuccess: () => setStartDay(null) })}
+              >
+                Clear
+              </Button>
+            </div>
+            {setStart.error && <p className="text-delta-bad text-sm">{setStart.error.message}</p>}
           </div>
         </div>
       )}

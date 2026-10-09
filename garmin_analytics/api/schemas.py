@@ -2295,6 +2295,10 @@ class PlanSource(_Model):
     url_masked: str
     last_fetch_at: str | None
     last_error: str | None
+    start_day: str | None = None
+    """The day this block began. Null means the plan is whatever the calendar holds —
+    right for a training-only calendar, and wrong for a general one, where a
+    long-standing recurring event backfills years of sessions nobody prescribed."""
 
 
 class PlanWeek(_Model):
@@ -2404,6 +2408,13 @@ class PlanSourceRequest(_Model):
     url: str
     """The calendar's secret iCal address. Stored, never returned."""
     label: str | None = None
+
+
+class PlanStartRequest(_Model):
+    start_day: str | None = None
+    """The day this block began, `2026-09-01`. Null clears it back to the whole
+    calendar. Sessions before it leave every figure the plan reports; nothing is
+    deleted, so moving the line back brings them straight home."""
 
 
 class PlanSyncResult(_Model):

@@ -48,10 +48,10 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `ready for review` | 10 / 10 |
+| 8 Training plan | H: `open` | 11 / 12 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `ready for review` | 3 / 3 |
+| 11 Loose ends | K: `open` | 3 / 4 |
 
 ### Phase 0 — Foundations (done)
 
@@ -157,7 +157,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Training plan · Checkpoint H: `ready for review`
+### Phase 8 — Training plan · Checkpoint H: `open`
 
 The app knows what the owner **did** and what they are training **for**, and nothing
 about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
@@ -181,7 +181,8 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T41 | Settings: the feed, what it parsed, and what it could not | done | T38 | The calendar, and what it could not read |
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
-| T49 | The plan has a start day, and the owner sets it | in progress (patti, 2026-10-09) | T37, T41 | |
+| T49 | The plan has a start day, and the owner sets it | done | T37, T41 | The plan starts when the owner says it starts |
+| T50 | A future week reports no sessions and kilometres anyway | todo | T37 | |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -205,7 +206,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `ready for review`
+### Phase 11 — Loose ends · Checkpoint K: `open`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -215,6 +216,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T45 | Map: open on where most of the activity is, not on every point ever recorded | done | — | The Map opens on home, not on every country there is a point in |
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
+| T51 | `npm run gen:api` regenerates against the owner's running container | todo | — | |
 
 ### Open decisions
 
@@ -2702,11 +2704,11 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `frontend/src/api/schema.ts` (generated), `frontend/src/api/queries/usePlan.ts`,
   `frontend/src/features/settings/PlanPanel.tsx`, `tests/test_plan_start_day.py`.
 - **Build:**
-  - [ ] `plan_sources.start_day`, nullable, added to an existing database in place
-  - [ ] sessions before it leave every figure: weeks, adherence, targets, next session
-  - [ ] `PUT /api/plan/start` sets it, `null` clears it back to the whole calendar
-  - [ ] Settings: a date field that says what it does, and clears
-  - [ ] a start day after the race, or an unparseable one, is refused
+  - [x] `plan_sources.start_day`, nullable, added to an existing database in place
+  - [x] sessions before it leave every figure: weeks, adherence, targets, next session
+  - [x] `PUT /api/plan/start` sets it, `null` clears it back to the whole calendar
+  - [x] Settings: a date field that says what it does, and clears
+  - [x] a start day after the race, or an unparseable one, is refused
 - **Notes:**
   - **Found on the owner's real calendar.** Their feed is a general calendar, not a
     training-only one: `Katara Hills - Run - DBRC` is a weekly club run with 285
@@ -2719,3 +2721,53 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     the feed" — a different fact, and a lossy one. Filtering reads instead keeps every
     row, so moving the start day is reversible and needs no re-sync. That is what makes
     it a reset control rather than a delete.
+  - **The version bump is load-bearing.** `migrate()` returns early when the stored
+    fingerprint matches, and the fingerprint is `SCHEMA_VERSION` mixed with the *field
+    registry* digest — which a new `plan_sources` column does not touch. Left at 3, the
+    ALTER TABLE would never have reached an existing database. `SCHEMA_VERSION = 4`,
+    and the migration name moved into `MIGRATION_NAMES` so the row stops claiming to be
+    v3 whatever the version says.
+  - **A rotated address keeps the start day.** `set_source` deletes the old row, so
+    replacing a reset Google address would otherwise widen the plan back to the whole
+    calendar by a side door. It is carried across.
+  - **Proved on a stand-in of the owner's own shape** (a club run repeating weekly from
+    2021 plus a September block, 290 sessions in the throwaway copy): 285 weeks → 21,
+    `mean_weekly_km` 9.1 → 10.8, and clearing it restored all 285 with no re-sync,
+    which is the evidence that nothing was deleted. Settings screenshotted light and
+    dark; no console errors.
+  - 1447 passed, 1 skipped; typecheck, lint, 797 frontend tests and build all clean.
+
+### T50 — A future week reports no sessions and kilometres anyway
+- **Goal:** one week summary cannot hold two different opinions about what it contains.
+- **Files:** `garmin_analytics/analytics/plan.py`, `tests/test_plan_adherence.py`.
+- **Build:**
+  - [ ] `planned_km` counts the same sessions `sessions_planned` counts
+  - [ ] whichever way optional sessions go, both fields go together
+- **Notes:**
+  - Found while reviewing H on the owner's real feed. In `weekly()`, `sessions_planned`
+    is `len(counted)` — `counts` excludes a day still to come, an optional session and
+    one the owner ignored — but `planned_km` sums over `items`, every session in the
+    bucket. So next week reads **`planned 0 sessions, 30.0 km`**, which looks like a
+    rendering fault and is arithmetic.
+  - It is one word, `items` → `counted`, but the decision is not: a *prescribed* week
+    arguably does have kilometres before it is due. Whatever is chosen, the two fields
+    have to agree, and `PlanWeek.sessions_planned`'s docstring already says what the
+    rule is meant to be.
+
+### T51 — `npm run gen:api` regenerates against the owner's running container
+- **Goal:** the generated types come from the code in this checkout.
+- **Files:** `frontend/scripts/gen-api.mjs`, `PLAN.md` ("Verifying a task").
+- **Build:**
+  - [ ] the generator refuses, or warns loudly, when the API it read is not this branch
+  - [ ] the documented workflow names the port it should be pointed at
+- **Notes:**
+  - `gen-api.mjs` defaults to `VITE_API_URL ?? "http://127.0.0.1:8000"`, and 8000 is the
+    **owner's production container**, not a dev server. Running the documented command
+    from a checkout that adds an endpoint therefore regenerates `schema.ts` from an
+    older build and silently deletes the types for everything that build has not got.
+  - Hit while building T49: it removed 612 lines, every plan type among them, and
+    typecheck would have failed in a way that points at the frontend rather than at the
+    generator. Caught by reading `git diff --stat` before trusting the output.
+  - The dev workflow already starts a backend on 8818 (`scripts/dev-real-data.sh`); the
+    fix is likely to make the generator insist on being told, rather than defaulting to
+    whatever is answering on 8000.
