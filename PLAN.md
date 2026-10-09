@@ -182,7 +182,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T42 | Targets come from the plan; the invented constants go | done | T37 | Targets the plan actually asks for |
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
 | T49 | The plan has a start day, and the owner sets it | done | T37, T41 | The plan starts when the owner says it starts |
-| T50 | A future week reports no sessions and kilometres anyway | todo | T37 | |
+| T50 | A future week reports no sessions and kilometres anyway | in progress (patti, 2026-10-09) | T37 | |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
