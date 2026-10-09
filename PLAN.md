@@ -216,7 +216,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T45 | Map: open on where most of the activity is, not on every point ever recorded | done | — | The Map opens on home, not on every country there is a point in |
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
-| T51 | `npm run gen:api` regenerates against the owner's running container | todo | — | |
+| T51 | `npm run gen:api` regenerates against the owner's running container | in progress (patti, 2026-10-09) | — | |
 
 ### Open decisions
 
