@@ -48,10 +48,10 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 12 / 12 |
+| 8 Training plan | H: `ready for review` | 12 / 12 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 4 / 4 |
+| 11 Loose ends | K: `ready for review` | 4 / 4 |
 
 ### Phase 0 — Foundations (done)
 
@@ -157,7 +157,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Training plan · Checkpoint H: `open`
+### Phase 8 — Training plan · Checkpoint H: `ready for review`
 
 The app knows what the owner **did** and what they are training **for**, and nothing
 about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
@@ -206,7 +206,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `open`
+### Phase 11 — Loose ends · Checkpoint K: `ready for review`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -590,6 +590,17 @@ Fitbit, so `body_composition` had a schema, a join into `v_daily`, and zero rows
 dev.fitbit.com, two lines in `.env`, and one command — plus the honest list of what has
 never met Fitbit's servers.
 
+**Read this one first: your calendar is not a training calendar.** The first sync of
+your real feed read **435 sessions from 42 events, every one of them parsed** — and then
+reported 285 weeks going back to **August 2021**, because `Katara Hills - Run - DBRC` has
+repeated weekly in that calendar for five years and recurrence expansion was only capped
+at the *end*. Adherence and the race targets were being computed over four years that
+were never part of this plan. Settings → Training plan now has **Plan starts**: set it to
+the day a block began and everything before it leaves every figure. Nothing is deleted,
+so moving the line back brings it all home with no re-sync — which is also how you reset
+the plan for the next block. You asked for 1 September 2026; it is not set on your real
+database yet, because that database has no plan tables until the container is rebuilt.
+
 **The three that matter most.**
 
 - **Nothing here has made a single request to Fitbit**, because the credential did not
@@ -663,8 +674,8 @@ Owner feedback:
 
 ### Checkpoint H — Training plan
 
-Ten tasks. The app now knows what you were **supposed** to do, and will say whether you
-did it. Checkpoints F and G are still unreviewed above this one.
+Twelve tasks. The app now knows what you were **supposed** to do, and will say whether
+you did it. Checkpoints F and G are still unreviewed above this one.
 
 | | |
 |---|---|
@@ -679,12 +690,25 @@ did it. Checkpoints F and G are still unreviewed above this one.
 | `b4051e3` | A decision nobody read |
 | `b5479fa` | This week against the plan, and the plan against the race |
 | `cec0e55` | The calendar, and what it could not read |
+| `d4be05d` | The plan starts when the owner says it starts |
+| `6ce2423` | A week counts the same days twice |
 
 **Start here: nothing is connected yet, and that is the first thing to do.** Open
 `/settings` → Training plan, and paste the secret iCal address (Google Calendar →
 that calendar's settings → "Secret address in iCal format"). Until you do, `/plan`
 says one line, the race panel draws its curves with no goal line, and that is
 deliberate — see below.
+
+**Read this one first: your calendar is not a training calendar.** The first sync of
+your real feed read **435 sessions from 42 events, every one of them parsed** — and then
+reported 285 weeks going back to **August 2021**, because `Katara Hills - Run - DBRC` has
+repeated weekly in that calendar for five years and recurrence expansion was only capped
+at the *end*. Adherence and the race targets were being computed over four years that
+were never part of this plan. Settings → Training plan now has **Plan starts**: set it to
+the day a block began and everything before it leaves every figure. Nothing is deleted,
+so moving the line back brings it all home with no re-sync — which is also how you reset
+the plan for the next block. You asked for 1 September 2026; it is not set on your real
+database yet, because that database has no plan tables until the container is rebuilt.
 
 **The three that matter most.**
 
