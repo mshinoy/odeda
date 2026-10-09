@@ -84,8 +84,9 @@ Four rules hold this together, and breaking any of them is how the code stops be
 easy to change:
 
 - **Never hand-write an API type.** Add a Pydantic model in
-  `garmin_analytics/api/schemas.py`, run `npm run gen:api` against a running backend,
-  and commit the regenerated `src/api/schema.ts`.
+  `garmin_analytics/api/schemas.py`, run `npm run gen:api`, and commit the regenerated
+  `src/api/schema.ts`. It builds the schema from this checkout's code and needs no
+  server; pointing it at one is `GA_OPENAPI_URL`, and reads whatever that process runs.
 - **Backend shapes become app shapes in one place**, `src/api/adapters.ts`. A view
   never reads a snake_case field.
 - **Numbers become strings only in `src/lib/format.ts`.** No inline `toFixed`.

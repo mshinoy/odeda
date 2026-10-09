@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | 8 Training plan | H: `open` | 12 / 12 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 3 / 4 |
+| 11 Loose ends | K: `open` | 4 / 4 |
 
 ### Phase 0 — Foundations (done)
 
@@ -216,7 +216,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T45 | Map: open on where most of the activity is, not on every point ever recorded | done | — | The Map opens on home, not on every country there is a point in |
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
-| T51 | `npm run gen:api` regenerates against the owner's running container | in progress (patti, 2026-10-09) | — | |
+| T51 | `npm run gen:api` regenerates against the owner's running container | done | — | The types come from the checkout, not from whatever is on port 8000 |
 
 ### Open decisions
 
@@ -2766,8 +2766,10 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
 - **Goal:** the generated types come from the code in this checkout.
 - **Files:** `frontend/scripts/gen-api.mjs`, `PLAN.md` ("Verifying a task").
 - **Build:**
-  - [ ] the generator refuses, or warns loudly, when the API it read is not this branch
-  - [ ] the documented workflow names the port it should be pointed at
+  - [x] the document is built from this checkout's code, with no server at all
+  - [x] reading a running server is opt-in (`GA_OPENAPI_URL`) and says so on stderr
+  - [x] generating a schema cannot read, create or migrate anybody's database
+  - [x] `CONTRIBUTING.md` and `frontend/README.md` stop telling people to start one
 - **Notes:**
   - `gen-api.mjs` defaults to `VITE_API_URL ?? "http://127.0.0.1:8000"`, and 8000 is the
     **owner's production container**, not a dev server. Running the documented command
@@ -2779,3 +2781,17 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - The dev workflow already starts a backend on 8818 (`scripts/dev-real-data.sh`); the
     fix is likely to make the generator insist on being told, rather than defaulting to
     whatever is answering on 8000.
+  - **Fixed by removing the port, not by checking it.** A warning would still have
+    needed the reader to notice it. `python -m garmin_analytics.api.openapi` builds the
+    app in-process and prints its document, so there is no server to point at the wrong
+    thing and nothing to restart after an edit.
+  - **Proved equivalent:** regenerating through the new path changed exactly one line of
+    `schema.ts`, the header naming where it came from. That is why `main` does not sort
+    its JSON — FastAPI's registration order is what a server would have answered, and
+    sorting would have rewritten the file top to bottom for no gain.
+  - It builds under a temporary `GA_DATA_DIR` and restores the environment afterwards.
+    The first version leaked the overrides, which would have handed a deleted path to
+    the next `load_settings()` in the same process; there is a test for that now.
+  - No view changes, so there is nothing to screenshot: the generated types are
+    byte-identical apart from the header, and typecheck, lint, 797 frontend tests and
+    the build all pass on them.

@@ -66,8 +66,7 @@ const chrome = spawn(
 // Chromium keeps rewriting its profile while it shuts down, so deleting straight after
 // kill() loses the race and strands the directory — which is how 50 of them accumulated.
 // Retry for up to two seconds, and clean up on a signal too, so a killed run leaves nothing.
-const sleepSync = (ms) =>
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 let cleanedUp = false;
 function cleanUp() {

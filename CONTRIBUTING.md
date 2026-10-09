@@ -85,9 +85,14 @@ If you change an API response model in `garmin_analytics/api/schemas.py`, regene
 TypeScript types and commit the result:
 
 ```bash
-garmin-analytics serve --port 8000   # on a database with no APP_PASSWORD: /openapi.json is gated otherwise
 cd frontend && npm run gen:api       # rewrites src/api/schema.ts
 ```
+
+No server needed: the document is built from this checkout's code
+(`python -m garmin_analytics.api.openapi`). It used to be fetched from a backend on port
+8000, which on a machine running the container read the **deployed** build instead and
+deleted the types for everything the branch had just added. To inspect what a running
+server really serves, set `GA_OPENAPI_URL`; it warns that it did.
 
 Tests that assert on maths (TRIMP, CTL/ATL/TSB, Riegel, route clustering, gear totals,
 override precedence) should assert against a hand-derived expected value with the
