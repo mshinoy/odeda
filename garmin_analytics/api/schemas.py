@@ -652,6 +652,10 @@ class RouteSummary(_Model):
     the response boundary over the same attempts the other times come from."""
     avg_hr: float | None
     distance_km: float
+    polyline: str | None = None
+    """The route's shape as a Google encoded polyline (precision 5), for the list's
+    thumbnail. Null for a route with fewer than two points. Sent with the list rather
+    than fetched per card as an activity's is: there are tens of routes, not thousands."""
 
 
 class RouteList(_Model):

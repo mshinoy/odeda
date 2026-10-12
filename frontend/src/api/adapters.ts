@@ -153,6 +153,8 @@ export interface RouteListItem extends RouteOption {
   medianLapS: number | null;
   firstDay: string | null;
   lastDay: string | null;
+  /** The route's shape, for the list's thumbnail; null for one with too few points. */
+  polyline: string | null;
 }
 
 /** A route on its own page: what it is, and the geometry the map draws. */
@@ -504,6 +506,7 @@ function toRouteListItem(route: Schemas["RouteSummary"]): RouteListItem {
     medianTimeS: route.median_moving_time_s,
     bestLapS: route.best_lap_s,
     medianLapS: route.median_lap_s,
+    polyline: route.polyline ?? null,
     firstDay: route.first_day,
     lastDay: route.last_day,
   };

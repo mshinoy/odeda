@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | 8 Training plan | H: `ready for review` | 13 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 4 / 5 |
+| 11 Loose ends | K: `ready for review` | 5 / 5 |
 
 ### Phase 0 — Foundations (done)
 
@@ -207,7 +207,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `open`
+### Phase 11 — Loose ends · Checkpoint K: `ready for review`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -218,7 +218,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
 | T51 | `npm run gen:api` regenerates against the owner's running container | done | — | The types come from the checkout, not from whatever is on port 8000 |
-| T53 | The route list shows the route | in progress (patti, 2026-10-12) | T44 | |
+| T53 | The route list shows the route | done | T44 | The route list shows the route |
 
 ### Open decisions
 
@@ -2877,11 +2877,11 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `frontend/src/features/routes/RouteCards.tsx`,
   `frontend/src/features/routes/RoutesPage.tsx`, `tests/test_routes_api.py`.
 - **Build:**
-  - [ ] `RouteSummary` carries the route's shape as an encoded polyline
-  - [ ] the list is cards with a static map, the way the activity list is (D14)
-  - [ ] no Mapbox token still draws the trace, as the activity cards do
-  - [ ] Mapbox attribution appears under the route list too
-  - [ ] every number the table showed is still on the card
+  - [x] `RouteSummary` carries the route's shape as an encoded polyline
+  - [x] the list is cards with a static map, the way the activity list is (D14)
+  - [x] no Mapbox token still draws the trace, as the activity cards do
+  - [x] Mapbox attribution appears under the route list too
+  - [x] every number the table showed is still on the card
 - **Notes:**
   - The owner, on reviewing T47's numbering: "the route list is useless without a
     visual". Routes are auto-named from their distance and shape — `1.6 km loop #31` —
@@ -2894,3 +2894,14 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     activity card; two features need it now, and it is a map concern, not an
     activities one. `MapAttribution` moves to `components/` for the same reason —
     Mapbox's terms want it wherever a static image is shown with its logo suppressed.
+  - **The import had to be deferred.** `api/__init__` pulls in `server`, which imports
+    `analytics.routes`, so a module-level `from ..api.preview import ...` is a cycle —
+    it fails on `HEATMAP_PRECISION` at import time. The two helpers are pure, so the
+    import sits inside `list_routes` with a note saying why.
+  - **It answered the question it was built for.** The owner could not check T47's
+    restored numbering because `1.6 km loop #31` names nothing. With the map, #31 is
+    plainly **Fereej Bin Omran** and #27 is in Katara — the numbers are right.
+  - **53 routes, 41.9 KB for the whole list**, each shape about 80 bytes simplified to
+    `MAX_POINTS`. The table is gone; every figure it carried (attempts, distance, best,
+    median, shape, type, last) is on the card.
+  - Light and dark in `~/garmin-review/K/`; 1465 passed, 1 skipped, 802 frontend tests.

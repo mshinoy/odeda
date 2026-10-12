@@ -21,6 +21,8 @@ export interface RouteRowView {
   median: string;
   /** The day of the most recent attempt. */
   last: string;
+  /** The route's shape for the card's map; null for one with too few points. */
+  polyline: string | null;
 }
 
 export function toRouteRowView(route: RouteListItem, today: Date = new Date()): RouteRowView {
@@ -37,5 +39,6 @@ export function toRouteRowView(route: RouteListItem, today: Date = new Date()): 
     best: formatDuration(route.layout === "loop" ? route.bestLapS : route.bestTimeS),
     median: formatDuration(route.layout === "loop" ? route.medianLapS : route.medianTimeS),
     last: formatDate(route.lastDay, today),
+    polyline: route.polyline,
   };
 }

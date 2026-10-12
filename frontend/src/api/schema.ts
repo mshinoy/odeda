@@ -5155,6 +5155,13 @@ export interface components {
             avg_hr: number | null;
             /** Distance Km */
             distance_km: number;
+            /**
+             * Polyline
+             * @description The route's shape as a Google encoded polyline (precision 5), for the list's
+             *     thumbnail. Null for a route with fewer than two points. Sent with the list rather
+             *     than fetched per card as an activity's is: there are tens of routes, not thousands.
+             */
+            polyline?: string | null;
         };
         /**
          * SpeedWeightPoint

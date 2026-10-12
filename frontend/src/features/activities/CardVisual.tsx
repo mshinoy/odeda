@@ -1,19 +1,15 @@
-import { useMemo, useState } from "react";
 import { Activity, Bike, Dumbbell, Footprints, Waves, type LucideIcon } from "lucide-react";
 import type { HrZoneTime } from "@/api/adapters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zoneName, zoneShares } from "@/charts/hrZones/buildHrZonesOption";
 import { hrZoneColor, kindColor } from "@/design/scales";
-import { useTheme, useTokens } from "@/design/theme";
+import { useTokens } from "@/design/theme";
 import { BodyFigure } from "@/features/activity/gym/BodyDiagram";
 import { BODY_VIEWS } from "@/features/activity/gym/bodyPaths";
 import type { CardVisual as Visual } from "@/features/activities/cardView";
 import type { ActivityKind } from "@/lib/activityKind";
 import { formatDuration } from "@/lib/format";
-import { decodePolyline } from "@/lib/polyline";
-import { cn } from "@/lib/utils";
-import { traceSvgPath } from "@/map/routeTrace";
-import { staticMapUrl } from "@/map/staticMap";
+import { RoutePreview } from "@/map/RoutePreview";
 
 /** The picture's size on a wide screen, in CSS pixels; it fills the card's width below. */
 export const VISUAL_WIDTH = 240;
@@ -28,11 +24,19 @@ interface CardVisualProps {
 
 /** The left of an activity card: the route, the muscles worked, the HR zones, or the sport. */
 export function CardVisual({ visual, kind, polyline }: CardVisualProps) {
+  const tokens = useTokens();
   switch (visual.kind) {
     case "map":
       if (polyline === undefined) return <Skeleton className="h-full w-full rounded-none" />;
       if (polyline === null) return <KindIcon kind={kind} />;
-      return <RouteImage polyline={polyline} kind={kind} />;
+      return (
+        <RoutePreview
+          polyline={polyline}
+          color={kindColor(tokens, kind)}
+          width={VISUAL_WIDTH}
+          height={VISUAL_HEIGHT}
+        />
+      );
     case "body":
       return (
         <div className="flex h-full items-center justify-center gap-3 py-3">
@@ -52,69 +56,6 @@ export function CardVisual({ visual, kind, polyline }: CardVisualProps) {
     case "none":
       return <KindIcon kind={kind} />;
   }
-}
-
-/**
- * The route on a Mapbox static map, fading in over a placeholder once it has loaded; the
- * bare trace without a token, or if the image fails.
- */
-function RouteImage({ polyline, kind }: { polyline: string; kind: ActivityKind }) {
-  const theme = useTheme();
-  const tokens = useTokens();
-  const [failed, setFailed] = useState(false);
-  // Keyed by URL, so a theme switch shows the placeholder again until the new image is in.
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const color = kindColor(tokens, kind);
-  const src = staticMapUrl({
-    polyline,
-    theme,
-    color,
-    width: VISUAL_WIDTH,
-    height: VISUAL_HEIGHT,
-  });
-
-  if (!src || failed) return <RouteTrace polyline={polyline} color={color} />;
-  const loaded = loadedSrc === src;
-  return (
-    <div className="relative h-full w-full">
-      {!loaded && <Skeleton className="absolute inset-0 rounded-none" />}
-      <img
-        src={src}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        width={VISUAL_WIDTH}
-        height={VISUAL_HEIGHT}
-        className={cn(
-          "relative h-full w-full object-cover transition-opacity duration-200",
-          loaded ? "opacity-100" : "opacity-0",
-        )}
-        onLoad={() => setLoadedSrc(src)}
-        onError={() => setFailed(true)}
-      />
-    </div>
-  );
-}
-
-const TRACE_PADDING = 16;
-
-function RouteTrace({ polyline, color }: { polyline: string; color: string }) {
-  const d = useMemo(
-    () => traceSvgPath(decodePolyline(polyline), VISUAL_WIDTH, VISUAL_HEIGHT, TRACE_PADDING),
-    [polyline],
-  );
-  return (
-    <svg viewBox={`0 0 ${VISUAL_WIDTH} ${VISUAL_HEIGHT}`} className="h-full w-full" aria-hidden>
-      <path
-        d={d}
-        fill="none"
-        stroke={color}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 /** Time in each zone with time in it, Z1 at the top, bars as long as their share. */

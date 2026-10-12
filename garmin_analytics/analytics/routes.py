@@ -1171,6 +1171,11 @@ def _cv(values: Sequence[float]) -> float | None:
 
 def list_routes(store: Store, activity_type: str | None = None) -> list[dict[str, Any]]:
     """Every route with its attempt count and headline stats, busiest first."""
+    # Imported here, not at the top: `api/__init__` pulls in `server`, which imports
+    # this module, so a module-level import of its geometry helpers is a cycle. The
+    # two functions themselves are pure and import nothing of the project's own.
+    from ..api.preview import encode_polyline, simplify
+
     where, params = "", []
     if activity_type:
         where = "WHERE r.activity_type = ?"
@@ -1200,9 +1205,12 @@ def list_routes(store: Store, activity_type: str | None = None) -> list[dict[str
         laps = lap_times(store, {**r, "start_lat": r["lap_start_lat"], "start_lon": r["lap_start_lon"]})
         r["distance_km"] = round(float(r["distance_m"] or 0) / 1000.0, 2)
         r["is_loop"] = bool(r["is_loop"])
-        r["layout"] = route_layout(
-            [(p[0], p[1]) for p in json.loads(r.pop("points"))], r["is_loop"]
-        )
+        track = [(p[0], p[1]) for p in json.loads(r.pop("points"))]
+        r["layout"] = route_layout(track, r["is_loop"])
+        # The shape, for the list's thumbnail. Simplified the way an activity preview
+        # is: a route's full track is far more detail than a 240px image can show, and
+        # the whole list is one response.
+        r["polyline"] = encode_polyline(simplify(track)) if len(track) >= 2 else None
         r["pinned"] = bool(r["pinned"])
         r["best_lap_s"] = min(laps) if laps else None
         r["median_lap_s"] = _median(laps, digits=1)

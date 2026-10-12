@@ -1,4 +1,5 @@
 import type { ActivityPreviews } from "@/api/adapters";
+import { MapAttribution } from "@/components/MapAttribution";
 import { EmptyState } from "@/components/EmptyState";
 import { ActivityCard } from "@/features/activities/ActivityCard";
 import { ActivityCards } from "@/features/activities/ActivityCards";
@@ -104,19 +105,5 @@ export function ActivityResults({
       )}
       {view === "cards" && mapProvider === "mapbox" && <MapAttribution />}
     </div>
-  );
-}
-
-/** Mapbox's logo and credit are off the small card maps, so they are given once here. */
-function MapAttribution() {
-  return (
-    <p className="text-muted-foreground text-right text-xs">
-      <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">
-        © Mapbox
-      </a>{" "}
-      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-        © OpenStreetMap
-      </a>
-    </p>
   );
 }

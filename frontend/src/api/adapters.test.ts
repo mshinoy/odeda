@@ -484,6 +484,7 @@ describe("gear and routes", () => {
         medianLapS: null,
         firstDay: "2025-01-04",
         lastDay: "2026-09-20",
+        polyline: null,
       },
     ]);
   });

@@ -21,6 +21,7 @@ function route(overrides: Partial<RouteListItem> = {}): RouteListItem {
     isLoop: true,
     layout: "loop",
     pinned: false,
+    polyline: null,
     bestTimeS: 1980,
     medianTimeS: 2488,
     bestLapS: null,

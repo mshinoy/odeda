@@ -699,3 +699,66 @@ class TestRouteNumbers:
         ra, rb = _route_of(store, "a"), _route_of(store, "b")
         assert R.keep_route_ids(store, {"a": rb}) == {}
         assert (_route_of(store, "a"), _route_of(store, "b")) == (ra, rb)
+
+
+class TestTheListCarriesTheShape:
+    """T53. The routes are auto-named from their distance — `1.6 km loop #31` — so the
+    list names nothing the owner recognises without a picture of the route."""
+
+    @pytest.fixture
+    def clustered(self, store):
+        for i in range(3):
+            _store_track(store, f"a{i}", _line(25.0, 51.0, 120, jitter_m=4, seed=i),
+                         day=f"2026-01-0{i + 1}")
+        R.cluster_all(store)
+        return store
+
+    def test_every_route_carries_an_encoded_polyline(self, clustered, store):
+        rows = R.list_routes(store)
+        assert rows
+        assert all(isinstance(r["polyline"], str) and r["polyline"] for r in rows)
+
+    def test_it_decodes_back_to_the_route(self, clustered, store):
+        """Encoded, not raw points: a precision-5 polyline of the simplified track."""
+        row = R.list_routes(store)[0]
+        points = _decode_polyline(row["polyline"])
+        assert len(points) >= 2
+        lat, lon = points[0]
+        assert 24.9 < lat < 25.1
+        assert 50.9 < lon < 51.1
+
+    def test_it_is_simplified_rather_than_every_point(self, clustered, store):
+        """A 240px thumbnail cannot show a full track, and the whole list is one
+        response: 53 untrimmed routes would be the largest payload the app sends."""
+        from garmin_analytics.api.preview import MAX_POINTS
+
+        row = R.list_routes(store)[0]
+        assert len(_decode_polyline(row["polyline"])) <= MAX_POINTS
+
+    def test_the_points_column_still_does_not_leak(self, clustered, store):
+        """`points` is popped for the layout; the row must not start carrying it."""
+        assert "points" not in R.list_routes(store)[0]
+
+
+def _decode_polyline(encoded: str) -> list[tuple[float, float]]:
+    """Google's precision-5 polyline, decoded. Here rather than in the app: nothing it
+    ships needs to read one back, and a test that re-used the encoder's own helpers
+    would only prove they agree with themselves."""
+    points, index, lat, lon = [], 0, 0, 0
+    while index < len(encoded):
+        for axis in range(2):
+            shift = result = 0
+            while True:
+                byte = ord(encoded[index]) - 63
+                index += 1
+                result |= (byte & 0x1F) << shift
+                shift += 5
+                if byte < 0x20:
+                    break
+            delta = ~(result >> 1) if result & 1 else result >> 1
+            if axis == 0:
+                lat += delta
+            else:
+                lon += delta
+        points.append((lat / 1e5, lon / 1e5))
+    return points

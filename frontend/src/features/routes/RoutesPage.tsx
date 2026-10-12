@@ -2,8 +2,11 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useRouteList } from "@/api/queries/useRoutes";
 import { EmptyState } from "@/components/EmptyState";
+import { MapAttribution } from "@/components/MapAttribution";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toRouteRowView } from "@/features/routes/routeRowView";
-import { RouteTable } from "@/features/routes/RouteTable";
+import { RouteCard } from "@/features/routes/RouteCard";
+import { mapEnv, providerFor } from "@/map/basemap";
 
 /** Your recurring loops: every clustered route, the one you run most at the top. */
 export function RoutesPage() {
@@ -24,5 +27,17 @@ export function RoutesPage() {
     );
   }
 
-  return <RouteTable rows={rows} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
+        {rows
+          ? rows.map((row) => <RouteCard key={row.id} row={row} />)
+          : SKELETONS.map((key) => <Skeleton key={key} className="h-[180px] rounded-xl" />)}
+      </div>
+      {/* The card images carry no logo of their own, so the credit goes here (D14). */}
+      {providerFor(mapEnv) === "mapbox" && <MapAttribution />}
+    </div>
+  );
 }
+
+const SKELETONS = Array.from({ length: 6 }, (_, i) => i);
