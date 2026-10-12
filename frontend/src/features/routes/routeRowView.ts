@@ -10,6 +10,8 @@ export interface RouteRowView {
   href: string;
   name: string;
   kind: ActivityKind;
+  /** The raw Garmin type, which `MergeRoutesDialog` filters its candidates by. */
+  activityType: string;
   typeLabel: string;
   /** "Loop", "Out and back" or "One way": the shape the clusterer found. */
   shape: string;
@@ -19,6 +21,8 @@ export interface RouteRowView {
   /** Times for that one time round: a loop's laps, any other route's attempts. */
   best: string;
   median: string;
+  /** The day of the first attempt, shown once a card is opened. */
+  first: string;
   /** The day of the most recent attempt. */
   last: string;
   /** The route's shape for the card's map; null for one with too few points. */
@@ -31,6 +35,7 @@ export function toRouteRowView(route: RouteListItem, today: Date = new Date()): 
     href: `/routes/${route.id}`,
     name: route.name,
     kind: route.kind,
+    activityType: route.activityType,
     typeLabel: activityTypeLabel(route.activityType),
     shape: LAYOUT_LABELS[route.layout],
     attempts: formatInteger(route.attempts),
@@ -38,6 +43,7 @@ export function toRouteRowView(route: RouteListItem, today: Date = new Date()): 
     // Round a loop, an attempt is any number of laps, so its time is no record: the lap is.
     best: formatDuration(route.layout === "loop" ? route.bestLapS : route.bestTimeS),
     median: formatDuration(route.layout === "loop" ? route.medianLapS : route.medianTimeS),
+    first: formatDate(route.firstDay, today),
     last: formatDate(route.lastDay, today),
     polyline: route.polyline,
   };

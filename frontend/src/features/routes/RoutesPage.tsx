@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useRouteList } from "@/api/queries/useRoutes";
 import { EmptyState } from "@/components/EmptyState";
 import { MapAttribution } from "@/components/MapAttribution";
@@ -12,6 +12,12 @@ import { mapEnv, providerFor } from "@/map/basemap";
 export function RoutesPage() {
   const { data, error } = useRouteList();
   const rows = useMemo(() => data?.map((route) => toRouteRowView(route)), [data]);
+  // The opened card lives in the URL, like the plan's opened week: a route worth
+  // looking at is a route worth sending to yourself.
+  const [params, setParams] = useSearchParams();
+  const open = Number(params.get("route")) || null;
+  const toggle = (id: number) =>
+    setParams(open === id ? {} : { route: String(id) }, { replace: true });
 
   if (error) return <EmptyState message={error.message} />;
   if (rows?.length === 0) {
@@ -31,7 +37,14 @@ export function RoutesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         {rows
-          ? rows.map((row) => <RouteCard key={row.id} row={row} />)
+          ? rows.map((row) => (
+              <RouteCard
+                key={row.id}
+                row={row}
+                open={open === row.id}
+                onToggle={() => toggle(row.id)}
+              />
+            ))
           : SKELETONS.map((key) => <Skeleton key={key} className="h-[180px] rounded-xl" />)}
       </div>
       {/* The card images carry no logo of their own, so the credit goes here (D14). */}

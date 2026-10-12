@@ -4,14 +4,16 @@ import { api, unwrap } from "@/api/client";
 import { queryKeys } from "@/api/queryClient";
 
 /** One route: its geometry, every attempt at it, and how those attempts have gone. */
-export function useRoute(id: number) {
+/** `enabled` false holds the request back — the route list opens a card before it
+ *  needs the detail, and 53 cards must not each fetch one on arrival. */
+export function useRoute(id: number, enabled = true) {
   return useQuery({
     queryKey: queryKeys.route(id),
     queryFn: async () =>
       toRouteDetail(
         unwrap(await api.GET("/api/routes/{route_id}", { params: { path: { route_id: id } } })),
       ),
-    enabled: Number.isInteger(id),
+    enabled: enabled && Number.isInteger(id),
   });
 }
 

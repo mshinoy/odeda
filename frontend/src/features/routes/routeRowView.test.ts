@@ -34,6 +34,7 @@ describe("toRouteRowView", () => {
       href: "/routes/31",
       name: "5.0 km loop #31",
       kind: "run",
+      activityType: "trail_running",
       typeLabel: "Trail running",
       polyline: null,
       shape: "Loop",
@@ -41,6 +42,7 @@ describe("toRouteRowView", () => {
       distance: "5.1 km",
       best: "10:02",
       median: "12:09",
+      first: "Jan 18, 2024",
       last: "Sep 15",
     });
   });
