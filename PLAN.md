@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | 8 Training plan | H: `ready for review` | 13 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `ready for review` | 4 / 4 |
+| 11 Loose ends | K: `open` | 4 / 5 |
 
 ### Phase 0 — Foundations (done)
 
@@ -207,7 +207,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `ready for review`
+### Phase 11 — Loose ends · Checkpoint K: `open`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -218,6 +218,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T46 | Laps: timed from where each run started on the loop; cut corners do not count | done | — | Laps are timed from where the run began, and a cut corner is not a lap |
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
 | T51 | `npm run gen:api` regenerates against the owner's running container | done | — | The types come from the checkout, not from whatever is on port 8000 |
+| T53 | The route list shows the route | in progress (patti, 2026-10-12) | T44 | |
 
 ### Open decisions
 
@@ -2863,3 +2864,33 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     the ride that replaced the run, and every week after today shows its prescription
     with no verdict and no tint. Light and dark in `~/garmin-review/H/`.
   - 1461 passed, 1 skipped; 802 frontend tests, typecheck, lint and build clean.
+
+### T53 — The route list shows the route
+- **Goal:** you can tell which loop a row is without opening it.
+- **Files:** `garmin_analytics/analytics/routes.py`, `garmin_analytics/api/schemas.py`,
+  `frontend/src/api/adapters.ts`, `frontend/src/map/RoutePreview.tsx`,
+  `frontend/src/components/MapAttribution.tsx`,
+  `frontend/src/features/activities/CardVisual.tsx`,
+  `frontend/src/features/activities/ActivityResults.tsx`,
+  `frontend/src/features/routes/routeRowView.ts`,
+  `frontend/src/features/routes/RouteCard.tsx`,
+  `frontend/src/features/routes/RouteCards.tsx`,
+  `frontend/src/features/routes/RoutesPage.tsx`, `tests/test_routes_api.py`.
+- **Build:**
+  - [ ] `RouteSummary` carries the route's shape as an encoded polyline
+  - [ ] the list is cards with a static map, the way the activity list is (D14)
+  - [ ] no Mapbox token still draws the trace, as the activity cards do
+  - [ ] Mapbox attribution appears under the route list too
+  - [ ] every number the table showed is still on the card
+- **Notes:**
+  - The owner, on reviewing T47's numbering: "the route list is useless without a
+    visual". Routes are auto-named from their distance and shape — `1.6 km loop #31` —
+    so without the map a row names nothing the owner recognises, which is exactly the
+    problem that made checking the restored numbers hard.
+  - **The polyline rides with the list rather than a previews endpoint.** An activity
+    list pages through thousands and fetches previews for the visible page; there are
+    53 routes and one cached response, and each simplified shape is about 80 bytes.
+  - **`RoutePreview` moves to `map/`.** The image-with-trace-fallback belonged to the
+    activity card; two features need it now, and it is a map concern, not an
+    activities one. `MapAttribution` moves to `components/` for the same reason —
+    Mapbox's terms want it wherever a static image is shown with its logo suppressed.
