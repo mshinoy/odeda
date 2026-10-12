@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | 8 Training plan | H: `ready for review` | 13 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `ready for review` | 6 / 6 |
+| 11 Loose ends | K: `open` | 6 / 7 |
 
 ### Phase 0 — Foundations (done)
 
@@ -207,7 +207,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `ready for review`
+### Phase 11 — Loose ends · Checkpoint K: `open`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -220,6 +220,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T51 | `npm run gen:api` regenerates against the owner's running container | done | — | The types come from the checkout, not from whatever is on port 8000 |
 | T53 | The route list shows the route | done | T44 | The route list shows the route |
 | T54 | A route card opens where it sits, and can be merged from there | done | T53 | A route card opens where it sits |
+| T55 | Filter the routes by what you did on them | in progress (patti, 2026-10-12) | T53 | |
 
 ### Open decisions
 
@@ -2938,3 +2939,27 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     fill a panel almost none of them show would be 53 requests for nothing.
   - Light and dark of an opened card in `~/garmin-review/K/`; 802 frontend tests,
     typecheck, lint and build clean. No backend change, so no backend run.
+
+### T55 — Filter the routes by what you did on them
+- **Goal:** the five rides are findable among the thirty-one runs.
+- **Files:** `frontend/src/features/routes/routeFilter.ts`,
+  `frontend/src/features/routes/routeFilter.test.ts`,
+  `frontend/src/features/routes/RouteKindFilter.tsx`,
+  `frontend/src/features/routes/RoutesPage.tsx`.
+- **Build:**
+  - [ ] a control above the list: All, and one per kind the routes actually contain
+  - [ ] each option carries its count, so an empty filter is never a surprise
+  - [ ] the chosen filter is in the URL, like the open card
+  - [ ] filtering does not refetch
+- **Notes:**
+  - The owner's routes: 31 running, 16 walking, 5 cycling, 1 other. The five rides are
+    the ones worth finding, and they sit below fifty other cards.
+  - **Filtered in the browser, not by `?type=`.** `/api/routes` can filter, but the
+    whole list is one cached response of 42 KB: filtering here is instant, survives a
+    back button, and is the only way to put a count on each option. A request per
+    click could not say "Ride 5" before you clicked it.
+  - **By `kind`, not by Garmin's raw type.** `trail_running` and `running` are both
+    running to anyone looking for a run; the raw type is what the API would have
+    filtered on, and would have split them.
+  - Only kinds with routes in them are offered. A Swim or Strength option that always
+    gave an empty list would be a control that lies about what the data holds.
