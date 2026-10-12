@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `ready for review` | 12 / 12 |
+| 8 Training plan | H: `open` | 12 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 4 / 4 |
@@ -157,7 +157,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Training plan · Checkpoint H: `ready for review`
+### Phase 8 — Training plan · Checkpoint H: `open`
 
 The app knows what the owner **did** and what they are training **for**, and nothing
 about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
@@ -183,6 +183,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
 | T49 | The plan has a start day, and the owner sets it | done | T37, T41 | The plan starts when the owner says it starts |
 | T50 | A week counted its sessions and its kilometres over different days | done | T37 | A week counts the same days twice |
+| T52 | `/plan` as a weekly calendar, not a table of weeks | in progress (patti, 2026-10-12) | T38, T40 | |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2819,3 +2820,32 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - No view changes, so there is nothing to screenshot: the generated types are
     byte-identical apart from the header, and typecheck, lint, 797 frontend tests and
     the build all pass on them.
+
+### T52 — `/plan` as a weekly calendar, not a table of weeks
+- **Goal:** the plan reads the way it was written — a week across, days down the columns.
+- **Files:** `garmin_analytics/analytics/plan.py`, `garmin_analytics/api/schemas.py`,
+  `garmin_analytics/api/server.py`, `frontend/src/api/schema.ts` (generated),
+  `frontend/src/api/queries/usePlan.ts`, `frontend/src/features/plan/planView.ts`,
+  `frontend/src/features/plan/PlanCalendar.tsx`, `frontend/src/features/plan/PlanDayCell.tsx`,
+  `frontend/src/features/plan/PlanPage.tsx`, `tests/test_plan_api.py`.
+- **Build:**
+  - [ ] `GET /api/plan/sessions`: every judged session at once, so 21 weeks is one request
+  - [ ] a week is a row of seven days, Monday to Sunday, with its summary beside it
+  - [ ] a day cell carries the prescription, the verdict and what was actually done
+  - [ ] two sessions on one day both show; a moved session says it moved
+  - [ ] a verdict is never colour alone — tone, glyph and word together
+  - [ ] the week table goes; clicking a day opens the week detail that already exists
+- **Notes:**
+  - The owner asked for this after reviewing H: "the /plan layout is not so intuitive".
+    A twenty-one row table hides the one thing a training block is for — the ramp.
+  - **Week per row, seven day columns**, the shape Higdon's own tables use and the shape
+    the Monday week-notes are written in. Chosen over a one-week-at-a-time view, which
+    would have meant twenty-one screens to review a block, and over a six-week window,
+    which loses the arc to race day. The owner picked the whole block, scrolling.
+  - **Why a new endpoint.** `/api/plan` returns week *summaries*; `/api/plan/week` returns
+    one week's sessions. A calendar needs every day at once, and twenty-one requests is
+    not an answer. `/api/plan/sessions` reuses `judge_all` and `_as_dict`, so there is no
+    second opinion about what a verdict is.
+  - **Colour cannot carry the verdict alone.** `substituted` and `short` are a hue apart
+    and mean different things. Every cell states the word as well, reusing the existing
+    `VERDICT_DISPLAY` tones rather than introducing a palette this app does not have.
