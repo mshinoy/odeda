@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | 8 Training plan | H: `ready for review` | 13 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `ready for review` | 5 / 5 |
+| 11 Loose ends | K: `open` | 5 / 6 |
 
 ### Phase 0 — Foundations (done)
 
@@ -207,7 +207,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `ready for review`
+### Phase 11 — Loose ends · Checkpoint K: `open`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -219,6 +219,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T47 | Routes keep their numbers: a regroup reuses them, and today's renumbering is undone | done | — | Routes keep their numbers through a regroup |
 | T51 | `npm run gen:api` regenerates against the owner's running container | done | — | The types come from the checkout, not from whatever is on port 8000 |
 | T53 | The route list shows the route | done | T44 | The route list shows the route |
+| T54 | A route card opens where it sits, and can be merged from there | in progress (patti, 2026-10-12) | T53 | |
 
 ### Open decisions
 
@@ -2905,3 +2906,25 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     `MAX_POINTS`. The table is gone; every figure it carried (attempts, distance, best,
     median, shape, type, last) is on the card.
   - Light and dark in `~/garmin-review/K/`; 1465 passed, 1 skipped, 802 frontend tests.
+
+### T54 — A route card opens where it sits, and can be merged from there
+- **Goal:** tidying the routes does not mean a round trip to another page for each one.
+- **Files:** `frontend/src/api/queries/useRoute.ts`,
+  `frontend/src/features/routes/routeRowView.ts`,
+  `frontend/src/features/routes/RouteCard.tsx`,
+  `frontend/src/features/routes/RouteCardDetail.tsx`,
+  `frontend/src/features/routes/RoutesPage.tsx`.
+- **Build:**
+  - [ ] clicking a card expands it in place instead of leaving the list
+  - [ ] the open card carries Rename, Merge and Split, the route page's own dialogs
+  - [ ] the detail is fetched only once a card is opened
+  - [ ] the open card is in the URL, as the plan's open week is
+  - [ ] the route's own page is still one click away
+- **Notes:**
+  - The owner, having asked for cards: "clicking on it, I can expand it, and then merge
+    with another one if necessary". Merging is the job the list exists for — 53 routes
+    with a handful of duplicates among them — and doing it from the route page means
+    opening a route, merging, going back, losing your place, and finding the next one.
+  - **The three dialogs are reused, not reimplemented.** `RenameRouteDialog`,
+    `MergeRoutesDialog` and `SplitRouteDialog` already take a route id and little else.
+    Split needs the attempt list, which is why the open card fetches the route detail.
