@@ -1068,6 +1068,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/routes/{route_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Route Similar */
+        get: operations["api_route_similar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/routes/{route_id}": {
         parameters: {
             query?: never;
@@ -5010,6 +5027,35 @@ export interface components {
             slowest_segments?: components["schemas"]["RouteSegmentProfile"][];
         };
         /**
+         * RouteSimilar
+         * @description One route this one could be merged with, and how alike they are.
+         */
+        RouteSimilar: {
+            /** Route Id */
+            route_id: number;
+            /**
+             * Similarity
+             * @description Shared ground, 0..1: `match_score` both ways round, the lower. The clusterer's
+             *     own measure (D16), so this and the grouping agree about what one route is.
+             *     Usually 0 — anything above the clusterer's threshold is already the same route.
+             */
+            similarity: number;
+            /**
+             * Metres Away
+             * @description Between the two centroids. What ranks the candidates once the scores tie, which
+             *     with a well-clustered database is most of them.
+             */
+            metres_away: number;
+        };
+        /**
+         * RouteSimilarList
+         * @description Candidates for a merge, most alike first, then nearest.
+         */
+        RouteSimilarList: {
+            /** Candidates */
+            candidates: components["schemas"]["RouteSimilar"][];
+        };
+        /**
          * RouteSplitRequest
          * @description `POST /api/routes/{id}/split` body: the attempts to pull out into a new route.
          */
@@ -7573,6 +7619,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RouteList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_route_similar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                route_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteSimilarList"];
                 };
             };
             /** @description Validation Error */

@@ -822,6 +822,25 @@ class RouteSegments(_Model):
     slowest_segments: list[RouteSegmentProfile] = Field(default_factory=list)
 
 
+class RouteSimilar(_Model):
+    """One route this one could be merged with, and how alike they are."""
+
+    route_id: int
+    similarity: float
+    """Shared ground, 0..1: `match_score` both ways round, the lower. The clusterer's
+    own measure (D16), so this and the grouping agree about what one route is.
+    Usually 0 — anything above the clusterer's threshold is already the same route."""
+    metres_away: float
+    """Between the two centroids. What ranks the candidates once the scores tie, which
+    with a well-clustered database is most of them."""
+
+
+class RouteSimilarList(_Model):
+    """Candidates for a merge, most alike first, then nearest."""
+
+    candidates: list[RouteSimilar]
+
+
 class RouteRenameRequest(_Model):
     """`PATCH /api/routes/{id}` body."""
 

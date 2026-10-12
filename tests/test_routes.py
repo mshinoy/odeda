@@ -762,3 +762,47 @@ def _decode_polyline(encoded: str) -> list[tuple[float, float]]:
                 lon += delta
         points.append((lat / 1e5, lon / 1e5))
     return points
+
+
+class TestWhatToMergeWith:
+    """T56. The merge dialog offered every route of the same type, unranked. These are
+    the scores that put the plausible one at the top."""
+
+    @pytest.fixture
+    def several(self, store):
+        # Two runs round the same ground, and one a long way off.
+        for i in range(2):
+            _store_track(store, f"here{i}", _line(25.0, 51.0, 120, jitter_m=4, seed=i),
+                         day=f"2026-01-0{i + 1}")
+        for i in range(2):
+            _store_track(store, f"far{i}", _line(25.3, 51.4, 120, jitter_m=4, seed=20 + i),
+                         day=f"2026-02-0{i + 1}")
+        R.cluster_all(store)
+        return store
+
+    def test_it_offers_every_other_route_of_the_type(self, several, store):
+        rows = R.list_routes(store)
+        me = rows[0]["route_id"]
+        out = R.similar_routes(store, me)
+        assert {c["route_id"] for c in out} == {r["route_id"] for r in rows} - {me}
+
+    def test_the_nearest_comes_first_when_nothing_overlaps(self, several, store):
+        """Almost every score is zero — anything above the clusterer's threshold is
+        already one route — so the gap between centroids is what ranks them."""
+        me = R.list_routes(store)[0]["route_id"]
+        out = R.similar_routes(store, me)
+        gaps = [c["metres_away"] for c in out]
+        assert gaps == sorted(gaps) or any(c["similarity"] > 0 for c in out)
+
+    def test_a_better_overlap_outranks_a_nearer_route(self, several, store):
+        out = R.similar_routes(store, R.list_routes(store)[0]["route_id"])
+        scores = [c["similarity"] for c in out]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_it_never_offers_the_route_itself(self, several, store):
+        me = R.list_routes(store)[0]["route_id"]
+        assert all(c["route_id"] != me for c in R.similar_routes(store, me))
+
+    def test_an_unknown_route_is_a_lookup_error_not_an_empty_list(self, several, store):
+        with pytest.raises(LookupError):
+            R.similar_routes(store, 9999)

@@ -51,7 +51,7 @@ Paste one of these into a fresh session.
 | 8 Training plan | H: `ready for review` | 13 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `open` | 7 / 8 |
+| 11 Loose ends | K: `ready for review` | 8 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -207,7 +207,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `open`
+### Phase 11 — Loose ends · Checkpoint K: `ready for review`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
@@ -221,7 +221,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T53 | The route list shows the route | done | T44 | The route list shows the route |
 | T54 | A route card opens where it sits, and can be merged from there | done | T53 | A route card opens where it sits |
 | T55 | Filter the routes by what you did on them | done | T53 | Filter the routes by what you did on them |
-| T56 | Merge offers the routes most like this one, with their maps | in progress (patti, 2026-10-12) | T53 | |
+| T56 | Merge offers the routes most like this one, with their maps | done | T53 | Merge offers the routes most like this one |
 
 ### Open decisions
 
@@ -2984,11 +2984,11 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `frontend/src/features/routes/MergeCandidate.tsx`,
   `frontend/src/features/routes/MergeRoutesDialog.tsx`, `tests/test_routes.py`.
 - **Build:**
-  - [ ] `GET /api/routes/{id}/similar`: every candidate scored, best first
-  - [ ] scored on shared ground — the clusterer's own measure (D16), not a guess
-  - [ ] ties broken by how far apart they are, so nearby routes come first
-  - [ ] the dialog draws each candidate's map beside its name and score
-  - [ ] it is computed only when the dialog opens
+  - [x] `GET /api/routes/{id}/similar`: every candidate scored, best first
+  - [x] scored on shared ground — the clusterer's own measure (D16), not a guess
+  - [x] ties broken by how far apart they are, so nearby routes come first
+  - [x] the dialog draws each candidate's map beside its name and score
+  - [x] it is computed only when the dialog opens
 - **Notes:**
   - The owner: "the merge button needs to show the routes that are most similar to
     mine, with the map, so I can say — oh these two you can merge." The dialog offered
@@ -3004,3 +3004,13 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     a route 190 m away is a candidate worth looking at, one 2 km away is not.
   - On the owner's #31 (Bin Omran): **#42 at 15.7% shared and 190 m away**, then a
     cliff to 0% and 1.5 km. That is the pair worth a look, and it is top of the list.
+  - **The scores and the pictures come from different places, joined in the view.**
+    The server has the geometry and returns `{route_id, similarity, metres_away}`; the
+    names, maps and counts are already in the route list the page holds. Neither side
+    carries the other's fields, and a score for a route the list has not got is
+    dropped rather than drawn as a row with no map.
+  - **302 ms to score one route against thirty**, so it is cached like the route list
+    and the pages, and only requested when the dialog opens.
+  - `useRoute` and `useRouteSimilar` both take an `enabled` flag for that reason.
+  - Light and dark of the open dialog in `~/garmin-review/K/`; 1470 passed, 1 skipped,
+    812 frontend tests, typecheck, lint and build clean.

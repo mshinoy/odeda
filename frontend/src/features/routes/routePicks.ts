@@ -2,24 +2,46 @@
 // rules the server enforces are visible in the UI rather than found out by a 400.
 import type { RouteAttempt, RouteListItem } from "@/api/adapters";
 import type { PickOption } from "@/features/routes/PickList";
-import { formatDate, formatDistance, formatDuration, formatInteger } from "@/lib/format";
+import { formatDate, formatDuration, formatInteger } from "@/lib/format";
+
+export interface MergeCandidateOption {
+  route: RouteListItem;
+  /** Shared ground, 0..1, as the clusterer measures it. */
+  similarity: number;
+  metresAway: number;
+}
 
 /**
- * The routes that can be folded into this one: every other route of the same activity
- * type. Merging a walk into a run would make a cluster whose attempts are not
- * comparable, which is what the clusterer already avoids.
+ * The routes that can be folded into this one, most alike first.
+ *
+ * The scores come from the server, which has the geometry; the names, maps and counts
+ * come from the list the page already holds. Joined here so neither side has to carry
+ * the other's fields.
+ *
+ * A candidate the list does not know about is dropped rather than shown half-formed:
+ * the two can only disagree if a sync landed between the requests, and a row with no
+ * map is the one thing this dialog exists to avoid.
  */
-export function mergeOptions(
+export function mergeCandidates(
   routes: readonly RouteListItem[],
+  scored: readonly { route_id: number; similarity: number; metres_away: number }[],
   target: { id: number; activityType: string },
-): PickOption[] {
-  return routes
-    .filter((route) => route.id !== target.id && route.activityType === target.activityType)
-    .map((route) => ({
-      id: String(route.id),
-      label: route.name,
-      detail: `${formatInteger(route.attempts)} × ${formatDistance(route.distanceM)}`,
-    }));
+): MergeCandidateOption[] {
+  const byId = new Map(routes.map((route) => [route.id, route]));
+  const out: MergeCandidateOption[] = [];
+
+  for (const candidate of scored) {
+    const route = byId.get(candidate.route_id);
+    if (!route || route.id === target.id || route.activityType !== target.activityType) {
+      continue;
+    }
+    out.push({
+      route,
+      similarity: candidate.similarity,
+      metresAway: candidate.metres_away,
+    });
+  }
+  return out;
 }
 
 /** The attempts that can be split out, newest first, as the attempts table shows them. */

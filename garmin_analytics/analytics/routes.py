@@ -1576,3 +1576,49 @@ def compare(store: Store, activity_ids: Sequence[str]) -> dict[str, Any]:
             continue
         out.append({"activity": dict(row), "track": track})
     return {"count": len(out), "attempts": out}
+
+
+def similar_routes(store: Store, route_id: int) -> list[dict[str, Any]]:
+    """Every route this one could be merged with, most alike first.
+
+    Scored with `similarity`, the share of each route's ground the other covers. That
+    is the clusterer's own measure (D16), so the merge dialog and the clusterer cannot
+    disagree about what "the same route" means.
+
+    **Most scores are zero, and that is the truth rather than a failure.** Anything
+    overlapping by the clusterer's threshold is already one route, so a genuine
+    duplicate only exists where the clustering missed one. Ranking on overlap alone
+    would therefore leave almost every candidate tied, so the distance between the two
+    centroids breaks it: a route 190 m away is worth looking at, one 2 km away is not.
+
+    Only routes of the same activity type, which is what `merge` itself allows.
+    """
+    target = store.query(
+        "SELECT route_id, activity_type, points, centroid_lat, centroid_lon "
+        "FROM routes WHERE route_id = ?",
+        (route_id,),
+    )
+    if not target:
+        raise LookupError(f"no route {route_id}")
+    me = target[0]
+    mine = [(p[0], p[1]) for p in json.loads(me["points"])]
+
+    out: list[dict[str, Any]] = []
+    for row in store.query(
+        "SELECT route_id, points, centroid_lat, centroid_lon FROM routes "
+        "WHERE route_id <> ? AND activity_type = ?",
+        (route_id, me["activity_type"]),
+    ):
+        theirs = [(p[0], p[1]) for p in json.loads(row["points"])]
+        out.append({
+            "route_id": int(row["route_id"]),
+            "similarity": round(similarity(mine, theirs), 4),
+            "metres_away": round(
+                haversine(me["centroid_lat"], me["centroid_lon"],
+                          row["centroid_lat"], row["centroid_lon"]),
+                1,
+            ),
+        })
+
+    out.sort(key=lambda c: (-c["similarity"], c["metres_away"]))
+    return out

@@ -47,6 +47,8 @@ export const queryKeys = {
   route: (id: number) => ["route", id] as const,
   /** Apart from the route: only a re-cluster recomputes a segment profile. */
   routeSegmentsAll: ["route-segments"] as const,
+  /** Merge candidates, scored; only fetched when the merge dialog opens. */
+  routeSimilar: (id: number) => ["route", id, "similar"] as const,
   routeSegments: (id: number) => ["route-segments", id] as const,
   heatmapAll: ["heatmap"] as const,
   heatmap: (params: HeatmapParams) => ["heatmap", params] as const,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RouteAttempt, RouteListItem } from "@/api/adapters";
 import {
-  mergeOptions,
+  mergeCandidates,
   pickLabel,
   splitBlockedReason,
   splitOptions,
@@ -51,21 +51,37 @@ function attempt(overrides: Partial<RouteAttempt> = {}): RouteAttempt {
   };
 }
 
-describe("mergeOptions", () => {
+describe("mergeCandidates", () => {
   const target = { id: 31, activityType: "running" };
+  const score = (id: number, similarity: number, away: number) => ({
+    route_id: id,
+    similarity,
+    metres_away: away,
+  });
 
-  it("offers the other routes of the same type, with their size", () => {
-    expect(mergeOptions([route()], target)).toEqual([
-      { id: "4", label: "4.2 km route #4", detail: "25 × 5.0 km" },
-    ]);
+  it("keeps the server's order, most alike then nearest", () => {
+    const routes = [route({ id: 4 }), route({ id: 9 }), route({ id: 42 })];
+    const scored = [score(42, 0.157, 190), score(9, 0, 1810), score(4, 0, 1900)];
+    expect(mergeCandidates(routes, scored, target).map((c) => c.route.id)).toEqual([42, 9, 4]);
+  });
+
+  it("carries the score and the gap through for the row to show", () => {
+    const [first] = mergeCandidates([route({ id: 42 })], [score(42, 0.157, 190)], target);
+    expect(first?.similarity).toBe(0.157);
+    expect(first?.metresAway).toBe(190);
   });
 
   it("never offers the route being merged into", () => {
-    expect(mergeOptions([route({ id: 31 })], target)).toEqual([]);
+    expect(mergeCandidates([route({ id: 31 })], [score(31, 1, 0)], target)).toEqual([]);
   });
 
   it("never offers another activity's type, which the clusterer keeps apart", () => {
-    expect(mergeOptions([route({ activityType: "walking" })], target)).toEqual([]);
+    const walk = route({ id: 7, activityType: "walking" });
+    expect(mergeCandidates([walk], [score(7, 0.9, 10)], target)).toEqual([]);
+  });
+
+  it("drops a score for a route the list has not got, rather than a row with no map", () => {
+    expect(mergeCandidates([], [score(99, 0.5, 10)], target)).toEqual([]);
   });
 });
 

@@ -129,6 +129,7 @@ from .schemas import (
     RouteRenameRequest,
     RouteRenameResult,
     RouteSegments,
+    RouteSimilarList,
     RouteSplitRequest,
     RouteSplitResult,
     Summary,
@@ -1244,6 +1245,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return {"routes": rows}
 
         return cached(settings, f"routes:{type}", compute)
+
+    @app.get("/api/routes/{route_id}/similar", response_model=RouteSimilarList)
+    def api_route_similar(route_id: int) -> dict[str, Any]:
+        # Scoring reads every candidate's geometry, so it is kept until the data
+        # changes, as the list and the route pages are.
+        def compute() -> dict[str, Any]:
+            with store() as st:
+                try:
+                    return {"candidates": routes_mod.similar_routes(st, route_id)}
+                except LookupError as exc:
+                    raise HTTPException(404, str(exc)) from exc
+
+        return cached(settings, f"route-similar:{route_id}", compute)
 
     @app.get("/api/routes/{route_id}", response_model=RouteDetail)
     def api_route(route_id: int) -> dict[str, Any]:
