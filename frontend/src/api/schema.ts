@@ -541,6 +541,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Plan Sessions */
+        get: operations["api_plan_sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan/start": {
         parameters: {
             query?: never;
@@ -4039,6 +4056,21 @@ export interface components {
             moved_from: string | null;
         };
         /**
+         * PlanSessionList
+         * @description Every judged session in the plan at once, for the calendar.
+         *
+         *     One request rather than one per week: the grid draws the whole block, and the
+         *     sessions carry their own `day`, so the view buckets them itself.
+         */
+        PlanSessionList: {
+            /** Today */
+            today: string;
+            /** Sessions */
+            sessions: components["schemas"]["PlanSession"][];
+            /** Unplanned */
+            unplanned: components["schemas"]["PlanUnplanned"][];
+        };
+        /**
          * PlanSource
          * @description The subscribed calendar. The address is **always masked** — a private iCal URL is
          *     read access to the whole calendar to anyone holding it.
@@ -6492,6 +6524,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Plan"];
+                };
+            };
+        };
+    };
+    api_plan_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSessionList"];
                 };
             };
         };

@@ -123,16 +123,59 @@ function mean(weeks: readonly PlanWeek[]): number {
 }
 
 /**
- * The weeks worth drawing: from four weeks back to race week.
+ * One row per week, seven cells per row, Monday first.
  *
- * The whole block is twelve weeks and the grid shows all of it, but a plan re-synced
- * mid-block can carry weeks from an older one, and a wall of finished weeks pushes
- * the only actionable row off the screen.
+ * The sessions arrive as one flat list for the whole block (`/api/plan/sessions`) and
+ * are bucketed here rather than fetched per week, so a twenty-one week view is one
+ * request. A day with two prescriptions keeps both: the owner's Mondays carry a run and
+ * a gym session, and a calendar that showed only the first would be quietly wrong.
+ *
+ * Every week the summary knows about gets a row, including ones with nothing in them —
+ * a blank week in a training block is information, and T49's start day is the control
+ * for where the block begins, so there is nothing left to trim.
  */
-export function gridWeeks(weeks: readonly PlanWeek[], today: string): readonly PlanWeek[] {
-  const current = weeks.findIndex((w) => w.start <= today && today < addDays(w.start, 7));
-  if (current < 0) return weeks;
-  return weeks.slice(Math.max(current - 4, 0));
+export function calendarWeeks(
+  weeks: readonly PlanWeek[],
+  sessions: readonly PlanSession[],
+  today: string,
+): CalendarWeek[] {
+  const byDay = new Map<string, PlanSession[]>();
+  for (const session of sessions) {
+    const bucket = byDay.get(session.day);
+    if (bucket) bucket.push(session);
+    else byDay.set(session.day, [session]);
+  }
+
+  return weeks.map((summary) => ({
+    week: summary.week,
+    start: summary.start,
+    summary,
+    isCurrent: isCurrentWeek(summary, today),
+    days: Array.from({ length: 7 }, (_, offset) => {
+      const date = addDays(summary.start, offset);
+      return {
+        date,
+        sessions: byDay.get(date) ?? [],
+        isToday: date === today,
+        isFuture: date > today,
+      };
+    }),
+  }));
+}
+
+export interface CalendarDay {
+  date: string;
+  sessions: readonly PlanSession[];
+  isToday: boolean;
+  isFuture: boolean;
+}
+
+export interface CalendarWeek {
+  week: string;
+  start: string;
+  summary: PlanWeek;
+  isCurrent: boolean;
+  days: readonly CalendarDay[];
 }
 
 function addDays(iso: string, days: number): string {

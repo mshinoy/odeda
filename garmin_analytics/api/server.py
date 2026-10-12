@@ -108,6 +108,7 @@ from .schemas import (
     Plan,
     PlanLinkRequest,
     PlanLinkResult,
+    PlanSessionList,
     PlanSourceRequest,
     PlanStartRequest,
     PlanSyncResult,
@@ -690,6 +691,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except plan_ics_mod.PlanFeedError as exc:
                 raise HTTPException(400, str(exc)) from exc
             return plan_mod.compute_plan(st)
+
+    @app.get("/api/plan/sessions", response_model=PlanSessionList)
+    def api_plan_sessions() -> dict[str, Any]:
+        with store() as st:
+            return plan_mod.compute_sessions(st)
 
     @app.put("/api/plan/start", response_model=Plan)
     def api_plan_start(payload: PlanStartRequest = Body(...)) -> dict[str, Any]:

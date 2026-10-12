@@ -48,7 +48,7 @@ Paste one of these into a fresh session.
 | 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
 | 6 Automatic sync | F: `ready for review` | 3 / 3 |
 | 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `open` | 12 / 13 |
+| 8 Training plan | H: `ready for review` | 13 / 13 |
 | 9 Speed | I: `ready for review` | 1 / 1 |
 | 10 Routes that know laps | J: `ready for review` | 1 / 1 |
 | 11 Loose ends | K: `ready for review` | 4 / 4 |
@@ -157,7 +157,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Training plan · Checkpoint H: `open`
+### Phase 8 — Training plan · Checkpoint H: `ready for review`
 
 The app knows what the owner **did** and what they are training **for**, and nothing
 about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
@@ -183,7 +183,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T48 | An ignored session is actually ignored | done | T37 | A decision nobody read |
 | T49 | The plan has a start day, and the owner sets it | done | T37, T41 | The plan starts when the owner says it starts |
 | T50 | A week counted its sessions and its kilometres over different days | done | T37 | A week counts the same days twice |
-| T52 | `/plan` as a weekly calendar, not a table of weeks | in progress (patti, 2026-10-12) | T38, T40 | |
+| T52 | `/plan` as a weekly calendar, not a table of weeks | done | T38, T40 | The plan reads like a calendar |
 
 ### Phase 9 — Speed · Checkpoint I: `ready for review`
 
@@ -2829,12 +2829,12 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `frontend/src/features/plan/PlanCalendar.tsx`, `frontend/src/features/plan/PlanDayCell.tsx`,
   `frontend/src/features/plan/PlanPage.tsx`, `tests/test_plan_api.py`.
 - **Build:**
-  - [ ] `GET /api/plan/sessions`: every judged session at once, so 21 weeks is one request
-  - [ ] a week is a row of seven days, Monday to Sunday, with its summary beside it
-  - [ ] a day cell carries the prescription, the verdict and what was actually done
-  - [ ] two sessions on one day both show; a moved session says it moved
-  - [ ] a verdict is never colour alone — tone, glyph and word together
-  - [ ] the week table goes; clicking a day opens the week detail that already exists
+  - [x] `GET /api/plan/sessions`: every judged session at once, so 21 weeks is one request
+  - [x] a week is a row of seven days, Monday to Sunday, with its summary beside it
+  - [x] a day cell carries the prescription, the verdict and what was actually done
+  - [x] two sessions on one day both show; a moved session says it moved
+  - [x] a verdict is never colour alone — tone, glyph and word together
+  - [x] the week table goes; clicking a day opens the week detail that already exists
 - **Notes:**
   - The owner asked for this after reviewing H: "the /plan layout is not so intuitive".
     A twenty-one row table hides the one thing a training block is for — the ramp.
@@ -2849,3 +2849,17 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - **Colour cannot carry the verdict alone.** `substituted` and `short` are a hue apart
     and mean different things. Every cell states the word as well, reusing the existing
     `VERDICT_DISPLAY` tones rather than introducing a palette this app does not have.
+  - **`gridWeeks` is gone with the table.** It trimmed everything before four weeks ago
+    so the actionable row stayed on screen. The calendar answers that by scrolling to
+    the current week instead of throwing the earlier ones away, and T49's start day is
+    now the honest control for where a block begins.
+  - **The weekday label moved into a sticky header** rather than being repeated in all
+    147 cells. That bought the line back that titles needed: `Katara Hills - ...` and
+    `Lusail Track - ...` truncated to the same ellipsis, and which one a Tuesday asks
+    for is the whole point of the cell. The header sits at `top-14`, under the shell's
+    own sticky header, not over it.
+  - **Checked on the owner's real calendar**, 130 sessions over 21 weeks: two sessions
+    stack on every Monday, 10 Oct reads `27.6 km · moved`, 5 Oct reads `Swapped` with
+    the ride that replaced the run, and every week after today shows its prescription
+    with no verdict and no tint. Light and dark in `~/garmin-review/H/`.
+  - 1461 passed, 1 skipped; 802 frontend tests, typecheck, lint and build clean.

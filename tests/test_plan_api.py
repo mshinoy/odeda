@@ -304,3 +304,31 @@ class TestManualLinks:
         sid = self._session_id(planned, "2026-10-02")
         assert planned.put(f"/api/plan/sessions/{sid}/link",
                            json={"activity_id": "nope"}).status_code == 404
+
+
+class TestEverySessionAtOnce:
+    """`/api/plan/sessions`. The calendar draws a cell per day across the whole block,
+    so fetching a week at a time would be twenty-one requests to render one page."""
+
+    def test_no_calendar_is_an_empty_list_not_an_error(self, client):
+        r = client.get("/api/plan/sessions")
+        assert r.status_code == 200
+        assert r.json()["sessions"] == []
+
+    def test_it_returns_the_days_the_week_endpoint_would(self, planned):
+        """Both read `judge_all`, so a cell and the week above it cannot disagree."""
+        every = planned.get("/api/plan/sessions").json()["sessions"]
+        one_week = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()
+        same_week = [s for s in every if "2026-09-28" <= s["day"] <= "2026-10-04"]
+        assert same_week == one_week["sessions"]
+
+    def test_a_session_carries_its_own_day_so_the_view_can_bucket_it(self, planned):
+        sessions = planned.get("/api/plan/sessions").json()["sessions"]
+        assert sessions
+        assert all(s["day"] for s in sessions)
+        assert sessions == sorted(sessions, key=lambda s: s["day"])
+
+    def test_the_verdicts_match_the_plan_itself(self, planned):
+        every = planned.get("/api/plan/sessions").json()
+        plan = planned.get("/api/plan").json()
+        assert every["today"] == plan["today"]

@@ -21,6 +21,19 @@ export function usePlan() {
   });
 }
 
+/**
+ * Every judged session in the block, for the calendar.
+ *
+ * One request rather than one per week: the grid draws twenty-one weeks of days, and
+ * the sessions carry their own `day`, so the view buckets them itself.
+ */
+export function usePlanSessions() {
+  return useQuery({
+    queryKey: queryKeys.planSessions,
+    queryFn: async () => unwrap(await api.GET("/api/plan/sessions")),
+  });
+}
+
 /** One week, session by session. `start` is any day in it; null skips the request. */
 export function usePlanWeek(start: string | null) {
   return useQuery({

@@ -2412,6 +2412,17 @@ class PlanWeekDetail(_Model):
     unplanned: list[PlanUnplanned]
 
 
+class PlanSessionList(_Model):
+    """Every judged session in the plan at once, for the calendar.
+
+    One request rather than one per week: the grid draws the whole block, and the
+    sessions carry their own `day`, so the view buckets them itself."""
+
+    today: str
+    sessions: list[PlanSession]
+    unplanned: list[PlanUnplanned]
+
+
 class PlanSourceRequest(_Model):
     url: str
     """The calendar's secret iCal address. Stored, never returned."""

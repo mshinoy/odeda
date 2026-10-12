@@ -2,6 +2,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   useClearPlanLink,
   usePlan,
+  usePlanSessions,
   usePlanWeek,
   useRace,
   useSetPlanLink,
@@ -10,19 +11,15 @@ import { usePerformance } from "@/api/queries/usePerformance";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/StatCard";
-import {
-  efficacySentence,
-  gridWeeks,
-  isCurrentWeek,
-  verdictSentence,
-} from "@/features/plan/planView";
+import { calendarWeeks, efficacySentence, verdictSentence } from "@/features/plan/planView";
+import { PlanCalendar } from "@/features/plan/PlanCalendar";
 import { PlanWeekDetail } from "@/features/plan/PlanWeekDetail";
-import { PlanWeekHeader, PlanWeekRow } from "@/features/plan/PlanWeekRow";
 import { formatDecimal, formatPercent } from "@/lib/format";
 
 /** The whole block, week by week: what was asked for, what happened, and whether it worked. */
 export function PlanPage() {
   const plan = usePlan();
+  const sessions = usePlanSessions();
   const race = useRace();
   const performance = usePerformance();
   // The opened week lives in the URL (`?week=2026-09-21`), like every other view's
@@ -51,7 +48,7 @@ export function PlanPage() {
     decoupling: performance.data?.decoupling_recent ?? [],
     projectedSeconds: race.data?.projection?.projected_seconds ?? null,
   });
-  const weeks = gridWeeks(plan.data.weeks, plan.data.today);
+  const weeks = calendarWeeks(plan.data.weeks, sessions.data?.sessions ?? [], plan.data.today);
   const busy = setLink.isPending || clearLink.isPending;
 
   return (
@@ -82,31 +79,28 @@ export function PlanPage() {
         />
       </div>
 
-      <section className="flex flex-col">
-        <PlanWeekHeader />
-        {weeks.map((w) => (
-          <div key={w.week}>
-            <PlanWeekRow
-              week={w}
-              current={isCurrentWeek(w, plan.data.today)}
-              open={openWeek === w.start}
-              onToggle={() => toggleWeek(w.start)}
-            />
-            {openWeek === w.start &&
-              (week.data ? (
-                <PlanWeekDetail
-                  week={week.data}
-                  busy={busy}
-                  onLink={(sessionId, activityId) => setLink.mutate({ sessionId, activityId })}
-                  onIgnore={(sessionId) => setLink.mutate({ sessionId, ignore: true })}
-                  onClear={(sessionId) => clearLink.mutate(sessionId)}
-                />
-              ) : (
-                <Skeleton className="mx-2 my-3 h-20" />
-              ))}
-          </div>
-        ))}
-      </section>
+      {sessions.isPending ? (
+        <Skeleton className="h-96" />
+      ) : (
+        <PlanCalendar
+          weeks={weeks}
+          openWeek={openWeek}
+          onOpenWeek={toggleWeek}
+          renderDetail={() =>
+            week.data ? (
+              <PlanWeekDetail
+                week={week.data}
+                busy={busy}
+                onLink={(sessionId, activityId) => setLink.mutate({ sessionId, activityId })}
+                onIgnore={(sessionId) => setLink.mutate({ sessionId, ignore: true })}
+                onClear={(sessionId) => clearLink.mutate(sessionId)}
+              />
+            ) : (
+              <Skeleton className="mx-2 my-3 h-20" />
+            )
+          }
+        />
+      )}
 
       {(setLink.error || clearLink.error) && (
         <p className="text-destructive text-sm">{(setLink.error ?? clearLink.error)?.message}</p>

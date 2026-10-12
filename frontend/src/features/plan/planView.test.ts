@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Plan, PlanSession, PlanWeek } from "@/api/queries/usePlan";
 import {
   adherenceDelta,
+  calendarWeeks,
   efficacySentence,
-  gridWeeks,
   isCurrentWeek,
   linkCandidates,
   sessionLabel,
@@ -178,29 +178,6 @@ describe("efficacySentence", () => {
   });
 });
 
-describe("gridWeeks", () => {
-  const weeks = [
-    week("2026-08-24"),
-    week("2026-08-31"),
-    week("2026-09-07"),
-    week("2026-09-14"),
-    week("2026-09-21"),
-    week("2026-09-28"),
-    week("2026-10-05"),
-    week("2026-10-12"),
-  ];
-
-  it("keeps four finished weeks before the current one, and everything after", () => {
-    const shown = gridWeeks(weeks, "2026-10-07");
-    expect(shown.at(0)?.start).toBe("2026-09-07");
-    expect(shown.at(-1)?.start).toBe("2026-10-12");
-  });
-
-  it("shows the lot when today is outside the block", () => {
-    expect(gridWeeks(weeks, "2027-03-01")).toHaveLength(weeks.length);
-  });
-});
-
 describe("isCurrentWeek", () => {
   it("includes the Monday and excludes the next one", () => {
     expect(isCurrentWeek(week("2026-10-05"), "2026-10-05")).toBe(true);
@@ -253,5 +230,64 @@ describe("weeklyKmSeries", () => {
       "2026-10-05",
       "2026-10-12",
     ]);
+  });
+});
+
+describe("calendarWeeks", () => {
+  const weeks = [week("2026-10-05"), week("2026-10-12")];
+
+  it("lays a week out as seven days, Monday first", () => {
+    const [first] = calendarWeeks(weeks, [], "2026-10-09");
+    expect(first?.days).toHaveLength(7);
+    expect(first?.days.at(0)?.date).toBe("2026-10-05");
+    expect(first?.days.at(-1)?.date).toBe("2026-10-11");
+  });
+
+  it("puts each session on its own day", () => {
+    const [first] = calendarWeeks(
+      weeks,
+      [session({ day: "2026-10-09", title: "Long Run - DBRC" })],
+      "2026-10-09",
+    );
+    expect(first?.days[4]?.date).toBe("2026-10-09");
+    expect(first?.days[4]?.sessions.map((s) => s.title)).toEqual(["Long Run - DBRC"]);
+    expect(first?.days[0]?.sessions).toEqual([]);
+  });
+
+  it("keeps both sessions when a day prescribes two", () => {
+    // The owner's Mondays carry a run and a gym session. Showing one would be wrong.
+    const [first] = calendarWeeks(
+      weeks,
+      [
+        session({ day: "2026-10-05", title: "Easy run 5 km" }),
+        session({ day: "2026-10-05", title: "Gym before swim", sport: "strength" }),
+      ],
+      "2026-10-09",
+    );
+    expect(first?.days[0]?.sessions).toHaveLength(2);
+  });
+
+  it("marks today, and the days still to come", () => {
+    const [first] = calendarWeeks(weeks, [], "2026-10-07");
+    expect(first?.days[2]?.isToday).toBe(true);
+    expect(first?.days[2]?.isFuture).toBe(false);
+    expect(first?.days[3]?.isFuture).toBe(true);
+    expect(first?.days[1]?.isFuture).toBe(false);
+  });
+
+  it("marks the current week and no other", () => {
+    const rows = calendarWeeks(weeks, [], "2026-10-07");
+    expect(rows.map((r) => r.isCurrent)).toEqual([true, false]);
+  });
+
+  it("keeps a week that prescribed nothing, rather than dropping the row", () => {
+    const rows = calendarWeeks(weeks, [], "2026-10-07");
+    expect(rows).toHaveLength(2);
+    expect(rows[1]?.days.every((d) => d.sessions.length === 0)).toBe(true);
+  });
+
+  it("ignores a session outside every week it was given", () => {
+    const rows = calendarWeeks(weeks, [session({ day: "2021-08-10" })], "2026-10-07");
+    expect(rows.flatMap((r) => r.days).every((d) => d.sessions.length === 0)).toBe(true);
   });
 });

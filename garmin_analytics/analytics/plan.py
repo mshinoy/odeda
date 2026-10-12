@@ -581,6 +581,23 @@ def compute_week(store, start: str, today: date | None = None) -> dict[str, Any]
     }
 
 
+def compute_sessions(store, today: date | None = None) -> dict[str, Any]:
+    """Every judged session in the plan, in one answer.
+
+    The calendar draws a cell per day across the whole block. `/api/plan` carries week
+    *summaries* and `/api/plan/week` carries one week, so without this a twenty-one week
+    view would be twenty-one requests. It judges through `judge_all` like everything
+    else, so a cell and the week summary above it cannot disagree about a verdict.
+    """
+    today = today or date.today()
+    judged, unplanned = judge_all(store, today)
+    return {
+        "today": today.isoformat(),
+        "sessions": [_as_dict(j) for j in judged],
+        "unplanned": unplanned,
+    }
+
+
 def _next_session(judged: Sequence[Judged], today: date) -> dict[str, Any] | None:
     upcoming = [
         j for j in judged

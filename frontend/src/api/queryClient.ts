@@ -71,6 +71,8 @@ export const queryKeys = {
   planAll: ["plan"] as const,
   plan: ["plan", "all"] as const,
   planWeek: (start: string) => ["plan", "week", start] as const,
+  /** Every judged session at once, so the calendar is one request and not twenty-one. */
+  planSessions: ["plan", "sessions"] as const,
   /** The race panel's own payload: countdown, 26 weeks of km, and the plan's targets. */
   race: ["race"] as const,
   garminStatus: ["garmin-status"] as const,
