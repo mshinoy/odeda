@@ -52,7 +52,7 @@ Paste one of these into a fresh session.
 | 9 Speed | I: `approved` | 1 / 1 |
 | 10 Routes that know laps | J: `approved` | 1 / 1 |
 | 11 Loose ends | K: `approved` | 8 / 8 |
-| 12 The race comes from the calendar | L: `open` | 0 / 1 |
+| 12 The race comes from the calendar | L: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -224,7 +224,7 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T55 | Filter the routes by what you did on them | done | T53 | Filter the routes by what you did on them |
 | T56 | Merge offers the routes most like this one, with their maps | done | T53 | Merge offers the routes most like this one |
 
-### Phase 12 — The race comes from the calendar · Checkpoint L: `open`
+### Phase 12 — The race comes from the calendar · Checkpoint L: `ready for review`
 
 `config.RACE_*` is four constants describing one race, baked in at build time. The
 calendar already holds every one of those facts — the owner's half is in it as
@@ -234,7 +234,7 @@ and then ignores, and on 16 January they become a countdown that reads −1 days
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T57 | The race is the next one in the calendar, not a constant | in progress (patti, 2026-10-19) | T36 | |
+| T57 | The race is the next one in the calendar, not a constant | done | T36 | The race is the next one in the calendar |
 
 ### Open decisions
 
@@ -3035,12 +3035,12 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   `garmin_analytics/ingest/plan_ics.py`, `garmin_analytics/api/server.py`,
   `tests/test_goal_race.py`.
 - **Build:**
-  - [ ] `goal_race`: the nearest `kind='race'` session still to come, or None
-  - [ ] the race panel, the projection and the body forecast all read it
-  - [ ] `RACE_NAME`, `RACE_DATE`, `RACE_START_LOCAL`, `RACE_DISTANCE_M` deleted
-  - [ ] no race in the calendar is an empty panel, not a wrong one
-  - [ ] the plan's read window stops depending on race day
-  - [ ] a start day is refused for what it actually breaks, not for being after a date
+  - [x] `goal_race`: the nearest `kind='race'` session still to come, or None
+  - [x] the race panel, the projection and the body forecast all read it
+  - [x] `RACE_NAME`, `RACE_DATE`, `RACE_START_LOCAL`, `RACE_DISTANCE_M` deleted
+  - [x] no race in the calendar is an empty panel, not a wrong one
+  - [x] the plan's read window stops depending on race day
+  - [x] a start day is refused for what it actually breaks, not for being after a date
 - **Notes:**
   - The owner asked how to add a ride to the app and whether the calendar was the right
     place. It is: the parser already reads `RACE` in a title as `kind='race'`, and a
@@ -3059,3 +3059,23 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     somewhere to store it and a control to set it; the nearest race self-heals the day
     after one is run, and a race nobody wants to aim at simply is not titled `RACE`.
     Pinning can follow if the automatic answer is ever wrong.
+  - **Race day holds two race-kinded sessions.** The club's own `Long Run - DBRC` sits
+    beside `RACE: Ooredoo Doha Half Marathon`, because both carry the word. Taking the
+    earliest by time picked the 05:00 club run and reported the half as an unnamed,
+    distanceless session. Within the first day it prefers the one titled `RACE`, then
+    one that names a distance.
+  - **The window and the view are now two separate bounds.** Ingest expands on a
+    400-day horizon because it must find a race before it can stop at one; `judge_all`
+    then ends the plan a week past the goal race, or 180 days out when none is named.
+    Without the second bound a weekly club run filled the view with 63 weeks.
+  - **The "Race date has passed" note is gone** — unreachable, since `goal_race` only
+    returns one still ahead. Replaced by a note for the case that can now happen: no
+    race in the calendar. It is level `good` rather than a new level, because
+    `NoteLevel` is a Literal the response model enforces and an unlisted value is a
+    500 on a route nobody touched (T30).
+  - **Proved identical on the real calendar:** `Ooredoo Doha Half Marathon`,
+    2027-01-15, 07:35, 21097.5 m, 88 days to go, 21 plan weeks, 36.5 km peak and CTL
+    target 67.2 — the same numbers the constants gave, now read from the feed. The
+    name reads as the calendar titles it rather than the constant's wording.
+  - 1475 passed, 1 skipped; 812 frontend tests, typecheck, lint and build clean.
+    Screenshots in `~/garmin-review/L/`.

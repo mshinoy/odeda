@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 
 # --- The thing we are training for -------------------------------------------------
-# Doha Marathon by Ooredoo, half marathon, Friday 15 January 2027, 07:35 local start.
-RACE_NAME = "Doha Marathon by Ooredoo — Half Marathon"
-RACE_DATE = date(2027, 1, 15)
-RACE_START_LOCAL = "07:35"
-RACE_DISTANCE_M = 21097.5
+# The race is NOT here. It comes from the training calendar: a session the parser reads
+# as `kind='race'` carries the name, day, start time and distance, and `analytics.plan
+# .goal_race` picks the nearest one still to come (T57). Four constants used to hold
+# the same facts and went stale the day the race was run — the same reason D12 deleted
+# `TARGET_PEAK_CTL`. Add a race by putting it in the calendar.
+#
+# The timezone stays: it is where the owner trains, not a fact about any one race, and
+# the ICS parser needs it before there are any sessions to read a race out of.
 RACE_TIMEZONE = "Asia/Qatar"
 
 # --- Athlete defaults ---------------------------------------------------------------

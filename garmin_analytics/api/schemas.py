@@ -1460,14 +1460,18 @@ class RaceProjection(_Model):
 
 
 class RaceInfo(_Model):
+    """A race read from the training calendar: a session the parser marked
+    `kind='race'`. Everything but the name and the day is optional, because a calendar
+    entry need not carry a start time or a distance."""
+
     name: str
     date: str
     """ISO date."""
-    start_local: str
+    start_local: str | None
     """Gun time, HH:MM local to `timezone`."""
     timezone: str
     """IANA zone name."""
-    distance_m: float
+    distance_m: float | None
 
 
 class PersonalBest(_Model):
@@ -1520,11 +1524,14 @@ class RacePanel(_Model):
     subscribed — the panel then draws its curves without a goal line rather than
     inventing one (D12)."""
 
-    race: RaceInfo
+    race: RaceInfo | None
+    """The race from the training calendar, or null when none is named ahead (T57).
+    It used to be four constants in `config.py`, which went on counting down after the
+    race was run."""
     today: str
-    days_to_go: int
+    days_to_go: int | None
     """Negative once the race has passed."""
-    weeks_to_go: float
+    weeks_to_go: float | None
     projection: RaceProjection | None
     """Null with no usable best effort."""
     ctl_now: float
@@ -1553,7 +1560,8 @@ class SummaryRace(_Model):
 
     name: str
     date: str
-    distance_m: float
+    distance_m: float | None
+    """A calendar race need not name a distance."""
     days_to_go: int
     projection: RaceProjection | None
 
@@ -1641,7 +1649,10 @@ class Summary(_Model):
     """Recovery-metric deviations over the last 180 days."""
     totals: ReportTotals
     streaks: Streaks
-    race: SummaryRace
+    race: SummaryRace | None
+    """The race from the training calendar, or null when none is named ahead (T57).
+    It used to be four constants in `config.py`, which went on counting down after the
+    race was run."""
     recent_weeks: list[WeeklyReportRow]
     """Up to the last eight weeks with activity."""
     gym: GymThisWeek | None
@@ -2272,13 +2283,6 @@ class OverridesSummary(_Model):
 # ---------------------------------------------------------------------------
 
 
-class ConfigRace(_Model):
-    name: str
-    date: str
-    start_local: str
-    timezone: str
-
-
 class ConfigAthlete(_Model):
     hr_rest: int
     hr_max: int
@@ -2293,7 +2297,10 @@ class AppConfig(_Model):
     the real ones belong to the plan rather than to the deployment, so they are on
     `/api/plan` and `/api/race` (D12)."""
 
-    race: ConfigRace
+    race: RaceInfo | None
+    """The race from the training calendar, or null when none is named ahead (T57).
+    It used to be four constants in `config.py`, which went on counting down after the
+    race was run."""
     athlete: ConfigAthlete
     auth_required: bool
     version: str

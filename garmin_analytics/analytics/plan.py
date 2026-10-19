@@ -27,11 +27,13 @@ is made where it can be seen rather than folded into an adherence percentage.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any, Collection, Iterable, Mapping, Sequence
 
+from .. import config
 from ..plan import parse as P
 
 #: Sports that can stand in for one another. A gym session is not an endurance
@@ -69,6 +71,12 @@ KIND_WEIGHT = {
     "rest": 0.5,
 }
 DEFAULT_WEIGHT = 1.0
+
+#: How far ahead the plan is shown when the calendar names no race. Ingest expands
+#: recurrence much further (it has to find a race before it can stop at one), but a
+#: weekly club run with no race ahead of it would otherwise fill the view with a year
+#: of identical weeks.
+VIEW_HORIZON_DAYS = 180
 
 VERDICTS = ("done", "short", "missed", "substituted", "rest-kept", "rest-broken", "upcoming")
 
@@ -491,7 +499,19 @@ def plan_start_day(store) -> str | None:
 
 
 def judge_all(store, today: date | None = None) -> tuple[list[Judged], list[dict[str, Any]]]:
-    sessions = _sessions(store, start=plan_start_day(store))
+    # Bounded at both ends: the owner's start day below (T49), and a week past the
+    # goal race above. Ingest expands recurrence on a generous horizon because it has
+    # to find the race before it can be bounded by it; the plan the owner *reads*
+    # still ends when the block does, rather than running a year of club runs on.
+    today = today or date.today()
+    race = goal_race(store, today)
+    last = (
+        date.fromisoformat(race["date"]) + timedelta(days=7)
+        if race is not None
+        else today + timedelta(days=VIEW_HORIZON_DAYS)
+    )
+    end = last.isoformat()
+    sessions = _sessions(store, start=plan_start_day(store), end=end)
     if not sessions:
         return [], []
     lo = min(str(s["day"]) for s in sessions)
@@ -763,3 +783,60 @@ def clear_link(store, session_id: int) -> dict[str, Any]:
     with store.tx():
         store.conn.execute("DELETE FROM plan_links WHERE plan_session_id = ?", (session_id,))
     return {"plan_session_id": session_id, "activity_id": None, "link_type": "cleared"}
+
+
+#: How a race's title reads once the keyword that identified it is taken off.
+_RACE_PREFIX = re.compile(r"^\s*RACE\s*[:\-–]\s*", re.IGNORECASE)
+
+
+def goal_race(store, today: date | None = None) -> dict[str, Any] | None:
+    """The race the training is pointed at: the nearest one still to come.
+
+    Read from the calendar rather than held as a constant. The parser already marks a
+    session `kind='race'` from the word RACE in its title, and such a session carries
+    the name, the day, the start time and the distance — every fact the four
+    `config.RACE_*` constants held, kept current by a sync instead of a rebuild.
+
+    Nearest upcoming rather than one the owner pins: it self-heals the day after a race
+    is run, and a race nobody wants to aim at is simply not titled RACE. Race day
+    itself still counts as upcoming — the panel should not go blank at breakfast.
+
+    `None` when the calendar names no race ahead, which the views show as no goal line
+    rather than inventing one (D12).
+    """
+    today = today or date.today()
+    rows = store.query(
+        "SELECT day, start_local, title, planned_min_m, planned_max_m "
+        "FROM plan_sessions "
+        "WHERE withdrawn_at IS NULL AND kind = 'race' AND day >= ? "
+        "ORDER BY day, start_local",
+        (today.isoformat(),),
+    )
+    if not rows:
+        return None
+
+    # Race day holds more than one race-kinded session: the club's own `Long Run -
+    # DBRC` sits beside `RACE: Ooredoo Doha Half Marathon`, because both carry the
+    # word. Within the earliest day, prefer the one that says RACE outright, then one
+    # that names a distance — taking the first by time picked the 05:00 club run and
+    # reported the half as an unnamed, distanceless session.
+    first_day = str(rows[0]["day"])
+    same_day = [r for r in rows if str(r["day"]) == first_day]
+    row = min(
+        same_day,
+        key=lambda r: (
+            _RACE_PREFIX.match(str(r["title"] or "")) is None,
+            (r["planned_min_m"] or r["planned_max_m"]) is None,
+            str(r["start_local"] or ""),
+        ),
+    )
+    start = str(row["start_local"] or "")
+    distance = row["planned_min_m"] or row["planned_max_m"]
+    return {
+        "name": _RACE_PREFIX.sub("", str(row["title"] or "")).strip() or "Race",
+        "date": str(row["day"]),
+        # `start_local` is an ISO datetime; the panel wants the wall clock off it.
+        "start_local": start[11:16] if len(start) >= 16 else None,
+        "timezone": config.RACE_TIMEZONE,
+        "distance_m": None if distance is None else float(distance),
+    }

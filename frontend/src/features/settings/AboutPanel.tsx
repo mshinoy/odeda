@@ -19,8 +19,9 @@ export function AboutPanel() {
       label: "Data",
       value: range ? `${formatDate(range.from)} → ${formatDate(range.to)}` : "—",
     },
-    { label: "Race", value: config.data ? config.data.race.name : "—" },
-    { label: "Race day", value: formatDate(config.data?.race.date) },
+    // Null until a race is in the calendar (T57).
+    { label: "Race", value: config.data?.race?.name ?? "—" },
+    { label: "Race day", value: formatDate(config.data?.race?.date) },
   ];
 
   return (

@@ -37,7 +37,9 @@ log = logging.getLogger("garmin_analytics.plan_ics")
 
 #: How far past race day to keep expanding. A taper week plus the race itself, so the
 #: plan page has somewhere to end rather than stopping mid-week.
-WINDOW_TAIL_DAYS = 7
+#: How far ahead recurrence is expanded. Long enough for any block the owner is
+#: planning, short enough that a weekly rule with no end does not run for ever.
+HORIZON_DAYS = 400
 
 #: Google answers an iCal request with `text/calendar`. An HTML body means the secret
 #: address was reset or revoked and the request was redirected to a sign-in page — a
@@ -154,8 +156,13 @@ def set_source(store, url: str, label: str | None = None, kind: str = "ics") -> 
 def set_start_day(store, day: str | None) -> None:
     """Draw the line the plan begins at, or pass `None` to use the whole calendar.
 
-    Validated here rather than at the edge because it is a fact about the plan, not about
-    HTTP: a start day after the race would silence every week there is.
+    Validated here rather than at the edge because it is a fact about the plan, not
+    about HTTP: a start day past everything the calendar holds silences every week
+    there is.
+
+    Measured against the last prescribed session, not against a race date. The first
+    version refused anything after `config.RACE_DATE`, so the reset control stopped
+    working on the day it was most wanted — starting the next block after a race.
     """
     if day is not None:
         day = day.strip()
@@ -163,12 +170,17 @@ def set_start_day(store, day: str | None) -> None:
             parsed = date.fromisoformat(day)
         except ValueError as exc:
             raise PlanFeedError("a start day must be a date, as 2026-09-01") from exc
-        if parsed > config.RACE_DATE:
+        # Compared on the parsed value, not the raw text: `fromisoformat` accepts
+        # forms a string comparison would get wrong.
+        day = parsed.isoformat()
+        last = store.scalar(
+            "SELECT MAX(day) FROM plan_sessions WHERE withdrawn_at IS NULL"
+        )
+        if last is not None and day > str(last):
             raise PlanFeedError(
-                f"that is after race day ({config.RACE_DATE.isoformat()}), "
+                f"that is after the last session the calendar holds ({last}), "
                 "which would leave nothing prescribed"
             )
-        day = parsed.isoformat()
     if get_source(store) is None:
         raise PlanFeedError("no calendar is subscribed")
     with store.tx():
@@ -223,15 +235,20 @@ def _utcnow() -> str:
     return utcnow()
 
 
-def window(today: date, tz: ZoneInfo, race_day: date = config.RACE_DATE) -> tuple[datetime, datetime]:
-    """How far to expand. From the feed's own past — the plan started before today and
-    finished weeks still have to be judged — to a week past race day.
+def window(today: date, tz: ZoneInfo) -> tuple[datetime, datetime]:
+    """How far to expand: from the feed's own past to a fixed horizon ahead.
 
     The start is deliberately open: `None` would read as "no bound", and the honest
     bound is "whatever the calendar holds", so the caller passes nothing and the feed
     decides. Only the end is capped, because an open-ended weekly rule has no end.
+
+    It used to end a week past `config.RACE_DATE`. The race now comes *from* the
+    sessions this expansion produces, which made that circular — on a first sync there
+    are none, so there would be no race to bound the window that creates it. A horizon
+    from today also moves forward on its own, where a constant froze the plan the day
+    the race passed.
     """
-    end_day = max(race_day, today) + timedelta(days=WINDOW_TAIL_DAYS)
+    end_day = today + timedelta(days=HORIZON_DAYS)
     return (
         datetime.combine(date(1970, 1, 1), time.min, tzinfo=tz),
         datetime.combine(end_day, time.max, tzinfo=tz),

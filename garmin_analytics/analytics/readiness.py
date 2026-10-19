@@ -223,13 +223,18 @@ def readiness_history(store, days: int = 90) -> list[dict[str, object]]:
 
 def project_race_time(
     bests: Sequence[Mapping[str, object]],
-    target_distance_m: float = config.RACE_DISTANCE_M,
+    target_distance_m: float | None = None,
 ) -> dict[str, object] | None:
     """Riegel projection to the race distance from the most informative recent best.
 
     Prefers the longest effort at or under the target distance — extrapolating a HM
     from a 1 k flatters the athlete badly, so we only use it if nothing longer exists.
     """
+    # No distance, no projection: the race comes from the calendar now, and one may
+    # name no distance at all.
+    if target_distance_m is None:
+        return None
+
     usable = [b for b in bests if float(b["distance_m"]) <= target_distance_m * 1.05]
     if not usable:
         return None
@@ -292,12 +297,22 @@ def trailing_weekly_km(store, days: int = 28) -> float:
 
 
 def compute_race(store, today: date | None = None) -> dict[str, object]:
+    """The race panel. The race itself comes from the calendar (T57), so with none
+    named ahead the countdown and the projection are null rather than a constant
+    counting backwards from a race already run."""
+    from .plan import goal_race
+
     today = today or date.today()
-    days_to_go = (config.RACE_DATE - today).days
+    race = goal_race(store, today)
+    days_to_go = None if race is None else (date.fromisoformat(race["date"]) - today).days
 
     bests_recent = perf.personal_bests(store, since_day=perf._days_ago(store, 120))
     bests_all = perf.personal_bests(store)
-    projection = project_race_time(bests_recent or bests_all)
+    projection = (
+        None
+        if race is None or race["distance_m"] is None
+        else project_race_time(bests_recent or bests_all, float(race["distance_m"]))
+    )
 
     load = load_mod.compute_load(store)
     current = load.get("current") or {}
@@ -313,7 +328,7 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
     ctl_target = targets["ctl_target"]
 
     # Straight-line CTL requirement to hit the target by race week.
-    weeks_left = max(days_to_go / 7.0, 0.0)
+    weeks_left = 0.0 if days_to_go is None else max(days_to_go / 7.0, 0.0)
     ctl_per_week_needed = (
         round((ctl_target - ctl) / weeks_left, 2)
         if ctl_target is not None and weeks_left >= 1
@@ -327,8 +342,18 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
     def note(level: str, text: str) -> None:
         notes.append({"level": level, "text": text})
 
-    if days_to_go < 0:
-        note("warning", "Race date has passed.")
+    # "Race date has passed" is gone with the constant: `goal_race` only ever returns
+    # one still ahead, so a negative countdown is no longer reachable. What is
+    # reachable is having no race named at all.
+    if race is None:
+        # "good" rather than a new level: the sibling no-plan note below uses it for
+        # the same kind of statement, and `NoteLevel` is a Literal the response model
+        # enforces — a value it does not allow is a 500 on a route nobody touched (T30).
+        note(
+            "good",
+            "No race in the calendar yet. Add one with RACE in its title and the "
+            "countdown and targets follow it.",
+        )
     if ctl_target is None:
         note(
             "good",
@@ -360,16 +385,10 @@ def compute_race(store, today: date | None = None) -> dict[str, object]:
             )
 
     return {
-        "race": {
-            "name": config.RACE_NAME,
-            "date": config.RACE_DATE.isoformat(),
-            "start_local": config.RACE_START_LOCAL,
-            "timezone": config.RACE_TIMEZONE,
-            "distance_m": config.RACE_DISTANCE_M,
-        },
+        "race": race,
         "today": today.isoformat(),
         "days_to_go": days_to_go,
-        "weeks_to_go": round(weeks_left, 1),
+        "weeks_to_go": None if days_to_go is None else round(weeks_left, 1),
         "projection": projection,
         "ctl_now": round(ctl, 1),
         "ctl_target": ctl_target,

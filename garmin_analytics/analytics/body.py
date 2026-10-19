@@ -29,7 +29,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any, Iterable, Mapping, Sequence
 
-from ..config import RACE_DATE, RACE_DISTANCE_M, RACE_NAME
 
 # ---------------------------------------------------------------------------
 # Smoothing
@@ -242,7 +241,7 @@ SECONDS_PER_KM_PER_KG = 2.7
 
 def race_projection(
     series: Mapping[str, Any],
-    race_day: date = RACE_DATE,
+    race: Mapping[str, Any] | None = None,
     today: date | None = None,
     window_days: int = PROJECTION_WINDOW_DAYS,
 ) -> dict[str, Any] | None:
@@ -251,7 +250,17 @@ def race_projection(
     Fitted on the smoothed trend, not on the raw readings: the readings' noise is
     symmetric and would not move the slope much, but it would make the fit's honesty
     depend on which mornings happened to fall at the ends of the window.
+
+    `race` is the goal race from the calendar (T57). With none ahead there is nothing
+    to project to, so this is None — the page shows the weight trend without a
+    race-day figure rather than one aimed at a race already run.
     """
+    if race is None:
+        return None
+    race_day = date.fromisoformat(str(race["date"]))
+    race_name = race["name"]
+    race_distance_m = race["distance_m"]
+
     days: list[str] = list(series.get("days") or [])
     trend: list[float | None] = list(series.get("trend_kg") or [])
     weights: list[float | None] = list(series.get("weight_kg") or [])
@@ -276,7 +285,7 @@ def race_projection(
     delta = projected - current
 
     return {
-        "race_name": RACE_NAME,
+        "race_name": race_name,
         "race_day": race_day.isoformat(),
         "days_out": days_out,
         "current_trend_kg": round(current, 2),
@@ -288,7 +297,11 @@ def race_projection(
         # Signed the way a runner reads it: losing weight is a negative `change_kg`
         # and a negative number of seconds, i.e. faster.
         "rule_of_thumb_s_per_km": round(delta * SECONDS_PER_KM_PER_KG, 1),
-        "rule_of_thumb_race_s": round(delta * SECONDS_PER_KM_PER_KG * RACE_DISTANCE_M / 1000.0),
+        "rule_of_thumb_race_s": (
+            None
+            if race_distance_m is None
+            else round(delta * SECONDS_PER_KM_PER_KG * race_distance_m / 1000.0)
+        ),
     }
 
 
@@ -495,7 +508,9 @@ def compute_body(store, days: int | None = 540, today: date | None = None) -> di
             "fat_change_kg": round(fat[-1] - fat[0], 2) if len(fat) > 1 else None,
             "lean_change_kg": round(lean[-1] - lean[0], 2) if len(lean) > 1 else None,
         },
-        "projection": race_projection(series, today=today),
+        # Imported here: `plan` imports nothing of this module's, but keeping the
+        # dependency at the call site makes it plain that the race is the plan's.
+        "projection": race_projection(series, _goal_race(store, today), today=today),
         "against_load": against_load(series, curve),
         "power_to_weight": power_to_weight(
             [a for a in activities if str(a["activity_type"]).endswith("cycling")], series
@@ -527,3 +542,9 @@ def _last(values: Sequence[float | None]) -> float | None:
         if value is not None:
             return value
     return None
+
+
+def _goal_race(store, today: date | None) -> dict[str, Any] | None:
+    from .plan import goal_race
+
+    return goal_race(store, today or date.today())

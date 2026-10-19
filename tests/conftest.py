@@ -100,3 +100,26 @@ def seeded_store(seeded_db):
     st = Store.open(seeded_db)
     yield st
     st.close()
+
+
+def add_calendar_race(store, day="2027-01-15", start="07:35", distance_m=21097.5,
+                      title="RACE: Ooredoo Doha Half Marathon"):
+    """Put a race in the plan, which is where the race lives (T57).
+
+    A helper rather than a fixture: most tests that need one also need a particular
+    store, and the four `config.RACE_*` constants they used to lean on are gone.
+    """
+    store.conn.execute(
+        "INSERT INTO plan_sources (kind, url, label, enabled) "
+        "VALUES ('ics', 'https://example.test/race.ics', 'Test', 1)"
+    )
+    source_id = store.conn.execute(
+        "SELECT id FROM plan_sources ORDER BY id DESC LIMIT 1"
+    ).fetchone()[0]
+    store.conn.execute(
+        "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+        "sport, kind, planned_min_m, planned_max_m, title, parse_status) "
+        "VALUES (?, 'race-uid', '', ?, ?, 'running', 'race', ?, ?, ?, 'ok')",
+        (source_id, day, f"{day}T{start}:00", distance_m, distance_m, title),
+    )
+    store.conn.commit()

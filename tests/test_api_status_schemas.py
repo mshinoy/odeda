@@ -137,7 +137,8 @@ def _old_summary(st: Store) -> dict[str, Any]:
         "flags": tr.get("flags"),
         "totals": rep.get("totals"),
         "streaks": rep.get("streaks"),
-        "race": {
+        # Mirrors the server: null when the calendar names no race (T57).
+        "race": None if race["race"] is None else {
             "name": race["race"]["name"],
             "date": race["race"]["date"],
             "days_to_go": race["days_to_go"],
@@ -200,6 +201,11 @@ def _strip_aggregate(body: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+#: The half, as these fixtures put it in the calendar. It was `config.RACE_DISTANCE_M`
+#: until T57 made the race the calendar's rather than the build's.
+HALF_M = 21097.5
+
+
 def _check_projection(new: dict[str, Any] | None, old: dict[str, Any] | None) -> None:
     """`new` is `old` minus the strings, plus `from_seconds`, which must be the number
     `from_time` was printed from and the one the projection was computed from."""
@@ -213,11 +219,11 @@ def _check_projection(new: dict[str, Any] | None, old: dict[str, Any] | None) ->
     assert isinstance(new["from_seconds"], float)
     assert perf.hms(new["from_seconds"]) == old["from_time"]
     riegel = perf.riegel(new["from_seconds"], float(new["from_distance_m"]),
-                         config.RACE_DISTANCE_M)
+                         HALF_M)
     assert round(riegel, 1) == new["projected_seconds"]
     assert perf.hms(new["projected_seconds"]) == old["projected_time"]
     assert perf.pace_str(
-        new["projected_seconds"] / (config.RACE_DISTANCE_M / 1000.0)
+        new["projected_seconds"] / (HALF_M / 1000.0)
     ) == old["projected_pace"]
 
 
@@ -349,15 +355,17 @@ class TestPayloadsUnchangedExceptDrops:
         assert set(old) == set(new)
         old_race, new_race = old.pop("race"), new.pop("race")
         _strict_equal(new, old)
-        assert set(new_race) - set(old_race) == ADDED_SUMMARY_RACE_KEYS
-        assert new_race["distance_m"] == config.RACE_DISTANCE_M
-        _check_projection(new_race["projection"], old_race["projection"])
-        _strict_equal(_drop(new_race, {"projection", *ADDED_SUMMARY_RACE_KEYS}),
-                      _drop(old_race, {"projection"}))
+        # Neither store has a calendar, so neither names a race (T57). The block is
+        # null on both sides rather than describing a constant that outlived its race.
+        assert old_race is None and new_race is None
 
     def test_summary_and_race_share_the_projection(self, client):
-        assert (client.get("/api/summary").json()["race"]["projection"]
-                == client.get("/api/race").json()["projection"])
+        summary_race = client.get("/api/summary").json()["race"]
+        panel = client.get("/api/race").json()
+        if summary_race is None:          # no race in the calendar (T57)
+            assert panel["race"] is None and panel["projection"] is None
+        else:
+            assert summary_race["projection"] == panel["projection"]
 
     def test_health(self, client, st, db):
         new = client.get("/api/health").json()
@@ -497,7 +505,8 @@ class TestEmptyShapes:
         body = empty.get("/api/summary").json()
         assert body["latest_day"] is None and body["load"] is None
         assert body["ramp_flag"] is None and body["warmup_note"] is None
-        assert body["race"]["projection"] is None and body["recent_weeks"] == []
+        # Null, not a block with a null projection: no calendar, so no race (T57).
+        assert body["race"] is None and body["recent_weeks"] == []
         assert body["day_range"] == {"from": None, "to": None}
         assert body["readiness"]["components"] == {}
 
@@ -506,11 +515,16 @@ class TestRaceProjectionFallback:
     def test_from_seconds_when_there_are_no_recent_bests(self, rw_settings):
         """No best in the last 120 days: the projection comes from the all-time
         bests, and `from_seconds` has to be found there too."""
+        from conftest import add_calendar_race
+
         with Store.open(rw_settings) as st:
             st.conn.execute(
                 "INSERT INTO activities (activity_id, day, start_time_local, activity_type)"
                 " VALUES ('future-walk', '2027-12-01', '2027-12-01 07:00:00', 'walking')")
             st.conn.commit()
+            # A projection needs a race to project to, and the race is the calendar's
+            # now (T57). Dated past the planted walk so it is still ahead.
+            add_calendar_race(st, day="2028-01-15")
             old = _as_json(_old_race(st))
         assert old["recent_bests"] == [] and old["projection"] is not None
         new = TestClient(create_app(rw_settings)).get("/api/race").json()

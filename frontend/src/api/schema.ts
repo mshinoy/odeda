@@ -1954,7 +1954,12 @@ export interface components {
          *     `/api/plan` and `/api/race` (D12).
          */
         AppConfig: {
-            race: components["schemas"]["ConfigRace"];
+            /**
+             * @description The race from the training calendar, or null when none is named ahead (T57).
+             *     It used to be four constants in `config.py`, which went on counting down after the
+             *     race was run.
+             */
+            race: components["schemas"]["RaceInfo"] | null;
             athlete: components["schemas"]["ConfigAthlete"];
             /** Auth Required */
             auth_required: boolean;
@@ -2250,17 +2255,6 @@ export interface components {
             hr_max: number;
             /** Sex */
             sex: string;
-        };
-        /** ConfigRace */
-        ConfigRace: {
-            /** Name */
-            name: string;
-            /** Date */
-            date: string;
-            /** Start Local */
-            start_local: string;
-            /** Timezone */
-            timezone: string;
         };
         /**
          * DailyList
@@ -4319,7 +4313,12 @@ export interface components {
             /** Watts Per Kg */
             watts_per_kg: number;
         };
-        /** RaceInfo */
+        /**
+         * RaceInfo
+         * @description A race read from the training calendar: a session the parser marked
+         *     `kind='race'`. Everything but the name and the day is optional, because a calendar
+         *     entry need not carry a start time or a distance.
+         */
         RaceInfo: {
             /** Name */
             name: string;
@@ -4332,14 +4331,14 @@ export interface components {
              * Start Local
              * @description Gun time, HH:MM local to `timezone`.
              */
-            start_local: string;
+            start_local: string | null;
             /**
              * Timezone
              * @description IANA zone name.
              */
             timezone: string;
             /** Distance M */
-            distance_m: number;
+            distance_m: number | null;
         };
         /** RaceNote */
         RaceNote: {
@@ -4360,16 +4359,21 @@ export interface components {
          *     inventing one (D12).
          */
         RacePanel: {
-            race: components["schemas"]["RaceInfo"];
+            /**
+             * @description The race from the training calendar, or null when none is named ahead (T57).
+             *     It used to be four constants in `config.py`, which went on counting down after the
+             *     race was run.
+             */
+            race: components["schemas"]["RaceInfo"] | null;
             /** Today */
             today: string;
             /**
              * Days To Go
              * @description Negative once the race has passed.
              */
-            days_to_go: number;
+            days_to_go: number | null;
             /** Weeks To Go */
-            weeks_to_go: number;
+            weeks_to_go: number | null;
             /** @description Null with no usable best effort. */
             projection: components["schemas"]["RaceProjection"] | null;
             /** Ctl Now */
@@ -5273,7 +5277,12 @@ export interface components {
             flags: components["schemas"]["TrendFlag"][];
             totals: components["schemas"]["ReportTotals"];
             streaks: components["schemas"]["Streaks"];
-            race: components["schemas"]["SummaryRace"];
+            /**
+             * @description The race from the training calendar, or null when none is named ahead (T57).
+             *     It used to be four constants in `config.py`, which went on counting down after the
+             *     race was run.
+             */
+            race: components["schemas"]["SummaryRace"] | null;
             /**
              * Recent Weeks
              * @description Up to the last eight weeks with activity.
@@ -5291,8 +5300,11 @@ export interface components {
             name: string;
             /** Date */
             date: string;
-            /** Distance M */
-            distance_m: number;
+            /**
+             * Distance M
+             * @description A calendar race need not name a distance.
+             */
+            distance_m: number | null;
             /** Days To Go */
             days_to_go: number;
             projection: components["schemas"]["RaceProjection"] | null;

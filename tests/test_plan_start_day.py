@@ -74,7 +74,9 @@ class TestTheBugItFixes:
         body = r.json()
         assert body["source"]["start_day"] == START
         assert min(weeks_of(body)) >= "2026-08-31"  # the Monday of the week START is in
-        assert len(body["weeks"]) < 30
+        # Far fewer than the 285 the whole calendar gives. Not a fixed number: this
+        # feed names no race, so the forward end is `VIEW_HORIZON_DAYS`, not race day.
+        assert len(body["weeks"]) < 60
 
     def test_targets_stop_being_averaged_over_five_years(self, subscribed):
         before = subscribed.get("/api/plan").json()["targets"]["mean_weekly_km"]
@@ -115,10 +117,20 @@ class TestItIsAResetNotADelete:
 
 
 class TestItRefusesWhatWouldBreakIt:
-    def test_a_start_day_after_the_race_is_refused(self, subscribed):
-        r = subscribed.put("/api/plan/start", json={"start_day": "2027-06-01"})
+    def test_a_start_day_past_the_whole_calendar_is_refused(self, subscribed):
+        """T57 changed what this is measured against. It used to refuse anything after
+        `config.RACE_DATE`, which meant the reset control stopped working on the day it
+        was most wanted — starting the next block after a race. It now refuses a day
+        after the last session the calendar actually holds, which is what "would leave
+        nothing prescribed" was always trying to say."""
+        r = subscribed.put("/api/plan/start", json={"start_day": "2030-06-01"})
         assert r.status_code == 400
-        assert "race day" in r.json()["detail"]
+        assert "last session" in r.json()["detail"]
+
+    def test_a_start_day_after_the_race_but_inside_the_calendar_is_allowed(self, subscribed):
+        """The bug this replaces: a new block beginning after race day was refused."""
+        r = subscribed.put("/api/plan/start", json={"start_day": "2027-02-01"})
+        assert r.status_code == 200
 
     def test_something_that_is_not_a_date_is_refused(self, subscribed):
         assert subscribed.put(

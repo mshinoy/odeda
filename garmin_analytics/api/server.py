@@ -596,7 +596,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "flags": tr.get("flags"),
                 "totals": rep.get("totals"),
                 "streaks": rep.get("streaks"),
-                "race": {
+                # Null when the calendar names no race ahead (T57), which the Status
+                # strip shows as no countdown rather than one to a race already run.
+                "race": None if race["race"] is None else {
                     "name": race["race"]["name"],
                     "date": race["race"]["date"],
                     # The distance behind `projection.projected_seconds`, so a pace
@@ -1419,13 +1421,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/config", response_model=AppConfig)
     def api_config() -> dict[str, Any]:
         """Non-secret configuration, so the dashboard can label its own assumptions."""
+        with store() as st:
+            race = plan_mod.goal_race(st)
         return {
-            "race": {
-                "name": config.RACE_NAME,
-                "date": config.RACE_DATE.isoformat(),
-                "start_local": config.RACE_START_LOCAL,
-                "timezone": config.RACE_TIMEZONE,
-            },
+            # The race is the calendar's, not the deployment's (T57) — the same move
+            # D12 made for the targets. Null when no race is named ahead.
+            "race": race,
             "athlete": {"hr_rest": settings.hr_rest, "hr_max": settings.hr_max,
                         "sex": settings.sex},
             # No targets block: they belong to the plan, not to the deployment, and

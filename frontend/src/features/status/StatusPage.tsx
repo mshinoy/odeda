@@ -32,14 +32,15 @@ export function StatusPage() {
   if (summary.error) return <EmptyState message={summary.error.message} />;
   if (load.error) return <EmptyState message={load.error.message} />;
 
-  const showRace = summary.data.race.days_to_go >= 0;
+  // No race in the calendar is no panel, rather than a countdown to nothing (T57).
+  const raceSummary = summary.data.race;
   const weeklyKm = race.data ? weeklyKmSeries(race.data.weekly_km, plan.data?.weeks ?? []) : [];
 
   return (
     <div className="flex flex-col gap-12">
       <div className="grid gap-12 lg:grid-cols-2">
         <ReadinessPanel readiness={summary.data.readiness} />
-        {showRace && <RacePanel race={summary.data.race} weeklyKm={weeklyKm} />}
+        {raceSummary && <RacePanel race={raceSummary} weeklyKm={weeklyKm} />}
       </div>
 
       {plan.data && <PlanStrip plan={plan.data} week={week.data} />}

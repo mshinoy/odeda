@@ -93,8 +93,9 @@ class TestReportCommand:
         out = capsys.readouterr().out
         assert "readiness" in out
         assert "training load" in out
-        assert "Doha Marathon" in out
-        assert "days to go" in out
+        # The race is the calendar's now (T57) and a seeded store has none, so the
+        # report says so instead of naming a race nobody entered.
+        assert "No race in the calendar" in out
 
     def test_json_mode(self, settings, capsys):
         cli.main(["seed", "--months", "2", "--end", "2026-09-22", "--reset"])

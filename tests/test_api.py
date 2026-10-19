@@ -18,6 +18,27 @@ def client(seeded_db):
 
 
 @pytest.fixture
+def racing_client(settings, fake_ui, seeded_db):
+    """A client with the seeded history *and* a race in its calendar.
+
+    Its own copy of the database, not the shared seeded one: the D12 tests assert that
+    a store with no calendar gets no targets, and a race session would give it some.
+    """
+    import shutil
+    from dataclasses import replace
+
+    from conftest import add_calendar_race
+    from garmin_analytics.db.store import Store
+
+    settings.db_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(seeded_db.db_path, settings.db_path)
+    st = Store.open(settings)
+    add_calendar_race(st)
+    st.close()
+    return TestClient(create_app(replace(settings, ui_dir=fake_ui)))
+
+
+@pytest.fixture
 def empty_client(settings, fake_ui):
     from dataclasses import replace
 
@@ -36,8 +57,7 @@ class TestHealthAndMeta:
 
     def test_config_exposes_no_secrets(self, client):
         body = client.get("/api/config").json()
-        assert body["race"]["date"] == "2027-01-15"
-        assert body["race"]["start_local"] == "07:35"
+        assert body["race"] is None   # no calendar in this store (T57)
         flat = str(body).lower()
         for forbidden in ("password", "token", "oauth", "cookie", "secret"):
             assert forbidden not in flat
@@ -68,7 +88,8 @@ class TestSummary:
         assert body["readiness"]["score"] is not None
         assert body["load"]["ctl"] > 0
         assert body["totals"]["activities"] > 0
-        assert body["race"]["days_to_go"] is not None
+        # The race is the calendar's now (T57); this store has none.
+        assert body["race"] is None
 
     def test_recent_weeks_are_capped_at_eight(self, client):
         assert len(client.get("/api/summary").json()["recent_weeks"]) <= 8
@@ -174,18 +195,25 @@ class TestPerformance:
 
 
 class TestRace:
-    def test_shape(self, client):
-        body = client.get("/api/race").json()
-        assert body["race"]["name"].startswith("Doha Marathon")
+    def test_shape(self, racing_client):
+        body = racing_client.get("/api/race").json()
+        assert body["race"]["name"] == "Ooredoo Doha Half Marathon"
         assert body["race"]["date"] == "2027-01-15"
         assert isinstance(body["notes"], list)
+
+    def test_no_race_in_the_calendar_is_null_not_a_stale_one(self, client):
+        """T57. The four constants described a race whatever the calendar said, and
+        went on counting down after it was run."""
+        body = client.get("/api/race").json()
+        assert body["race"] is None
+        assert body["days_to_go"] is None
 
     def test_notes_carry_severity(self, client):
         for note in client.get("/api/race").json()["notes"]:
             assert note["level"] in {"good", "warning"}
 
-    def test_projection_is_self_describing(self, client):
-        p = client.get("/api/race").json()["projection"]
+    def test_projection_is_self_describing(self, racing_client):
+        p = racing_client.get("/api/race").json()["projection"]
         assert p["projected_seconds"] and p["from_seconds"] and p["from_label"] and p["from_day"]
 
 

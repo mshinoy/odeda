@@ -529,8 +529,12 @@ def cmd_report(args: argparse.Namespace) -> int:
     print(f"    CTL ramp {ld.get('ramp_pct')}%/wk"
           + ("  ** above the 10% flag **" if ld.get("ramp_flag") else ""))
 
-    print(_colour(f"\n{race['race']['name']}", BOLD, colour))
-    print(f"    {race['race']['date']} — {race['days_to_go']} days to go")
+    # The race comes from the calendar now (T57), so there may not be one.
+    if race["race"] is None:
+        print(_colour("\nNo race in the calendar", BOLD, colour))
+    else:
+        print(_colour(f"\n{race['race']['name']}", BOLD, colour))
+        print(f"    {race['race']['date']} — {race['days_to_go']} days to go")
     if race["projection"]:
         p = race["projection"]
         print(f"    projected {p['projected_time']} ({p['projected_pace']}) "

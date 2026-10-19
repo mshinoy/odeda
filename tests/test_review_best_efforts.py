@@ -7,6 +7,8 @@ against the code as first written.
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from garmin_analytics.analytics import aggregate as agg
@@ -75,7 +77,22 @@ def test_records_wall_honours_an_explicit_cycling_filter(run_and_ride):
 
 def test_race_projection_is_not_built_from_a_bike_ride(run_and_ride):
     """The Riegel projection must come off a run, not a 1:48/km 'half marathon'."""
-    projection = rdy.compute_race(run_and_ride)["projection"]
+    # A projection needs a race to project to, and the race is the calendar's (T57).
+    run_and_ride.conn.execute(
+        "INSERT INTO plan_sources (kind, url, label, enabled) "
+        "VALUES ('ics', 'https://example.test/r.ics', 'Test', 1)"
+    )
+    sid = run_and_ride.conn.execute("SELECT id FROM plan_sources").fetchone()[0]
+    run_and_ride.conn.execute(
+        "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+        "sport, kind, planned_min_m, planned_max_m, title, parse_status) VALUES "
+        "(?, 'r', '', '2027-01-15', '2027-01-15T07:35:00', 'running', 'race', "
+        "21097.5, 21097.5, 'RACE: Half', 'ok')",
+        (sid,),
+    )
+    run_and_ride.conn.commit()
+
+    projection = rdy.compute_race(run_and_ride, today=date(2026, 9, 22))["projection"]
     assert projection is not None
     assert projection["from_day"] == "2026-09-01", "projected off the ride, not the run"
     # A half marathon projected from a 25:00 5 k is slow; from a 9:00 bike 5 k it is

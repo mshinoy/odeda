@@ -172,6 +172,17 @@ class TestConsistency:
         assert result["readings"] == 0 and result["coverage_pct"] == 0.0
 
 
+#: The goal race as the calendar now supplies it (T57). It was `config.RACE_*`, and a
+#: unit test of a straight-line projection should state its own target.
+HALF = {
+    "name": "Ooredoo Doha Half Marathon",
+    "date": "2027-01-15",
+    "start_local": "07:35",
+    "timezone": "Asia/Qatar",
+    "distance_m": 21097.5,
+}
+
+
 class TestProjection:
     def steady_loss(self, per_week: float, days: int = 120, end=date(2026, 9, 22)):
         start = end - timedelta(days=days - 1)
@@ -192,7 +203,7 @@ class TestProjection:
         by about a half-life, which is a real property and not an error.
         """
         series = self.steady_loss(0.35)
-        result = B.race_projection(series, today=date(2026, 9, 22))
+        result = B.race_projection(series, HALF, today=date(2026, 9, 22))
         assert result is not None
         assert result["days_out"] == 115
         assert result["slope_kg_per_week"] == pytest.approx(-0.35, abs=0.02)
@@ -201,7 +212,7 @@ class TestProjection:
 
     def test_a_steady_weight_projects_no_change(self):
         series = self.steady_loss(0.0)
-        result = B.race_projection(series, today=date(2026, 9, 22))
+        result = B.race_projection(series, HALF, today=date(2026, 9, 22))
         assert result["change_kg"] == pytest.approx(0.0, abs=0.1)
         assert result["rule_of_thumb_s_per_km"] == pytest.approx(0.0, abs=0.3)
 
@@ -215,7 +226,7 @@ class TestProjection:
         """
         assert B.SECONDS_PER_KM_PER_KG == 2.7
         series = self.steady_loss(0.35)
-        result = B.race_projection(series, today=date(2026, 9, 22))
+        result = B.race_projection(series, HALF, today=date(2026, 9, 22))
         assert result["rule_of_thumb_s_per_km"] < 0
         expected = result["change_kg"] * 2.7 * 21.0975
         assert result["rule_of_thumb_race_s"] == pytest.approx(expected, abs=1)
@@ -226,7 +237,7 @@ class TestProjection:
             {"day": "2026-09-0%d" % d, "weight_kg": 80.0, "body_fat_pct": None, "bmi": None}
             for d in (1, 5, 9)
         ]
-        assert B.race_projection(B.composition(rows), today=date(2026, 9, 22)) is None
+        assert B.race_projection(B.composition(rows), HALF, today=date(2026, 9, 22)) is None
 
     def test_a_short_span_of_many_readings_is_also_refused(self):
         """Ten readings in a week says nothing about January."""
@@ -235,10 +246,14 @@ class TestProjection:
              "weight_kg": 80.0, "body_fat_pct": None, "bmi": None}
             for i in range(7)
         ]
-        assert B.race_projection(B.composition(rows), today=date(2026, 9, 22)) is None
+        assert B.race_projection(B.composition(rows), HALF, today=date(2026, 9, 22)) is None
+
+    def test_no_race_in_the_calendar_is_no_projection(self):
+        """There is nothing to carry the trend forward to."""
+        assert B.race_projection(self.steady_loss(0.35), None, today=date(2026, 9, 22)) is None
 
     def test_nothing_weighed_is_no_projection(self):
-        assert B.race_projection(B.composition([]), today=date(2026, 9, 22)) is None
+        assert B.race_projection(B.composition([]), HALF, today=date(2026, 9, 22)) is None
 
 
 class TestAgainstLoad:
@@ -347,6 +362,21 @@ class TestTheWholeReport:
 
     def test_the_window_bounds_the_charts_and_not_the_projection(self, seeded_store):
         """Narrowing the view must not be able to move race day or refit the line."""
+        # The projection needs a race, and the race is the calendar's now (T57).
+        seeded_store.conn.execute(
+            "INSERT INTO plan_sources (kind, url, label, enabled) "
+            "VALUES ('ics', 'https://example.test/b.ics', 'Test', 1)"
+        )
+        sid = seeded_store.conn.execute("SELECT id FROM plan_sources").fetchone()[0]
+        seeded_store.conn.execute(
+            "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+            "sport, kind, planned_min_m, planned_max_m, title, parse_status) VALUES "
+            "(?, 'r', '', '2027-01-15', '2027-01-15T07:35:00', 'running', 'race', "
+            "21097.5, 21097.5, 'RACE: Half', 'ok')",
+            (sid,),
+        )
+        seeded_store.conn.commit()
+
         wide = B.compute_body(seeded_store, days=540, today=date(2026, 9, 22))
         narrow = B.compute_body(seeded_store, days=120, today=date(2026, 9, 22))
         assert len(narrow["series"]["days"]) < len(wide["series"]["days"])

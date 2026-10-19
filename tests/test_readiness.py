@@ -142,6 +142,11 @@ class TestComputeReadiness:
         assert hist[-1]["score"] == pytest.approx(point["score"], abs=1.5)
 
 
+#: The half, as a test fixture. It used to come from `config.RACE_DISTANCE_M`; the race
+#: is the calendar's now (T57), and a unit test of Riegel should name its own target.
+HALF_M = 21097.5
+
+
 class TestRaceProjection:
     BESTS = [
         {"distance_m": 1000.0, "seconds": 240.0, "label": "1 k", "time": "4:00", "day": "2026-09-01"},
@@ -151,22 +156,23 @@ class TestRaceProjection:
 
     def test_prefers_the_longest_qualifying_effort(self):
         """Projecting a half from a 1 k flatters badly; the 10 k must win."""
-        out = R.project_race_time(self.BESTS)
+        out = R.project_race_time(self.BESTS, HALF_M)
         assert out["from_distance_m"] == 10000.0
 
     def test_projection_matches_riegel_from_that_effort(self):
         from garmin_analytics.analytics import performance as P
 
-        out = R.project_race_time(self.BESTS)
+        out = R.project_race_time(self.BESTS, HALF_M)
         assert out["projected_seconds"] == pytest.approx(
-            P.riegel(2760.0, 10000.0, config.RACE_DISTANCE_M), abs=0.05
+            P.riegel(2760.0, 10000.0, HALF_M), abs=0.05
         )
 
     def test_rejects_efforts_longer_than_the_target(self):
         """A marathon best must not be used to project a half."""
         out = R.project_race_time(
             self.BESTS + [{"distance_m": 42195.0, "seconds": 12000.0, "label": "M",
-                           "time": "3:20:00", "day": "2026-05-01"}]
+                           "time": "3:20:00", "day": "2026-05-01"}],
+            HALF_M,
         )
         assert out["from_distance_m"] == 21097.5 or out["from_distance_m"] == 10000.0
         assert out["from_distance_m"] < 42195.0
@@ -176,32 +182,65 @@ class TestRaceProjection:
             {"distance_m": 21097.5, "seconds": 6000.0, "label": "HM", "time": "1:40:00",
              "day": "2026-07-11"}
         ]
-        out = R.project_race_time(bests)
+        out = R.project_race_time(bests, HALF_M)
         assert out["from_distance_m"] == 21097.5
         assert out["projected_seconds"] == pytest.approx(6000.0, abs=0.1)
 
     def test_none_without_any_usable_effort(self):
-        assert R.project_race_time([]) is None
+        assert R.project_race_time([], HALF_M) is None
         assert R.project_race_time(
-            [{"distance_m": 42195.0, "seconds": 12000.0, "label": "M"}]
+            [{"distance_m": 42195.0, "seconds": 12000.0, "label": "M"}], HALF_M
         ) is None
 
+    def test_no_target_distance_is_no_projection(self):
+        """A calendar race may name no distance; there is nothing to project to."""
+        assert R.project_race_time(self.BESTS, None) is None
+
     def test_reports_its_own_source(self):
-        out = R.project_race_time(self.BESTS)
+        out = R.project_race_time(self.BESTS, HALF_M)
         assert out["from_label"] == "10 k"
         assert out["from_day"] == "2026-09-15"
         assert out["exponent"] == 1.06
 
 
-class TestRacePanel:
-    def test_countdown_is_correct(self, seeded_store):
-        out = R.compute_race(seeded_store, today=date(2026, 12, 1))
-        assert out["days_to_go"] == (config.RACE_DATE - date(2026, 12, 1)).days == 45
+def add_race(store, day="2027-01-15", title="RACE: Ooredoo Doha Half Marathon",
+             start="07:35", distance_m=21097.5):
+    """A race in the calendar, which is where the race lives now (T57)."""
+    store.conn.execute(
+        "INSERT INTO plan_sources (kind, url, label, enabled) "
+        "VALUES ('ics', 'https://example.test/x.ics', 'Test', 1)"
+    )
+    sid = store.conn.execute("SELECT id FROM plan_sources").fetchone()[0]
+    store.conn.execute(
+        "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+        "sport, kind, planned_min_m, planned_max_m, title, parse_status) "
+        "VALUES (?, 'race-uid', '', ?, ?, 'running', 'race', ?, ?, ?, 'ok')",
+        (sid, day, f"{day}T{start}:00", distance_m, distance_m, title),
+    )
+    store.conn.commit()
 
-    def test_negative_countdown_after_the_race(self, seeded_store):
-        out = R.compute_race(seeded_store, today=date(2027, 2, 1))
-        assert out["days_to_go"] < 0
-        assert any("passed" in n["text"] for n in out["notes"])
+
+class TestRacePanel:
+    def test_countdown_is_correct(self, store):
+        add_race(store)
+        out = R.compute_race(store, today=date(2026, 12, 1))
+        assert out["days_to_go"] == 45
+        assert out["race"]["name"] == "Ooredoo Doha Half Marathon"
+
+    def test_no_race_ahead_is_a_null_countdown_not_a_negative_one(self, store):
+        """What the constant got wrong: on 1 February it counted -17 days to a race
+        run in January. `goal_race` only returns one still to come."""
+        add_race(store)
+        out = R.compute_race(store, today=date(2027, 2, 1))
+        assert out["race"] is None
+        assert out["days_to_go"] is None
+        assert out["weeks_to_go"] is None
+        assert any("No race in the calendar" in n["text"] for n in out["notes"])
+
+    def test_an_empty_calendar_says_so_rather_than_inventing_a_race(self, seeded_store):
+        out = R.compute_race(seeded_store, today=date(2026, 9, 22))
+        assert out["race"] is None
+        assert any("No race in the calendar" in n["text"] for n in out["notes"])
 
     def test_notes_carry_their_own_severity(self, seeded_store):
         out = R.compute_race(seeded_store, today=date(2026, 9, 22))
@@ -209,10 +248,12 @@ class TestRacePanel:
             assert note["level"] in {"good", "warning"}
             assert note["text"]
 
-    def test_panel_shape(self, seeded_store):
-        out = R.compute_race(seeded_store, today=date(2026, 9, 22))
+    def test_panel_shape(self, store):
+        add_race(store)
+        out = R.compute_race(store, today=date(2026, 9, 22))
         assert out["race"]["date"] == "2027-01-15"
         assert out["race"]["start_local"] == "07:35"
+        assert out["race"]["distance_m"] == 21097.5
         assert isinstance(out["weekly_km"], list)
 
     def test_no_plan_means_no_target_rather_than_an_invented_one(self, seeded_store):
