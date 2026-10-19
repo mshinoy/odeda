@@ -52,6 +52,7 @@ Paste one of these into a fresh session.
 | 9 Speed | I: `approved` | 1 / 1 |
 | 10 Routes that know laps | J: `approved` | 1 / 1 |
 | 11 Loose ends | K: `approved` | 8 / 8 |
+| 12 The race comes from the calendar | L: `open` | 0 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -222,6 +223,18 @@ about one lap in six round a loop goes untimed, and the regroup renumbered every
 | T54 | A route card opens where it sits, and can be merged from there | done | T53 | A route card opens where it sits |
 | T55 | Filter the routes by what you did on them | done | T53 | Filter the routes by what you did on them |
 | T56 | Merge offers the routes most like this one, with their maps | done | T53 | Merge offers the routes most like this one |
+
+### Phase 12 — The race comes from the calendar · Checkpoint L: `open`
+
+`config.RACE_*` is four constants describing one race, baked in at build time. The
+calendar already holds every one of those facts — the owner's half is in it as
+`RACE: Ooredoo Doha Half Marathon`, parsed to `kind='race'` with its date, start time
+and 21097.5 m. The constants are a duplicate of data the app ingests every six hours
+and then ignores, and on 16 January they become a countdown that reads −1 days.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T57 | The race is the next one in the calendar, not a constant | in progress (patti, 2026-10-19) | T36 | |
 
 ### Open decisions
 
@@ -3014,3 +3027,35 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - `useRoute` and `useRouteSimilar` both take an `enabled` flag for that reason.
   - Light and dark of the open dialog in `~/garmin-review/K/`; 1470 passed, 1 skipped,
     812 frontend tests, typecheck, lint and build clean.
+
+### T57 — The race is the next one in the calendar, not a constant
+- **Goal:** adding a race means putting it in the calendar, like everything else.
+- **Files:** `garmin_analytics/config.py`, `garmin_analytics/analytics/plan.py`,
+  `garmin_analytics/analytics/readiness.py`, `garmin_analytics/analytics/body.py`,
+  `garmin_analytics/ingest/plan_ics.py`, `garmin_analytics/api/server.py`,
+  `tests/test_goal_race.py`.
+- **Build:**
+  - [ ] `goal_race`: the nearest `kind='race'` session still to come, or None
+  - [ ] the race panel, the projection and the body forecast all read it
+  - [ ] `RACE_NAME`, `RACE_DATE`, `RACE_START_LOCAL`, `RACE_DISTANCE_M` deleted
+  - [ ] no race in the calendar is an empty panel, not a wrong one
+  - [ ] the plan's read window stops depending on race day
+  - [ ] a start day is refused for what it actually breaks, not for being after a date
+- **Notes:**
+  - The owner asked how to add a ride to the app and whether the calendar was the right
+    place. It is: the parser already reads `RACE` in a title as `kind='race'`, and a
+    race session carries the name, day, start time and distance — every field the four
+    constants hold. Same move as D12, which deleted `TARGET_PEAK_CTL` in favour of the
+    plan's own numbers.
+  - **The window cannot depend on the race any more.** `window()` capped recurrence
+    expansion at race day + 7, and the race now comes *from* the sessions that
+    expansion produces — circular on a first sync, when there are none. It takes a
+    fixed horizon from today instead, which also self-extends rather than freezing.
+  - **The start-day check was measured against the wrong thing.** T49 refused a start
+    day after `RACE_DATE`, so the reset control stopped working the day the owner most
+    needed it — starting the next block in March. It now refuses a day after the last
+    prescribed session, which is what "would leave nothing prescribed" actually means.
+  - **Nearest upcoming, not a race the owner pins.** One stored choice would need
+    somewhere to store it and a control to set it; the nearest race self-heals the day
+    after one is run, and a race nobody wants to aim at simply is not titled `RACE`.
+    Pinning can follow if the automatic answer is ever wrong.
