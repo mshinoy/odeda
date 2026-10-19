@@ -44,14 +44,14 @@ Paste one of these into a fresh session.
 | 1 Activities + gym | A: `approved` | 11 / 11 |
 | 2 Map & routes | B: `approved` | 6 / 6 |
 | 3 Health & trends | C: `approved` | 5 / 5 |
-| 4 Settings & finish | D: `ready for review` | 7 / 7 |
-| 5 Fitbit body composition | E: `ready for review` | 8 / 8 |
-| 6 Automatic sync | F: `ready for review` | 3 / 3 |
-| 7 Activity cards | G: `ready for review` | 1 / 1 |
-| 8 Training plan | H: `ready for review` | 13 / 13 |
-| 9 Speed | I: `ready for review` | 1 / 1 |
-| 10 Routes that know laps | J: `ready for review` | 1 / 1 |
-| 11 Loose ends | K: `ready for review` | 8 / 8 |
+| 4 Settings & finish | D: `approved` | 7 / 7 |
+| 5 Fitbit body composition | E: `approved` | 8 / 8 |
+| 6 Automatic sync | F: `approved` | 3 / 3 |
+| 7 Activity cards | G: `approved` | 1 / 1 |
+| 8 Training plan | H: `approved` | 13 / 13 |
+| 9 Speed | I: `approved` | 1 / 1 |
+| 10 Routes that know laps | J: `approved` | 1 / 1 |
+| 11 Loose ends | K: `approved` | 8 / 8 |
 
 ### Phase 0 — Foundations (done)
 
@@ -106,7 +106,7 @@ Paste one of these into a fresh session.
 | T10b | Trends: distributions, day × hour pattern | done | T10a | Trends: the shape of the history, and the week it happens in |
 | T10c | Trends: streaks, records, filters | done | T10a | Trends: how consistent you have been, and one filter over all of it |
 
-### Phase 4 — Settings & finish · Checkpoint D: `ready for review`
+### Phase 4 — Settings & finish · Checkpoint D: `approved`
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
@@ -118,7 +118,7 @@ Paste one of these into a fresh session.
 | T21 | Activity list: an "edited" filter, so Settings can link to it | done | — | Activity list: an Edited filter, and the Settings link that wanted it |
 | T14 | Cleanup and frontend README | done | every other task | A README for the frontend, and the leftovers of a rebuild that is over |
 
-### Phase 5 — Fitbit body composition · Checkpoint E: `ready for review`
+### Phase 5 — Fitbit body composition · Checkpoint E: `approved`
 
 A second data source. The Aria scale writes to Fitbit, not Garmin, so weight has never
 reached this app — `body_composition` exists, is joined into `v_daily`, and holds zero
@@ -135,7 +135,7 @@ rows. This phase fills it and makes it mean something against the training data.
 | T28 | Trends: weight against training load, and pace per kg | done | T26 | Trends: bodyweight against the training that moved it |
 | T29 | Settings: connect Fitbit, import an export, sync body composition | done | T24, T25 | Settings: connect the scale, or import it from a ZIP |
 
-### Phase 6 — Automatic sync · Checkpoint F: `ready for review`
+### Phase 6 — Automatic sync · Checkpoint F: `approved`
 
 Both sources are pull-only and only pulled when the owner presses a button, so the
 data is as old as the last time anyone remembered: on 2026-10-08 the newest Garmin day
@@ -147,7 +147,7 @@ was eleven days behind. This phase makes the app keep itself current.
 | T31 | Settings: say that it syncs on its own, when it last did, and what went wrong | done | T30 | Settings: it syncs on its own now, and says so |
 | T32 | Google sign-in: show when it expires, warn before, reconnect in one step | done | T31 | Google's weekly sign-out, said before it happens and renewed in one step |
 
-### Phase 7 — Activity cards · Checkpoint G: `ready for review`
+### Phase 7 — Activity cards · Checkpoint G: `approved`
 
 The activity list is a table: date, name and five numbers. The owner asked for
 landscape cards, each with a map beside it and the stats its type is about, the way
@@ -157,7 +157,7 @@ Strava shows a feed but laid out for a wide screen.
 |---|---|---|---|---|
 | T33 | Activities: cards with a static map, a body diagram or HR zones beside each; table kept behind a toggle | done | — | Activities: a card per activity, with its route, muscles or zones beside it |
 
-### Phase 8 — Training plan · Checkpoint H: `ready for review`
+### Phase 8 — Training plan · Checkpoint H: `approved`
 
 The app knows what the owner **did** and what they are training **for**, and nothing
 about what they were **supposed to do**. `config.RACE_*` holds the race; `TARGET_PEAK_CTL
@@ -185,7 +185,7 @@ fulfilled it, and answers three questions the app cannot answer today: **did I d
 | T50 | A week counted its sessions and its kilometres over different days | done | T37 | A week counts the same days twice |
 | T52 | `/plan` as a weekly calendar, not a table of weeks | done | T38, T40 | The plan reads like a calendar |
 
-### Phase 9 — Speed · Checkpoint I: `ready for review`
+### Phase 9 — Speed · Checkpoint I: `approved`
 
 The owner asked why the Map page is slow (2026-10-08). Measured: the heatmap is
 recomputed (~1–1.5 s) on most visits because the analytics cache expires after 30 s,
@@ -195,7 +195,7 @@ and the map library only starts downloading once the heatmap has arrived.
 |---|---|---|---|---|
 | T43 | Map: cache until the data changes, warm it after a sync, open the map before the heatmap arrives | done | — | The Map opens without waiting for the heatmap, which is ready before it is asked for |
 
-### Phase 10 — Routes that know laps · Checkpoint J: `ready for review`
+### Phase 10 — Routes that know laps · Checkpoint J: `approved`
 
 70 routes for 265 GPS activities (2026-10-08): two laps of a loop can never join one,
 because routes are matched on total distance within 25%, and a route's shape is
@@ -207,7 +207,7 @@ different points.
 |---|---|---|---|---|
 | T44 | Routes: group by ground covered (laps and a short warm-up join, a much longer out-and-back does not), one lap as the shape, lap times and best lap for loops | done | — | Routes know laps: a loop is one route however many times round, with its fastest lap |
 
-### Phase 11 — Loose ends · Checkpoint K: `ready for review`
+### Phase 11 — Loose ends · Checkpoint K: `approved`
 
 What T43 and T44 left (2026-10-08): the Map opens on every country with a GPS point,
 about one lap in six round a loop goes untimed, and the regroup renumbered every route.
