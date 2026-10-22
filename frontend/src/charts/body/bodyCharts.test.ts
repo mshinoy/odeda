@@ -18,6 +18,7 @@ import {
   weightScale,
   weightTooltip,
 } from "@/charts/body/buildWeightTrendOption";
+import type { TooltipCard } from "@/charts/chrome";
 import { colorTokens } from "@/design/tokens";
 
 const tokens = colorTokens.light;
@@ -51,6 +52,13 @@ const empty: BodySeries = {
 /** ECharts types `series` as one-or-many; every chart test in this folder narrows it. */
 function seriesOf(option: { series?: unknown }): Record<string, unknown>[] {
   return Array.isArray(option.series) ? (option.series as Record<string, unknown>[]) : [];
+}
+
+/** A tooltip card as one readable line per row, heading first. */
+function lines(card: TooltipCard | null): string[] {
+  return card === null
+    ? []
+    : [card.heading, ...card.rows.map((row) => `${row.label}: ${row.value}`)];
 }
 
 describe("weight trend", () => {
@@ -93,8 +101,22 @@ describe("weight trend", () => {
   });
 
   it("puts the trend second in the tooltip and marks a day with no reading", () => {
-    expect(weightTooltip(series, 0, today)).toBe("Sep 22 · 76.8 kg · trend 76.8");
-    expect(weightTooltip(series, 1, today)).toBe("Sep 23 · – · trend 76.8");
+    expect(lines(weightTooltip(series, 0, today))).toEqual([
+      "Sep 22",
+      "Trend: 76.8 kg",
+      "Weigh-in: 76.8 kg",
+      "vs trend: 0.0 kg",
+    ]);
+    expect(lines(weightTooltip(series, 1, today))).toEqual([
+      "Sep 23",
+      "Trend: 76.8 kg",
+      "Weigh-in: –",
+      "vs trend: –",
+    ]);
+  });
+
+  it("has no tooltip for a day that is not on the chart", () => {
+    expect(weightTooltip(series, 9, today)).toBeNull();
   });
 
   it("never joins the trend across a period with no scale at all", () => {
@@ -167,9 +189,16 @@ describe("fat and lean mass", () => {
   });
 
   it("keeps the level in the tooltip, where a single number is allowed", () => {
-    expect(massTooltip(series, 2, today)).toBe(
-      "Sep 24 · lean 62.9 kg (0.0) · fat 13.8 (\u22120.1)",
-    );
+    expect(lines(massTooltip(series, 2, today))).toEqual([
+      "Sep 24",
+      "Lean: 0.0 kg \u00b7 62.9 kg",
+      "Fat: \u22120.1 kg \u00b7 13.8 kg",
+    ]);
+  });
+
+  it("measures change from the first day of whatever window it is given", () => {
+    const window: BodySeries = { ...series, fat_kg: [13.8, 13.8, 13.8] };
+    expect(lines(massTooltip(window, 2, today))[2]).toBe("Fat: 0.0 kg \u00b7 13.8 kg");
   });
 
   it("uses one y-axis", () => {

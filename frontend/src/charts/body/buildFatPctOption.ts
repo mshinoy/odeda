@@ -8,15 +8,17 @@ import { decimalStep, padded, quantileRange, snapToStep, withMinSpan } from "@/c
 import {
   axisLabelStyle,
   gridLineStyle,
+  hoveredIndex,
   quietAxis,
+  tooltipHtml,
   tooltipStyle,
-  zoomControls,
+  type TooltipCard,
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
-import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
+import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily } from "@/design/typography";
-import { formatDate, formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
+import { formatDate, formatDecimal, formatSigned, formatWithUnit, MISSING } from "@/lib/format";
 
 export interface FatPctInput {
   series: BodySeries;
@@ -44,14 +46,32 @@ export function fatPctScale(series: BodySeries) {
   return { min, max, step };
 }
 
-/** "Sep 23 · 27.4 %". */
-export function fatPctTooltip(series: BodySeries, index: number, today?: Date): string {
+/** "Sep 23": the percentage, and its distance from the first reading in the window. */
+export function fatPctTooltip(
+  series: BodySeries,
+  index: number,
+  today?: Date,
+  tokens?: ColorTokens,
+): TooltipCard | null {
   const day = series.days[index];
-  if (day === undefined) return "";
-  const value = (series.fat_pct ?? [])[index] ?? null;
-  return [formatDate(day, today), value === null ? MISSING : formatWithUnit(value, "%", 1)].join(
-    " · ",
-  );
+  if (day === undefined) return null;
+  const values = series.fat_pct ?? [];
+  const value = values[index] ?? null;
+  const start = values.find((found): found is number => found !== null) ?? null;
+  return {
+    heading: formatDate(day, today),
+    rows: [
+      {
+        label: "Body fat",
+        value: value === null ? MISSING : formatWithUnit(value, "%", 1),
+        color: tokens?.ink,
+      },
+      {
+        label: "Since start",
+        value: value !== null && start !== null ? `${formatSigned(value - start, 1)} pts` : MISSING,
+      },
+    ],
+  };
 }
 
 export function buildFatPctOption({ series, tokens, today }: FatPctInput): ChartOption {
@@ -60,8 +80,7 @@ export function buildFatPctOption({ series, tokens, today }: FatPctInput): Chart
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: HEALTH_CHART_GRID_ZOOMED,
-    dataZoom: zoomControls(tokens),
+    grid: HEALTH_CHART_GRID,
     xAxis: dayAxis(series.days, tokens, today),
     yAxis: {
       type: "value",
@@ -83,8 +102,9 @@ export function buildFatPctOption({ series, tokens, today }: FatPctInput): Chart
       ...tooltipStyle(tokens),
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        return first ? fatPctTooltip(series, first.dataIndex, today) : "";
+        const index = hoveredIndex(params);
+        const card = index === null ? null : fatPctTooltip(series, index, today, tokens);
+        return card ? tooltipHtml(card, tokens) : "";
       },
     },
     series: [

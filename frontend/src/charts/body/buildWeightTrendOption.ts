@@ -8,16 +8,18 @@ import { decimalStep, padded, quantileRange, snapToStep, withMinSpan } from "@/c
 import {
   axisLabelStyle,
   gridLineStyle,
+  hoveredIndex,
   quietAxis,
+  tooltipHtml,
   tooltipStyle,
-  zoomControls,
+  type TooltipCard,
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
-import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
+import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
 import type { BodySeries } from "@/api/queries/useBody";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
-import { formatDate, formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
+import { formatDate, formatDecimal, formatSigned, formatWithUnit, MISSING } from "@/lib/format";
 
 export interface WeightTrendInput {
   series: BodySeries;
@@ -59,17 +61,30 @@ export function weightScale(series: BodySeries): WeightScale | null {
   return { min, max, step };
 }
 
-/** "Sep 23 · 76.4 kg · trend 76.9". The reading second, because it is the lesser fact. */
-export function weightTooltip(series: BodySeries, index: number, today?: Date): string {
+/** "Sep 23": the trend first, then the morning's reading and how far it sat from it. */
+export function weightTooltip(
+  series: BodySeries,
+  index: number,
+  today?: Date,
+  tokens?: ColorTokens,
+): TooltipCard | null {
   const day = series.days[index];
-  if (day === undefined) return "";
+  if (day === undefined) return null;
   const reading = series.weight_kg[index] ?? null;
   const trend = series.trend_kg[index] ?? null;
-  return [
-    formatDate(day, today),
-    reading === null ? MISSING : formatWithUnit(reading, "kg", 1),
-    `trend ${formatDecimal(trend, 1)}`,
-  ].join(" · ");
+  const kg = (value: number | null) => (value === null ? MISSING : formatWithUnit(value, "kg", 1));
+  return {
+    heading: formatDate(day, today),
+    rows: [
+      { label: TREND_LABEL, value: kg(trend), color: tokens?.ink },
+      { label: "Weigh-in", value: kg(reading), color: tokens?.inkMuted },
+      {
+        label: "vs trend",
+        value:
+          reading !== null && trend !== null ? `${formatSigned(reading - trend, 1)} kg` : MISSING,
+      },
+    ],
+  };
 }
 
 export function buildWeightTrendOption({ series, tokens, today }: WeightTrendInput): ChartOption {
@@ -78,10 +93,7 @@ export function buildWeightTrendOption({ series, tokens, today }: WeightTrendInp
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: HEALTH_CHART_GRID_ZOOMED,
-    // Years of daily points need a way in; the range control picks the window, this
-    // picks a stretch inside it.
-    dataZoom: zoomControls(tokens),
+    grid: HEALTH_CHART_GRID,
     xAxis: dayAxis(series.days, tokens, today),
     yAxis: {
       type: "value",
@@ -103,8 +115,9 @@ export function buildWeightTrendOption({ series, tokens, today }: WeightTrendInp
       ...tooltipStyle(tokens),
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        return first ? weightTooltip(series, first.dataIndex, today) : "";
+        const index = hoveredIndex(params);
+        const card = index === null ? null : weightTooltip(series, index, today, tokens);
+        return card ? tooltipHtml(card, tokens) : "";
       },
     },
     series: [

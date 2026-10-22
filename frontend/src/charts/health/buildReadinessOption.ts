@@ -2,7 +2,7 @@
 // shows today's on. The band is a status colour, so it stays in the tooltip where it can
 // carry its label rather than colouring the line.
 import type { ReadinessPoint } from "@/api/queries/useHealth";
-import { tooltipStyle } from "@/charts/chrome";
+import { hoveredIndex, tooltipHtml, tooltipStyle, type TooltipCard } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID, scoreAxis } from "@/charts/health/dayAxis";
 import { dayHeading, type Resolution } from "@/charts/health/resolution";
@@ -19,16 +19,21 @@ export interface ReadinessChartInput {
   resolution?: Resolution;
 }
 
-/** "Sep 23 · 72 · Ready"; a week's mean has no band, so that part is left off. */
+/** "Sep 23": the score and its band; a week's mean has no band, so that row is left off. */
 export function readinessTooltip(
   point: ReadinessPoint,
   today?: Date,
   resolution: Resolution = "day",
-): string {
-  const heading = dayHeading(point.day, resolution, today);
-  if (resolution === "week") return [heading, formatInteger(point.score)].join(" · ");
+  tokens?: ColorTokens,
+): TooltipCard {
+  const rows: TooltipCard["rows"] = [
+    { label: "Score", value: formatInteger(point.score), color: tokens?.ink },
+  ];
   const band = point.band ? bandDisplay[point.band].label : MISSING;
-  return [heading, formatInteger(point.score), band].join(" · ");
+  return {
+    heading: dayHeading(point.day, resolution, today),
+    rows: resolution === "week" ? rows : [...rows, { label: "Status", value: band }],
+  };
 }
 
 export function buildReadinessOption({
@@ -52,9 +57,9 @@ export function buildReadinessOption({
       ...tooltipStyle(tokens),
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        const point = first ? series[first.dataIndex] : undefined;
-        return point ? readinessTooltip(point, today, resolution) : "";
+        const index = hoveredIndex(params);
+        const point = index === null ? undefined : series[index];
+        return point ? tooltipHtml(readinessTooltip(point, today, resolution, tokens), tokens) : "";
       },
     },
     series: [

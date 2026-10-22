@@ -1,5 +1,4 @@
 // Chart chrome every chart shares: quiet axes, hairline gridlines, one tooltip style.
-import type { DataZoomComponentOption } from "echarts/components";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
 
@@ -17,50 +16,12 @@ export function gridLineStyle(tokens: ColorTokens) {
  * and below the x-axis labels is chrome, and is the same everywhere.
  */
 export function chartGrid(gutters: { left: number; right: number }) {
-  return { ...gutters, top: 12, bottom: 24 } as const;
+  return { ...gutters, top: GRID_TOP, bottom: GRID_BOTTOM } as const;
 }
 
-/** Vertical room the zoom slider needs under the x-axis labels. */
-export const ZOOM_GUTTER = 28;
-
-/**
- * Zoom and pan for a chart whose window may be years long.
- *
- * Two different gestures, which is worth being exact about:
- *   - the slider's **end handles** narrow the window — that is the zoom;
- *   - its **middle**, or a drag inside the plot, slides that window along — the pan.
- *
- * The mouse wheel does neither, deliberately. These charts sit in a scrolling page,
- * and a wheel that zoomed the chart instead of moving the page is the worst kind of
- * surprise. Pinch still zooms on a touch screen, where there is no page-scroll to
- * steal.
- *
- * Each chart zooms on its own; the range control above them is what moves all of them
- * together.
- */
-export function zoomControls(tokens: ColorTokens): DataZoomComponentOption[] {
-  return [
-    { type: "inside", zoomOnMouseWheel: false, moveOnMouseWheel: false, throttle: 50 },
-    {
-      type: "slider",
-      height: 14,
-      bottom: 4,
-      borderColor: "transparent",
-      // The track has to be visible or the control is undiscoverable: a transparent
-      // one on a pale page is a feature nobody finds.
-      backgroundColor: tokens.surfaceMuted,
-      fillerColor: tokens.gridline,
-      handleStyle: { color: tokens.inkMuted, borderColor: tokens.inkMuted },
-      moveHandleStyle: { color: tokens.inkMuted },
-      moveHandleSize: 4,
-      // The dates are already on the axis above; repeating them in the handle labels
-      // is the same fact twice in half the space.
-      showDetail: false,
-      showDataShadow: false,
-      textStyle: { color: tokens.inkMuted, fontSize: fontSize.caption, fontFamily },
-    },
-  ];
-}
+/** Pixels above the top gridline and below the plot (the x-axis labels live there). */
+export const GRID_TOP = 12;
+export const GRID_BOTTOM = 28;
 
 /** Axis line, ticks and vertical gridlines all off: the data and the labels carry it. */
 export const quietAxis = {
@@ -76,10 +37,59 @@ export function tooltipStyle(tokens: ColorTokens) {
     backgroundColor: tokens.surface,
     borderColor: tokens.border,
     borderWidth: 1,
-    padding: [4, 8],
+    padding: [8, 12],
     textStyle: { color: tokens.ink, fontSize: fontSize.body, fontFamily },
     extraCssText: "font-variant-numeric: tabular-nums; box-shadow: none; border-radius: 6px;",
   };
+}
+
+export interface TooltipRow {
+  label: string;
+  value: string;
+  /** A swatch of the series the row reads, so a line is told apart without its name. */
+  color?: string;
+}
+
+/** What a Health chart shows under the pointer: the day, then one row per fact. */
+export interface TooltipCard {
+  heading: string;
+  rows: readonly TooltipRow[];
+}
+
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+};
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"]/g, (char) => HTML_ESCAPES[char] ?? char);
+}
+
+/** The card as the HTML ECharts' tooltip takes: bold heading, muted labels, values right-aligned. */
+export function tooltipHtml(card: TooltipCard, tokens: ColorTokens): string {
+  const rows = card.rows
+    .map((row) => {
+      const swatch =
+        row.color === undefined
+          ? ""
+          : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${row.color};margin-right:6px"></span>`;
+      return (
+        `<div style="display:flex;justify-content:space-between;gap:20px;line-height:1.6">` +
+        `<span style="color:${tokens.inkMuted}">${swatch}${escapeHtml(row.label)}</span>` +
+        `<span style="font-weight:600">${escapeHtml(row.value)}</span></div>`
+      );
+    })
+    .join("");
+  return `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(card.heading)}</div>${rows}`;
+}
+
+/** The data index under an axis-triggered tooltip's pointer, or null. */
+export function hoveredIndex(params: unknown): number | null {
+  const first = Array.isArray(params) ? params[0] : params;
+  const index = (first as { dataIndex?: unknown } | undefined)?.dataIndex;
+  return typeof index === "number" ? index : null;
 }
 
 /** Bars get rounded tops only, so they still sit flat on the baseline. */

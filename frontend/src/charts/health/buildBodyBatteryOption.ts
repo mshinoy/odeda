@@ -1,7 +1,7 @@
 // The day's Body Battery peak and trough, on the 0-100 scale the watch reports them on.
 // Two lines on one axis: they are the same measurement at two moments, not two metrics.
 import type { DailyRow } from "@/api/queries/useHealth";
-import { tooltipStyle } from "@/charts/chrome";
+import { hoveredIndex, tooltipHtml, tooltipStyle, type TooltipCard } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID, scoreAxis } from "@/charts/health/dayAxis";
 import { dayHeading, type Resolution } from "@/charts/health/resolution";
@@ -17,17 +17,22 @@ export interface BodyBatteryInput {
   resolution?: Resolution;
 }
 
-/** "Sep 23 · High 61 · Low 10". */
+/** "Sep 23": the day's high and low, and how far it ran down between them. */
 export function bodyBatteryTooltip(
   row: DailyRow,
   today?: Date,
   resolution: Resolution = "day",
-): string {
-  return [
-    dayHeading(row.day, resolution, today),
-    `High ${formatInteger(row.bb_high)}`,
-    `Low ${formatInteger(row.bb_low)}`,
-  ].join(" · ");
+  tokens?: ColorTokens,
+): TooltipCard {
+  const drain = row.bb_high !== null && row.bb_low !== null ? row.bb_high - row.bb_low : null;
+  return {
+    heading: dayHeading(row.day, resolution, today),
+    rows: [
+      { label: "High", value: formatInteger(row.bb_high), color: tokens?.ink },
+      { label: "Low", value: formatInteger(row.bb_low), color: tokens?.inkMuted },
+      { label: "Range", value: formatInteger(drain) },
+    ],
+  };
 }
 
 export function bodyBatteryDays(rows: readonly DailyRow[]): boolean {
@@ -63,9 +68,9 @@ export function buildBodyBatteryOption({
       ...tooltipStyle(tokens),
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        const row = first ? rows[first.dataIndex] : undefined;
-        return row ? bodyBatteryTooltip(row, today, resolution) : "";
+        const index = hoveredIndex(params);
+        const row = index === null ? undefined : rows[index];
+        return row ? tooltipHtml(bodyBatteryTooltip(row, today, resolution, tokens), tokens) : "";
       },
     },
     series: [

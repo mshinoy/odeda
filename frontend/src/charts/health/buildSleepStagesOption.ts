@@ -5,8 +5,11 @@ import {
   axisLabelStyle,
   barHoverPointer,
   gridLineStyle,
+  hoveredIndex,
   quietAxis,
+  tooltipHtml,
   tooltipStyle,
+  type TooltipCard,
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
@@ -62,16 +65,26 @@ export function sleepAxisMaxH(nights: readonly SleepNight[]): number {
   return Math.max(rounded, MIN_AXIS_HOURS);
 }
 
-/** "Sep 23 · 8.0 h · Deep 0.2 · REM 2.0 · Light 5.8"; a week reads "Week of Sep 23" and the average night. */
+/** "Sep 23": the night's total, then each stage in hours; a week reads "Week of Sep 23" and the average night. */
 export function sleepNightTooltip(
   night: SleepNight,
   today?: Date,
   resolution: Resolution = "day",
-): string {
+  tokens?: ColorTokens,
+): TooltipCard {
   const total = nightTotalH(night);
-  const stages = SLEEP_STAGES.map((stage) => `${stage.label} ${formatDecimal(night[stage.value])}`);
-  const head = total === null ? MISSING : formatWithUnit(total, "h", 1);
-  return [dayHeading(night.day, resolution, today), head, ...stages].join(" · ");
+  const colors = tokens === undefined ? undefined : sleepStageColors(tokens);
+  return {
+    heading: dayHeading(night.day, resolution, today),
+    rows: [
+      { label: "Total", value: total === null ? MISSING : formatWithUnit(total, "h", 1) },
+      ...SLEEP_STAGES.map((stage) => ({
+        label: stage.label,
+        value: formatWithUnit(night[stage.value], "h", 1),
+        color: colors?.[stage.color],
+      })),
+    ],
+  };
 }
 
 export function buildSleepStagesOption({
@@ -111,9 +124,11 @@ export function buildSleepStagesOption({
       ...tooltipStyle(tokens),
       axisPointer: barHoverPointer(tokens),
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        const night = first ? nights[first.dataIndex] : undefined;
-        return night ? sleepNightTooltip(night, today, resolution) : "";
+        const index = hoveredIndex(params);
+        const night = index === null ? undefined : nights[index];
+        return night
+          ? tooltipHtml(sleepNightTooltip(night, today, resolution, tokens), tokens)
+          : "";
       },
     },
     series: SLEEP_STAGES.map((stage) => ({

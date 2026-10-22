@@ -6,17 +6,19 @@ import { decimalStep, padded, quantileRange, snapToStep, withMinSpan } from "@/c
 import {
   axisLabelStyle,
   gridLineStyle,
+  hoveredIndex,
   quietAxis,
+  tooltipHtml,
   tooltipStyle,
-  zoomControls,
+  type TooltipCard,
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
-import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
+import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
 import { dayHeading, type Resolution } from "@/charts/health/resolution";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
 import { scaled, type HealthMetric } from "@/features/health/healthMetrics";
-import { formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
+import { formatDecimal, formatSigned, formatWithUnit, MISSING } from "@/lib/format";
 
 export interface MetricTrendInput {
   /** Already at `resolution`: a week's mean per point when that is "week". */
@@ -54,23 +56,39 @@ export function metricTrendScale(
   return { min, max, step };
 }
 
-/** "Sep 23 · 56 bpm · 28-day 57", or "Week of Sep 23 · …" when a point is a week's mean. */
+/**
+ * "Sep 23" over the reading, the 28-day baseline and the gap between them; "Week of
+ * Sep 23" and the week's mean when a point is a week.
+ */
 export function metricTrendTooltip(
   trend: MetricTrend,
   metric: HealthMetric,
   index: number,
   today?: Date,
   resolution: Resolution = "day",
-): string {
+  tokens?: ColorTokens,
+): TooltipCard | null {
   const day = trend.days[index];
-  if (day === undefined) return "";
+  if (day === undefined) return null;
   const value = scaled(trend.values[index] ?? null, metric);
   const baseline = scaled(trend.roll28[index] ?? null, metric);
-  return [
-    dayHeading(day, resolution, today),
-    value === null ? MISSING : formatWithUnit(value, metric.unit, metric.digits),
-    `${BASELINE_LABEL} ${formatDecimal(baseline, metric.digits)}`,
-  ].join(" · ");
+  const gap = value !== null && baseline !== null ? value - baseline : null;
+  const withUnit = (number: number | null) =>
+    number === null ? MISSING : formatWithUnit(number, metric.unit, metric.digits);
+  return {
+    heading: dayHeading(day, resolution, today),
+    rows: [
+      { label: metric.label, value: withUnit(value), color: tokens?.inkMuted },
+      { label: BASELINE_LABEL, value: withUnit(baseline), color: tokens?.ink },
+      {
+        label: "vs 28-day",
+        value:
+          gap === null
+            ? MISSING
+            : `${formatSigned(gap, metric.digits)}${metric.unit ? ` ${metric.unit}` : ""}`,
+      },
+    ],
+  };
 }
 
 export function buildMetricTrendOption({
@@ -87,10 +105,7 @@ export function buildMetricTrendOption({
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: HEALTH_CHART_GRID_ZOOMED,
-    // Years of daily points need a way in; the range control picks the window, this
-    // picks a stretch inside it.
-    dataZoom: zoomControls(tokens),
+    grid: HEALTH_CHART_GRID,
     xAxis: dayAxis(trend.days, tokens, today),
     yAxis: {
       type: "value",
@@ -113,10 +128,12 @@ export function buildMetricTrendOption({
       ...tooltipStyle(tokens),
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        return first
-          ? metricTrendTooltip(trend, metric, first.dataIndex, today, resolution)
-          : "";
+        const index = hoveredIndex(params);
+        const card =
+          index === null
+            ? null
+            : metricTrendTooltip(trend, metric, index, today, resolution, tokens);
+        return card ? tooltipHtml(card, tokens) : "";
       },
     },
     series: [

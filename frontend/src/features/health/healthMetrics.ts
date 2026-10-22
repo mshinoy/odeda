@@ -91,6 +91,15 @@ export const STRESS_METRIC: HealthMetric = {
   floor: 0,
 };
 
+/** One sentence under each metric chart's title: what it is and how to read it. */
+export const METRIC_DESCRIPTIONS: Partial<Record<TrendMetricName, string>> = {
+  sleep_score: "Garmin's overnight sleep score out of 100. Higher is better.",
+  hrv: "Overnight heart-rate variability. Higher than your baseline suggests good recovery.",
+  resting_hr: "Resting heart rate each day. Lower than your baseline suggests good recovery.",
+  steps: "Steps per day, with the 28-day baseline drawn over them.",
+  stress_avg: "Average all-day stress, 0 to 100. Lower is calmer.",
+};
+
 /** The metrics with a chart of their own: the daily value and its 28-day baseline. */
 export const CHART_METRICS: readonly HealthMetric[] = [
   SLEEP_SCORE_METRIC,

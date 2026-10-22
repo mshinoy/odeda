@@ -1,6 +1,6 @@
 // Chrome shared by the four Health charts, which all plot one point per calendar day
 // over the same window: the same x-axis, and the same four date labels along it.
-import { axisLabelStyle, chartGrid, gridLineStyle, quietAxis, ZOOM_GUTTER } from "@/charts/chrome";
+import { axisLabelStyle, chartGrid, gridLineStyle, quietAxis } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import type { ColorTokens } from "@/design/tokens";
 import { formatDate, formatMonth } from "@/lib/format";
@@ -8,14 +8,12 @@ import { formatDate, formatMonth } from "@/lib/format";
 /** Enough labels to place a point in the year, few enough to stay readable. */
 const X_LABELS = 4;
 
-/** The right gutter is wide to leave room for the baseline series' `endLabel`. */
-export const HEALTH_CHART_GRID = chartGrid({ left: 44, right: 56 });
-
-/** The same plot area, with room under it for the zoom slider. */
-export const HEALTH_CHART_GRID_ZOOMED = {
-  ...HEALTH_CHART_GRID,
-  bottom: HEALTH_CHART_GRID.bottom + ZOOM_GUTTER,
-} as const;
+/**
+ * The side gutters of every Health chart. The right is wide to leave room for a series'
+ * `endLabel`. The selection overlay is positioned from these, so they are shared.
+ */
+export const HEALTH_GUTTERS = { left: 44, right: 56 } as const;
+export const HEALTH_CHART_GRID = chartGrid(HEALTH_GUTTERS);
 
 type CategoryAxis = Extract<ChartOption["xAxis"], { type?: "category" }>;
 type ValueAxis = Extract<ChartOption["yAxis"], { type?: "value" }>;

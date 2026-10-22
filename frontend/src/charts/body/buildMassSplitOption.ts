@@ -20,12 +20,14 @@ import { decimalStep, padded, quantileRange, snapToStep, withMinSpan } from "@/c
 import {
   axisLabelStyle,
   gridLineStyle,
+  hoveredIndex,
   quietAxis,
+  tooltipHtml,
   tooltipStyle,
-  zoomControls,
+  type TooltipCard,
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
-import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
+import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
 import type { BodySeries } from "@/api/queries/useBody";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily } from "@/design/typography";
@@ -86,17 +88,29 @@ export function massScale(series: BodySeries): { min: number; max: number; step:
   return { min, max, step };
 }
 
-/** "Sep 23 · lean 63.3 kg (+0.4) · fat 11.2 (−3.2)" — the level and the movement. */
-export function massTooltip(series: BodySeries, index: number, today?: Date): string {
+/** "Sep 23": each mass as the movement the line draws, then the level it stands at. */
+export function massTooltip(
+  series: BodySeries,
+  index: number,
+  today?: Date,
+  tokens?: ColorTokens,
+): TooltipCard | null {
   const day = series.days[index];
-  if (day === undefined) return "";
-  const leanChange = changeFromStart(series.lean_kg)[index] ?? null;
-  const fatChange = changeFromStart(series.fat_kg)[index] ?? null;
-  return [
-    formatDate(day, today),
-    `lean ${formatDecimal(series.lean_kg[index] ?? null, 1)} kg (${formatSigned(leanChange, 1)})`,
-    `fat ${formatDecimal(series.fat_kg[index] ?? null, 1)} (${formatSigned(fatChange, 1)})`,
-  ].join(" · ");
+  if (day === undefined) return null;
+  const colors = tokens === undefined ? undefined : massColors(tokens);
+  const row = (key: (typeof MASS_SERIES)[number]["key"], label: string) => {
+    const change = changeFromStart(series[key])[index] ?? null;
+    const level = series[key][index] ?? null;
+    return {
+      label,
+      value: `${formatSigned(change, 1)} kg · ${formatDecimal(level, 1)} kg`,
+      color: colors?.[label],
+    };
+  };
+  return {
+    heading: formatDate(day, today),
+    rows: MASS_SERIES.map(({ key, label }) => row(key, label)),
+  };
 }
 
 export function buildMassSplitOption({ series, tokens, today }: MassSplitInput): ChartOption {
@@ -106,8 +120,7 @@ export function buildMassSplitOption({ series, tokens, today }: MassSplitInput):
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: HEALTH_CHART_GRID_ZOOMED,
-    dataZoom: zoomControls(tokens),
+    grid: HEALTH_CHART_GRID,
     xAxis: dayAxis(series.days, tokens, today),
     yAxis: {
       type: "value",
@@ -131,8 +144,9 @@ export function buildMassSplitOption({ series, tokens, today }: MassSplitInput):
       ...tooltipStyle(tokens),
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        return first ? massTooltip(series, first.dataIndex, today) : "";
+        const index = hoveredIndex(params);
+        const card = index === null ? null : massTooltip(series, index, today, tokens);
+        return card ? tooltipHtml(card, tokens) : "";
       },
     },
     series: MASS_SERIES.map(({ key, label }) => ({

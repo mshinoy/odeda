@@ -19,6 +19,8 @@ import {
   sleepNightTooltip,
   sleepStageColors,
 } from "@/charts/health/buildSleepStagesOption";
+import type { TooltipCard } from "@/charts/chrome";
+import { HEALTH_GUTTERS } from "@/charts/health/dayAxis";
 import { colorTokens } from "@/design/tokens";
 import { RESTING_HR_METRIC, SLEEP_SCORE_METRIC } from "@/features/health/healthMetrics";
 import type { SleepNight } from "@/features/health/sleepStages";
@@ -51,6 +53,13 @@ function seriesOf(option: { series?: unknown }): Record<string, unknown>[] {
   return Array.isArray(option.series) ? (option.series as Record<string, unknown>[]) : [];
 }
 
+/** A tooltip card as one readable line per row, heading first. */
+function lines(card: TooltipCard | null): string[] {
+  return card === null
+    ? []
+    : [card.heading, ...card.rows.map((row) => `${row.label}: ${row.value}`)];
+}
+
 describe("buildSleepStagesOption", () => {
   const option = buildSleepStagesOption({ nights, tokens, today });
 
@@ -78,12 +87,20 @@ describe("buildSleepStagesOption", () => {
   });
 
   it("names every stage in the tooltip, because a stack cannot be read off the bar", () => {
-    expect(nights[1] && sleepNightTooltip(nights[1], today)).toBe(
-      "Sep 23 · 8.0 h · Deep 0.2 · REM 2.0 · Light 5.8",
-    );
-    expect(nights[0] && sleepNightTooltip(nights[0], today)).toBe(
-      "Sep 22 · – · Deep – · REM – · Light –",
-    );
+    expect(lines(nights[1] ? sleepNightTooltip(nights[1], today) : null)).toEqual([
+      "Sep 23",
+      "Total: 8.0 h",
+      "Deep: 0.2 h",
+      "REM: 2.0 h",
+      "Light: 5.8 h",
+    ]);
+    expect(lines(nights[0] ? sleepNightTooltip(nights[0], today) : null)).toEqual([
+      "Sep 22",
+      "Total: –",
+      "Deep: –",
+      "REM: –",
+      "Light: –",
+    ]);
   });
 });
 
@@ -144,19 +161,32 @@ describe("buildMetricTrendOption", () => {
   });
 
   it("heads a weekly point as the week it opens", () => {
-    expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today, "week")).toBe(
-      "Week of Sep 24 · 56 bpm · 28-day 59",
-    );
+    const card = metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today, "week");
+    expect(card?.heading).toBe("Week of Sep 24");
   });
 
-  it("puts the value, the unit and the baseline in the tooltip", () => {
-    expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today)).toBe(
-      "Sep 24 · 56 bpm · 28-day 59",
-    );
-    expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 1, today)).toBe(
-      "Sep 23 · – · 28-day 62",
-    );
-    expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 9, today)).toBe("");
+  it("puts the value, the baseline and the gap between them in the tooltip", () => {
+    expect(lines(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today))).toEqual([
+      "Sep 24",
+      "Resting HR: 56 bpm",
+      "28-day: 59 bpm",
+      "vs 28-day: \u22123 bpm",
+    ]);
+    expect(lines(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 1, today))).toEqual([
+      "Sep 23",
+      "Resting HR: –",
+      "28-day: 62 bpm",
+      "vs 28-day: –",
+    ]);
+  });
+
+  it("has no tooltip for a point that is not on the chart", () => {
+    expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 9, today)).toBeNull();
+  });
+
+  it("swatches each row in the colour of its line", () => {
+    const card = metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today, "day", tokens);
+    expect(card?.rows.map((row) => row.color)).toEqual([tokens.inkMuted, tokens.ink, undefined]);
   });
 });
 
@@ -176,14 +206,17 @@ describe("buildBodyBatteryOption", () => {
   });
 
   it("names both ends in the tooltip and at the line's end", () => {
-    expect(rows[1] && bodyBatteryTooltip(rows[1], today)).toBe("Sep 24 · High 67 · Low 13");
+    expect(lines(rows[1] ? bodyBatteryTooltip(rows[1], today) : null)).toEqual([
+      "Sep 24",
+      "High: 67",
+      "Low: 13",
+      "Range: 54",
+    ]);
     expect(seriesOf(option).map((s) => s.name)).toEqual(["High", "Low"]);
   });
 
   it("heads a weekly point as the week it opens", () => {
-    expect(rows[1] && bodyBatteryTooltip(rows[1], today, "week")).toBe(
-      "Week of Sep 24 · High 67 · Low 13",
-    );
+    expect(rows[1] && bodyBatteryTooltip(rows[1], today, "week").heading).toBe("Week of Sep 24");
   });
 
   it("knows when there is nothing to draw", () => {
@@ -205,12 +238,19 @@ describe("buildReadinessOption", () => {
   });
 
   it("keeps the band as a label in the tooltip, not as a colour on the line", () => {
-    expect(series[1] && readinessTooltip(series[1], today)).toBe("Sep 24 · 45 · Low");
+    expect(lines(series[1] ? readinessTooltip(series[1], today) : null)).toEqual([
+      "Sep 24",
+      "Score: 45",
+      "Status: Low",
+    ]);
     expect(seriesOf(option)[0]?.color).toBe(tokens.ink);
   });
 
   it("leaves the band off a week's mean, which has none", () => {
-    expect(series[1] && readinessTooltip(series[1], today, "week")).toBe("Week of Sep 24 · 45");
+    expect(lines(series[1] ? readinessTooltip(series[1], today, "week") : null)).toEqual([
+      "Week of Sep 24",
+      "Score: 45",
+    ]);
   });
 });
 
@@ -234,54 +274,27 @@ describe("day axis labels", () => {
   });
 });
 
-describe("zoom controls", () => {
-  /**
-   * The registration this depends on is silent when missing: ECharts is built from
-   * `echarts/core`, and a `dataZoom` option with no `DataZoomComponent` registered is
-   * dropped without an error. It was configured in three builders and did nothing at
-   * all until the component was registered, so these pin the config to the option.
-   */
-  function zooms(option: { dataZoom?: unknown }): Record<string, unknown>[] {
-    return Array.isArray(option.dataZoom) ? (option.dataZoom as Record<string, unknown>[]) : [];
-  }
-
-  it("reaches the built option", () => {
+describe("zoom and selection", () => {
+  it("leave dataZoom out of the option, because the page owns the window", () => {
+    // Zoom is a slice of the data before the build, so y rescales; a dataZoom here would
+    // fight it, and would not rescale y at all.
     const option = buildMetricTrendOption({
       trend: restingHrTrend,
       metric: RESTING_HR_METRIC,
       tokens,
       today,
     });
-    expect(zooms(option).map((z) => z.type)).toEqual(["inside", "slider"]);
+    expect("dataZoom" in option).toBe(false);
   });
 
-  it("leaves the mouse wheel to the page", () => {
-    // A wheel that zoomed the chart instead of scrolling the page is the surprise
-    // this is written to prevent.
-    const [inside] = zooms(
-      buildMetricTrendOption({ trend: restingHrTrend, metric: RESTING_HR_METRIC, tokens, today }),
-    );
-    expect(inside?.zoomOnMouseWheel).toBe(false);
-    expect(inside?.moveOnMouseWheel).toBe(false);
-  });
-
-  it("gives the slider a visible track", () => {
-    // Transparent on a pale page is a control nobody can find; it shipped that way once.
-    const slider = zooms(
-      buildMetricTrendOption({ trend: restingHrTrend, metric: RESTING_HR_METRIC, tokens, today }),
-    )[1];
-    expect(slider?.backgroundColor).not.toBe("transparent");
-    expect(slider?.backgroundColor).toBeTruthy();
-  });
-
-  it("leaves room under the plot for it", () => {
-    const option = buildMetricTrendOption({
+  it("shares the gutters the selection overlay is positioned from", () => {
+    const grid = buildMetricTrendOption({
       trend: restingHrTrend,
       metric: RESTING_HR_METRIC,
       tokens,
       today,
-    });
-    const grid = option.grid as { bottom: number };
-    expect(grid.bottom).toBeGreaterThan(24);
+    }).grid as { left: number; right: number };
+    expect(grid.left).toBe(HEALTH_GUTTERS.left);
+    expect(grid.right).toBe(HEALTH_GUTTERS.right);
   });
 });
