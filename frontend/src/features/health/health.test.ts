@@ -112,9 +112,19 @@ describe("which metrics the window recorded", () => {
   });
 
   it("splits the metrics into charted and missing", () => {
+    // The split is asserted, not the roster: this listed every metric by name and
+    // broke the day steps and stress were added, which says nothing about the split.
     const trends = trendsOf(recorded, empty);
-    expect(recordedMetrics(CHART_METRICS, trends).map((m) => m.metric.key)).toEqual(["resting_hr"]);
-    expect(missingMetrics(CHART_METRICS, trends).map((m) => m.key)).toEqual(["sleep_score", "hrv"]);
+    const charted = recordedMetrics(CHART_METRICS, trends).map((m) => m.metric.key);
+    const missing = missingMetrics(CHART_METRICS, trends).map((m) => m.key);
+
+    expect(charted).toEqual(["resting_hr"]);
+    // Present in the payload but with no readings in it, so it is missing, not charted.
+    expect(missing).toContain("hrv");
+    // Absent from the payload entirely — also missing.
+    expect(missing).toContain("sleep_score");
+    expect(missing).not.toContain("resting_hr");
+    expect([...charted, ...missing].sort()).toEqual(CHART_METRICS.map((m) => m.key).sort());
   });
 
   it("gives Body Battery and sleep duration a card but no trend chart", () => {

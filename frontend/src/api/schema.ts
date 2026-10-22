@@ -3648,7 +3648,7 @@ export interface components {
              * Metric
              * @enum {string}
              */
-            metric: "resting_hr" | "hrv" | "sleep_score" | "total_sleep_s" | "bb_high" | "stress_avg";
+            metric: "resting_hr" | "hrv" | "sleep_score" | "total_sleep_s" | "bb_high" | "stress_avg" | "steps";
             /** Days */
             days: string[];
             /** Values */
@@ -5504,7 +5504,7 @@ export interface components {
              * Metric
              * @enum {string}
              */
-            metric: "resting_hr" | "hrv" | "sleep_score" | "total_sleep_s" | "bb_high" | "stress_avg";
+            metric: "resting_hr" | "hrv" | "sleep_score" | "total_sleep_s" | "bb_high" | "stress_avg" | "steps";
             /** Z */
             z: number;
             /**

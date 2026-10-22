@@ -65,11 +65,34 @@ export const RESTING_HR_METRIC: HealthMetric = {
   minSpan: 10,
 };
 
+export const STEPS_METRIC: HealthMetric = {
+  key: "steps",
+  label: "Steps",
+  scale: 1,
+  unit: "",
+  digits: 0,
+  // A quiet week still swings a couple of thousand steps a day; below this the chart
+  // would be all noise and no shape.
+  minSpan: 4000,
+};
+
+export const STRESS_METRIC: HealthMetric = {
+  key: "stress_avg",
+  label: "Stress",
+  scale: 1,
+  unit: "",
+  digits: 0,
+  minSpan: 10,
+};
+
 /** The metrics with a chart of their own: the daily value and its 28-day baseline. */
 export const CHART_METRICS: readonly HealthMetric[] = [
   SLEEP_SCORE_METRIC,
   HRV_METRIC,
   RESTING_HR_METRIC,
+  // Both carried ~1,350 days of readings and had never been drawn.
+  STEPS_METRIC,
+  STRESS_METRIC,
 ];
 
 /** Every metric with a card, in the order the row shows them. */

@@ -23,6 +23,7 @@ METRIC_DIRECTION = {
     "bb_high": +1,
     "stress_avg": -1,
     "bb_low": +1,
+    "steps": +1,
 }
 
 
@@ -114,7 +115,12 @@ def series_trend(
 # Store-backed
 # ---------------------------------------------------------------------------
 
-TREND_METRICS = ["resting_hr", "hrv", "sleep_score", "total_sleep_s", "bb_high", "stress_avg"]
+#: Every metric `compute_trends` scores by default. `steps` joined them for the long
+#: view: the wellness table has carried it since December 2022 — about 1,350 days — and
+#: nothing had ever charted it.
+TREND_METRICS = [
+    "resting_hr", "hrv", "sleep_score", "total_sleep_s", "bb_high", "stress_avg", "steps",
+]
 
 
 def daily_frame(store, days: int | None = None) -> list[dict[str, object]]:

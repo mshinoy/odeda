@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from garmin_analytics.analytics import trends as trends_mod
 from garmin_analytics.api.server import create_app
 
 
@@ -123,8 +124,10 @@ class TestLoad:
 class TestTrends:
     def test_default_metrics(self, client):
         body = client.get("/api/trends?days=90").json()
-        assert set(body["metrics"]) == {"resting_hr", "hrv", "sleep_score",
-                                        "total_sleep_s", "bb_high", "stress_avg"}
+        # Against the module's own list, not a copy of it: a second roster here only
+        # ever says that someone edited one of the two places.
+        assert set(body["metrics"]) == set(trends_mod.TREND_METRICS)
+        assert "steps" in body["metrics"]
 
     def test_metric_subset(self, client):
         body = client.get("/api/trends?days=90&metrics=hrv,resting_hr").json()

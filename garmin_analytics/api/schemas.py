@@ -995,7 +995,7 @@ class Heatmap(_Model):
 
 #: `trends.TREND_METRICS`: every metric `compute_trends` scores by default.
 TrendMetric = Literal[
-    "resting_hr", "hrv", "sleep_score", "total_sleep_s", "bb_high", "stress_avg"
+    "resting_hr", "hrv", "sleep_score", "total_sleep_s", "bb_high", "stress_avg", "steps"
 ]
 
 #: `readiness.readiness_band`.
