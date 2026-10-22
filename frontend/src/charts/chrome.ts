@@ -24,11 +24,19 @@ export function chartGrid(gutters: { left: number; right: number }) {
 export const ZOOM_GUTTER = 28;
 
 /**
- * Drag-to-zoom for a chart whose window may be years long.
+ * Zoom and pan for a chart whose window may be years long.
  *
- * Scroll is deliberately left out: these charts sit in a scrolling page, and a wheel
- * that zoomed the chart instead of moving the page is the worst kind of surprise.
- * Dragging inside the plot, or the slider under it, both work.
+ * Two different gestures, which is worth being exact about:
+ *   - the slider's **end handles** narrow the window — that is the zoom;
+ *   - its **middle**, or a drag inside the plot, slides that window along — the pan.
+ *
+ * The mouse wheel does neither, deliberately. These charts sit in a scrolling page,
+ * and a wheel that zoomed the chart instead of moving the page is the worst kind of
+ * surprise. Pinch still zooms on a touch screen, where there is no page-scroll to
+ * steal.
+ *
+ * Each chart zooms on its own; the range control above them is what moves all of them
+ * together.
  */
 export function zoomControls(tokens: ColorTokens): DataZoomComponentOption[] {
   return [

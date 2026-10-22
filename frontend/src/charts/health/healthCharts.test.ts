@@ -190,3 +190,55 @@ describe("buildReadinessOption", () => {
     expect(seriesOf(option)[0]?.color).toBe(tokens.ink);
   });
 });
+
+describe("zoom controls", () => {
+  /**
+   * The registration this depends on is silent when missing: ECharts is built from
+   * `echarts/core`, and a `dataZoom` option with no `DataZoomComponent` registered is
+   * dropped without an error. It was configured in three builders and did nothing at
+   * all until the component was registered, so these pin the config to the option.
+   */
+  function zooms(option: { dataZoom?: unknown }): Record<string, unknown>[] {
+    return Array.isArray(option.dataZoom) ? (option.dataZoom as Record<string, unknown>[]) : [];
+  }
+
+  it("reaches the built option", () => {
+    const option = buildMetricTrendOption({
+      trend: restingHrTrend,
+      metric: RESTING_HR_METRIC,
+      tokens,
+      today,
+    });
+    expect(zooms(option).map((z) => z.type)).toEqual(["inside", "slider"]);
+  });
+
+  it("leaves the mouse wheel to the page", () => {
+    // A wheel that zoomed the chart instead of scrolling the page is the surprise
+    // this is written to prevent.
+    const [inside] = zooms(
+      buildMetricTrendOption({ trend: restingHrTrend, metric: RESTING_HR_METRIC, tokens, today }),
+    );
+    expect(inside?.zoomOnMouseWheel).toBe(false);
+    expect(inside?.moveOnMouseWheel).toBe(false);
+  });
+
+  it("gives the slider a visible track", () => {
+    // Transparent on a pale page is a control nobody can find; it shipped that way once.
+    const slider = zooms(
+      buildMetricTrendOption({ trend: restingHrTrend, metric: RESTING_HR_METRIC, tokens, today }),
+    )[1];
+    expect(slider?.backgroundColor).not.toBe("transparent");
+    expect(slider?.backgroundColor).toBeTruthy();
+  });
+
+  it("leaves room under the plot for it", () => {
+    const option = buildMetricTrendOption({
+      trend: restingHrTrend,
+      metric: RESTING_HR_METRIC,
+      tokens,
+      today,
+    });
+    const grid = option.grid as { bottom: number };
+    expect(grid.bottom).toBeGreaterThan(24);
+  });
+});
