@@ -53,6 +53,7 @@ Paste one of these into a fresh session.
 | 10 Routes that know laps | J: `approved` | 1 / 1 |
 | 11 Loose ends | K: `approved` | 8 / 8 |
 | 12 The race comes from the calendar | L: `ready for review` | 1 / 1 |
+| 13 The long view | M: `open` | 0 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -235,6 +236,18 @@ and then ignores, and on 16 January they become a countdown that reads −1 days
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T57 | The race is the next one in the calendar, not a constant | done | T36 | The race is the next one in the calendar |
+
+### Phase 13 — The long view · Checkpoint M: `open`
+
+Health answers "how am I this month": a 28-day baseline, 90 days by default, two years
+at most. The owner asked a different question — weight, body fat, resting heart rate
+and VO2max over four or five years, wherever the data reaches. His weight goes back to
+**August 2014**, twelve years, and the API already serves it; only the range control
+stops at 730 days.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T58 | A History page: every metric, as far back as it goes | in progress (patti, 2026-10-22) | — | |
 
 ### Open decisions
 
@@ -3079,3 +3092,35 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     name reads as the calendar titles it rather than the constant's wording.
   - 1475 passed, 1 skipped; 812 frontend tests, typecheck, lint and build clean.
     Screenshots in `~/garmin-review/L/`.
+\n
+### T58 — A History page: every metric, as far back as it goes
+- **Goal:** one page that answers "what has changed over years", not over a month.
+- **Files:** `garmin_analytics/api/server.py`,
+  `frontend/src/features/history/historyRange.ts`,
+  `frontend/src/features/history/historySeries.ts`,
+  `frontend/src/features/history/HistoryPage.tsx`,
+  `frontend/src/features/history/HistoryChart.tsx`,
+  `frontend/src/charts/history/buildHistoryOption.ts`,
+  `frontend/src/features/shell/AppShell.tsx`, `frontend/src/routes.tsx`.
+- **Build:**
+  - [ ] a `/history` page with one range control: 1, 2, 4 years and everything
+  - [ ] weight, body fat, resting HR, VO2max, steps, stress, Body Battery, sleep
+  - [ ] a metric with no readings in the window is left out, not drawn empty
+  - [ ] drag to zoom into any stretch of it
+  - [ ] the API stops capping the window below the data the owner has
+- **Notes:**
+  - **Measured before building.** Weight 2014-08-10, 423 readings, twelve years. Body
+    fat from 2021-10-21, 383. Resting HR, steps, stress and Body Battery from late
+    December 2022, about 1,350 days each. VO2max from 2023-01-02, 1,349. Everything
+    but weight starts when the watch did.
+  - **A new page rather than a longer Health.** Health is built around a 28-day
+    baseline and a 90-day default — "is this week off" — and stretching it to twelve
+    years would answer neither question well.
+  - **Two sources, because `v_daily` is not enough.** It starts 2022-11-23 and carries
+    362 of the 423 weigh-ins; the 61 from 2014 to 2022 predate it. Weight and body fat
+    come from `/api/body`, everything else from `/api/daily`.
+  - **ECharts stays.** Twenty-four tested builders already use it, it holds thousands
+    of points without complaint, and `dataZoom` is the drag-to-zoom this page wants —
+    a config line, not a dependency.
+  - HRV, sleep score, SpO2 and training readiness are left out: Garmin returns `{}`
+    and `[]` for them on this account, so a chart could only ever be empty.
