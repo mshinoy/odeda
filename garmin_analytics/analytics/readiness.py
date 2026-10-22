@@ -205,7 +205,11 @@ def readiness_history(store, days: int = 90) -> list[dict[str, object]]:
             "rhr": z_component(rhr_z, -1, "Resting HR")[0],
             "tsb": tsb_component(None if tsb is None else float(tsb))[0],
         }
-        score = composite(comps)
+        # Training load alone says nothing about how rested the body is. Before the watch
+        # recorded sleep or heart rate, renormalising left only TSB, which drew a flat,
+        # confident line over weeks with no recovery data at all.
+        has_recovery_signal = any(comps[k] is not None for k in ("sleep", "hrv", "rhr"))
+        score = composite(comps) if has_recovery_signal else None
         out.append(
             {
                 "day": r["day"],

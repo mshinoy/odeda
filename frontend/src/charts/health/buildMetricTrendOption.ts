@@ -12,16 +12,19 @@ import {
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
+import { dayHeading, type Resolution } from "@/charts/health/resolution";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
 import { scaled, type HealthMetric } from "@/features/health/healthMetrics";
-import { formatDate, formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
+import { formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
 
 export interface MetricTrendInput {
+  /** Already at `resolution`: a week's mean per point when that is "week". */
   trend: MetricTrend;
   metric: HealthMetric;
   tokens: ColorTokens;
   today?: Date;
+  resolution?: Resolution;
 }
 
 export const BASELINE_LABEL = "28-day";
@@ -46,23 +49,25 @@ export function metricTrendScale(
 
   const spread = padded(withMinSpan(range, metric.minSpan), Y_PADDING);
   const step = decimalStep(spread[1] - spread[0], MAX_Y_INTERVALS);
-  const [min, max] = snapToStep(spread, step);
+  const [snappedMin, max] = snapToStep(spread, step);
+  const min = metric.floor === undefined ? snappedMin : Math.max(snappedMin, metric.floor);
   return { min, max, step };
 }
 
-/** "Sep 23 · 56 bpm · 28-day 57". */
+/** "Sep 23 · 56 bpm · 28-day 57", or "Week of Sep 23 · …" when a point is a week's mean. */
 export function metricTrendTooltip(
   trend: MetricTrend,
   metric: HealthMetric,
   index: number,
   today?: Date,
+  resolution: Resolution = "day",
 ): string {
   const day = trend.days[index];
   if (day === undefined) return "";
   const value = scaled(trend.values[index] ?? null, metric);
   const baseline = scaled(trend.roll28[index] ?? null, metric);
   return [
-    formatDate(day, today),
+    dayHeading(day, resolution, today),
     value === null ? MISSING : formatWithUnit(value, metric.unit, metric.digits),
     `${BASELINE_LABEL} ${formatDecimal(baseline, metric.digits)}`,
   ].join(" · ");
@@ -73,6 +78,7 @@ export function buildMetricTrendOption({
   metric,
   tokens,
   today,
+  resolution = "day",
 }: MetricTrendInput): ChartOption {
   const values = trend.values.map((value) => scaled(value, metric));
   const baseline = trend.roll28.map((value) => scaled(value, metric));
@@ -108,7 +114,9 @@ export function buildMetricTrendOption({
       axisPointer: { type: "line", lineStyle: { color: tokens.cursor, width: 1 } },
       formatter: (params) => {
         const first = Array.isArray(params) ? params[0] : params;
-        return first ? metricTrendTooltip(trend, metric, first.dataIndex, today) : "";
+        return first
+          ? metricTrendTooltip(trend, metric, first.dataIndex, today, resolution)
+          : "";
       },
     },
     series: [

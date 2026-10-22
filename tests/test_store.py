@@ -51,6 +51,34 @@ class TestMigrations:
         ).fetchone()[0] == 1
         conn.close()
 
+    def test_garmins_no_reading_marker_never_reaches_a_chart(self, store):
+        """Garmin stores -1 as the stress average on a day it measured none. Read as a
+        value it is a flat line at the bottom of the chart and a lowered baseline."""
+        for day, stress in (("2026-07-23", -1.0), ("2026-07-24", 31.0)):
+            store.conn.execute(
+                "INSERT INTO daily_wellness (day, stress_avg) VALUES (?, ?)", (day, stress)
+            )
+        store.conn.commit()
+
+        rows = dict(store.conn.execute("SELECT day, stress_avg FROM v_daily").fetchall())
+        assert rows == {"2026-07-23": None, "2026-07-24": 31.0}
+
+    def test_an_existing_database_gets_the_corrected_view(self, settings):
+        """The view script is CREATE IF NOT EXISTS in spirit, so a database that already
+        has the old v_daily would keep it unless the migration replaces it."""
+        conn = S.connect(settings.db_path)
+        S.migrate(conn, settings.schema_path)
+        conn.execute("DROP VIEW v_daily")
+        conn.execute("CREATE VIEW v_daily AS SELECT day, stress_avg FROM daily_wellness")
+        conn.execute("INSERT INTO daily_wellness (day, stress_avg) VALUES ('2026-07-23', -1)")
+        conn.execute("PRAGMA user_version = 0")
+        conn.commit()
+
+        S.migrate(conn, settings.schema_path)
+
+        assert conn.execute("SELECT stress_avg FROM v_daily").fetchone()[0] is None
+        conn.close()
+
     def test_every_expected_table_exists(self, store):
         counts = store.table_counts()
         for table in ("raw_documents", "sync_watermark", "activities", "activity_hr_zones",

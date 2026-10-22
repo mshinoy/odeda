@@ -16,6 +16,8 @@ export interface HealthMetric {
   digits: number;
   /** The smallest y span, so a steady metric does not fill its chart with noise. */
   minSpan: number;
+  /** The axis never runs below this: steps and stress cannot be negative, and padding made them. */
+  floor?: number;
 }
 
 /** Read off the stacked stage chart, so it gets a card but no line of its own. */
@@ -45,6 +47,7 @@ export const SLEEP_SCORE_METRIC: HealthMetric = {
   unit: "",
   digits: 0,
   minSpan: 20,
+  floor: 0,
 };
 
 export const HRV_METRIC: HealthMetric = {
@@ -54,6 +57,7 @@ export const HRV_METRIC: HealthMetric = {
   unit: "ms",
   digits: 0,
   minSpan: 10,
+  floor: 0,
 };
 
 export const RESTING_HR_METRIC: HealthMetric = {
@@ -74,6 +78,7 @@ export const STEPS_METRIC: HealthMetric = {
   // A quiet week still swings a couple of thousand steps a day; below this the chart
   // would be all noise and no shape.
   minSpan: 4000,
+  floor: 0,
 };
 
 export const STRESS_METRIC: HealthMetric = {
@@ -83,6 +88,7 @@ export const STRESS_METRIC: HealthMetric = {
   unit: "",
   digits: 0,
   minSpan: 10,
+  floor: 0,
 };
 
 /** The metrics with a chart of their own: the daily value and its 28-day baseline. */

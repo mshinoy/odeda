@@ -134,6 +134,23 @@ class TestComputeReadiness:
             if h["score"] is not None:
                 assert 0 <= h["score"] <= 100
 
+    def test_history_scores_nothing_from_training_load_alone(self, store, monkeypatch):
+        """Days before the watch recorded sleep or heart rate have only a TSB component;
+        renormalising over it drew a flat, confident score with no recovery data behind it."""
+        for d in ("2026-07-24", "2026-07-25", "2026-07-26"):
+            store.upsert("daily_wellness", ["day"], {"day": d, "steps": 1000})
+        store.upsert("daily_wellness", ["day"], {"day": "2026-07-27", "steps": 1000})
+        store.upsert("sleep", ["day"], {"day": "2026-07-27", "sleep_score": 82})
+        store.conn.commit()
+        curve = [{"day": d, "tsb": 8.0} for d in ("2026-07-24", "2026-07-25", "2026-07-26", "2026-07-27")]
+        monkeypatch.setattr(R.load_mod, "compute_load", lambda _store: {"curve": curve})
+
+        hist = {h["day"]: h for h in R.readiness_history(store, days=10)}
+
+        assert hist["2026-07-24"]["score"] is None
+        assert hist["2026-07-24"]["band"] is None
+        assert hist["2026-07-27"]["score"] is not None
+
     def test_history_last_day_agrees_with_the_point_calculation(self, seeded_store):
         """The batched history path and the single-day path must not disagree."""
         hist = R.readiness_history(seeded_store, days=5)

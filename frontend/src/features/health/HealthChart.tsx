@@ -11,7 +11,7 @@ interface HealthChartProps {
   legend?: ReactNode;
 }
 
-export const HEALTH_CHART_HEIGHT = 180;
+export const HEALTH_CHART_HEIGHT = 220;
 
 /** One metric, under its own label. Every chart on the Health page is one of these. */
 export function HealthChart({

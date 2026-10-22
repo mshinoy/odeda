@@ -4,20 +4,27 @@ import type { DailyRow } from "@/api/queries/useHealth";
 import { tooltipStyle } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID, scoreAxis } from "@/charts/health/dayAxis";
+import { dayHeading, type Resolution } from "@/charts/health/resolution";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
-import { formatDate, formatInteger } from "@/lib/format";
+import { formatInteger } from "@/lib/format";
 
 export interface BodyBatteryInput {
+  /** Already at `resolution`: a week's average peak and trough when that is "week". */
   rows: readonly DailyRow[];
   tokens: ColorTokens;
   today?: Date;
+  resolution?: Resolution;
 }
 
 /** "Sep 23 · High 61 · Low 10". */
-export function bodyBatteryTooltip(row: DailyRow, today?: Date): string {
+export function bodyBatteryTooltip(
+  row: DailyRow,
+  today?: Date,
+  resolution: Resolution = "day",
+): string {
   return [
-    formatDate(row.day, today),
+    dayHeading(row.day, resolution, today),
     `High ${formatInteger(row.bb_high)}`,
     `Low ${formatInteger(row.bb_low)}`,
   ].join(" · ");
@@ -27,7 +34,12 @@ export function bodyBatteryDays(rows: readonly DailyRow[]): boolean {
   return rows.some((row) => row.bb_high !== null || row.bb_low !== null);
 }
 
-export function buildBodyBatteryOption({ rows, tokens, today }: BodyBatteryInput): ChartOption {
+export function buildBodyBatteryOption({
+  rows,
+  tokens,
+  today,
+  resolution = "day",
+}: BodyBatteryInput): ChartOption {
   const endLabel = (text: string, color: string) => ({
     show: true,
     formatter: text,
@@ -53,7 +65,7 @@ export function buildBodyBatteryOption({ rows, tokens, today }: BodyBatteryInput
       formatter: (params) => {
         const first = Array.isArray(params) ? params[0] : params;
         const row = first ? rows[first.dataIndex] : undefined;
-        return row ? bodyBatteryTooltip(row, today) : "";
+        return row ? bodyBatteryTooltip(row, today, resolution) : "";
       },
     },
     series: [

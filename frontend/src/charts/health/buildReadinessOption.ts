@@ -5,24 +5,38 @@ import type { ReadinessPoint } from "@/api/queries/useHealth";
 import { tooltipStyle } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID, scoreAxis } from "@/charts/health/dayAxis";
+import { dayHeading, type Resolution } from "@/charts/health/resolution";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily } from "@/design/typography";
 import { bandDisplay } from "@/features/status/readiness";
-import { formatDate, formatInteger, MISSING } from "@/lib/format";
+import { formatInteger, MISSING } from "@/lib/format";
 
 export interface ReadinessChartInput {
+  /** Already at `resolution`: a week's mean score per point when that is "week". */
   series: readonly ReadinessPoint[];
   tokens: ColorTokens;
   today?: Date;
+  resolution?: Resolution;
 }
 
-/** "Sep 23 · 72 · Ready". */
-export function readinessTooltip(point: ReadinessPoint, today?: Date): string {
+/** "Sep 23 · 72 · Ready"; a week's mean has no band, so that part is left off. */
+export function readinessTooltip(
+  point: ReadinessPoint,
+  today?: Date,
+  resolution: Resolution = "day",
+): string {
+  const heading = dayHeading(point.day, resolution, today);
+  if (resolution === "week") return [heading, formatInteger(point.score)].join(" · ");
   const band = point.band ? bandDisplay[point.band].label : MISSING;
-  return [formatDate(point.day, today), formatInteger(point.score), band].join(" · ");
+  return [heading, formatInteger(point.score), band].join(" · ");
 }
 
-export function buildReadinessOption({ series, tokens, today }: ReadinessChartInput): ChartOption {
+export function buildReadinessOption({
+  series,
+  tokens,
+  today,
+  resolution = "day",
+}: ReadinessChartInput): ChartOption {
   return {
     animation: false,
     textStyle: { fontFamily },
@@ -40,7 +54,7 @@ export function buildReadinessOption({ series, tokens, today }: ReadinessChartIn
       formatter: (params) => {
         const first = Array.isArray(params) ? params[0] : params;
         const point = first ? series[first.dataIndex] : undefined;
-        return point ? readinessTooltip(point, today) : "";
+        return point ? readinessTooltip(point, today, resolution) : "";
       },
     },
     series: [

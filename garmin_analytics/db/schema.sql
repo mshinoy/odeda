@@ -177,11 +177,16 @@ CREATE TABLE IF NOT EXISTS body_composition (
 );
 
 -- Convenience view: one row per day with everything joined, for the trend engine.
-CREATE VIEW IF NOT EXISTS v_daily AS
+-- Dropped first so a changed definition reaches a database that already has the view;
+-- the script only runs when the schema fingerprint changes.
+DROP VIEW IF EXISTS v_daily;
+CREATE VIEW v_daily AS
 SELECT d.day                       AS day,
        d.resting_hr                AS resting_hr,
        d.steps                     AS steps,
-       d.stress_avg                AS stress_avg,
+       -- Garmin writes -1 for "no stress reading". Left in, it plots as a flat line at
+       -- the bottom of the chart and drags the baseline down with it.
+       CASE WHEN d.stress_avg >= 0 THEN d.stress_avg END AS stress_avg,
        d.bb_high                   AS bb_high,
        d.bb_low                    AS bb_low,
        d.bb_charged                AS bb_charged,

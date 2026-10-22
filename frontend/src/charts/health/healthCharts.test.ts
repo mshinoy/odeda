@@ -136,6 +136,19 @@ describe("buildMetricTrendOption", () => {
     expect(metricTrendScale([null, null], RESTING_HR_METRIC)).toBeNull();
   });
 
+  it("never runs the axis below a floor that padding would have crossed", () => {
+    // 1,200..4,000 steps is a wide spread whose padded bottom would have gone negative.
+    const steps = { ...RESTING_HR_METRIC, minSpan: 4000, floor: 0 };
+    expect(metricTrendScale([1200, 4000], steps)?.min).toBe(0);
+    expect(metricTrendScale([1200, 4000], { ...steps, floor: undefined })?.min).toBeLessThan(1200);
+  });
+
+  it("heads a weekly point as the week it opens", () => {
+    expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today, "week")).toBe(
+      "Week of Sep 24 · 56 bpm · 28-day 59",
+    );
+  });
+
   it("puts the value, the unit and the baseline in the tooltip", () => {
     expect(metricTrendTooltip(restingHrTrend, RESTING_HR_METRIC, 2, today)).toBe(
       "Sep 24 · 56 bpm · 28-day 59",
@@ -167,6 +180,12 @@ describe("buildBodyBatteryOption", () => {
     expect(seriesOf(option).map((s) => s.name)).toEqual(["High", "Low"]);
   });
 
+  it("heads a weekly point as the week it opens", () => {
+    expect(rows[1] && bodyBatteryTooltip(rows[1], today, "week")).toBe(
+      "Week of Sep 24 · High 67 · Low 13",
+    );
+  });
+
   it("knows when there is nothing to draw", () => {
     expect(bodyBatteryDays(rows)).toBe(true);
     expect(bodyBatteryDays([{ day: "d", bb_high: null, bb_low: null } as DailyRow])).toBe(false);
@@ -188,6 +207,30 @@ describe("buildReadinessOption", () => {
   it("keeps the band as a label in the tooltip, not as a colour on the line", () => {
     expect(series[1] && readinessTooltip(series[1], today)).toBe("Sep 24 · 45 · Low");
     expect(seriesOf(option)[0]?.color).toBe(tokens.ink);
+  });
+
+  it("leaves the band off a week's mean, which has none", () => {
+    expect(series[1] && readinessTooltip(series[1], today, "week")).toBe("Week of Sep 24 · 45");
+  });
+});
+
+describe("day axis labels", () => {
+  function labels(days: string[]): string[] {
+    const axis = buildMetricTrendOption({
+      trend: { ...restingHrTrend, days, values: days.map(() => 60) },
+      metric: RESTING_HR_METRIC,
+      tokens,
+      today,
+    }).xAxis as { axisLabel: { formatter: (value: string) => string } };
+    return days.map((day) => axis.axisLabel.formatter(day));
+  }
+
+  it("reads a short window as day and month", () => {
+    expect(labels(["2026-09-22", "2026-09-24"])).toEqual(["Sep 22", "Sep 24"]);
+  });
+
+  it("reads a window of more than eight months as month and year", () => {
+    expect(labels(["2025-01-05", "2026-09-24"])).toEqual(["Jan 2025", "Sep 2026"]);
   });
 });
 

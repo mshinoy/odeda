@@ -10,16 +10,19 @@ import {
 } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
+import { dayHeading, type Resolution } from "@/charts/health/resolution";
 import { metricColor } from "@/design/scales";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily } from "@/design/typography";
 import { nightTotalH, type SleepNight } from "@/features/health/sleepStages";
-import { formatDate, formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
+import { formatDecimal, formatWithUnit, MISSING } from "@/lib/format";
 
 export interface SleepStagesInput {
+  /** Already at `resolution`: a week's average night per bar when that is "week". */
   nights: readonly SleepNight[];
   tokens: ColorTokens;
   today?: Date;
+  resolution?: Resolution;
 }
 
 export interface SleepStageColors {
@@ -59,15 +62,24 @@ export function sleepAxisMaxH(nights: readonly SleepNight[]): number {
   return Math.max(rounded, MIN_AXIS_HOURS);
 }
 
-/** "Sep 23 · 8.0 h · Deep 0.2 · REM 2.0 · Light 5.8". */
-export function sleepNightTooltip(night: SleepNight, today?: Date): string {
+/** "Sep 23 · 8.0 h · Deep 0.2 · REM 2.0 · Light 5.8"; a week reads "Week of Sep 23" and the average night. */
+export function sleepNightTooltip(
+  night: SleepNight,
+  today?: Date,
+  resolution: Resolution = "day",
+): string {
   const total = nightTotalH(night);
   const stages = SLEEP_STAGES.map((stage) => `${stage.label} ${formatDecimal(night[stage.value])}`);
   const head = total === null ? MISSING : formatWithUnit(total, "h", 1);
-  return [formatDate(night.day, today), head, ...stages].join(" · ");
+  return [dayHeading(night.day, resolution, today), head, ...stages].join(" · ");
 }
 
-export function buildSleepStagesOption({ nights, tokens, today }: SleepStagesInput): ChartOption {
+export function buildSleepStagesOption({
+  nights,
+  tokens,
+  today,
+  resolution = "day",
+}: SleepStagesInput): ChartOption {
   const colors = sleepStageColors(tokens);
   const maxH = sleepAxisMaxH(nights);
 
@@ -101,7 +113,7 @@ export function buildSleepStagesOption({ nights, tokens, today }: SleepStagesInp
       formatter: (params) => {
         const first = Array.isArray(params) ? params[0] : params;
         const night = first ? nights[first.dataIndex] : undefined;
-        return night ? sleepNightTooltip(night, today) : "";
+        return night ? sleepNightTooltip(night, today, resolution) : "";
       },
     },
     series: SLEEP_STAGES.map((stage) => ({

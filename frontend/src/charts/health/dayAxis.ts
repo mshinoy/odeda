@@ -3,7 +3,7 @@
 import { axisLabelStyle, chartGrid, gridLineStyle, quietAxis, ZOOM_GUTTER } from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
 import type { ColorTokens } from "@/design/tokens";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMonth } from "@/lib/format";
 
 /** Enough labels to place a point in the year, few enough to stay readable. */
 const X_LABELS = 4;
@@ -20,8 +20,21 @@ export const HEALTH_CHART_GRID_ZOOMED = {
 type CategoryAxis = Extract<ChartOption["xAxis"], { type?: "category" }>;
 type ValueAxis = Extract<ChartOption["yAxis"], { type?: "value" }>;
 
-/** One category per day, labelled four times, with no vertical gridlines. */
+/** Beyond this many days the labels carry month and year: "Aug 10, 2014" is too wide for four. */
+const MONTH_LABELS_FROM_DAYS = 240;
+
+const MS_PER_DAY = 86_400_000;
+
+function spanDays(days: readonly string[]): number {
+  const first = days[0];
+  const last = days[days.length - 1];
+  if (first === undefined || last === undefined) return 0;
+  return (Date.parse(last) - Date.parse(first)) / MS_PER_DAY;
+}
+
+/** One category per point, labelled four times, with no vertical gridlines. */
 export function dayAxis(days: readonly string[], tokens: ColorTokens, today?: Date): CategoryAxis {
+  const monthLabels = spanDays(days) > MONTH_LABELS_FROM_DAYS;
   return {
     type: "category",
     data: [...days],
@@ -30,7 +43,12 @@ export function dayAxis(days: readonly string[], tokens: ColorTokens, today?: Da
     axisLabel: {
       ...axisLabelStyle(tokens),
       interval: Math.max(Math.floor(days.length / X_LABELS) - 1, 0),
-      formatter: (value: string) => formatDate(value, today),
+      // The outer labels sit inside the plot, not centred on its edges, where they ran
+      // into the y-axis labels beside them.
+      alignMinLabel: "left",
+      alignMaxLabel: "right",
+      formatter: (value: string) =>
+        monthLabels ? formatMonth(value.slice(0, 7)) : formatDate(value, today),
     },
   };
 }

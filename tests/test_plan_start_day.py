@@ -163,4 +163,4 @@ class TestTheMigration:
         assert "start_day" in columns
         # the subscription survived the upgrade
         assert store.scalar("SELECT COUNT(*) FROM plan_sources") == 1
-        assert store.scalar("SELECT MAX(version) FROM schema_migrations") == 4
+        assert store.scalar("SELECT MAX(version) FROM schema_migrations") == store_mod.SCHEMA_VERSION
