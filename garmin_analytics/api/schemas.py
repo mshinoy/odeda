@@ -1223,6 +1223,9 @@ class BodySeries(_Model):
     """Smoothed fat mass: weight × body fat %."""
     lean_kg: list[float | None]
     """Smoothed lean mass: the rest of it."""
+    fat_pct: list[float | None] = []
+    """Smoothed body fat percentage, as the scale reported it. Plotted directly by the
+    History page rather than derived from the two rounded masses above."""
 
 
 class BodyConsistency(_Model):

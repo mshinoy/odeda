@@ -1,4 +1,5 @@
 // Chart chrome every chart shares: quiet axes, hairline gridlines, one tooltip style.
+import type { DataZoomComponentOption } from "echarts/components";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
 
@@ -17,6 +18,40 @@ export function gridLineStyle(tokens: ColorTokens) {
  */
 export function chartGrid(gutters: { left: number; right: number }) {
   return { ...gutters, top: 12, bottom: 24 } as const;
+}
+
+/** Vertical room the zoom slider needs under the x-axis labels. */
+export const ZOOM_GUTTER = 28;
+
+/**
+ * Drag-to-zoom for a chart whose window may be years long.
+ *
+ * Scroll is deliberately left out: these charts sit in a scrolling page, and a wheel
+ * that zoomed the chart instead of moving the page is the worst kind of surprise.
+ * Dragging inside the plot, or the slider under it, both work.
+ */
+export function zoomControls(tokens: ColorTokens): DataZoomComponentOption[] {
+  return [
+    { type: "inside", zoomOnMouseWheel: false, moveOnMouseWheel: false, throttle: 50 },
+    {
+      type: "slider",
+      height: 14,
+      bottom: 4,
+      borderColor: "transparent",
+      // The track has to be visible or the control is undiscoverable: a transparent
+      // one on a pale page is a feature nobody finds.
+      backgroundColor: tokens.surfaceMuted,
+      fillerColor: tokens.gridline,
+      handleStyle: { color: tokens.inkMuted, borderColor: tokens.inkMuted },
+      moveHandleStyle: { color: tokens.inkMuted },
+      moveHandleSize: 4,
+      // The dates are already on the axis above; repeating them in the handle labels
+      // is the same fact twice in half the space.
+      showDetail: false,
+      showDataShadow: false,
+      textStyle: { color: tokens.inkMuted, fontSize: fontSize.caption, fontFamily },
+    },
+  ];
 }
 
 /** Axis line, ticks and vertical gridlines all off: the data and the labels carry it. */

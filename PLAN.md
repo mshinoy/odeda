@@ -53,7 +53,7 @@ Paste one of these into a fresh session.
 | 10 Routes that know laps | J: `approved` | 1 / 1 |
 | 11 Loose ends | K: `approved` | 8 / 8 |
 | 12 The race comes from the calendar | L: `ready for review` | 1 / 1 |
-| 13 The long view | M: `open` | 0 / 1 |
+| 13 The long view | M: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -237,7 +237,7 @@ and then ignores, and on 16 January they become a countdown that reads −1 days
 |---|---|---|---|---|
 | T57 | The race is the next one in the calendar, not a constant | done | T36 | The race is the next one in the calendar |
 
-### Phase 13 — The long view · Checkpoint M: `open`
+### Phase 13 — The long view · Checkpoint M: `ready for review`
 
 Health answers "how am I this month": a 28-day baseline, 90 days by default, two years
 at most. The owner asked a different question — weight, body fat, resting heart rate
@@ -247,7 +247,7 @@ stops at 730 days.
 
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
-| T58 | A History page: every metric, as far back as it goes | in progress (patti, 2026-10-22) | — | |
+| T58 | Health reaches as far back as the data does | done | — | Health reaches as far back as the data does |
 
 ### Open decisions
 
@@ -3093,34 +3093,46 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - 1475 passed, 1 skipped; 812 frontend tests, typecheck, lint and build clean.
     Screenshots in `~/garmin-review/L/`.
 \n
-### T58 — A History page: every metric, as far back as it goes
-- **Goal:** one page that answers "what has changed over years", not over a month.
-- **Files:** `garmin_analytics/api/server.py`,
-  `frontend/src/features/history/historyRange.ts`,
-  `frontend/src/features/history/historySeries.ts`,
-  `frontend/src/features/history/HistoryPage.tsx`,
-  `frontend/src/features/history/HistoryChart.tsx`,
-  `frontend/src/charts/history/buildHistoryOption.ts`,
-  `frontend/src/features/shell/AppShell.tsx`, `frontend/src/routes.tsx`.
+### T58 — Health reaches as far back as the data does
+- **Goal:** the same page answers "how is this month" and "what has changed since 2014".
+- **Files:** `garmin_analytics/analytics/body.py`, `garmin_analytics/api/schemas.py`,
+  `garmin_analytics/api/server.py`, `frontend/src/charts/echarts.ts`,
+  `frontend/src/charts/chrome.ts`, `frontend/src/charts/health/dayAxis.ts`,
+  `frontend/src/charts/health/buildMetricTrendOption.ts`,
+  `frontend/src/charts/body/buildWeightTrendOption.ts`,
+  `frontend/src/charts/body/buildMassSplitOption.ts`,
+  `frontend/src/charts/body/buildFatPctOption.ts`,
+  `frontend/src/features/health/healthRange.ts`,
+  `frontend/src/features/health/FatPctChart.tsx`,
+  `frontend/src/features/health/BodyPanel.tsx`.
 - **Build:**
-  - [ ] a `/history` page with one range control: 1, 2, 4 years and everything
-  - [ ] weight, body fat, resting HR, VO2max, steps, stress, Body Battery, sleep
-  - [ ] a metric with no readings in the window is left out, not drawn empty
-  - [ ] drag to zoom into any stretch of it
-  - [ ] the API stops capping the window below the data the owner has
+  - [x] the range control offers 28 days through "All", not 90 days through two years
+  - [x] every endpoint Health calls accepts the window the control can ask for
+  - [x] drag to zoom into any stretch of a long window
+  - [x] body fat as a percentage, which only existed in kilograms
 - **Notes:**
-  - **Measured before building.** Weight 2014-08-10, 423 readings, twelve years. Body
-    fat from 2021-10-21, 383. Resting HR, steps, stress and Body Battery from late
-    December 2022, about 1,350 days each. VO2max from 2023-01-02, 1,349. Everything
-    but weight starts when the watch did.
-  - **A new page rather than a longer Health.** Health is built around a 28-day
-    baseline and a 90-day default — "is this week off" — and stretching it to twelve
-    years would answer neither question well.
-  - **Two sources, because `v_daily` is not enough.** It starts 2022-11-23 and carries
-    362 of the 423 weigh-ins; the 61 from 2014 to 2022 predate it. Weight and body fat
-    come from `/api/body`, everything else from `/api/daily`.
-  - **ECharts stays.** Twenty-four tested builders already use it, it holds thousands
-    of points without complaint, and `dataZoom` is the drag-to-zoom this page wants —
-    a config line, not a dependency.
-  - HRV, sleep score, SpO2 and training readiness are left out: Garmin returns `{}`
-    and `[]` for them on this account, so a chart could only ever be empty.
+  - **A new page was the wrong answer, and the owner said so.** This was first built as
+    a separate `/history`, on the argument that Health is shaped around a 28-day
+    baseline and a 90-day default. Of the three reasons given, one held: the x-axis and
+    the y-scale needed checking at twelve years. The baseline does not stop meaning
+    something over four years — it becomes the only readable line — and a second page
+    showing weight again is a second place to maintain. The scaffolding was deleted
+    before it was committed; the API work it needed was kept.
+  - **The y-scale needed nothing.** Clipping to the 1st–99th percentile was planned on
+    the assumption that one bad reading would flatten a decade. Measured first: the
+    outlier span is 1.1× to 1.8× across every metric, so full-range scaling is honest
+    and the fix was for a problem this data does not have.
+  - **`dataZoom` was configured in three builders and did nothing at all.** The app
+    builds ECharts from `echarts/core` with only the components it registers, and
+    `DataZoomComponent` was not among them — a missing registration is silent, not an
+    error. It was also invisible once registered, because the first styling gave it a
+    transparent track on a pale page.
+  - **The caps sat below the data.** `/api/body` stopped at 4000 days with the first
+    weigh-in 4456 days back; `/api/trends` at 2000 and `/api/readiness/history` at 800,
+    both of which the new ranges would have asked past. All three now share 20000.
+  - **Measured first:** weight from 2014-08-10 (423 readings, twelve years), body fat
+    from 2021-10-21 (383), resting HR, steps, stress and Body Battery from late
+    December 2022 (~1,350 days each), VO2max from 2023-01-02 (1,349).
+  - HRV, sleep score, SpO2 and training readiness stay absent: the raw payloads are
+    `{}` and `[]`, so Garmin records none of them for this account.
+  - 1475 passed, 1 skipped; 812 frontend tests, typecheck, lint and build clean.

@@ -629,7 +629,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # `compute_trends` returns neither `baseline_days` nor `z_threshold`.
     @app.get("/api/trends", response_model=Trends, response_model_exclude_unset=True)
     def api_trends(
-        days: int = Query(180, ge=7, le=2000),
+        # 20000 days (~55 years) is the shared ceiling across the windowed endpoints:
+        # a bound that refuses nonsense rather than one that bounds the data. Health's
+        # range control offers "All", and every endpoint it calls has to accept it.
+        days: int = Query(180, ge=7, le=20000),
         metrics: str | None = Query(None, description="comma-separated metric names"),
     ) -> dict[str, Any]:
         wanted = [m.strip() for m in metrics.split(",")] if metrics else None
@@ -641,7 +644,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return trends_mod.compute_trends(st, days=days, metrics=wanted)
 
     @app.get("/api/body", response_model=BodyComposition)
-    def api_body(days: int = Query(540, ge=28, le=4000)) -> dict[str, Any]:
+    # 4000 sat *below* the owner's own history: his first weigh-in is August 2014,
+    # 4456 days back, so Health's "All" could not have reached it.
+    def api_body(days: int = Query(540, ge=28, le=20000)) -> dict[str, Any]:
         """Weight, fat and lean mass, and what they look like against the training.
 
         `days` bounds the charts, not the projection: that fits its own eight-week
@@ -656,7 +661,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return ready_mod.compute_readiness(st, day)
 
     @app.get("/api/readiness/history", response_model=ReadinessHistory)
-    def api_readiness_history(days: int = Query(90, ge=7, le=800)) -> dict[str, Any]:
+    def api_readiness_history(days: int = Query(90, ge=7, le=20000)) -> dict[str, Any]:
         with store() as st:
             return {"days": days, "series": ready_mod.readiness_history(st, days)}
 
@@ -746,7 +751,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return cached(settings, "reports", lambda: reports_mod.compute_reports(st))
 
     @app.get("/api/daily", response_model=DailyList)
-    def api_daily(days: int = Query(400, ge=1, le=3000)) -> dict[str, Any]:
+    def api_daily(days: int = Query(400, ge=1, le=20000)) -> dict[str, Any]:
         with store() as st:
             # `light_s` is joined on here rather than added to `v_daily`: the view feeds
             # the trend engine, and a sleep-stage chart is the only thing that needs it.

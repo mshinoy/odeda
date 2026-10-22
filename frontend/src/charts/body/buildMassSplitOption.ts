@@ -17,9 +17,15 @@
 // `tokens.series`, not `tokens.kind`: two things of the same sort, which is what that
 // palette is for, and it carries a legend for the same reason the compare chart does.
 import { decimalStep, padded, quantileRange, snapToStep, withMinSpan } from "@/charts/axisScale";
-import { axisLabelStyle, gridLineStyle, quietAxis, tooltipStyle } from "@/charts/chrome";
+import {
+  axisLabelStyle,
+  gridLineStyle,
+  quietAxis,
+  tooltipStyle,
+  zoomControls,
+} from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
-import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
+import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
 import type { BodySeries } from "@/api/queries/useBody";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily } from "@/design/typography";
@@ -100,7 +106,8 @@ export function buildMassSplitOption({ series, tokens, today }: MassSplitInput):
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: HEALTH_CHART_GRID,
+    grid: HEALTH_CHART_GRID_ZOOMED,
+    dataZoom: zoomControls(tokens),
     xAxis: dayAxis(series.days, tokens, today),
     yAxis: {
       type: "value",

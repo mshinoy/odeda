@@ -1,6 +1,7 @@
 import type { BodyComposition } from "@/api/queries/useBody";
 import { StatCard } from "@/components/StatCard";
 import { bodyCards } from "@/features/health/bodyCards";
+import { FatPctChart } from "@/features/health/FatPctChart";
 import { MassSplitChart } from "@/features/health/MassSplitChart";
 import { ProjectionNote } from "@/features/health/ProjectionNote";
 import { WeightTrendChart } from "@/features/health/WeightTrendChart";
@@ -31,6 +32,9 @@ export function BodyPanel({ body }: { body: BodyComposition }) {
       </div>
       <div className="grid gap-8 lg:grid-cols-2">
         <WeightTrendChart series={body.series} />
+        {/* Percentage and kilograms answer different questions: 2 kg of fat traded for
+            2 kg of muscle barely moves the percentage. Both are worth having. */}
+        <FatPctChart series={body.series} />
         <MassSplitChart series={body.series} />
       </div>
       {body.projection && <ProjectionNote projection={body.projection} />}

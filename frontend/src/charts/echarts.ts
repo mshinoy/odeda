@@ -10,10 +10,12 @@ import {
 } from "echarts/charts";
 import {
   AxisPointerComponent,
+  DataZoomComponent,
   GridComponent,
   MarkLineComponent,
   TooltipComponent,
   type AxisPointerComponentOption,
+  type DataZoomComponentOption,
   type GridComponentOption,
   type TooltipComponentOption,
 } from "echarts/components";
@@ -32,6 +34,10 @@ echarts.use([
   AxisPointerComponent,
   // A series' `markLine`, for a fixed reference such as the 5 % decoupling limit.
   MarkLineComponent,
+  // Drag-to-zoom on the Health charts, whose window can now be twelve years. Without
+  // registering it ECharts drops a `dataZoom` option in silence — the config was in
+  // three builders and did nothing at all.
+  DataZoomComponent,
   CanvasRenderer,
 ]);
 
@@ -43,6 +49,7 @@ export type ChartOption = ComposeOption<
   | GridComponentOption
   | TooltipComponentOption
   | AxisPointerComponentOption
+  | DataZoomComponentOption
 >;
 
 export type ChartInstance = echarts.EChartsType;

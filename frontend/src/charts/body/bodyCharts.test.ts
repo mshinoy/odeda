@@ -30,6 +30,7 @@ const series: BodySeries = {
   trend_kg: [76.8, 76.8, 76.74],
   fat_kg: [13.9, 13.9, 13.8],
   lean_kg: [62.9, 62.9, 62.94],
+  fat_pct: [18.1, 18.1, 18.11],
 };
 
 const weightOnly: BodySeries = {
@@ -38,7 +39,14 @@ const weightOnly: BodySeries = {
   lean_kg: [null, null, null],
 };
 
-const empty: BodySeries = { days: [], weight_kg: [], trend_kg: [], fat_kg: [], lean_kg: [] };
+const empty: BodySeries = {
+  days: [],
+  weight_kg: [],
+  trend_kg: [],
+  fat_kg: [],
+  lean_kg: [],
+  fat_pct: [],
+};
 
 /** ECharts types `series` as one-or-many; every chart test in this folder narrows it. */
 function seriesOf(option: { series?: unknown }): Record<string, unknown>[] {

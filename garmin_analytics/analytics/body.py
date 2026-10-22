@@ -154,7 +154,8 @@ def composition(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     axis would close the gaps and quietly claim the scale was used every day.
     """
     if not rows:
-        return {"days": [], "weight_kg": [], "trend_kg": [], "fat_kg": [], "lean_kg": []}
+        return {"days": [], "weight_kg": [], "trend_kg": [], "fat_kg": [], "lean_kg": [],
+                "fat_pct": []}
 
     days = dense_days(str(rows[0]["day"]), str(rows[-1]["day"]))
     by_day = {str(r["day"]): r for r in rows}
@@ -162,11 +163,13 @@ def composition(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     weight: list[float | None] = []
     fat: list[float | None] = []
     lean: list[float | None] = []
+    pcts: list[float | None] = []
     for day in days:
         row = by_day.get(day)
         kg = None if row is None else _as_float(row.get("weight_kg"))
         weight.append(kg)
         pct = None if row is None else _as_float(row.get("body_fat_pct"))
+        pcts.append(pct)
         if kg is None or pct is None:
             fat.append(None)
             lean.append(None)
@@ -181,6 +184,9 @@ def composition(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "trend_kg": [_round(v, 2) for v in smooth(days, weight)],
         "fat_kg": [_round(v, 2) for v in smooth(days, fat)],
         "lean_kg": [_round(v, 2) for v in smooth(days, lean)],
+        # Smoothed like the masses beside it. The History page plots the percentage
+        # directly rather than dividing two rounded series and calling it one.
+        "fat_pct": [_round(v, 2) for v in smooth(days, pcts)],
     }
 
 

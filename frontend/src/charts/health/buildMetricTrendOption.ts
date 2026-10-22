@@ -3,9 +3,15 @@
 // thing worth reading — is the solid line, labelled at its end.
 import type { MetricTrend } from "@/api/queries/useHealth";
 import { decimalStep, padded, quantileRange, snapToStep, withMinSpan } from "@/charts/axisScale";
-import { axisLabelStyle, gridLineStyle, quietAxis, tooltipStyle } from "@/charts/chrome";
+import {
+  axisLabelStyle,
+  gridLineStyle,
+  quietAxis,
+  tooltipStyle,
+  zoomControls,
+} from "@/charts/chrome";
 import type { ChartOption } from "@/charts/echarts";
-import { dayAxis, HEALTH_CHART_GRID } from "@/charts/health/dayAxis";
+import { dayAxis, HEALTH_CHART_GRID_ZOOMED } from "@/charts/health/dayAxis";
 import type { ColorTokens } from "@/design/tokens";
 import { fontFamily, fontSize } from "@/design/typography";
 import { scaled, type HealthMetric } from "@/features/health/healthMetrics";
@@ -75,7 +81,10 @@ export function buildMetricTrendOption({
   return {
     animation: false,
     textStyle: { fontFamily },
-    grid: HEALTH_CHART_GRID,
+    grid: HEALTH_CHART_GRID_ZOOMED,
+    // Years of daily points need a way in; the range control picks the window, this
+    // picks a stretch inside it.
+    dataZoom: zoomControls(tokens),
     xAxis: dayAxis(trend.days, tokens, today),
     yAxis: {
       type: "value",

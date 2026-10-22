@@ -2197,6 +2197,13 @@ export interface components {
              * @description Smoothed lean mass: the rest of it.
              */
             lean_kg: (number | null)[];
+            /**
+             * Fat Pct
+             * @description Smoothed body fat percentage, as the scale reported it. Plotted directly by the
+             *     History page rather than derived from the two rounded masses above.
+             * @default []
+             */
+            fat_pct: (number | null)[];
         };
         /**
          * CompareActivity
