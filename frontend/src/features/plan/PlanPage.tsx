@@ -27,8 +27,13 @@ export function PlanPage() {
   const [params, setParams] = useSearchParams();
   const openWeek = params.get("week");
   const week = usePlanWeek(openWeek);
+  // `preventScrollReset`: the shell's ScrollRestoration would otherwise send the page to
+  // the top on every URL change, including opening a week you are already looking at.
   const toggleWeek = (start: string) =>
-    setParams(openWeek === start ? {} : { week: start }, { replace: true });
+    setParams(openWeek === start ? {} : { week: start }, {
+      replace: true,
+      preventScrollReset: true,
+    });
   const setLink = useSetPlanLink();
   const clearLink = useClearPlanLink();
 
