@@ -30,7 +30,9 @@ export function RoutesPage() {
       if (value === null) merged.delete(key);
       else merged.set(key, value);
     }
-    setParams(merged, { replace: true });
+    // `preventScrollReset`: the shell's ScrollRestoration would otherwise send the page to
+    // the top on every URL change, including opening a card halfway down the list.
+    setParams(merged, { replace: true, preventScrollReset: true });
   };
   const toggle = (id: number) => patch({ route: open === id ? null : String(id) });
 
