@@ -57,17 +57,23 @@ def z_component(z: float | None, direction: int, label: str, unit: str = "") -> 
         return None, f"No {label} baseline yet."
     signed = z * direction
     score = _clamp(50.0 + signed * 25.0)
-    if signed <= -1.5:
+    # The word describes where the value sits against its baseline, so it follows the
+    # raw z printed beside it. Following `signed` made a resting HR 2σ *under* baseline
+    # read "well above baseline (z=-2.27)". Whether that is good is said separately.
+    if z <= -1.5:
         word = "well below"
-    elif signed <= -0.75:
+    elif z <= -0.75:
         word = "below"
-    elif signed < 0.75:
+    elif z < 0.75:
         word = "at"
-    elif signed < 1.5:
+    elif z < 1.5:
         word = "above"
     else:
         word = "well above"
-    return score, f"{label} {word} baseline (z={z:+.2f}{unit})."
+    verdict = ""
+    if abs(z) >= 0.75:
+        verdict = " — better" if signed > 0 else " — worse"
+    return score, f"{label} {word} baseline (z={z:+.2f}{unit}){verdict}."
 
 
 def tsb_component(tsb: float | None) -> tuple[float | None, str]:
@@ -147,8 +153,11 @@ def compute_readiness(store, day: str | None = None) -> dict[str, object]:
     hrv_z = (tr["metrics"].get("hrv") or {}).get("z")
     rhr_z = (tr["metrics"].get("resting_hr") or {}).get("z")
 
+    # Form on the readiness day itself, as `readiness_history` does. The curve runs to
+    # today, which is later than `day` whenever the watch has not synced yet.
     curve = load_mod.compute_load(store)
-    tsb = (curve.get("current") or {}).get("tsb")
+    on_day = next((c for c in curve.get("curve", []) if c["day"] == day), None)
+    tsb = (on_day or curve.get("current") or {}).get("tsb")
 
     sleep_s, sleep_why = sleep_component(latest.get("sleep_score"), latest.get("total_sleep_s"))
     hrv_s, hrv_why = z_component(hrv_z, +1, "HRV")

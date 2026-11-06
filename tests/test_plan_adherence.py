@@ -122,6 +122,31 @@ class TestSubstitution:
         assert len(unplanned) == 1
 
 
+class TestGymSessions:
+    """Garmin files a lift under `strength_training`, which is what ingestion stores. The
+    matcher only knew `strength`, so every gym session was marked missed and reported as
+    unplanned: 15 of them across five weeks."""
+
+    @pytest.mark.parametrize("kind", ["strength_training", "strength"])
+    def test_a_logged_lift_fulfils_the_gym_session(self, kind):
+        days = A.collapse([session("2026-12-07", P.SPORT_GYM, kind="gym")])
+        judged, unplanned = A.match(days, [activity("2026-12-07", kind, None)], TODAY)
+        assert judged[0].verdict == "done"
+        assert judged[0].credited
+        assert unplanned == []
+
+    def test_a_lift_does_not_take_the_run_it_shares_a_day_with(self):
+        """Every Monday is an easy run and a gym session."""
+        days = A.collapse([
+            session("2026-12-07", P.SPORT_RUN, lo=7200),
+            session("2026-12-07", P.SPORT_GYM, kind="gym"),
+        ])
+        judged, _ = A.match(days, [activity("2026-12-07", "strength_training", None)], TODAY)
+        by_sport = {j.planned.sport: j.verdict for j in judged}
+        assert by_sport[P.SPORT_GYM] == "done"
+        assert by_sport[P.SPORT_RUN] == "missed"
+
+
 class TestRestAndOptional:
     def test_resting_on_a_rest_day_counts(self):
         days = A.collapse([session("2027-01-10", P.SPORT_REST, kind="rest")])

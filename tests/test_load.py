@@ -7,7 +7,7 @@ so a failure tells you which step of the formula moved — not just that a numbe
 from __future__ import annotations
 
 import math
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -249,3 +249,29 @@ class TestComputeLoadAgainstStore:
         out = L.compute_load(seeded_store)
         first = date.fromisoformat(out["curve"][0]["day"])
         assert (date.fromisoformat(out["warmup_until"]) - first).days == L.CTL_TAU_DAYS
+
+    def test_curve_runs_to_today_so_rest_days_count(self, seeded_store):
+        """Form is read off the last point. Ending it at the last activity froze fatigue
+        at its post-workout value for as long as the athlete then rested."""
+        last = date.fromisoformat(max(L.daily_loads(seeded_store)))
+        today = last + timedelta(days=3)
+
+        out = L.compute_load(seeded_store, today=today)
+
+        assert out["curve"][-1]["day"] == today.isoformat()
+        assert [point["load"] for point in out["curve"][-3:]] == [0.0, 0.0, 0.0]
+        # Three rest days: fatigue (7-day constant) falls faster than fitness (42-day),
+        # so form must have risen.
+        before = L.compute_load(seeded_store, today=last)["current"]
+        assert out["current"]["tsb"] > before["tsb"]
+        assert out["current"]["day"] == today.isoformat()
+
+    def test_an_explicit_end_still_wins_over_today(self, seeded_store):
+        last = date.fromisoformat(max(L.daily_loads(seeded_store)))
+        out = L.compute_load(seeded_store, end=last.isoformat(), today=last + timedelta(days=9))
+        assert out["curve"][-1]["day"] == last.isoformat()
+
+    def test_a_future_activity_is_not_cut_off_by_today(self, seeded_store):
+        last = date.fromisoformat(max(L.daily_loads(seeded_store)))
+        out = L.compute_load(seeded_store, today=last - timedelta(days=5))
+        assert out["curve"][-1]["day"] == last.isoformat()

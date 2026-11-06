@@ -217,7 +217,10 @@ class TestPhysiologicalPlausibility:
         assert late < early, "cardiac drift should shrink as the aerobic base builds"
 
     def test_ctl_reaches_a_trained_athletes_range(self, three_months):
-        cur = L.compute_load(three_months)["current"]
+        # At the seed's own last day. The curve otherwise runs to today, and months of
+        # real rest since a fixed fixture date decay CTL towards zero, as they should.
+        last = date.fromisoformat(max(L.daily_loads(three_months)))
+        cur = L.compute_load(three_months, today=last)["current"]
         assert 40 < cur["ctl"] < 140
 
     def test_race_efforts_get_faster(self, three_months):

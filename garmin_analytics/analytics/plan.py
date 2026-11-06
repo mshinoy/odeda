@@ -49,6 +49,9 @@ ACTIVITY_SPORT = {
     "cycling": P.SPORT_RIDE,
     "indoor_cycling": P.SPORT_RIDE,
     "swimming": "swimming",
+    # Ingestion stores a lift as `strength_training`. `strength` alone matched nothing
+    # real, so every gym session read as missed and as an unplanned extra.
+    "strength_training": P.SPORT_GYM,
     "strength": P.SPORT_GYM,
 }
 

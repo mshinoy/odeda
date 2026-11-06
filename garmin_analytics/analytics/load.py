@@ -217,13 +217,26 @@ def daily_loads(store) -> dict[str, float]:
     return {r["day"]: float(r["load"] or 0.0) for r in rows}
 
 
-def compute_load(store, start: str | None = None, end: str | None = None) -> dict[str, object]:
-    """Whole training-load picture for the API."""
+def compute_load(
+    store,
+    start: str | None = None,
+    end: str | None = None,
+    today: date | None = None,
+) -> dict[str, object]:
+    """Whole training-load picture for the API.
+
+    Unless `end` is given the curve runs to today, not to the last activity. Form is read
+    off the last point, and a curve that stopped at the last workout held fatigue at its
+    post-workout value however long the athlete had rested since.
+    """
     loads = daily_loads(store)
     if not loads:
         return {"curve": [], "weeks": [], "current": None, "ramp_pct": None}
     lo = date.fromisoformat(start) if start else date.fromisoformat(min(loads))
-    hi = date.fromisoformat(end) if end else date.fromisoformat(max(loads))
+    if end:
+        hi = date.fromisoformat(end)
+    else:
+        hi = max(date.fromisoformat(max(loads)), today or date.today())
     curve = load_curve(loads, lo, hi)
     weeks = weekly_loads(curve)
     ramp = ramp_rate(curve)

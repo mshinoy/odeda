@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 
 from garmin_analytics import config
+from garmin_analytics.analytics import load as L
 from garmin_analytics.analytics import readiness as R
 
 
@@ -47,6 +48,26 @@ class TestComponents:
         assert "well above" in R.z_component(2.0, +1, "HRV")[1]
         assert "well below" in R.z_component(-2.0, +1, "HRV")[1]
         assert " at baseline" in R.z_component(0.1, +1, "HRV")[1]
+
+    def test_wording_describes_the_value_not_the_score(self):
+        """Resting HR 2.27σ under its baseline is good. The sentence once said "well
+        above baseline (z=-2.27)", choosing the word from the score and printing the raw
+        z beside it, so the two contradicted each other."""
+        why = R.z_component(-2.27, -1, "Resting HR")[1]
+        assert "well below baseline" in why
+        assert "z=-2.27" in why
+        assert why.endswith("— better.")
+        assert R.z_component(-2.27, -1, "Resting HR")[0] > 50
+
+    def test_a_higher_resting_hr_reads_as_worse(self):
+        why = R.z_component(1.6, -1, "Resting HR")[1]
+        assert "well above baseline" in why
+        assert why.endswith("— worse.")
+
+    def test_a_value_at_baseline_is_neither_better_nor_worse(self):
+        why = R.z_component(0.1, -1, "Resting HR")[1]
+        assert " at baseline" in why
+        assert "better" not in why and "worse" not in why
 
     def test_tsb_component_hand_checked(self):
         """−30 → 0, +10 → 100, linear: TSB −10 → (−10+30)/40×100 = 50."""
@@ -157,6 +178,18 @@ class TestComputeReadiness:
         point = R.compute_readiness(seeded_store)
         assert hist[-1]["day"] == point["day"]
         assert hist[-1]["score"] == pytest.approx(point["score"], abs=1.5)
+
+    def test_form_is_read_on_the_readiness_day_not_at_the_end_of_the_curve(self, seeded_store):
+        """The load curve now runs to today. A latest wellness day that is older than
+        today must still be scored on its own day's form, as the history path does."""
+        day = R.compute_readiness(seeded_store)["day"]
+        curve = {c["day"]: c for c in L.compute_load(seeded_store)["curve"]}
+        assert max(curve) > day, "fixture must leave today after the readiness day"
+        assert curve[max(curve)]["tsb"] != curve[day]["tsb"]
+        expected = R.tsb_component(curve[day]["tsb"])[0]
+        assert R.compute_readiness(seeded_store)["components"]["tsb"] == pytest.approx(
+            expected, abs=0.1
+        )
 
 
 #: The half, as a test fixture. It used to come from `config.RACE_DISTANCE_M`; the race
