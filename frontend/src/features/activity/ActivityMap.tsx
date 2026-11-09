@@ -3,7 +3,7 @@
 // whatever index is hovered, here, on a chart, or from route playback.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
-import type { Activity } from "@/api/adapters";
+import type { Activity, ActivityGap } from "@/api/adapters";
 import { useTheme, useTokens } from "@/design/theme";
 import { indexAtElapsed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
@@ -16,6 +16,7 @@ import {
   pickedStreamIndex,
   routeBounds,
 } from "@/map/layers/makeRouteLayer";
+import { makeGapLayer } from "@/map/layers/makeGapLayer";
 import { activityTrips, makeTripsLayer } from "@/map/layers/makeTripsLayer";
 import { MetricLegend } from "@/map/MetricLegend";
 import { useUiStore } from "@/store/ui";
@@ -24,9 +25,14 @@ interface ActivityMapProps {
   activity: Activity;
   colorBy: MetricKey;
   playback: Playback;
+  /** Stretches the watch did not record, drawn dashed where a path is known. */
+  gaps?: readonly ActivityGap[];
 }
 
-export function ActivityMap({ activity, colorBy, playback }: ActivityMapProps) {
+// One empty list for every render, so no gaps never looks like new data to a memo.
+const NO_GAPS: readonly ActivityGap[] = [];
+
+export function ActivityMap({ activity, colorBy, playback, gaps = NO_GAPS }: ActivityMapProps) {
   const theme = useTheme();
   const tokens = useTokens();
   const hover = useUiStore((state) => state.hover);
@@ -66,9 +72,10 @@ export function ActivityMap({ activity, colorBy, playback }: ActivityMapProps) {
     () => makeCursorLayer({ activity, hover, tokens }),
     [activity, hover, tokens],
   );
+  const gapLayer = useMemo(() => makeGapLayer(gaps, tokens), [gaps, tokens]);
   const layers: LayersList = useMemo(
-    () => [routeLayer, tripsLayer, cursorLayer],
-    [routeLayer, tripsLayer, cursorLayer],
+    () => [gapLayer, routeLayer, tripsLayer, cursorLayer],
+    [gapLayer, routeLayer, tripsLayer, cursorLayer],
   );
 
   // The charts' crosshair follows the replay, because both read the same hover.

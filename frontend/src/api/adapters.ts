@@ -882,3 +882,45 @@ export function toGarminConnection(raw: Schemas["GarminStatus"]): GarminConnecti
     tokensUpdatedAt: raw.tokens_updated_at,
   };
 }
+
+// ---------------------------------------------------------------- recording gaps
+
+/** A guess at the path ridden across a gap, from the rider's own other activities. */
+export interface GapEstimate {
+  /** `[lon, lat]`, from the last recorded point before the gap to the first after it. */
+  path: [number, number][];
+  lengthM: number;
+  /** Length over the time the gap took: an average, and nothing about the pace inside it. */
+  avgSpeedMps: number;
+  source: { activityId: string; day: string | null; name: string | null };
+}
+
+/** A stretch where the watch paused and resumed somewhere else. */
+export interface ActivityGap {
+  seconds: number;
+  straightM: number;
+  estimate: GapEstimate | null;
+}
+
+export function toActivityGaps(raw: Schemas["ActivityGaps"]): ActivityGap[] {
+  return raw.gaps.map((gap) => {
+    const estimate = gap.estimate;
+    return {
+      seconds: gap.seconds,
+      straightM: gap.straight_m,
+      estimate:
+        estimate === null
+          ? null
+          : {
+              path: estimate.lat.map((lat, i): [number, number] => [estimate.lon[i] ?? 0, lat]),
+              lengthM: estimate.length_m,
+              avgSpeedMps: estimate.avg_speed_mps,
+              source: {
+                activityId: estimate.source_activity_id,
+                day: estimate.source_day,
+                name: estimate.source_name,
+              },
+            },
+    };
+  });
+}

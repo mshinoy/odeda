@@ -60,7 +60,7 @@ nicer.
 | 16 Tidy and ship | P: `ready for review` | 3 / 3 |
 | 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
 | 18 Page redesign | R: `open` | 0 / 6 |
-| 19 Data defects | S: `ready for review` | 4 / 4 |
+| 19 Data defects | S: `ready for review` | 5 / 7 |
 | 20 Race prep | T: `open` | 0 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
 
@@ -107,6 +107,9 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | T74 | A ride's map draws a straight line across the bay. It was a recording gap, not a GPS jump: the watch paused for 28 minutes and resumed 7 km away. No line is drawn across a gap, on the activity page, the compare map and the cards | done | — |
 | T75 | Trends shows "Average pace 15:08 /km, mixed sports". Pace only means something for one sport; it is a dash until a sport is chosen | done | — |
 | T76 | Year over year shows "+14,153%" and "+16,767%" against a near-empty first year. No change is shown against a year with fewer than 12 activities | done | — |
+| T86 | A gap on a ride is drawn dashed along the path your other rides took between its two ends, with the speed it implies and a note saying it is a guess and not in the totals. Step 1 of 3 | done | T74 |
+| T87 | Mark the missing path yourself on the map when no other ride covers it, or the guess is wrong. Step 2 of 3 | todo | T86 |
+| T88 | Optionally count an estimated stretch in the ride's totals, with its effect on heart rate, load and best efforts shown first. Step 3 of 3 | needs decision: count it at all? | T86 |
 | T77 | Sleep: Garmin gives no sleep score, and some nights have no recording. Today says how many of the last seven nights were recorded and leaves a gap for each missing one. (Health still to do, with T71) | done | — |
 
 ### Phase 20 — Race prep · Checkpoint T: `open`

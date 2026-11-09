@@ -23,22 +23,13 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
 
+from ..analytics.gaps import Sample, is_recording_gap, split_at_gaps
 from ..db.store import Store
 from ..edits import exercises as relabels_mod
 from . import gym as gym_mod
 
 #: The most points a card's route keeps.
 MAX_POINTS = 150
-
-#: A step between two GPS samples is a *recording gap* — the watch paused and resumed
-#: somewhere else — when all of these hold: at least this long passed, the points are at
-#: least this far apart, and the device's own recorded distance moved by less than half of
-#: that straight line. A tunnel (signal lost, distance still counted) is not a gap, and
-#: neither is a short pause. The line across a gap was never ridden; drawing it was the
-#: 7 km straight line across the bay on one real ride.
-GAP_MIN_SECONDS = 60.0
-GAP_MIN_METRES = 250.0
-GAP_RECORDED_SHARE = 0.5
 
 #: Pieces of one route are joined with this in `polylines`. It is not in the encoded
 #: polyline alphabet (ASCII 63 to 126), so it cannot occur inside a piece.
@@ -52,46 +43,6 @@ LatLon = tuple[float, float]
 
 
 # ---------------------------------------------------------------- the route
-
-#: (elapsed seconds, recorded distance in metres or None, latitude, longitude)
-Sample = tuple[float, float | None, float, float]
-
-
-def _metres_between(a: LatLon, b: LatLon) -> float:
-    r = 6371000.0
-    p1, p2 = math.radians(a[0]), math.radians(b[0])
-    dp, dl = p2 - p1, math.radians(b[1] - a[1])
-    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * r * math.asin(math.sqrt(h))
-
-
-def is_recording_gap(before: Sample, after: Sample) -> bool:
-    """Whether the step between two consecutive GPS samples crossed a recording gap."""
-    seconds = after[0] - before[0]
-    if seconds < GAP_MIN_SECONDS:
-        return False
-    straight = _metres_between((before[2], before[3]), (after[2], after[3]))
-    if straight < GAP_MIN_METRES:
-        return False
-    if before[1] is None or after[1] is None:
-        # No recorded distance to compare with: a long pause and a long way is enough.
-        return True
-    return (after[1] - before[1]) < GAP_RECORDED_SHARE * straight
-
-
-def split_at_gaps(samples: Sequence[Sample]) -> list[list[LatLon]]:
-    """The track as the pieces that were actually recorded, in order."""
-    pieces: list[list[LatLon]] = []
-    current: list[LatLon] = []
-    for i, sample in enumerate(samples):
-        if i > 0 and is_recording_gap(samples[i - 1], sample):
-            pieces.append(current)
-            current = []
-        current.append((sample[2], sample[3]))
-    pieces.append(current)
-    return [piece for piece in pieces if len(piece) >= 2]
-
-
 
 def simplify(points: Sequence[LatLon], max_points: int = MAX_POINTS) -> list[LatLon]:
     """The track with the points a small map cannot show taken out.

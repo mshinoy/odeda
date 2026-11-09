@@ -1,9 +1,11 @@
 import { lazy, Suspense, useState } from "react";
-import type { Activity } from "@/api/adapters";
+import type { Activity, ActivityGap } from "@/api/adapters";
+import { useActivityGaps } from "@/api/queries/useGaps";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActivityCharts } from "@/features/activity/ActivityCharts";
 import { ActivityDetails } from "@/features/activity/ActivityDetails";
+import { GapNotes } from "@/features/activity/GapNote";
 import { ActivityStats } from "@/features/activity/ActivityStats";
 import { MetricToggle } from "@/features/activity/MetricToggle";
 import { trackDuration } from "@/features/activity/playback";
@@ -17,6 +19,8 @@ const ActivityMap = lazy(() =>
   import("@/features/activity/ActivityMap").then((m) => ({ default: m.ActivityMap })),
 );
 
+const NO_GAPS: readonly ActivityGap[] = [];
+
 /** Anything you cover ground in: the map is the hero, with the streams under it. */
 export function EnduranceActivity({ activity }: { activity: Activity }) {
   const [colorBy, setColorBy] = useState<MetricKey>("pace");
@@ -24,6 +28,7 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
   // The replay clock is the activity's own elapsed time, so the map and the charts agree.
   const durationS = trackDuration(activity.streams.elapsedS);
   const playback = usePlayback(durationS);
+  const gaps = useActivityGaps(activity.summary.id, activity.track !== null).data ?? NO_GAPS;
 
   return (
     <>
@@ -34,7 +39,12 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
           <section className="relative h-[420px] overflow-hidden rounded-xl border">
             {supportsWebGL() ? (
               <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
-                <ActivityMap activity={activity} colorBy={colorBy} playback={playback} />
+                <ActivityMap
+                  activity={activity}
+                  colorBy={colorBy}
+                  playback={playback}
+                  gaps={gaps}
+                />
               </Suspense>
             ) : (
               <EmptyState message="Maps need WebGL. Turn on hardware acceleration in the browser." />
@@ -51,6 +61,7 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
           {supportsWebGL() && durationS > 0 && (
             <PlaybackControls playback={playback} durationS={durationS} />
           )}
+          <GapNotes gaps={gaps} kind={activity.summary.kind} />
         </div>
       )}
 

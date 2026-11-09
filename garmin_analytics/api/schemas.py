@@ -292,6 +292,48 @@ class ActivityPreviews(_Model):
     absent."""
 
 
+class GapPoint(_Model):
+    elapsed_s: float
+    lat: float
+    lon: float
+
+
+class GapEstimate(_Model):
+    """A guess at the path ridden across a recording gap, taken from the rider's own other
+    activities of the same type that passed near both ends. Not recorded, so never counted
+    in the activity's totals, and always shown as an estimate."""
+
+    lat: list[float]
+    lon: list[float]
+    """The path, simplified, from the last recorded point before the gap to the first after."""
+    length_m: float
+    avg_speed_mps: float
+    """Length over the time the gap took: an average, and nothing about the pace inside it."""
+    source_activity_id: str
+    source_day: str | None
+    source_name: str | None
+
+
+class ActivityGap(_Model):
+    """A stretch where the watch paused and resumed somewhere else."""
+
+    before: GapPoint
+    after: GapPoint
+    seconds: float
+    """Time that passed across the gap."""
+    straight_m: float
+    """Straight-line distance between the two ends."""
+    estimate: GapEstimate | None
+    """Null when nothing else in the rider's history passed both ends."""
+
+
+class ActivityGaps(_Model):
+    """`GET /api/activities/{id}/gaps`: the recording gaps of one activity, in order."""
+
+    activity_id: str
+    gaps: list[ActivityGap]
+
+
 class ActivityList(_Model):
     """A page of activities, plus every activity type present (most common first)."""
 

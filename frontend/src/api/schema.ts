@@ -798,6 +798,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activities/{activity_id}/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Activity Gaps
+         * @description Where the watch paused and resumed somewhere else, with a guess at the path in
+         *     between from the rest of the rider's history. Empty for most activities.
+         */
+        get: operations["api_activity_gaps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activities/{activity_id}/exercises": {
         parameters: {
             query?: never;
@@ -1446,6 +1467,36 @@ export interface components {
             total_reps: number | null;
             /** Exercises */
             exercises: components["schemas"]["Exercise"][];
+        };
+        /**
+         * ActivityGap
+         * @description A stretch where the watch paused and resumed somewhere else.
+         */
+        ActivityGap: {
+            before: components["schemas"]["GapPoint"];
+            after: components["schemas"]["GapPoint"];
+            /**
+             * Seconds
+             * @description Time that passed across the gap.
+             */
+            seconds: number;
+            /**
+             * Straight M
+             * @description Straight-line distance between the two ends.
+             */
+            straight_m: number;
+            /** @description Null when nothing else in the rider's history passed both ends. */
+            estimate: components["schemas"]["GapEstimate"] | null;
+        };
+        /**
+         * ActivityGaps
+         * @description `GET /api/activities/{id}/gaps`: the recording gaps of one activity, in order.
+         */
+        ActivityGaps: {
+            /** Activity Id */
+            activity_id: string;
+            /** Gaps */
+            gaps: components["schemas"]["ActivityGap"][];
         };
         /**
          * ActivityGear
@@ -2961,6 +3012,43 @@ export interface components {
             verdict: components["schemas"]["RaceNote"];
             /** Caveats */
             caveats: string[];
+        };
+        /**
+         * GapEstimate
+         * @description A guess at the path ridden across a recording gap, taken from the rider's own other
+         *     activities of the same type that passed near both ends. Not recorded, so never counted
+         *     in the activity's totals, and always shown as an estimate.
+         */
+        GapEstimate: {
+            /** Lat */
+            lat: number[];
+            /**
+             * Lon
+             * @description The path, simplified, from the last recorded point before the gap to the first after.
+             */
+            lon: number[];
+            /** Length M */
+            length_m: number;
+            /**
+             * Avg Speed Mps
+             * @description Length over the time the gap took: an average, and nothing about the pace inside it.
+             */
+            avg_speed_mps: number;
+            /** Source Activity Id */
+            source_activity_id: string;
+            /** Source Day */
+            source_day: string | null;
+            /** Source Name */
+            source_name: string | null;
+        };
+        /** GapPoint */
+        GapPoint: {
+            /** Elapsed S */
+            elapsed_s: number;
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
         };
         /**
          * GarminConnected
@@ -7247,6 +7335,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityStreams"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_activity_gaps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityGaps"];
                 };
             };
             /** @description Validation Error */

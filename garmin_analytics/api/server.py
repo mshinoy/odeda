@@ -42,6 +42,7 @@ from .. import __version__, config
 from ..analytics import aggregate as agg_mod
 from ..analytics import body as body_mod
 from ..analytics import forecast as forecast_mod
+from ..analytics import gaps as gaps_mod
 from ..analytics import load as load_mod
 from ..analytics import performance as perf
 from ..analytics import plan as plan_mod
@@ -71,6 +72,7 @@ from .schemas import (
     ActivityEditPayload,
     ActivityEditResult,
     ActivityExercises,
+    ActivityGaps,
     ActivityGearRequest,
     ActivityGearResult,
     ActivityList,
@@ -982,6 +984,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         for i, col in enumerate(cols):
             out[col] = [r[i] for r in rows]
         return out
+
+    @app.get("/api/activities/{activity_id}/gaps", response_model=ActivityGaps)
+    def api_activity_gaps(activity_id: str) -> dict[str, Any]:
+        """Where the watch paused and resumed somewhere else, with a guess at the path in
+        between from the rest of the rider's history. Empty for most activities."""
+        with store() as st:
+            if not ov_mod.activity_exists(st, activity_id):
+                raise HTTPException(404, f"no activity {activity_id!r}")
+            gaps = gaps_mod.activity_gaps(st, activity_id)
+        out = []
+        for gap in gaps:
+            estimate = gap.get("estimate")
+            if estimate is not None:
+                path = preview_mod.simplify(estimate["path"])
+                estimate = {
+                    **{k: v for k, v in estimate.items() if k != "path"},
+                    "lat": [p[0] for p in path],
+                    "lon": [p[1] for p in path],
+                }
+            out.append({**{k: v for k, v in gap.items() if k != "estimate"}, "estimate": estimate})
+        return {"activity_id": activity_id, "gaps": out}
 
     @app.get("/api/activities/{activity_id}/exercises", response_model=ActivityExercises)
     def api_activity_exercises(activity_id: str) -> dict[str, Any]:

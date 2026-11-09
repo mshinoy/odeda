@@ -5,6 +5,7 @@ import {
   toActivityGear,
   toActivityStreams,
   toActivitySummary,
+  toActivityGaps,
   toActivityTrack,
   toEditableFields,
   toEditableValues,
@@ -226,6 +227,59 @@ describe("toActivityStreams", () => {
     expect(streams.gradientPct[1]).toBeCloseTo(10); // +3 m over 30 m
     expect(streams.gradientPct[2]).toBeCloseTo(-10);
     expect(streams.gradientPct[3]).toBeNull(); // 0.5 m of travel is noise
+  });
+});
+
+describe("toActivityGaps", () => {
+  it("turns the columns of an estimated path into [lon, lat] pairs, with its source", () => {
+    const [gap] = toActivityGaps({
+      activity_id: "a1",
+      gaps: [
+        {
+          before: { elapsed_s: 764, lat: 25.3173, lon: 51.4965 },
+          after: { elapsed_s: 2471, lat: 25.2837, lon: 51.559 },
+          seconds: 1707,
+          straight_m: 7305,
+          estimate: {
+            lat: [25.3173, 25.3, 25.2837],
+            lon: [51.4965, 51.53, 51.559],
+            length_m: 8883,
+            avg_speed_mps: 5.2,
+            source_activity_id: "x",
+            source_day: "2026-10-24",
+            source_name: "Doha Cycling",
+          },
+        },
+      ],
+    });
+    expect(gap?.seconds).toBe(1707);
+    expect(gap?.estimate?.path).toEqual([
+      [51.4965, 25.3173],
+      [51.53, 25.3],
+      [51.559, 25.2837],
+    ]);
+    expect(gap?.estimate?.source).toEqual({
+      activityId: "x",
+      day: "2026-10-24",
+      name: "Doha Cycling",
+    });
+  });
+
+  it("keeps a gap with no estimate, and has none for an activity without one", () => {
+    const raw = {
+      activity_id: "a1",
+      gaps: [
+        {
+          before: { elapsed_s: 0, lat: 25, lon: 51 },
+          after: { elapsed_s: 600, lat: 25.1, lon: 51.1 },
+          seconds: 600,
+          straight_m: 1500,
+          estimate: null,
+        },
+      ],
+    };
+    expect(toActivityGaps(raw)[0]?.estimate).toBeNull();
+    expect(toActivityGaps({ activity_id: "a1", gaps: [] })).toEqual([]);
   });
 });
 

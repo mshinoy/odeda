@@ -38,6 +38,8 @@ export const queryKeys = {
   activityPreviews: (ids: readonly string[]) => ["activities", "previews", ids] as const,
   activity: (id: string) => ["activity", id] as const,
   streams: (id: string) => ["streams", id] as const,
+  /** Where the watch paused and resumed elsewhere, with a guess at the path in between. */
+  gaps: (id: string) => ["gaps", id] as const,
   exercises: (id: string) => ["exercises", id] as const,
   fields: ["fields"] as const,
   gear: ["gear"] as const,
