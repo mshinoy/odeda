@@ -84,14 +84,14 @@ const status = {
 
 export const colorTokens: Record<Theme, ColorTokens> = {
   light: {
-    page: "#f9f9f7",
-    surface: "#fcfcfb",
-    surfaceMuted: "#f0efec",
+    page: "#eceae5",
+    surface: "#ffffff",
+    surfaceMuted: "#e4e2dc",
     ink: "#0b0b0b",
     inkSecondary: "#52514e",
     inkMuted: "#898781",
-    border: "rgba(11, 11, 11, 0.10)",
-    gridline: "#e1e0d9",
+    border: "rgba(11, 11, 11, 0.14)",
+    gridline: "#d6d4cc",
     axis: "#c3c2b7",
     focusRing: "#2a78d6",
     kind: {
