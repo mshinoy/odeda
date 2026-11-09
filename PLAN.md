@@ -26,6 +26,9 @@ is the history.
 **Post-MVP.** Every phase below is new work on top of a working app. None of it blocks using
 the app, and the order is the owner's to change.
 
+**Versions.** The MVP is `v0.1.0`. A release is cut whenever the owner says, using the
+steps under Versions in `CONTRIBUTING.md`, and each phase that ships adds a changelog entry.
+
 **One branch per task or phase**, named for the work, from `master`, merged and deleted
 when approved. Work one thing at a time: the box has two CPUs.
 

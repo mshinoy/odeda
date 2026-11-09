@@ -9,6 +9,13 @@ history of how it was built; [`frontend/README.md`](frontend/README.md) is the
 day-to-day guide — how to run it, what to run before pushing, and how to add a chart
 or a map layer.
 
+## Versions
+
+`MAJOR.MINOR.PATCH`, in [`CHANGELOG.md`](CHANGELOG.md). To release: bump the version in
+`pyproject.toml`, `garmin_analytics/__init__.py` and `frontend/package.json`, add a
+changelog entry, merge to `master`, then tag the merge commit `vMAJOR.MINOR.PATCH` and
+push the tag.
+
 ## Ground rules
 
 1. **No credentials, tokens or personal data in the repository.** Not in tests, not in
