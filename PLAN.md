@@ -55,6 +55,7 @@ Paste one of these into a fresh session.
 | 12 The race comes from the calendar | L: `ready for review` | 1 / 1 |
 | 13 The long view | M: `ready for review` | 1 / 1 |
 | 14 Race prep | N: `ready for review` | 1 / 1 |
+| 15 Today | O: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -268,6 +269,20 @@ a warning when fitness is falling, since doing less also gives a positive form. 
 range is Riegel from each effort, always widened by the 1.04–1.08 exponent band; the
 fitness (±3% cap) and race-morning-form (+2% / −1%) adjustments are rules of thumb,
 returned apart from the raw range. Parked: course and heat, non-running load.
+
+### Phase 15 — Today · Checkpoint O: `ready for review`
+
+Status was the home dashboard but answered nothing first: readiness, race, plan strip,
+load and gym sat at one weight. Today leads with what to do and how ready you are, then
+the race, the week with what was done and missed, last week, and the weeks behind it.
+Branch `today-page`; design in the owner's Claude Design canvas.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T60 | Status becomes Today: the day's session, readiness and sleep, race range and form, this week and last week by day, weeks of km against the plan; load and gym behind a toggle | done | T59 | Today: what to do, how ready you are, and how the week is going |
+
+Parked: grouping the nav into Today, Train, Activities, Places, Body, which needs a Train
+page (plan, load, race, trends) and a Places page (map, routes). Route stays `/status`.
 
 ### Open decisions
 

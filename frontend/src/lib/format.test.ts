@@ -33,6 +33,7 @@ import {
   formatSwimPace,
   formatVolume,
   formatWeekday,
+  formatLongDate,
   formatWeight,
   movingSpeed,
   paceFromSpeed,
@@ -282,6 +283,11 @@ describe("dates", () => {
     expect(formatDateTime("2026-09-22T19:05", today)).toBe("Sep 22, 19:05");
     expect(formatDateTime("2025-03-01T06:00:00", today)).toBe("Mar 1, 2025, 06:00");
     expect(formatDateTime("2026-09-22", today)).toBe("Sep 22, 00:00");
+  });
+
+  it("formatLongDate spells the day out", () => {
+    expect(formatLongDate("2026-11-09")).toBe("Monday, November 9");
+    expect(formatLongDate(null)).toBe("–");
   });
 
   it("formatWeekday gives the short weekday", () => {
