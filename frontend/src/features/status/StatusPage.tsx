@@ -1,4 +1,4 @@
-import { usePlan, usePlanWeek, useRace } from "@/api/queries/usePlan";
+import { usePlan, usePlanWeek, useRace, useRaceForecast } from "@/api/queries/usePlan";
 import {
   useGarminStatus,
   useStartSync,
@@ -22,6 +22,7 @@ export function StatusPage() {
   const load = useTrainingLoad();
   const plan = usePlan();
   const race = useRace();
+  const forecast = useRaceForecast();
   const garmin = useGarminStatus();
   const sync = useSyncStatus();
   const startSync = useStartSync();
@@ -40,7 +41,9 @@ export function StatusPage() {
     <div className="flex flex-col gap-12">
       <div className="grid gap-12 lg:grid-cols-2">
         <ReadinessPanel readiness={summary.data.readiness} />
-        {raceSummary && <RacePanel race={raceSummary} weeklyKm={weeklyKm} />}
+        {raceSummary && (
+          <RacePanel race={raceSummary} weeklyKm={weeklyKm} forecast={forecast.data} />
+        )}
       </div>
 
       {plan.data && <PlanStrip plan={plan.data} week={week.data} />}

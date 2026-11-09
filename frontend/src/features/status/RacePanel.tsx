@@ -1,9 +1,11 @@
 import { useMemo } from "react";
+import type { RaceForecast } from "@/api/queries/usePlan";
 import type { components } from "@/api/schema";
 import { EChart } from "@/charts/EChart";
 import { buildWeeklyKmOption, type WeeklyKmWeek } from "@/charts/plan/buildWeeklyKmOption";
 import { StatCard } from "@/components/StatCard";
 import { useTokens } from "@/design/theme";
+import { ForecastPanel } from "@/features/status/ForecastPanel";
 import { projectedPace } from "@/features/status/race";
 import { formatDate, formatDays, formatDuration, formatPace } from "@/lib/format";
 
@@ -13,9 +15,11 @@ interface RacePanelProps {
   race: SummaryRace;
   /** Kilometres a week with the plan's prescription beside them; empty draws nothing. */
   weeklyKm: readonly WeeklyKmWeek[];
+  /** Race-morning form and the finish range; absent while it loads or with no race. */
+  forecast?: RaceForecast;
 }
 
-export function RacePanel({ race, weeklyKm }: RacePanelProps) {
+export function RacePanel({ race, weeklyKm, forecast }: RacePanelProps) {
   const tokens = useTokens();
   const option = useMemo(
     () => buildWeeklyKmOption({ weeks: [...weeklyKm], tokens }),
@@ -33,11 +37,15 @@ export function RacePanel({ race, weeklyKm }: RacePanelProps) {
           {formatDays(race.days_to_go)}
         </span>
       </div>
-      {race.projection && (
-        <div className="grid grid-cols-2 gap-6">
-          <StatCard label="Projected" value={formatDuration(race.projection.projected_seconds)} />
-          <StatCard label="Pace" value={formatPace(projectedPace(race))} />
-        </div>
+      {forecast && (forecast.form || forecast.time) ? (
+        <ForecastPanel forecast={forecast} />
+      ) : (
+        race.projection && (
+          <div className="grid grid-cols-2 gap-6">
+            <StatCard label="Projected" value={formatDuration(race.projection.projected_seconds)} />
+            <StatCard label="Pace" value={formatPace(projectedPace(race))} />
+          </div>
+        )
       )}
       {weeklyKm.length > 0 && (
         <figure className="flex flex-col gap-1">
