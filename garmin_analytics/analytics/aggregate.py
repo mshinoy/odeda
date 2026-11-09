@@ -172,8 +172,18 @@ def by_period(store: Store, period: str = "year", **f: Any) -> list[dict[str, An
     return [_decorate(r) for r in rows]
 
 
+#: A year with fewer activities than this is not a base worth measuring a change against.
+#: One walk logged in 2022 made every 2023 figure read "+14,153%", which is arithmetic and
+#: not information.
+MIN_COMPARABLE_ACTIVITIES = 12
+
+
 def year_over_year(store: Store, **f: Any) -> dict[str, Any]:
-    """Every headline metric per year, with the change on the year before."""
+    """Every headline metric per year, with the change on the year before.
+
+    A year has no change when the year before it has too few activities to compare with
+    (`MIN_COMPARABLE_ACTIVITIES`), as the first year has none at all.
+    """
     years = by_period(store, "year", **f)
     metrics = ("activities", "distance_km", "moving_time_h", "elevation_gain_m",
                "avg_pace_s_per_km", "avg_hr", "avg_distance_km")
@@ -182,6 +192,9 @@ def year_over_year(store: Store, **f: Any) -> dict[str, Any]:
         if i == 0:
             continue
         prev = years[i - 1]
+        if (prev.get("activities") or 0) < MIN_COMPARABLE_ACTIVITIES:
+            row["changes"] = {m: None for m in metrics}
+            continue
         for m in metrics:
             a, b = prev.get(m), row.get(m)
             if a in (None, 0) or b is None:

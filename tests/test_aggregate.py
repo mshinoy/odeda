@@ -142,9 +142,11 @@ class TestPeriods:
             A.by_period(store, "fortnight")
 
     def test_year_over_year_change_direction(self, store):
-        # 2025: 10 km at 5:00/km. 2026: 20 km at 4:00/km.
-        _act(store, "a", "2025-05-01", distance_m=10_000.0, moving_time_s=3_000.0)
-        _act(store, "b", "2026-05-01", distance_m=20_000.0, moving_time_s=4_800.0)
+        # 2025: 12 runs of 10 km at 5:00/km. 2026: one of 120 km at 4:00/km, so the
+        # totals double while the pace improves.
+        for i in range(A.MIN_COMPARABLE_ACTIVITIES):
+            _act(store, f"p{i}", f"2025-05-{i + 1:02d}", distance_m=10_000.0, moving_time_s=3_000.0)
+        _act(store, "b", "2026-05-01", distance_m=240_000.0, moving_time_s=57_600.0)
         years = A.year_over_year(store)["years"]
         assert years[0]["changes"] == {}
         ch = years[1]["changes"]
@@ -153,6 +155,21 @@ class TestPeriods:
         # Pace went from 300 s/km to 240 s/km: lower is better.
         assert ch["avg_pace_s_per_km"]["pct"] == pytest.approx(-20.0)
         assert ch["avg_pace_s_per_km"]["better"] is True
+
+    def test_a_year_after_a_near_empty_one_has_no_change_to_report(self, store):
+        """One walk in 2022 made 2023 read +14,153%: arithmetic, not information."""
+        _act(store, "a", "2025-05-01", distance_m=2_600.0, moving_time_s=1_800.0)
+        for i in range(A.MIN_COMPARABLE_ACTIVITIES):
+            _act(store, f"b{i}", f"2026-05-{i + 1:02d}", distance_m=10_000.0, moving_time_s=3_000.0)
+        years = A.year_over_year(store)
+        assert all(v is None for v in years["years"][1]["changes"].values())
+        assert set(years["years"][1]["changes"]) == set(years["metric_names"])
+
+    def test_the_threshold_itself_is_enough(self, store):
+        for i in range(A.MIN_COMPARABLE_ACTIVITIES):
+            _act(store, f"a{i}", f"2025-05-{i + 1:02d}", distance_m=5_000.0, moving_time_s=1_500.0)
+        _act(store, "b", "2026-05-01", distance_m=10_000.0, moving_time_s=3_000.0)
+        assert A.year_over_year(store)["years"][1]["changes"]["distance_km"] is not None
 
 
 class TestDistributions:
