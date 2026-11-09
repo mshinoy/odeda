@@ -72,6 +72,7 @@ function activity(overrides: Partial<Activity> = {}): Activity {
       calories: 80,
       trimp: null,
       trainingEffect: null,
+      avgCadenceSpm: null,
       rpe: null,
       notes: null,
       routeId: null,

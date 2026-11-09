@@ -22,6 +22,7 @@ const run: ActivitySummary = {
   calories: 610,
   trimp: 88,
   trainingEffect: 3.1,
+  avgCadenceSpm: 125,
   rpe: null,
   notes: null,
   routeId: null,

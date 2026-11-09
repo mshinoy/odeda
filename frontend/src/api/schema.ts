@@ -815,6 +815,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activities/{activity_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Activity Plan
+         * @description What the plan asked of this activity and how it went, and the next of its kind.
+         */
+        get: operations["api_activity_plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activities/{activity_id}/gaps": {
         parameters: {
             query?: never;
@@ -1753,6 +1773,20 @@ export interface components {
              * @description A gym session's exercises, relabels applied; empty for anything else.
              */
             exercises: components["schemas"]["Exercise"][];
+        };
+        /**
+         * ActivityPlan
+         * @description `GET /api/activities/{id}/plan`: what the plan asked of this activity, and what it
+         *     asks next of the same kind.
+         */
+        ActivityPlan: {
+            /**
+             * @description The prescribed session this activity fulfilled. Null for an activity that was not
+             *     part of the plan.
+             */
+            session: components["schemas"]["PlanSession"] | null;
+            /** @description The next session of the same kind and sport still to come. Null without one. */
+            next: components["schemas"]["PlanSession"] | null;
         };
         /**
          * ActivityPreviews
@@ -7538,6 +7572,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityStreams"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_activity_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPlan"];
                 };
             };
             /** @description Validation Error */

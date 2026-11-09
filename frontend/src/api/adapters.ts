@@ -28,6 +28,8 @@ export interface ActivitySummary {
   calories: number | null;
   trimp: number | null;
   trainingEffect: number | null;
+  /** The watch's own average: steps a minute for runs and walks, rpm for rides. */
+  avgCadenceSpm: number | null;
   rpe: number | null;
   notes: string | null;
   routeId: number | null;
@@ -46,8 +48,6 @@ export interface ActivitySummary {
 export interface ActivityListItem extends ActivitySummary {
   maxSpeedMps: number | null;
   avgPowerW: number | null;
-  /** Steps/min for runs and walks, rpm for rides. */
-  avgCadenceSpm: number | null;
   /** True when there is a route to draw; the route itself comes from `toActivityPreviews`. */
   hasGps: boolean;
   /** Empty when the activity has no zones. */
@@ -321,6 +321,7 @@ export function toActivitySummary(row: Schemas["ActivityRow"]): ActivitySummary 
     calories: row.calories,
     trimp: row.trimp,
     trainingEffect: row.training_effect_aerobic,
+    avgCadenceSpm: row.avg_cadence_spm,
     rpe: row.rpe,
     notes: row.notes,
     routeId: row.route_id,
@@ -339,7 +340,6 @@ export function toActivityListItem(row: Schemas["ActivityListRow"]): ActivityLis
     ...toActivitySummary(row),
     maxSpeedMps: row.max_speed_mps,
     avgPowerW: row.avg_power_w,
-    avgCadenceSpm: row.avg_cadence_spm,
     hasGps: row.has_gps,
     hrZones: row.hr_zones.map(({ zone, seconds }) => ({ zone, seconds })),
     exercises: row.exercises.map(toExercise),
@@ -689,6 +689,17 @@ export function toHeatmap(raw: Schemas["Heatmap"]): Heatmap {
 
 /** The rolling window for `smoothSpeedMps`: long enough to calm GPS, short enough for a stride. */
 export const SPEED_SMOOTHING_S = 30;
+
+/**
+ * The same streams with pace averaged over a longer window. The map, the hover and the
+ * playback keep the 30 s default; the one chart of the whole activity uses a minute, so
+ * the walk breaks of a run and walk session do not swamp the line. Every column keeps its
+ * length, so an index means the same moment in both.
+ */
+export function withPaceWindow(streams: ActivityStreams, windowS: number): ActivityStreams {
+  const smoothSpeedMps = rollingMean(streams.speedMps.map(movingSpeed), streams.elapsedS, windowS);
+  return { ...streams, smoothSpeedMps, paceSPerKm: smoothSpeedMps.map(paceFromSpeed) };
+}
 
 export function toActivityStreams(raw: Schemas["ActivityStreams"]): ActivityStreams {
   // Stops are left out of the mean, so the line near a traffic light shows the pace

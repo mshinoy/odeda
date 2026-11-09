@@ -2612,6 +2612,17 @@ class PlanSession(_Model):
     """The day the fulfilling activity actually happened, when it was not this one."""
 
 
+class ActivityPlan(_Model):
+    """`GET /api/activities/{id}/plan`: what the plan asked of this activity, and what it
+    asks next of the same kind."""
+
+    session: PlanSession | None
+    """The prescribed session this activity fulfilled. Null for an activity that was not
+    part of the plan."""
+    next: PlanSession | None
+    """The next session of the same kind and sport still to come. Null without one."""
+
+
 class PlanUnreadable(_Model):
     """A session the parser could not resolve. Shown in Settings so a silent miss is a
     visible one."""

@@ -74,6 +74,7 @@ from .schemas import (
     ActivityEditResult,
     ActivityExercises,
     ActivityGaps,
+    ActivityPlan,
     ActivityGearRequest,
     ActivityGearResult,
     ActivityList,
@@ -995,6 +996,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             out[col] = [r[i] for r in rows]
         return out
 
+    @app.get("/api/activities/{activity_id}/plan", response_model=ActivityPlan)
+    def api_activity_plan(activity_id: str) -> dict[str, Any]:
+        """What the plan asked of this activity and how it went, and the next of its kind."""
+        with store() as st:
+            if not ov_mod.activity_exists(st, activity_id):
+                raise HTTPException(404, f"no activity {activity_id!r}")
+            return plan_mod.session_for_activity(st, activity_id)
+
     @app.get("/api/activities/{activity_id}/gaps", response_model=ActivityGaps)
     def api_activity_gaps(activity_id: str) -> dict[str, Any]:
         """Where the watch paused and resumed somewhere else, with a guess at the path in
@@ -1685,13 +1694,26 @@ def _columnar_heatmap(grid: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+#: Below this speed between two samples the athlete was standing, not moving: a traffic light,
+#: a drink stop, or a watch that paused and resumed somewhere else.
+STANDING_MPS = 0.5
+
+
 def _splits(samples: list[dict[str, Any]], split_m: float = 1000.0) -> list[dict[str, Any]]:
-    """Per-kilometre splits from a sample stream."""
+    """Per-kilometre splits from a sample stream, in **moving** time.
+
+    A kilometre's time is the time spent moving through it, as the page's own moving time is.
+    Counting every second between the kilometre marks put a red light, a stop for water, or a
+    28-minute pause where the watch resumed elsewhere into whichever kilometre it fell in,
+    and a ride's kilometre read as 5 km/h.
+    """
     if len(samples) < 2:
         return []
     out: list[dict[str, Any]] = []
     target = split_m
-    prev_t = float(samples[0]["elapsed_s"])
+    moving_s = 0.0
+    prev_t: float | None = None
+    prev_d: float | None = None
     hr_bucket: list[float] = []
     for s in samples:
         if s.get("hr") is not None:
@@ -1699,18 +1721,22 @@ def _splits(samples: list[dict[str, Any]], split_m: float = 1000.0) -> list[dict
         d = s.get("distance_m")
         if d is None:
             continue
+        t = float(s["elapsed_s"])
+        if prev_t is not None and prev_d is not None:
+            dt = t - prev_t
+            if dt > 0 and (float(d) - prev_d) / dt >= STANDING_MPS:
+                moving_s += dt
+        prev_t, prev_d = t, float(d)
         if float(d) >= target:
-            t = float(s["elapsed_s"])
-            secs = t - prev_t
             out.append(
                 {
                     "km": int(target / 1000),
-                    "seconds": round(secs, 1),
-                    "pace": perf.pace_str(secs / (split_m / 1000.0)) if secs > 0 else None,
+                    "seconds": round(moving_s, 1),
+                    "pace": perf.pace_str(moving_s / (split_m / 1000.0)) if moving_s > 0 else None,
                     "avg_hr": round(sum(hr_bucket) / len(hr_bucket), 1) if hr_bucket else None,
                 }
             )
-            prev_t = t
+            moving_s = 0.0
             hr_bucket = []
             target += split_m
     return out
