@@ -1729,6 +1729,51 @@ class TaperCheck(_Model):
     verdict: RaceNote
 
 
+class PacingPreset(_Model):
+    label: str
+    target_s: float
+
+
+class PacingTurn(_Model):
+    km: float
+    """Kilometres from the start, on the race's own distance."""
+    kind: Literal["turn", "turnaround"]
+
+
+class PacingCourse(_Model):
+    """What was known of the course. `none` when no GPX is in the data directory."""
+
+    source: Literal["gpx", "none"]
+    length_m: float | None
+    turns: list[PacingTurn]
+
+
+class PacingSplit(_Model):
+    km: int
+    distance_m: float
+    """1000, except the last row, which is the partial kilometre to the finish."""
+    split_s: float
+    cum_s: float
+    pace_s_per_km: float
+    end_m: float
+
+
+class RacePacing(_Model):
+    """`GET /api/race/pacing`: per-kilometre splits for a target time, adding up to it.
+
+    A gentle first kilometre and a few seconds for each turn are rules of thumb, and the
+    plan is flat: there is no elevation in a course file. The splits are for the race's
+    official distance."""
+
+    race: RaceInfo | None
+    target_s: float | None
+    strategy: Literal["even", "negative"]
+    presets: list[PacingPreset]
+    """The finish range's fast, likely and slow ends, as targets to choose from."""
+    course: PacingCourse
+    splits: list[PacingSplit]
+
+
 class RaceForecast(_Model):
     """`GET /api/race/forecast`. Each half is null when it cannot be computed."""
 

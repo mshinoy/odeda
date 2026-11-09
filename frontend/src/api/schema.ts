@@ -489,6 +489,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/race/pacing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Race Pacing */
+        get: operations["api_race_pacing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/race/forecast": {
         parameters: {
             query?: never;
@@ -4034,6 +4051,59 @@ export interface components {
             fields: components["schemas"]["EditableFieldInfo"][];
         };
         /**
+         * PacingCourse
+         * @description What was known of the course. `none` when no GPX is in the data directory.
+         */
+        PacingCourse: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "gpx" | "none";
+            /** Length M */
+            length_m: number | null;
+            /** Turns */
+            turns: components["schemas"]["PacingTurn"][];
+        };
+        /** PacingPreset */
+        PacingPreset: {
+            /** Label */
+            label: string;
+            /** Target S */
+            target_s: number;
+        };
+        /** PacingSplit */
+        PacingSplit: {
+            /** Km */
+            km: number;
+            /**
+             * Distance M
+             * @description 1000, except the last row, which is the partial kilometre to the finish.
+             */
+            distance_m: number;
+            /** Split S */
+            split_s: number;
+            /** Cum S */
+            cum_s: number;
+            /** Pace S Per Km */
+            pace_s_per_km: number;
+            /** End M */
+            end_m: number;
+        };
+        /** PacingTurn */
+        PacingTurn: {
+            /**
+             * Km
+             * @description Kilometres from the start, on the race's own distance.
+             */
+            km: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "turn" | "turnaround";
+        };
+        /**
          * Patterns
          * @description When training actually happens.
          */
@@ -4595,6 +4665,32 @@ export interface components {
             level: "good" | "warning";
             /** Text */
             text: string;
+        };
+        /**
+         * RacePacing
+         * @description `GET /api/race/pacing`: per-kilometre splits for a target time, adding up to it.
+         *
+         *     A gentle first kilometre and a few seconds for each turn are rules of thumb, and the
+         *     plan is flat: there is no elevation in a course file. The splits are for the race's
+         *     official distance.
+         */
+        RacePacing: {
+            race: components["schemas"]["RaceInfo"] | null;
+            /** Target S */
+            target_s: number | null;
+            /**
+             * Strategy
+             * @enum {string}
+             */
+            strategy: "even" | "negative";
+            /**
+             * Presets
+             * @description The finish range's fast, likely and slow ends, as targets to choose from.
+             */
+            presets: components["schemas"]["PacingPreset"][];
+            course: components["schemas"]["PacingCourse"];
+            /** Splits */
+            splits: components["schemas"]["PacingSplit"][];
         };
         /**
          * RacePanel
@@ -6842,6 +6938,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RacePanel"];
+                };
+            };
+        };
+    };
+    api_race_pacing: {
+        parameters: {
+            query?: {
+                target_s?: number | null;
+                strategy?: "even" | "negative";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RacePacing"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

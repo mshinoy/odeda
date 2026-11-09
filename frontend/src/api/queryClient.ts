@@ -81,6 +81,9 @@ export const queryKeys = {
   raceForecast: ["plan", "forecast"] as const,
   /** The race panel's own payload: countdown, 26 weeks of km, and the plan's targets. */
   race: ["race"] as const,
+  /** Per-kilometre splits for a target time; under `race` so a new calendar refreshes it. */
+  racePacing: (target: number | null, strategy: string) =>
+    ["race", "pacing", target, strategy] as const,
   garminStatus: ["garmin-status"] as const,
   /** Read off disk, so opening Settings never depends on the network to render. */
   fitbitStatus: ["fitbit-status"] as const,

@@ -1,6 +1,6 @@
 // The training plan: the whole block, one week in detail, and the two corrections the
 // owner can make to a match the matcher got wrong.
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/api/client";
 import { queryKeys } from "@/api/queryClient";
 import type { components } from "@/api/schema";
@@ -14,6 +14,7 @@ export type PlanDecision = components["schemas"]["PlanDecision"];
 export type PlanVerdict = PlanSession["verdict"];
 export type RacePanelData = components["schemas"]["RacePanel"];
 export type RaceForecast = components["schemas"]["RaceForecast"];
+export type RacePacing = components["schemas"]["RacePacing"];
 
 export function usePlan() {
   return useQuery({
@@ -58,6 +59,23 @@ export function useRaceForecast() {
   return useQuery({
     queryKey: queryKeys.raceForecast,
     queryFn: async () => unwrap(await api.GET("/api/race/forecast")),
+  });
+}
+
+/**
+ * Per-kilometre splits for the goal race. With no target it is the likely finish; the
+ * previous plan stays on screen while a new target loads, so the table does not flicker.
+ */
+export function useRacePacing(target: number | null, strategy: "even" | "negative") {
+  return useQuery({
+    queryKey: queryKeys.racePacing(target, strategy),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/api/race/pacing", {
+          params: { query: { ...(target === null ? {} : { target_s: target }), strategy } },
+        }),
+      ),
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -61,7 +61,7 @@ nicer.
 | 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
 | 18 Page redesign | R: `open` | 0 / 6 |
 | 19 Data defects | S: `ready for review` | 5 / 7 |
-| 20 Race prep | T: `open` | 2 / 4 |
+| 20 Race prep | T: `open` | 3 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
@@ -116,7 +116,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
-| T78 | Race-day pacing plan: per-km splits from the projected time, even or slightly negative. Hill-aware if a course GPX can be had | needs decision: is a Doha course GPX available? | — |
+| T78 | Race-day pacing plan at `/race`: per-km splits that add up to a target (the finish range's fast, likely or slow end, or typed), a gentle first km, 5 s per turn, even or negative. Turns come from a course GPX in `<data dir>/courses/<race date>.gpx`. Flat: no hills | done | — |
 | T79 | Taper check: the last weeks of planned running against the peak week, and where the plan as written leaves form on race morning. A popup on the race card | done | — |
 | T80 | A missed or short long run says so on Today, with what it costs on race day (a rule of thumb, usually seconds), and what the next one is | done | — |
 | T81 | A post-race page: the result against the projection, then a suggested recovery block | todo | — |
@@ -135,7 +135,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | ID | Question | Status |
 |---|---|---|
 | D23 | Does Trends fold into Train and Body, or stay its own page? | open |
-| D24 | Is there a Doha half-marathon course GPX to build the pacing plan from? | open |
+| D24 | Is there a Doha half-marathon course GPX to build the pacing plan from? | answered: no official file; one was traced from the published course map (approximate, 30 to 80 m, 21.06 km) and is in `courses/`. Use the organiser's own if one is published |
 | D25 | Should the page changes reach the old pages at once (T73), or only as each page is redone? | open |
 
 ### Decided

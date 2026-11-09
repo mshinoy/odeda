@@ -23,7 +23,7 @@ import urllib.parse
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exception_handlers import http_exception_handler
@@ -44,6 +44,7 @@ from ..analytics import body as body_mod
 from ..analytics import forecast as forecast_mod
 from ..analytics import gaps as gaps_mod
 from ..analytics import load as load_mod
+from ..analytics import pacing as pacing_mod
 from ..analytics import performance as perf
 from ..analytics import plan as plan_mod
 from ..analytics import readiness as ready_mod
@@ -117,6 +118,7 @@ from .schemas import (
     PlanSyncResult,
     PlanWeekDetail,
     RaceForecast,
+    RacePacing,
     RacePanel,
     ReclusterRequest,
     Reports,
@@ -678,6 +680,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_race() -> dict[str, Any]:
         with store() as st:
             return _race(st)
+
+    @app.get("/api/race/pacing", response_model=RacePacing)
+    def api_race_pacing(
+        target_s: float | None = Query(None, ge=1800, le=36000),
+        strategy: Literal["even", "negative"] = "even",
+    ) -> dict[str, Any]:
+        with store() as st:
+            return pacing_mod.compute_pacing(st, settings, target_s, strategy)
 
     @app.get("/api/race/forecast", response_model=RaceForecast)
     def api_race_forecast() -> dict[str, Any]:
