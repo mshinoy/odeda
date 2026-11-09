@@ -489,6 +489,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/race/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Race Forecast */
+        get: operations["api_race_forecast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan": {
         parameters: {
             query?: never;
@@ -2855,6 +2872,95 @@ export interface components {
             last_day?: string | null;
         };
         /**
+         * ForecastDay
+         * @description One day of the forward curve. The `_followed` values are the same curve with
+         *     each remaining session done at the recent adherence; null when there is none.
+         */
+        ForecastDay: {
+            /** Day */
+            day: string;
+            /** Ctl */
+            ctl: number;
+            /** Atl */
+            atl: number;
+            /** Tsb */
+            tsb: number;
+            /** Ctl Followed */
+            ctl_followed: number | null;
+            /** Atl Followed */
+            atl_followed: number | null;
+            /** Tsb Followed */
+            tsb_followed: number | null;
+        };
+        /**
+         * ForecastMorning
+         * @description The state at the start of race day, which is the end of the day before.
+         */
+        ForecastMorning: {
+            /** Day */
+            day: string;
+            /** Ctl */
+            ctl: number;
+            /** Atl */
+            atl: number;
+            /** Tsb */
+            tsb: number;
+            /** Ctl Followed */
+            ctl_followed: number | null;
+            /** Atl Followed */
+            atl_followed: number | null;
+            /** Tsb Followed */
+            tsb_followed: number | null;
+            /**
+             * Form
+             * @description Plain-English reading of the form the verdict is judged on.
+             */
+            form: string;
+        };
+        /** ForecastPeak */
+        ForecastPeak: {
+            /** Day */
+            day: string;
+            /** Ctl */
+            ctl: number;
+        };
+        /**
+         * FormForecast
+         * @description Fitness, fatigue and form from today to race morning, under the plan.
+         */
+        FormForecast: {
+            /** Race Day */
+            race_day: string;
+            /** Days Out */
+            days_out: number;
+            /**
+             * Load Per Km
+             * @description TRIMP per running kilometre, from the last weeks of running.
+             */
+            load_per_km: number;
+            /**
+             * Km Done Pct
+             * @description Running km done over km planned, last 28 days. It scales the "followed" curve; null
+             *     when the plan asked for no running in that window.
+             */
+            km_done_pct: number | null;
+            /** Planned Km Remaining */
+            planned_km_remaining: number;
+            /** Curve */
+            curve: components["schemas"]["ForecastDay"][];
+            race_morning: components["schemas"]["ForecastMorning"];
+            peak: components["schemas"]["ForecastPeak"];
+            /**
+             * Basis
+             * @description Which scenario the verdict judges: followed when adherence is known.
+             * @enum {string}
+             */
+            basis: "plan" | "followed";
+            verdict: components["schemas"]["RaceNote"];
+            /** Caveats */
+            caveats: string[];
+        };
+        /**
          * GarminConnected
          * @description A finished sign-in, by any of the three routes. Carries the new status, so a
          *     caller does not have to re-read `/api/garmin/status` to know the tokens landed.
@@ -4321,6 +4427,17 @@ export interface components {
             watts_per_kg: number;
         };
         /**
+         * RaceForecast
+         * @description `GET /api/race/forecast`. Each half is null when it cannot be computed.
+         */
+        RaceForecast: {
+            race: components["schemas"]["RaceInfo"] | null;
+            /** Today */
+            today: string;
+            form: components["schemas"]["FormForecast"] | null;
+            time: components["schemas"]["TimeRange"] | null;
+        };
+        /**
          * RaceInfo
          * @description A race read from the training calendar: a session the parser marked
          *     `kind='race'`. Everything but the name and the day is optional, because a calendar
@@ -5465,6 +5582,75 @@ export interface components {
              */
             stopping: boolean;
         };
+        /** TimeBand */
+        TimeBand: {
+            /** Fast */
+            fast: number;
+            /** Central */
+            central: number;
+            /** Slow */
+            slow: number;
+        };
+        /**
+         * TimeRange
+         * @description A finish-time range from every recent effort of 5 km and up.
+         *
+         *     `raw` is the data; `adjusted` adds two rules of thumb (fitness gained since the
+         *     efforts, and race-morning form) which are not measurements and are shown apart.
+         */
+        TimeRange: {
+            /** Distance M */
+            distance_m: number;
+            raw: components["schemas"]["TimeBand"];
+            adjusted: components["schemas"]["TimeBand"];
+            /** Central Pace S Per Km */
+            central_pace_s_per_km: number;
+            /**
+             * Fitness Pct
+             * @description Percent change in time for fitness gained since the efforts; negative is faster.
+             */
+            fitness_pct: number;
+            /** Form Pct */
+            form_pct: number;
+            /** Ctl Race */
+            ctl_race: number | null;
+            /** Tsb Race */
+            tsb_race: number | null;
+            /** Basis */
+            basis: ("plan" | "followed") | null;
+            /** Sources */
+            sources: components["schemas"]["TimeSource"][];
+            /**
+             * Widened
+             * @description True when the Riegel exponent band (1.04 to 1.08) on the longest effort reached
+             *     past the spread between efforts, so the range is wider than the efforts alone.
+             */
+            widened: boolean;
+            /** Caveats */
+            caveats: string[];
+        };
+        /** TimeSource */
+        TimeSource: {
+            /** Label */
+            label: string | null;
+            /** Distance M */
+            distance_m: number;
+            /** Seconds */
+            seconds: number;
+            /** Day */
+            day: string;
+            /**
+             * Projected Seconds
+             * @description Riegel projection to the race distance, before any adjustment.
+             */
+            projected_seconds: number;
+            /** Ctl Then */
+            ctl_then: number | null;
+            /** Fitness Factor */
+            fitness_factor: number;
+            /** Adjusted Seconds */
+            adjusted_seconds: number;
+        };
         /**
          * TrainingLoad
          * @description `GET /api/load`. With no activities: empty lists, and `current` and
@@ -6491,6 +6677,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RacePanel"];
+                };
+            };
+        };
+    };
+    api_race_forecast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RaceForecast"];
                 };
             };
         };

@@ -210,6 +210,12 @@ const timeFormat = new Intl.DateTimeFormat(LOCALE, {
   hourCycle: "h23",
 });
 const weekdayFormat = new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", weekday: "short" });
+const longDateFormat = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: "UTC",
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
 const monthYearFormat = new Intl.DateTimeFormat(LOCALE, {
   timeZone: "UTC",
   month: "short",
@@ -290,6 +296,13 @@ export function formatWeekday(iso: string | null | undefined): string {
   const date = iso ? parseWallClock(iso) : null;
   if (!date) return MISSING;
   return weekdayFormat.format(date);
+}
+
+/** "Monday, November 9": the day a page is about, spelled out. */
+export function formatLongDate(iso: string | null | undefined): string {
+  const date = iso ? parseWallClock(iso) : null;
+  if (!date) return MISSING;
+  return longDateFormat.format(date);
 }
 
 // ---------------------------------------------------------------- plain numbers

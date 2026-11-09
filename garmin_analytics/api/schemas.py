@@ -1558,6 +1558,101 @@ class RacePanel(_Model):
     notes: list[RaceNote]
 
 
+class ForecastDay(_Model):
+    """One day of the forward curve. The `_followed` values are the same curve with
+    each remaining session done at the recent adherence; null when there is none."""
+
+    day: str
+    ctl: float
+    atl: float
+    tsb: float
+    ctl_followed: float | None
+    atl_followed: float | None
+    tsb_followed: float | None
+
+
+class ForecastMorning(ForecastDay):
+    """The state at the start of race day, which is the end of the day before."""
+
+    form: str
+    """Plain-English reading of the form the verdict is judged on."""
+
+
+class ForecastPeak(_Model):
+    day: str
+    ctl: float
+
+
+class FormForecast(_Model):
+    """Fitness, fatigue and form from today to race morning, under the plan."""
+
+    race_day: str
+    days_out: int
+    load_per_km: float
+    """TRIMP per running kilometre, from the last weeks of running."""
+    km_done_pct: float | None
+    """Running km done over km planned, last 28 days. It scales the "followed" curve; null
+    when the plan asked for no running in that window."""
+    planned_km_remaining: float
+    curve: list[ForecastDay]
+    race_morning: ForecastMorning
+    peak: ForecastPeak
+    basis: Literal["plan", "followed"]
+    """Which scenario the verdict judges: followed when adherence is known."""
+    verdict: RaceNote
+    caveats: list[str]
+
+
+class TimeSource(_Model):
+    label: str | None
+    distance_m: float
+    seconds: float
+    day: str
+    projected_seconds: float
+    """Riegel projection to the race distance, before any adjustment."""
+    ctl_then: float | None
+    fitness_factor: float
+    adjusted_seconds: float
+
+
+class TimeBand(_Model):
+    fast: float
+    central: float
+    slow: float
+
+
+class TimeRange(_Model):
+    """A finish-time range from every recent effort of 5 km and up.
+
+    `raw` is the data; `adjusted` adds two rules of thumb (fitness gained since the
+    efforts, and race-morning form) which are not measurements and are shown apart."""
+
+    distance_m: float
+    raw: TimeBand
+    adjusted: TimeBand
+    central_pace_s_per_km: float
+    fitness_pct: float
+    """Percent change in time for fitness gained since the efforts; negative is faster."""
+    form_pct: float
+    ctl_race: float | None
+    tsb_race: float | None
+    basis: Literal["plan", "followed"] | None
+    sources: list[TimeSource]
+    widened: bool
+    """True when the Riegel exponent band (1.04 to 1.08) on the longest effort reached
+    past the spread between efforts, so the range is wider than the efforts alone."""
+    caveats: list[str]
+
+
+class RaceForecast(_Model):
+    """`GET /api/race/forecast`. Each half is null when it cannot be computed."""
+
+    race: RaceInfo | None
+    today: str
+    form: FormForecast | None
+    time: TimeRange | None
+
+
 class SummaryRace(_Model):
     """The race countdown, cut down for the summary."""
 

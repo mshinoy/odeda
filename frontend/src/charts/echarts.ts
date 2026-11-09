@@ -11,6 +11,7 @@ import {
 import {
   AxisPointerComponent,
   GridComponent,
+  MarkAreaComponent,
   MarkLineComponent,
   TooltipComponent,
   type AxisPointerComponentOption,
@@ -32,6 +33,8 @@ echarts.use([
   AxisPointerComponent,
   // A series' `markLine`, for a fixed reference such as the 5 % decoupling limit.
   MarkLineComponent,
+  // The band a taper should land in, behind the form forecast.
+  MarkAreaComponent,
   CanvasRenderer,
 ]);
 

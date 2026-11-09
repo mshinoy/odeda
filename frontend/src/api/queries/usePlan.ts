@@ -13,6 +13,7 @@ export type PlanUnplanned = components["schemas"]["PlanUnplanned"];
 export type PlanDecision = components["schemas"]["PlanDecision"];
 export type PlanVerdict = PlanSession["verdict"];
 export type RacePanelData = components["schemas"]["RacePanel"];
+export type RaceForecast = components["schemas"]["RaceForecast"];
 
 export function usePlan() {
   return useQuery({
@@ -49,6 +50,14 @@ export function useRace() {
   return useQuery({
     queryKey: queryKeys.race,
     queryFn: async () => unwrap(await api.GET("/api/race")),
+  });
+}
+
+/** Where the plan leaves your form on race morning, and the finish-time range. */
+export function useRaceForecast() {
+  return useQuery({
+    queryKey: queryKeys.raceForecast,
+    queryFn: async () => unwrap(await api.GET("/api/race/forecast")),
   });
 }
 

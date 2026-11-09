@@ -3,9 +3,9 @@ import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
 import { useAutoSync } from "@/api/queries/useStatus";
 import { cn } from "@/lib/utils";
 
-// Six since D11 added the plan: Status · Plan · Activities · Map · Health · Trends.
+// Six since D11 added the plan: Today · Plan · Activities · Map · Health · Trends.
 const navItems = [
-  { to: "/status", label: "Status" },
+  { to: "/status", label: "Today" },
   { to: "/plan", label: "Plan" },
   { to: "/activities", label: "Activities" },
   { to: "/map", label: "Map" },
@@ -27,7 +27,7 @@ export function AppShell() {
   return (
     <div className="min-h-svh">
       <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+        <div className="mx-auto flex h-14 max-w-[1480px] items-center gap-6 px-8">
           <nav className="flex items-center gap-1">
             {navItems.map((item) => (
               <NavLink key={item.to} to={item.to} className={navLinkClass}>
@@ -52,7 +52,7 @@ export function AppShell() {
           </NavLink>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="short:py-3 mx-auto max-w-[1480px] px-8 py-6">
         <Outlet />
       </main>
       {/* A new page opens at the top; Back returns to where the list was scrolled. */}

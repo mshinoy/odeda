@@ -41,6 +41,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .. import __version__, config
 from ..analytics import aggregate as agg_mod
 from ..analytics import body as body_mod
+from ..analytics import forecast as forecast_mod
 from ..analytics import load as load_mod
 from ..analytics import performance as perf
 from ..analytics import plan as plan_mod
@@ -113,6 +114,7 @@ from .schemas import (
     PlanStartRequest,
     PlanSyncResult,
     PlanWeekDetail,
+    RaceForecast,
     RacePanel,
     ReclusterRequest,
     Reports,
@@ -674,6 +676,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_race() -> dict[str, Any]:
         with store() as st:
             return _race(st)
+
+    @app.get("/api/race/forecast", response_model=RaceForecast)
+    def api_race_forecast() -> dict[str, Any]:
+        with store() as st:
+            return forecast_mod.compute_forecast(st)
 
     # -- training plan -------------------------------------------------------
 

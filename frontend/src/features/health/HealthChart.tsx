@@ -6,6 +6,7 @@ import { HEALTH_GUTTERS } from "@/charts/health/dayAxis";
 import type { Stat } from "@/charts/health/rangeStats";
 import type { Resolution } from "@/charts/health/resolution";
 import { indicesFromWindow, windowFromIndices, type DayWindow } from "@/charts/health/zoomWindow";
+import { InfoPopover } from "@/components/InfoPopover";
 import { Button } from "@/components/ui/button";
 import type { ChartZoom } from "@/features/health/useChartZoom";
 import { formatDate } from "@/lib/format";
@@ -122,7 +123,12 @@ export function HealthChart({
     <figure className="flex flex-col gap-3">
       <figcaption className="flex flex-col gap-1">
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-lg leading-tight font-semibold tracking-tight">{title}</span>
+          <span className="flex items-center gap-1">
+            <span className="text-lg leading-tight font-semibold tracking-tight">{title}</span>
+            <InfoPopover title={title}>
+              <p>{description}</p>
+            </InfoPopover>
+          </span>
           {legend}
           <span className="ml-auto flex items-center gap-2">
             {zoom.selection !== null && (
@@ -142,7 +148,6 @@ export function HealthChart({
             )}
           </span>
         </span>
-        <span className="text-muted-foreground text-sm">{description}</span>
       </figcaption>
 
       <div className="flex flex-col gap-1">

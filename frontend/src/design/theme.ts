@@ -3,12 +3,15 @@ import { applyTokens, colorTokens, type ColorTokens, type Theme } from "@/design
 
 const darkQuery = "(prefers-color-scheme: dark)";
 
-/** What the user asked for. `system` is the default and follows the OS. */
+/** What the user asked for. Light is the default; `system` follows the OS when chosen. */
 export type ThemePreference = Theme | "system";
 
 export const THEME_PREFERENCES: readonly ThemePreference[] = ["light", "dark", "system"];
 
 const STORAGE_KEY = "ga.theme";
+
+/** What a browser with nothing stored gets. A saved choice, including `system`, wins. */
+export const DEFAULT_PREFERENCE: ThemePreference = "light";
 
 function systemTheme(): Theme {
   return window.matchMedia(darkQuery).matches ? "dark" : "light";
@@ -24,12 +27,12 @@ export function resolveTheme(preference: ThemePreference, system: Theme): Theme 
 }
 
 function storedPreference(): ThemePreference {
-  // A private-mode browser can throw on localStorage; the OS is a fine fallback.
+  // A private-mode browser can throw on localStorage; light is the fallback.
   try {
     const stored: unknown = window.localStorage.getItem(STORAGE_KEY);
-    return isThemePreference(stored) ? stored : "system";
+    return isThemePreference(stored) ? stored : DEFAULT_PREFERENCE;
   } catch {
-    return "system";
+    return DEFAULT_PREFERENCE;
   }
 }
 
@@ -52,7 +55,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>()((set, get) => ({
-  preference: "system",
+  preference: DEFAULT_PREFERENCE,
   theme: "light",
   setPreference: (preference) => {
     const theme = resolveTheme(preference, systemTheme());
