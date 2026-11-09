@@ -1704,6 +1704,31 @@ class LongRunNote(_Model):
     next_km: float | None
 
 
+class TaperWeek(_Model):
+    start: str
+    """The Monday."""
+    planned_km: float
+    """Prescribed running, without the race itself in race week."""
+    pct_of_peak: int
+    race_week: bool
+
+
+class TaperCheck(_Model):
+    """The plan's taper as written, and where it leaves form on race morning.
+
+    This is the plan followed as prescribed, whatever has been run so far: it asks whether
+    the taper is well made, not whether the training reaches it."""
+
+    peak_km: float
+    """The biggest full week before race week."""
+    weeks: list[TaperWeek]
+    """The last full weeks, then race week."""
+    race_morning_tsb: float
+    race_morning_ctl: float
+    form: str
+    verdict: RaceNote
+
+
 class RaceForecast(_Model):
     """`GET /api/race/forecast`. Each half is null when it cannot be computed."""
 
@@ -1712,6 +1737,7 @@ class RaceForecast(_Model):
     form: FormForecast | None
     time: TimeRange | None
     long_run: LongRunNote | None
+    taper: TaperCheck | None
 
 
 class SummaryRace(_Model):

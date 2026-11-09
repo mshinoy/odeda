@@ -4557,6 +4557,7 @@ export interface components {
             form: components["schemas"]["FormForecast"] | null;
             time: components["schemas"]["TimeRange"] | null;
             long_run: components["schemas"]["LongRunNote"] | null;
+            taper: components["schemas"]["TaperCheck"] | null;
         };
         /**
          * RaceInfo
@@ -5702,6 +5703,49 @@ export interface components {
              * @description False when no sync was running.
              */
             stopping: boolean;
+        };
+        /**
+         * TaperCheck
+         * @description The plan's taper as written, and where it leaves form on race morning.
+         *
+         *     This is the plan followed as prescribed, whatever has been run so far: it asks whether
+         *     the taper is well made, not whether the training reaches it.
+         */
+        TaperCheck: {
+            /**
+             * Peak Km
+             * @description The biggest full week before race week.
+             */
+            peak_km: number;
+            /**
+             * Weeks
+             * @description The last full weeks, then race week.
+             */
+            weeks: components["schemas"]["TaperWeek"][];
+            /** Race Morning Tsb */
+            race_morning_tsb: number;
+            /** Race Morning Ctl */
+            race_morning_ctl: number;
+            /** Form */
+            form: string;
+            verdict: components["schemas"]["RaceNote"];
+        };
+        /** TaperWeek */
+        TaperWeek: {
+            /**
+             * Start
+             * @description The Monday.
+             */
+            start: string;
+            /**
+             * Planned Km
+             * @description Prescribed running, without the race itself in race week.
+             */
+            planned_km: number;
+            /** Pct Of Peak */
+            pct_of_peak: number;
+            /** Race Week */
+            race_week: boolean;
         };
         /** TimeBand */
         TimeBand: {

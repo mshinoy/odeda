@@ -348,3 +348,54 @@ class TestLongRunNote:
         note = F.compute_forecast(store, TODAY)["long_run"]
         assert note["planned_km"] == 15.0
         assert note["shortfall_km"] == pytest.approx(3.8)
+
+
+class TestTaperCheck:
+    """The plan's taper as written, apart from whether the training reaches it."""
+
+    def _weeks(self, store, km_by_monday):
+        """One run in each week, on the Wednesday, of the given kilometres."""
+        from datetime import timedelta
+
+        add_calendar_race(store)  # Fri 15 Jan 2027, so race week starts Mon 11 Jan
+        _runs(store, "2026-10-01", 60)
+        for monday, km in km_by_monday:
+            day = (date.fromisoformat(monday) + timedelta(days=2)).isoformat()
+            _plan_run(store, day, km * 1000)
+
+    PLAN = [("2026-12-14", 30), ("2026-12-21", 36), ("2026-12-28", 30), ("2027-01-04", 24),
+            ("2027-01-11", 10)]
+
+    def test_shows_the_last_weeks_against_the_peak_with_race_week_last(self, store):
+        self._weeks(store, self.PLAN)
+        taper = F.compute_forecast(store, TODAY)["taper"]
+        assert taper["peak_km"] == 36.0
+        assert [w["start"] for w in taper["weeks"]] == [
+            "2026-12-21", "2026-12-28", "2027-01-04", "2027-01-11"]
+        assert [w["pct_of_peak"] for w in taper["weeks"]] == [100, 83, 67, 28]
+        assert [w["race_week"] for w in taper["weeks"]] == [False, False, False, True]
+
+    def test_race_week_does_not_count_the_race_as_training(self, store):
+        self._weeks(store, self.PLAN)
+        race_week = F.compute_forecast(store, TODAY)["taper"]["weeks"][-1]
+        assert race_week["planned_km"] == 10.0  # the Wednesday run, not 10 + 21.1
+
+    def test_says_where_the_plan_leaves_form_on_race_morning(self, store):
+        self._weeks(store, self.PLAN)
+        taper = F.compute_forecast(store, TODAY)["taper"]
+        assert taper["race_morning_tsb"] == F.compute_forecast(store, TODAY)["form"]["race_morning"]["tsb"]
+        assert taper["verdict"]["level"] in ("good", "warning")
+        assert "race morning" in taper["verdict"]["text"]
+
+    def test_a_week_after_the_race_is_not_part_of_it(self, store):
+        self._weeks(store, [*self.PLAN, ("2027-01-18", 9)])
+        weeks = F.compute_forecast(store, TODAY)["taper"]["weeks"]
+        assert weeks[-1]["start"] == "2027-01-11"
+
+    def test_no_plan_weeks_means_no_check(self, store):
+        add_calendar_race(store)
+        _runs(store, "2026-10-01", 60)
+        assert F.compute_forecast(store, TODAY)["taper"] is None
+
+    def test_no_race_means_no_check(self, store):
+        assert F.compute_forecast(store, TODAY)["taper"] is None

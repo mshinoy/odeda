@@ -426,6 +426,65 @@ def compute_time_range(
     }
 
 
+#: How many weeks the taper check shows: the last full ones, then race week.
+TAPER_WEEKS = 4
+
+
+def compute_taper(
+    judged: Sequence[plan_mod.Judged],
+    race: Mapping[str, Any],
+    form: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """The plan's taper as written, and where it leaves form on race morning.
+
+    This is the plan followed as prescribed, whatever has been run so far. Whether the
+    taper itself is well made is a different question from whether the training reaches
+    it, and the likely-line form beside it on the race card already answers that one.
+
+    Weekly volume is the prescribed running, race week without the race itself: 21 km of
+    race is not a week's training. Peak is the biggest full week before race week.
+    """
+    race_day = date.fromisoformat(race["date"])
+    race_week = plan_mod.week_of(race["date"])
+    by_week: dict[str, float] = {}
+    for item in judged:
+        p = item.planned
+        if p.sport != "running" or p.kind == "race":
+            continue
+        week = plan_mod.week_of(p.day)
+        if date.fromisoformat(plan_mod._monday(week)) > race_day:
+            continue
+        by_week[week] = by_week.get(week, 0.0) + (plan_mod._target(p) or 0.0) / 1000.0
+    full_weeks = sorted(w for w in by_week if w < race_week)
+    if form is None or not full_weeks:
+        return None
+    peak = max(by_week[w] for w in full_weeks)
+    if peak <= 0:
+        return None
+
+    shown = [*full_weeks[-(TAPER_WEEKS - 1):], race_week]
+    weeks = [
+        {
+            "start": plan_mod._monday(w),
+            "planned_km": round(by_week.get(w, 0.0), 1),
+            "pct_of_peak": round(100.0 * by_week.get(w, 0.0) / peak),
+            "race_week": w == race_week,
+        }
+        for w in shown
+    ]
+    morning = form["race_morning"]
+    now = form["curve"][0]
+    tsb, ctl = float(morning["tsb"]), float(morning["ctl"])
+    return {
+        "peak_km": round(peak, 1),
+        "weeks": weeks,
+        "race_morning_tsb": round(tsb, 1),
+        "race_morning_ctl": round(ctl, 1),
+        "form": load_mod.form_label(tsb),
+        "verdict": form_verdict(tsb, float(now["ctl"]), ctl),
+    }
+
+
 #: A long run older than this is history, not news.
 LONG_RUN_LOOKBACK_DAYS = 14
 
@@ -508,7 +567,10 @@ def compute_forecast(store, today: date | None = None) -> dict[str, Any]:
     today = today or date.today()
     race = plan_mod.goal_race(store, today)
     if race is None:
-        return {"race": None, "today": today.isoformat(), "form": None, "time": None, "long_run": None}
+        return {
+            "race": None, "today": today.isoformat(),
+            "form": None, "time": None, "long_run": None, "taper": None,
+        }
     judged, _ = plan_mod.judge_all(store, today)
     form = compute_form_forecast(store, race, today, judged)
     time = compute_time_range(store, race, today, form)
@@ -519,4 +581,5 @@ def compute_forecast(store, today: date | None = None) -> dict[str, Any]:
         "form": form,
         "time": time,
         "long_run": compute_long_run_note(judged, today, race, per_km, time),
+        "taper": compute_taper(judged, race, form),
     }

@@ -2,6 +2,7 @@ import type { RaceForecast } from "@/api/queries/usePlan";
 import type { components } from "@/api/schema";
 import { StatusDot } from "@/components/StatusDot";
 import { ForecastWorking } from "@/features/today/ForecastWorking";
+import { TaperCheck } from "@/features/today/TaperCheck";
 import { finishRange, morningForm, verdictShort } from "@/features/status/forecast";
 import { formatDate, formatDays, formatDuration, formatSigned } from "@/lib/format";
 
@@ -54,7 +55,12 @@ export function RaceCard({ race, forecast }: { race: SummaryRace; forecast?: Rac
           </span>
         </div>
       )}
-      {forecast && <ForecastWorking forecast={forecast} />}
+      {forecast && (
+        <div className="flex flex-wrap gap-x-5 gap-y-1">
+          <ForecastWorking forecast={forecast} />
+          {forecast.taper && <TaperCheck taper={forecast.taper} />}
+        </div>
+      )}
     </section>
   );
 }
