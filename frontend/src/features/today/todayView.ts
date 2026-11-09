@@ -142,6 +142,11 @@ export function sleepNights(rows: readonly DailyRow[], count = 7): SleepNight[] 
   }));
 }
 
+/** How many of the nights have a recording at all. Garmin leaves some out. */
+export function recordedNights(nights: readonly SleepNight[]): number {
+  return nights.filter((n) => n.hours !== null).length;
+}
+
 /** Mean of the nights that were recorded, or null when none were. */
 export function sleepAverage(nights: readonly SleepNight[]): number | null {
   const recorded = nights.flatMap((n) => (n.hours === null ? [] : [n.hours]));

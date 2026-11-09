@@ -60,7 +60,7 @@ nicer.
 | 16 Tidy and ship | P: `ready for review` | 3 / 3 |
 | 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
 | 18 Page redesign | R: `open` | 0 / 6 |
-| 19 Data defects | S: `open` | 1 / 4 |
+| 19 Data defects | S: `ready for review` | 4 / 4 |
 | 20 Race prep | T: `open` | 0 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
 
@@ -98,16 +98,16 @@ of information. Today is the pattern: a few numbers, then what it means.
 | T72 | One control style: the native selects and date inputs match the rest | todo | — |
 | T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today | todo | — |
 
-### Phase 19 — Data defects · Checkpoint S: `open`
+### Phase 19 — Data defects · Checkpoint S: `ready for review`
 
 Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless number.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T74 | A ride's map draws a straight line across the bay. It was a recording gap, not a GPS jump: the watch paused for 28 minutes and resumed 7 km away. No line is drawn across a gap, on the activity page, the compare map and the cards | done | — |
-| T75 | Trends shows "Average pace 15:08 /km, mixed sports". Pace only means something for one sport; show it for the chosen type or not at all | todo | — |
-| T76 | Year over year shows "+14,153%" and "+16,767%" against a near-empty first year. Show nothing when the base is too small to mean anything | todo | — |
-| T77 | Sleep: Garmin gives no sleep score, and some nights have no recording. Say so where sleep is shown, and say which nights are missing | todo | — |
+| T75 | Trends shows "Average pace 15:08 /km, mixed sports". Pace only means something for one sport; it is a dash until a sport is chosen | done | — |
+| T76 | Year over year shows "+14,153%" and "+16,767%" against a near-empty first year. No change is shown against a year with fewer than 12 activities | done | — |
+| T77 | Sleep: Garmin gives no sleep score, and some nights have no recording. Today says how many of the last seven nights were recorded and leaves a gap for each missing one. (Health still to do, with T71) | done | — |
 
 ### Phase 20 — Race prep · Checkpoint T: `open`
 

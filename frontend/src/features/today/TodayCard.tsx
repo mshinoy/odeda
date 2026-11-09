@@ -2,7 +2,7 @@ import type { components } from "@/api/schema";
 import { StatusDot } from "@/components/StatusDot";
 import { bandDisplay } from "@/features/status/readiness";
 import type { Headline, SleepNight } from "@/features/today/todayView";
-import { sleepAverage, sleepBarHeights } from "@/features/today/todayView";
+import { recordedNights, sleepAverage, sleepBarHeights } from "@/features/today/todayView";
 import { formatLongDate, formatWeekday, formatWithUnit } from "@/lib/format";
 
 type Readiness = components["schemas"]["Readiness"];
@@ -20,6 +20,7 @@ export function TodayCard({ day, headline, readiness, nights }: TodayCardProps) 
   const last = nights.at(-1);
   const heights = sleepBarHeights(nights);
   const average = sleepAverage(nights);
+  const recorded = recordedNights(nights);
 
   return (
     <section className="bg-card shadow-card short:gap-3 short:p-5 flex flex-col gap-6 rounded-2xl border p-7">
@@ -57,7 +58,13 @@ export function TodayCard({ day, headline, readiness, nights }: TodayCardProps) 
             ) : (
               "No sleep recorded"
             )}
-            {average !== null && <> · 7-night average {formatWithUnit(average, "h", 1)}</>}
+            {average !== null && <> · average {formatWithUnit(average, "h", 1)}</>}
+            {recorded < nights.length && (
+              <>
+                {" "}
+                · {recorded} of {nights.length} nights recorded
+              </>
+            )}
           </span>
           <ul className="flex h-10 items-end gap-1.5" aria-label="Sleep, last seven nights">
             {nights.map((n, i) => {

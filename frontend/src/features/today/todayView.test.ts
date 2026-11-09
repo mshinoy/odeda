@@ -5,6 +5,7 @@ import {
   daySummary,
   headline,
   previousWeekStart,
+  recordedNights,
   sleepAverage,
   sleepBarHeights,
   sleepNights,
@@ -145,6 +146,10 @@ describe("sleep", () => {
       3.8333333333333335,
       9.333333333333334,
     ]);
+  });
+  it("counts the nights that have a recording, so a gap in the data is said out loud", () => {
+    expect(recordedNights(nights)).toBe(3);
+    expect(nights).toHaveLength(4);
   });
   it("averages only the nights that were recorded", () => {
     expect(sleepAverage(nights)).toBeCloseTo(6.53, 2);
