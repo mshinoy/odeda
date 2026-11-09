@@ -69,6 +69,9 @@ export interface ColorTokens {
   deltaGood: string;
   deltaBad: string;
 
+  /** The lift under a card: a contact shadow and a soft one, deeper on the dark page. */
+  shadowCard: string;
+
   /** The hovered-sample dot on maps and the crosshair on charts. */
   cursor: string;
 }
@@ -108,6 +111,7 @@ export const colorTokens: Record<Theme, ColorTokens> = {
     status,
     deltaGood: "#006300",
     deltaBad: "#d03b3b",
+    shadowCard: "0 1px 2px rgba(20, 20, 19, 0.06), 0 10px 28px -10px rgba(20, 20, 19, 0.18)",
     cursor: "#0b0b0b",
   },
   dark: {
@@ -135,6 +139,7 @@ export const colorTokens: Record<Theme, ColorTokens> = {
     status,
     deltaGood: "#0ca30c",
     deltaBad: "#e66767",
+    shadowCard: "0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -10px rgba(0, 0, 0, 0.7)",
     cursor: "#ffffff",
   },
 };
@@ -173,6 +178,7 @@ export function cssVariables(t: ColorTokens): Record<string, string> {
     "--ga-kind-other": t.kind.other,
     "--ga-delta-good": t.deltaGood,
     "--ga-delta-bad": t.deltaBad,
+    "--ga-shadow-card": t.shadowCard,
     "--ga-status-good": t.status.good,
     "--ga-status-warning": t.status.warning,
     "--ga-status-serious": t.status.serious,

@@ -55,6 +55,7 @@
 }
 
 @theme inline {
+  --shadow-card: var(--ga-shadow-card);
   --color-ink-secondary: var(--ga-ink-secondary);
   --color-kind-run: var(--ga-kind-run);
   --color-kind-ride: var(--ga-kind-ride);

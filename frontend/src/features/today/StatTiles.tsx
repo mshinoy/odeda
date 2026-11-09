@@ -29,7 +29,7 @@ function Tile({
   detail: React.ReactNode;
 }) {
   return (
-    <div className="bg-card flex min-w-0 flex-col gap-1 rounded-2xl border p-6">
+    <div className="bg-card shadow-card flex min-w-0 flex-col gap-1 rounded-2xl border p-6">
       <span className="text-muted-foreground text-xs">{label}</span>
       <span className="text-stat font-semibold tracking-tight">{value}</span>
       <span className="text-ink-secondary text-sm">{detail}</span>

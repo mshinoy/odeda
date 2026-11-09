@@ -39,7 +39,7 @@ export function WeekCard({ plan, thisWeek, lastWeek, weeklyKm }: WeekCardProps) 
       : 0;
 
   return (
-    <section className="bg-card flex flex-col gap-5 rounded-2xl border p-6">
+    <section className="bg-card shadow-card flex flex-col gap-5 rounded-2xl border p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold">This week</h2>
         <div className="flex items-baseline gap-4">
