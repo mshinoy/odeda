@@ -91,7 +91,7 @@ of information. Today is the pattern: a few numbers, then what it means.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
-| T68 | Activity page, map first: a scrub bar with a live readout, one combined chart, four stats, the rest collapsed. The metric toggle must not sit under the route | todo | — |
+| T68 | Activity page: answers first (plan, route, effort / volume), then the map beside the kilometres, one chart, the rest one click away. Run, cycle and strength sessions (each exercise against last time) | in review | — |
 | T69 | Map: filters as chips, no empty native date pickers, Routes as a real control | todo | T65 |
 | T70 | Plan: the sticky weekday header covers the top of the week above it; read the week as a column like Today | todo | — |
 | T71 | Health: one big number per metric with a sparkline, detail on click | todo | T66 |

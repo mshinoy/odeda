@@ -75,6 +75,7 @@ from .schemas import (
     ActivityExercises,
     ActivityGaps,
     ActivityPlan,
+    ExerciseHistory,
     ActivityGearRequest,
     ActivityGearResult,
     ActivityList,
@@ -1003,6 +1004,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not ov_mod.activity_exists(st, activity_id):
                 raise HTTPException(404, f"no activity {activity_id!r}")
             return plan_mod.session_for_activity(st, activity_id)
+
+    @app.get("/api/activities/{activity_id}/exercise-history", response_model=ExerciseHistory)
+    def api_exercise_history(activity_id: str) -> dict[str, Any]:
+        """What each exercise of a gym session was the last time it was done."""
+        with store() as st:
+            if not ov_mod.activity_exists(st, activity_id):
+                raise HTTPException(404, f"no activity {activity_id!r}")
+            history = gym_mod.exercise_history(st, activity_id)
+            if history is None:
+                raise HTTPException(404, f"no exercise data for {activity_id!r}")
+            return history
 
     @app.get("/api/activities/{activity_id}/gaps", response_model=ActivityGaps)
     def api_activity_gaps(activity_id: str) -> dict[str, Any]:

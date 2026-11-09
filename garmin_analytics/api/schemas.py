@@ -334,6 +334,42 @@ class ActivityGaps(_Model):
     gaps: list[ActivityGap]
 
 
+class ExerciseLastTime(_Model):
+    """One earlier performance of an exercise. Units as Garmin sends them: grams."""
+
+    activity_id: str
+    day: str
+    sets: int | None
+    reps: int | None
+    max_weight_g: float | None
+    volume_g: float | None
+
+
+class ExerciseHistoryEntry(_Model):
+    index: int
+    """The exercise's position in this session, as `/exercises` numbers it."""
+    last: ExerciseLastTime | None
+    """The most recent earlier session with the same exercise. Null for a first time, and
+    for one Garmin could not name: name it and it has a history."""
+
+
+class PreviousGymSession(_Model):
+    activity_id: str
+    day: str
+    volume_g: float | None
+    """Total volume across its exercises, in grams x reps."""
+    sets: int | None
+
+
+class ExerciseHistory(_Model):
+    """`GET /api/activities/{id}/exercise-history`: what each exercise was last time."""
+
+    activity_id: str
+    previous: PreviousGymSession | None
+    """The gym session before this one, for a total to compare against."""
+    exercises: list[ExerciseHistoryEntry]
+
+
 class ActivityList(_Model):
     """A page of activities, plus every activity type present (most common first)."""
 

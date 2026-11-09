@@ -53,6 +53,25 @@ function Shell({
   );
 }
 
+/** A plain number with what it is made of: the gym's volume, and how it moved. */
+export function VolumeCard({
+  label,
+  big,
+  detail,
+  pill,
+}: {
+  label: string;
+  big: string;
+  detail: string;
+  pill: Pill | null;
+}) {
+  return (
+    <Shell label={label} pill={pill} big={big}>
+      <p className="text-ink-secondary text-sm">{detail}</p>
+    </Shell>
+  );
+}
+
 /** How the activity went against the session the plan asked for. */
 export function PlanCard({ answer, kind }: { answer: PlanAnswer; kind: ActivityKind }) {
   return (
