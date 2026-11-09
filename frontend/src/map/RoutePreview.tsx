@@ -4,9 +4,9 @@
 import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "@/design/theme";
-import { decodePolyline } from "@/lib/polyline";
+import { decodePolylinePieces } from "@/lib/polyline";
 import { cn } from "@/lib/utils";
-import { traceSvgPath } from "@/map/routeTrace";
+import { traceSvgPaths } from "@/map/routeTrace";
 import { staticMapUrl } from "@/map/staticMap";
 
 const TRACE_PADDING = 16;
@@ -60,7 +60,7 @@ export function RoutePreview({ polyline, color, width, height }: RoutePreviewPro
 
 function RouteTrace({ polyline, color, width, height }: RoutePreviewProps) {
   const d = useMemo(
-    () => traceSvgPath(decodePolyline(polyline), width, height, TRACE_PADDING),
+    () => traceSvgPaths(decodePolylinePieces(polyline), width, height, TRACE_PADDING),
     [polyline, width, height],
   );
   return (

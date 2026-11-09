@@ -240,3 +240,11 @@ describe("pickedStreamIndex", () => {
     expect(pickedStreamIndex(pick(ROUTE_LAYER_ID, undefined))).toBeNull();
   });
 });
+
+describe("routeSegments across a recording gap", () => {
+  it("draws no segment into a sample that resumed after one", () => {
+    const paused: ActivityTrack = { ...track, gapBefore: [false, false, true, false] };
+    const segments = routeSegments(paused, streams().hr, light);
+    expect(segments.map((s) => s.streamIndex)).toEqual([1, 4]);
+  });
+});

@@ -171,3 +171,78 @@ class TestRouteCache:
         assert preview_mod.polylines(store, ["a2"]) == {}
         row = preview_mod.with_card_extras(store, [{"activity_id": "a2", "total_sets": None}])[0]
         assert row["has_gps"] is False
+
+
+class TestRecordingGaps:
+    """A watch that paused and resumed somewhere else must not have a line drawn across
+    the gap: on one real ride that was a 7 km straight line across the bay."""
+
+    # (elapsed_s, recorded distance m, lat, lon)
+    BEFORE = (764.0, 4000.0, 25.3173, 51.4965)
+    ACROSS = (2471.0, 4010.0, 25.2837, 51.5590)
+
+    def test_a_pause_that_ended_far_away_with_no_distance_recorded_is_a_gap(self):
+        assert preview_mod.is_recording_gap(self.BEFORE, self.ACROSS)
+
+    def test_a_tunnel_is_not(self):
+        """The signal went but the distance was still counted."""
+        after = (830.0, 5100.0, 25.3173, 51.5066)
+        assert not preview_mod.is_recording_gap(self.BEFORE, after)
+
+    def test_a_short_pause_is_not(self):
+        after = (790.0, 4000.0, 25.3173, 51.5066)
+        assert not preview_mod.is_recording_gap(self.BEFORE, after)
+
+    def test_a_long_pause_that_ended_where_it_began_is_not(self):
+        after = (2471.0, 4000.0, 25.3174, 51.4966)
+        assert not preview_mod.is_recording_gap(self.BEFORE, after)
+
+    def test_no_recorded_distance_means_a_long_pause_and_a_long_way_is_enough(self):
+        before = (self.BEFORE[0], None, self.BEFORE[2], self.BEFORE[3])
+        after = (self.ACROSS[0], None, self.ACROSS[2], self.ACROSS[3])
+        assert preview_mod.is_recording_gap(before, after)
+
+    def test_a_track_is_split_into_what_was_recorded(self):
+        samples = [
+            (0.0, 3990.0, 25.3170, 51.4960),
+            (10.0, 4000.0, 25.3172, 51.4962),
+            self.ACROSS,
+            (2481.0, 4020.0, 25.2838, 51.5591),
+        ]
+        pieces = preview_mod.split_at_gaps(samples)
+        assert [len(p) for p in pieces] == [2, 2]
+
+    def test_a_track_with_no_gap_is_one_piece(self):
+        samples = [(float(i), float(i * 5), 25.0 + i * 1e-4, 51.0) for i in range(5)]
+        assert len(preview_mod.split_at_gaps(samples)) == 1
+
+    def test_a_piece_of_one_point_is_dropped(self):
+        samples = [
+            (0.0, 3990.0, 25.3170, 51.4960),
+            (10.0, 4000.0, 25.3172, 51.4962),
+            self.ACROSS,
+        ]
+        assert [len(p) for p in preview_mod.split_at_gaps(samples)] == [2]
+
+    def test_the_route_comes_out_as_pieces_joined_by_a_separator(self, store):
+        with store.tx():
+            store.upsert("activities", ["activity_id"], {
+                "activity_id": "gap1", "day": "2026-11-07",
+                "start_time_local": "2026-11-07T05:39:00", "activity_type": "cycling",
+            })
+            store.conn.executemany(
+                "INSERT INTO activity_samples (activity_id, elapsed_s, distance_m, lat, lon) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [("gap1", e, d, la, lo) for e, d, la, lo in (
+                    (0.0, 3990.0, 25.3170, 51.4960), (10.0, 4000.0, 25.3172, 51.4962),
+                    (2471.0, 4010.0, 25.2837, 51.5590), (2481.0, 4020.0, 25.2838, 51.5591),
+                )],
+            )
+        encoded = preview_mod.polylines(store, ["gap1"])["gap1"]
+        pieces = encoded.split(preview_mod.PIECE_SEPARATOR)
+        assert len(pieces) == 2
+        assert decode_polyline(pieces[0])[0] == (25.317, 51.496)
+        assert decode_polyline(pieces[1])[-1] == (25.2838, 51.5591)
+
+    def test_the_separator_is_not_in_the_polyline_alphabet(self):
+        assert not (63 <= ord(preview_mod.PIECE_SEPARATOR) <= 126)

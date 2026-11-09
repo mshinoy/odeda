@@ -69,6 +69,8 @@ export function routeSegments(
     const to = toLonLat(coordinates[k + 1]);
     const streamIndex = track.sampleIndex[k + 1];
     if (from === null || to === null || streamIndex === undefined) continue;
+    // The line across a recording gap was never travelled.
+    if (track.gapBefore?.[k + 1]) continue;
 
     const value = values[streamIndex] ?? null;
     segments.push({

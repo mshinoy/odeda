@@ -57,20 +57,20 @@ nicer.
 
 | Phase | Checkpoint | Done |
 |---|---|---|
-| 16 Tidy and ship | P: `open` | 2 / 3 |
+| 16 Tidy and ship | P: `ready for review` | 3 / 3 |
 | 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
 | 18 Page redesign | R: `open` | 0 / 6 |
-| 19 Data defects | S: `open` | 0 / 4 |
+| 19 Data defects | S: `open` | 1 / 4 |
 | 20 Race prep | T: `open` | 0 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
 
-### Phase 16 — Tidy and ship · Checkpoint P: `open`
+### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T61 | Mark checkpoints L to O approved in `PLAN-HISTORY.md` (the owner reviewed them) | done | — |
 | T62 | Rebuild the main container from `master` and verify it on the real data | done | — |
-| T63 | The plan strip logs "two children with the same key" (dates 2026-11-09, 2026-11-13): fix the key | todo | — |
+| T63 | The plan strip logs "two children with the same key" (dates 2026-11-09, 2026-11-13): fix the key | done | — |
 
 ### Phase 17 — The nav and the pages it points to · Checkpoint Q: `open`
 
@@ -104,7 +104,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
-| T74 | A ride's map draws a straight line across the bay: a GPS jump in the stream. Drop implausible jumps from the drawn track | todo | — |
+| T74 | A ride's map draws a straight line across the bay. It was a recording gap, not a GPS jump: the watch paused for 28 minutes and resumed 7 km away. No line is drawn across a gap, on the activity page, the compare map and the cards | done | — |
 | T75 | Trends shows "Average pace 15:08 /km, mixed sports". Pace only means something for one sport; show it for the chosen type or not at all | todo | — |
 | T76 | Year over year shows "+14,153%" and "+16,767%" against a near-empty first year. Show nothing when the base is too small to mean anything | todo | — |
 | T77 | Sleep: Garmin gives no sleep score, and some nights have no recording. Say so where sleep is shown, and say which nights are missing | todo | — |

@@ -23,6 +23,13 @@ describe("staticMapUrl", () => {
     expect(url.searchParams.get("logo")).toBe("false");
   });
 
+  it("draws a route recorded in pieces as one overlay each, with nothing between them", () => {
+    const url = new URL(staticMapUrl({ ...request, polyline: "abc;def" }, mapbox) ?? "");
+    expect(decodeURIComponent(url.pathname)).toContain(
+      "static/path-3+e8590c-0.95(abc),path-3+e8590c-0.95(def)/auto/",
+    );
+  });
+
   it("follows the theme", () => {
     expect(staticMapUrl({ ...request, theme: "dark" }, mapbox)).toContain("/mapbox/dark-v11/");
   });

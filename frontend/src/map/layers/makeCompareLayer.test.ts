@@ -96,3 +96,18 @@ describe("makeCompareLayer", () => {
     expect(makeCompareLayer([])).toBeNull();
   });
 });
+
+describe("comparedTracks across a recording gap", () => {
+  it("draws each recorded piece on its own, in the same colour", () => {
+    const paused = attempt("a", [
+      [51.5, 25.3],
+      [51.51, 25.31],
+      [51.6, 25.4],
+      [51.61, 25.41],
+    ]);
+    if (paused.track) paused.track.gapBefore = [false, false, true, false];
+    const tracks = comparedTracks([paused], tokens);
+    expect(tracks.map((t) => t.path.length)).toEqual([2, 2]);
+    expect(new Set(tracks.map((t) => t.color)).size).toBe(1);
+  });
+});

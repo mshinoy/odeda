@@ -1693,9 +1693,11 @@ export interface components {
         ActivityPreviews: {
             /**
              * Polylines
-             * @description Activity id -> the GPS track as a Google encoded polyline (precision 5),
-             *     simplified to at most 150 points for a small static map. Activities without GPS,
-             *     or unknown, are absent.
+             * @description Activity id -> the GPS track as Google encoded polylines (precision 5), simplified
+             *     to at most 150 points in all for a small static map. A track that crossed a recording
+             *     gap (the watch paused and resumed somewhere else) comes as its recorded pieces joined
+             *     by `;`, so no line is drawn across the gap. Activities without GPS, or unknown, are
+             *     absent.
              */
             polylines: {
                 [key: string]: string;

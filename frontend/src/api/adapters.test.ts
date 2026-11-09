@@ -240,6 +240,26 @@ describe("toActivityTrack", () => {
     expect(track?.sampleIndex).toEqual([1, 2, 3]);
   });
 
+  it("marks the step into a sample that resumed after a recording gap", () => {
+    // The watch paused for 28 minutes at one place and resumed 7 km away, with no
+    // distance recorded in between: the line across it was never travelled.
+    const track = toActivityTrack(
+      toActivityStreams(
+        rawStreams({
+          elapsed_s: [0, 10, 1717, 1727],
+          distance_m: [0, 30, 40, 70],
+          lat: [25.3173, 25.3174, 25.2837, 25.2838],
+          lon: [51.4965, 51.4966, 51.559, 51.5591],
+        }),
+      ),
+    );
+    expect(track?.gapBefore).toEqual([false, false, true, false]);
+  });
+
+  it("has no gap list when nothing was paused", () => {
+    expect(toActivityTrack(toActivityStreams(rawStreams()))?.gapBefore).toBeUndefined();
+  });
+
   it("is null for an indoor activity", () => {
     const indoor = rawStreams({ lat: [null, null, null, null], lon: [null, null, null, null] });
     expect(toActivityTrack(toActivityStreams(indoor))).toBeNull();

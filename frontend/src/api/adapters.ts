@@ -5,6 +5,7 @@ import type { LineString } from "geojson";
 import type { components } from "@/api/schema";
 import { activityKind, type ActivityKind } from "@/lib/activityKind";
 import { movingSpeed, paceFromSpeed } from "@/lib/format";
+import { isRecordingGap, type GpsSample } from "@/lib/recordingGaps";
 import { rollingMean } from "@/lib/smoothing";
 
 type Schemas = components["schemas"];
@@ -89,6 +90,12 @@ export interface ActivityStreams {
 export interface ActivityTrack {
   line: LineString;
   sampleIndex: number[];
+  /**
+   * `gapBefore[k]` is true when the step into coordinate `k` crossed a recording gap (the
+   * watch paused and resumed elsewhere), so no line should be drawn into it. Absent means
+   * there are none.
+   */
+  gapBefore?: boolean[];
 }
 
 export interface Split {
@@ -730,15 +737,30 @@ export function toActivityTrack(streams: ActivityStreams): ActivityTrack | null 
   const coordinates: [number, number][] = [];
   const sampleIndex: number[] = [];
 
+  const gapBefore: boolean[] = [];
+  let previous: GpsSample | null = null;
+
   streams.lat.forEach((lat, i) => {
     const lon = streams.lon[i];
     if (lat == null || lon == null) return;
+    const sample: GpsSample = {
+      elapsedS: streams.elapsedS[i] ?? 0,
+      distanceM: streams.distanceM[i] ?? null,
+      lat,
+      lon,
+    };
+    gapBefore.push(previous !== null && isRecordingGap(previous, sample));
+    previous = sample;
     coordinates.push([lon, lat]);
     sampleIndex.push(i);
   });
 
   if (coordinates.length < 2) return null;
-  return { line: { type: "LineString", coordinates }, sampleIndex };
+  return {
+    line: { type: "LineString", coordinates },
+    sampleIndex,
+    ...(gapBefore.some(Boolean) ? { gapBefore } : {}),
+  };
 }
 
 // ---------------------------------------------------------------- the full activity

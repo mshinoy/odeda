@@ -11,6 +11,21 @@ export function traceSvgPath(
   height: number,
   padding: number,
 ): string {
+  return traceSvgPaths([points], width, height, padding);
+}
+
+/**
+ * `traceSvgPath` for a route recorded in pieces: all of them fit one box together, and each
+ * starts its own subpath, so no line joins the end of one piece to the start of the next.
+ */
+export function traceSvgPaths(
+  pieces: readonly (readonly [number, number][])[],
+  width: number,
+  height: number,
+  padding: number,
+): string {
+  const usable = pieces.filter((piece) => piece.length >= 2);
+  const points = usable.flat();
   if (points.length < 2) return "";
   const midLat = points.reduce((sum, [lat]) => sum + lat, 0) / points.length;
   const scaleX = Math.cos((midLat * Math.PI) / 180);
@@ -29,11 +44,12 @@ export function traceSvgPath(
   // Centre the drawing in the box; north is up, so y grows as latitude falls.
   const offsetX = (width - spanX * scale) / 2;
   const offsetY = (height - spanY * scale) / 2;
-  return xs
-    .map((x, i) => {
-      const px = offsetX + (x - minX) * scale;
-      const py = offsetY + (maxY - (ys[i] ?? maxY)) * scale;
-      return `${i === 0 ? "M" : "L"}${px.toFixed(1)} ${py.toFixed(1)}`;
-    })
+  const project = ([lat, lon]: readonly [number, number]) => {
+    const px = offsetX + (lon * scaleX - minX) * scale;
+    const py = offsetY + (maxY - lat) * scale;
+    return `${px.toFixed(1)} ${py.toFixed(1)}`;
+  };
+  return usable
+    .map((piece) => piece.map((point, i) => `${i === 0 ? "M" : "L"}${project(point)}`).join(" "))
     .join(" ");
 }

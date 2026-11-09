@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { traceSvgPath } from "@/map/routeTrace";
+import { traceSvgPath, traceSvgPaths } from "@/map/routeTrace";
 
 describe("traceSvgPath", () => {
   it("fits a route into the box, centred, north up", () => {
@@ -40,5 +40,32 @@ describe("traceSvgPath", () => {
         0,
       ),
     ).toBe("");
+  });
+});
+
+describe("traceSvgPaths", () => {
+  const a: [number, number][] = [
+    [25.0, 51.0],
+    [25.1, 51.0],
+  ];
+  const b: [number, number][] = [
+    [25.1, 51.1],
+    [25.0, 51.1],
+  ];
+
+  it("starts each piece with its own move, so no line joins them", () => {
+    const d = traceSvgPaths([a, b], 100, 100, 10);
+    expect(d.match(/M/g)).toHaveLength(2);
+    expect(d.match(/L/g)).toHaveLength(2);
+  });
+
+  it("fits every piece into the one box", () => {
+    const together = traceSvgPaths([a, b], 100, 100, 10);
+    const alone = traceSvgPaths([a], 100, 100, 10);
+    expect(together).not.toBe(alone);
+  });
+
+  it("matches traceSvgPath for a single piece", () => {
+    expect(traceSvgPaths([a], 100, 100, 10)).toBe(traceSvgPath(a, 100, 100, 10));
   });
 });

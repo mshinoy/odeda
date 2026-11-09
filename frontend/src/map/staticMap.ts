@@ -2,6 +2,7 @@
 // API from the encoded track the list sends. A page of live maps would need a WebGL
 // context per card, and browsers stop at about sixteen.
 import type { Theme } from "@/design/tokens";
+import { PIECE_SEPARATOR } from "@/lib/polyline";
 import { basemapStyle, mapEnv, providerFor, type MapEnv } from "@/map/basemap";
 
 const STATIC_API = "https://api.mapbox.com/styles/v1";
@@ -33,7 +34,12 @@ export function staticMapUrl(request: StaticMapRequest, env: MapEnv = mapEnv): s
   const width = Math.min(Math.round(request.width), MAX_SIDE_PX);
   const height = Math.min(Math.round(request.height), MAX_SIDE_PX);
   const color = request.color.replace(/^#/, "");
-  const path = `path-3+${color}-0.95(${encodeURIComponent(request.polyline)})`;
+  // One overlay per recorded piece, so nothing is drawn across a recording gap.
+  const path = request.polyline
+    .split(PIECE_SEPARATOR)
+    .filter((piece) => piece !== "")
+    .map((piece) => `path-3+${color}-0.95(${encodeURIComponent(piece)})`)
+    .join(",");
   const query = new URLSearchParams({
     padding: "20",
     logo: "false",

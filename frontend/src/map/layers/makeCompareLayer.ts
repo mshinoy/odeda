@@ -32,13 +32,18 @@ export function comparedTracks(
     const track = attempt.track;
     const color = tokens.series[i % tokens.series.length];
     if (!track || color === undefined) return;
-    tracks.push({
-      id: attempt.activity.id,
-      color,
-      path: track.line.coordinates.flatMap(([lon, lat]) =>
-        lon === undefined || lat === undefined ? [] : [[lon, lat] as [number, number]],
-      ),
+    // One path per recorded piece, so nothing is drawn across a recording gap.
+    let piece: [number, number][] = [];
+    const finish = () => {
+      if (piece.length > 0) tracks.push({ id: attempt.activity.id, color, path: piece });
+      piece = [];
+    };
+    track.line.coordinates.forEach(([lon, lat], k) => {
+      if (lon === undefined || lat === undefined) return;
+      if (track.gapBefore?.[k]) finish();
+      piece.push([lon, lat]);
     });
+    finish();
   });
 
   return tracks;

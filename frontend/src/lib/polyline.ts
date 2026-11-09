@@ -1,6 +1,20 @@
 // Google's encoded polyline format (precision 5), which the activity list sends each
 // card's route in. Decoded only where there is no Mapbox to draw it (see staticMap.ts).
 
+/** What separates the recorded pieces of one route in the previews payload. */
+export const PIECE_SEPARATOR = ";";
+
+/**
+ * A route that crossed a recording gap arrives as its recorded pieces joined by `;`.
+ * Each piece is decoded on its own, so nothing is drawn across the gap.
+ */
+export function decodePolylinePieces(encoded: string): [number, number][][] {
+  return encoded
+    .split(PIECE_SEPARATOR)
+    .filter((piece) => piece !== "")
+    .map(decodePolyline);
+}
+
 /** `[lat, lon]` pairs, in order. */
 export function decodePolyline(encoded: string): [number, number][] {
   const points: [number, number][] = [];
