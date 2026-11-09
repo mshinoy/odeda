@@ -3815,6 +3815,36 @@ export interface components {
             overreaching: boolean;
         };
         /**
+         * LongRunNote
+         * @description The last long run, when it was missed or cut short, and what that costs on race day.
+         *     Null when the last one in the past fortnight was done, or there was none.
+         */
+        LongRunNote: {
+            /** Day */
+            day: string;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "missed" | "short";
+            /** Planned Km */
+            planned_km: number;
+            /** Done Km */
+            done_km: number;
+            /** Shortfall Km */
+            shortfall_km: number;
+            /**
+             * Cost Seconds
+             * @description Seconds on the finish, by the same rule of thumb as the fitness adjustment: rough,
+             *     and usually small. Null without a forecast to price it against.
+             */
+            cost_seconds: number | null;
+            /** Next Day */
+            next_day: string | null;
+            /** Next Km */
+            next_km: number | null;
+        };
+        /**
          * MetricChange
          * @description One metric against the year before.
          */
@@ -4526,6 +4556,7 @@ export interface components {
             today: string;
             form: components["schemas"]["FormForecast"] | null;
             time: components["schemas"]["TimeRange"] | null;
+            long_run: components["schemas"]["LongRunNote"] | null;
         };
         /**
          * RaceInfo

@@ -61,7 +61,7 @@ nicer.
 | 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
 | 18 Page redesign | R: `open` | 0 / 6 |
 | 19 Data defects | S: `ready for review` | 5 / 7 |
-| 20 Race prep | T: `open` | 0 / 4 |
+| 20 Race prep | T: `open` | 1 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
@@ -118,7 +118,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 |---|---|---|---|
 | T78 | Race-day pacing plan: per-km splits from the projected time, even or slightly negative. Hill-aware if a course GPX can be had | needs decision: is a Doha course GPX available? | — |
 | T79 | Taper check: planned volume against form, and what race morning looks like, shown as the taper is planned | todo | — |
-| T80 | A missed long run says so on Today, with what it costs the projection | todo | — |
+| T80 | A missed or short long run says so on Today, with what it costs on race day (a rule of thumb, usually seconds), and what the next one is | done | — |
 | T81 | A post-race page: the result against the projection, then a suggested recovery block | todo | — |
 
 ### Phase 21 — Platform · Checkpoint U: `open`

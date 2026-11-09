@@ -1688,6 +1688,22 @@ class TimeRange(_Model):
     caveats: list[str]
 
 
+class LongRunNote(_Model):
+    """The last long run, when it was missed or cut short, and what that costs on race day.
+    Null when the last one in the past fortnight was done, or there was none."""
+
+    day: str
+    verdict: Literal["missed", "short"]
+    planned_km: float
+    done_km: float
+    shortfall_km: float
+    cost_seconds: float | None
+    """Seconds on the finish, by the same rule of thumb as the fitness adjustment: rough,
+    and usually small. Null without a forecast to price it against."""
+    next_day: str | None
+    next_km: float | None
+
+
 class RaceForecast(_Model):
     """`GET /api/race/forecast`. Each half is null when it cannot be computed."""
 
@@ -1695,6 +1711,7 @@ class RaceForecast(_Model):
     today: str
     form: FormForecast | None
     time: TimeRange | None
+    long_run: LongRunNote | None
 
 
 class SummaryRace(_Model):

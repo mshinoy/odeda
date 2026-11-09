@@ -238,3 +238,113 @@ class TestStoreBacked:
         add_calendar_race(store, day=TODAY.isoformat())
         _runs(store, "2026-10-01", 60)
         assert F.compute_forecast(store, TODAY)["form"] is None
+
+
+def _plan_long(store, day, metres):
+    sid = store.conn.execute("SELECT id FROM plan_sources ORDER BY id LIMIT 1").fetchone()[0]
+    store.conn.execute(
+        "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+        "sport, kind, planned_min_m, planned_max_m, title, parse_status) "
+        "VALUES (?, ?, '', ?, ?, 'running', 'long', ?, ?, 'Long Run - DBRC', 'ok')",
+        (sid, f"long-{day}", day, f"{day}T05:00:00", metres, metres),
+    )
+    store.conn.commit()
+
+
+def _run_on(store, day, metres, load=80.0):
+    store.conn.execute(
+        "INSERT INTO activities (activity_id, day, start_time_local, activity_type, "
+        "distance_m, duration_s, trimp) VALUES (?, ?, ?, 'running', ?, 5400, ?)",
+        (f"lr-{day}", day, f"{day}T05:00:00", metres, load),
+    )
+    store.conn.commit()
+
+
+class TestLongRunNote:
+    """The long run is the session that matters most for a half. A miss is easy to shrug
+    off, so Today says so, with an honest price on it."""
+
+    def _setup(self, store):
+        add_calendar_race(store)
+        _runs(store, "2026-09-01", 50)  # a base, ending well before the long runs
+        _plan_long(store, "2026-12-11", 16000)  # the next one
+
+    def test_a_short_long_run_is_named_with_what_was_missed(self, store):
+        self._setup(store)
+        _plan_long(store, "2026-11-27", 15000)
+        _run_on(store, "2026-11-27", 11200)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["verdict"] == "short"
+        assert note["day"] == "2026-11-27"
+        assert note["planned_km"] == 15.0 and note["done_km"] == 11.2
+        assert note["shortfall_km"] == pytest.approx(3.8)
+
+    def test_a_missed_one_is_missed_and_the_whole_distance_is_the_shortfall(self, store):
+        self._setup(store)
+        _plan_long(store, "2026-11-27", 15000)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["verdict"] == "missed"
+        assert note["done_km"] == 0.0 and note["shortfall_km"] == 15.0
+
+    def test_a_long_run_that_was_done_says_nothing(self, store):
+        self._setup(store)
+        _plan_long(store, "2026-11-27", 15000)
+        _run_on(store, "2026-11-27", 15200)
+        assert F.compute_forecast(store, TODAY)["long_run"] is None
+
+    def test_a_later_one_done_clears_an_earlier_one_missed(self, store):
+        self._setup(store)
+        _plan_long(store, "2026-11-20", 14000)  # missed
+        _plan_long(store, "2026-11-27", 15000)
+        _run_on(store, "2026-11-27", 15100)
+        assert F.compute_forecast(store, TODAY)["long_run"] is None
+
+    def test_one_older_than_a_fortnight_is_history(self, store):
+        self._setup(store)
+        _plan_long(store, "2026-11-10", 14000)  # missed, 21 days ago
+        assert F.compute_forecast(store, TODAY)["long_run"] is None
+
+    def test_it_names_the_next_long_run(self, store):
+        self._setup(store)
+        _plan_long(store, "2026-11-27", 15000)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["next_day"] == "2026-12-11" and note["next_km"] == 16.0
+
+    def test_the_cost_is_small_and_a_miss_costs_more_than_a_short(self, store):
+        self._setup(store)
+        store.conn.executemany(
+            "INSERT INTO best_efforts (activity_id, distance_m, seconds, day) VALUES (?, ?, ?, ?)",
+            [("r-2026-10-10", 5000.0, 1500.0, "2026-10-10"),
+             ("r-2026-10-12", 10000.0, 3200.0, "2026-10-12")],
+        )
+        store.conn.commit()
+        _plan_long(store, "2026-11-27", 15000)
+        missed = F.compute_forecast(store, TODAY)["long_run"]["cost_seconds"]
+        _run_on(store, "2026-11-27", 11200)
+        short = F.compute_forecast(store, TODAY)["long_run"]["cost_seconds"]
+        assert 0 < short < missed < 300  # seconds on a half marathon: rough, and modest
+
+    def test_a_run_that_is_not_long_is_not_the_long_run(self, store):
+        self._setup(store)
+        _plan_run(store, "2026-11-27", 15000)  # an easy run of the same length, missed
+        assert F.compute_forecast(store, TODAY)["long_run"] is None
+
+    def test_no_race_means_no_note(self, store):
+        assert F.compute_forecast(store, TODAY)["long_run"] is None
+
+    def test_a_range_is_judged_against_its_floor_as_the_week_says(self, store):
+        """A 15-16 km long run that came to 11.2 km was short of 15, not of 15.5."""
+        self._setup(store)
+        sid = store.conn.execute("SELECT id FROM plan_sources ORDER BY id LIMIT 1").fetchone()[0]
+        store.conn.execute(
+            "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+            "sport, kind, planned_min_m, planned_max_m, title, parse_status) "
+            "VALUES (?, 'range', '', '2026-11-27', '2026-11-27T05:00:00', 'running', 'long', "
+            "15000, 16000, 'Long Run', 'ok')",
+            (sid,),
+        )
+        store.conn.commit()
+        _run_on(store, "2026-11-27", 11200)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["planned_km"] == 15.0
+        assert note["shortfall_km"] == pytest.approx(3.8)

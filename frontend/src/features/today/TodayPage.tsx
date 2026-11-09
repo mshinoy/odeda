@@ -74,6 +74,7 @@ export function TodayPage() {
               headline={lines}
               readiness={summary.data.readiness}
               nights={sleepNights(daily.data?.rows ?? [])}
+              longRun={forecast.data?.long_run ?? null}
             />
             {raceSummary && <RaceCard race={raceSummary} forecast={forecast.data} />}
           </div>

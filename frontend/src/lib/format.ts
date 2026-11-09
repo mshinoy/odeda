@@ -298,6 +298,16 @@ export function formatWeekday(iso: string | null | undefined): string {
   return weekdayFormat.format(date);
 }
 
+/** "17 s", or "1 min 10 s" from a minute up: a small amount of time, said as one. */
+export function formatShortSeconds(seconds: MaybeNumber): string {
+  if (!isNumber(seconds)) return MISSING;
+  const total = Math.round(Math.abs(seconds));
+  if (total < 60) return `${total} s`;
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+}
+
 /** "Monday, November 9": the day a page is about, spelled out. */
 export function formatLongDate(iso: string | null | undefined): string {
   const date = iso ? parseWallClock(iso) : null;

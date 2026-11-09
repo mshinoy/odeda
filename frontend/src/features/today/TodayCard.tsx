@@ -2,6 +2,7 @@ import type { components } from "@/api/schema";
 import { StatusDot } from "@/components/StatusDot";
 import { bandDisplay } from "@/features/status/readiness";
 import type { Headline, SleepNight } from "@/features/today/todayView";
+import { longRunNote, type LongRun } from "@/features/today/longRun";
 import { recordedNights, sleepAverage, sleepBarHeights } from "@/features/today/todayView";
 import { formatLongDate, formatWeekday, formatWithUnit } from "@/lib/format";
 
@@ -12,10 +13,12 @@ interface TodayCardProps {
   headline: Headline;
   readiness: Readiness;
   nights: readonly SleepNight[];
+  /** The last long run, when it was missed or cut short. */
+  longRun?: LongRun | null;
 }
 
 /** The page's answer: what to do today, how ready you are, and how you slept. */
-export function TodayCard({ day, headline, readiness, nights }: TodayCardProps) {
+export function TodayCard({ day, headline, readiness, nights, longRun = null }: TodayCardProps) {
   const band = readiness.band ? bandDisplay[readiness.band] : null;
   const last = nights.at(-1);
   const heights = sleepBarHeights(nights);
@@ -32,6 +35,8 @@ export function TodayCard({ day, headline, readiness, nights }: TodayCardProps) 
           <p className="text-ink-secondary max-w-md text-base">{readiness.recommendation}</p>
         )}
       </div>
+
+      {longRun && <LongRunLine run={longRun} />}
 
       <div className="mt-auto flex flex-wrap items-end justify-between gap-6">
         <div className="flex flex-col gap-1">
@@ -90,5 +95,18 @@ export function TodayCard({ day, headline, readiness, nights }: TodayCardProps) 
         </div>
       </div>
     </section>
+  );
+}
+
+/** The last long run, when it was missed or cut short: what it was, and what it costs. */
+function LongRunLine({ run }: { run: LongRun }) {
+  const note = longRunNote(run);
+  return (
+    <div className="flex flex-col gap-0.5 border-t pt-4 text-sm">
+      <span className="font-medium">
+        <StatusDot tone={note.tone} label={note.heading} />
+      </span>
+      <span className="text-ink-secondary">{note.detail}</span>
+    </div>
   );
 }

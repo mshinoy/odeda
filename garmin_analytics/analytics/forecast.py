@@ -22,6 +22,7 @@ the day. Both say so in their `caveats`.
 
 from __future__ import annotations
 
+import math
 from datetime import date, timedelta
 from typing import Any, Mapping, Sequence
 
@@ -425,18 +426,97 @@ def compute_time_range(
     }
 
 
+#: A long run older than this is history, not news.
+LONG_RUN_LOOKBACK_DAYS = 14
+
+
+def compute_long_run_note(
+    judged: Sequence[plan_mod.Judged],
+    today: date,
+    race: Mapping[str, Any],
+    per_km: float | None,
+    time: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """The last long run, if it was missed or cut short, and what that costs on race day.
+
+    The most recent long run in the last fortnight is the one that counts: one done since
+    clears the note. The cost is the fitness the shortfall would have added by race day,
+    priced the way the finish range prices fitness, so it is as rough as that is: a rule
+    of thumb. It is usually small, and saying so is the point. One run barely moves the
+    finish; a habit of missing them does.
+    """
+    lo = today - timedelta(days=LONG_RUN_LOOKBACK_DAYS)
+    past = [
+        i
+        for i in judged
+        if i.planned.kind == "long"
+        and i.planned.sport == "running"
+        and not i.planned.optional
+        and not i.planned.ignored
+        and lo <= date.fromisoformat(i.planned.day) < today
+    ]
+    if not past:
+        return None
+    last = max(past, key=lambda i: i.planned.day)
+    if last.verdict not in ("missed", "short"):
+        return None
+
+    # The least the plan asked for: what the verdict was judged against, so the note and
+    # the week's own tile say the same number for the same run (`8-10 km` is 8, not 9).
+    planned_m = last.planned.min_m or plan_mod._target(last.planned) or 0.0
+    done_m = last.actual_m or 0.0
+    shortfall_km = max(planned_m - done_m, 0.0) / 1000.0
+
+    cost_seconds = None
+    ctl_race = None if time is None else time.get("ctl_race")
+    if per_km and time is not None and ctl_race:
+        days_to_race = (date.fromisoformat(race["date"]) - date.fromisoformat(last.planned.day)).days
+        ctl_lost = (
+            shortfall_km * per_km
+            * (1.0 - math.exp(-1.0 / load_mod.CTL_TAU_DAYS))
+            * math.exp(-days_to_race / load_mod.CTL_TAU_DAYS)
+        )
+        share = min(FITNESS_TIME_PER_CTL_GAIN * ctl_lost / float(ctl_race), FITNESS_CAP)
+        cost_seconds = round(float(time["adjusted"]["central"]) * share, 1)
+
+    upcoming = [
+        i
+        for i in judged
+        if i.planned.kind == "long"
+        and i.planned.sport == "running"
+        and not i.planned.optional
+        and not i.planned.ignored
+        and i.verdict == "upcoming"
+        and date.fromisoformat(i.planned.day) >= today
+    ]
+    nxt = min(upcoming, key=lambda i: i.planned.day, default=None)
+    return {
+        "day": last.planned.day,
+        "verdict": last.verdict,
+        "planned_km": round(planned_m / 1000.0, 1),
+        "done_km": round(done_m / 1000.0, 1),
+        "shortfall_km": round(shortfall_km, 1),
+        "cost_seconds": cost_seconds,
+        "next_day": None if nxt is None else nxt.planned.day,
+        "next_km": None if nxt is None else round((plan_mod._target(nxt.planned) or 0.0) / 1000.0, 1),
+    }
+
+
 def compute_forecast(store, today: date | None = None) -> dict[str, Any]:
     """Everything `/api/race/forecast` returns. Each half is null when it cannot be
     computed, so a calendar with a race but no distance still gets a form forecast."""
     today = today or date.today()
     race = plan_mod.goal_race(store, today)
     if race is None:
-        return {"race": None, "today": today.isoformat(), "form": None, "time": None}
+        return {"race": None, "today": today.isoformat(), "form": None, "time": None, "long_run": None}
     judged, _ = plan_mod.judge_all(store, today)
     form = compute_form_forecast(store, race, today, judged)
+    time = compute_time_range(store, race, today, form)
+    per_km = None if form is None else float(form["load_per_km"])
     return {
         "race": race,
         "today": today.isoformat(),
         "form": form,
-        "time": compute_time_range(store, race, today, form),
+        "time": time,
+        "long_run": compute_long_run_note(judged, today, race, per_km, time),
     }

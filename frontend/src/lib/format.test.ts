@@ -34,6 +34,7 @@ import {
   formatVolume,
   formatWeekday,
   formatLongDate,
+  formatShortSeconds,
   formatWeight,
   movingSpeed,
   paceFromSpeed,
@@ -283,6 +284,13 @@ describe("dates", () => {
     expect(formatDateTime("2026-09-22T19:05", today)).toBe("Sep 22, 19:05");
     expect(formatDateTime("2025-03-01T06:00:00", today)).toBe("Mar 1, 2025, 06:00");
     expect(formatDateTime("2026-09-22", today)).toBe("Sep 22, 00:00");
+  });
+
+  it("formatShortSeconds says a small amount of time as one", () => {
+    expect(formatShortSeconds(17.4)).toBe("17 s");
+    expect(formatShortSeconds(60)).toBe("1 min");
+    expect(formatShortSeconds(95)).toBe("1 min 35 s");
+    expect(formatShortSeconds(null)).toBe("–");
   });
 
   it("formatLongDate spells the day out", () => {
