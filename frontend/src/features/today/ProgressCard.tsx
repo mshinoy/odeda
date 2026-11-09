@@ -14,7 +14,7 @@ export function ProgressCard({
   thisStart: string;
 }) {
   const tokens = useTokens();
-  const { ref, height } = useElementHeight<HTMLDivElement>(120);
+  const { ref, height } = useElementHeight<HTMLDivElement>(80);
   const option = useMemo(
     () => buildWeeklyKmOption({ weeks: weeksAround(weeklyKm, thisStart), tokens }),
     [weeklyKm, thisStart, tokens],
@@ -23,7 +23,7 @@ export function ProgressCard({
   return (
     <figure className="bg-card shadow-card flex min-h-0 flex-1 flex-col gap-1 rounded-2xl border px-6 py-3">
       <figcaption className="text-base font-semibold">Weekly km, against the plan</figcaption>
-      <div ref={ref} className="min-h-[120px] flex-1">
+      <div ref={ref} className="min-h-[6.25rem] flex-1">
         <EChart option={option} height={height} />
       </div>
     </figure>

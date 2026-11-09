@@ -29,7 +29,7 @@ function Tile({
   detail: React.ReactNode;
 }) {
   return (
-    <div className="bg-card shadow-card flex h-full min-w-0 flex-col gap-1 rounded-2xl border p-5">
+    <div className="bg-card shadow-card short:p-4 flex h-full min-w-0 flex-col gap-1 rounded-2xl border p-5">
       <span className="text-muted-foreground text-xs">{label}</span>
       <span className="text-stat font-semibold tracking-tight">{value}</span>
       <span className="text-ink-secondary text-sm">{detail}</span>
@@ -40,7 +40,7 @@ function Tile({
 /** Three small answers: how fit, what you last did, whether the plan is being followed. */
 export function StatTiles({ load, latest, kmDonePct }: StatTilesProps) {
   return (
-    <div className="grid items-stretch gap-5 sm:grid-cols-3">
+    <div className="short:gap-3 grid items-stretch gap-5 sm:grid-cols-3">
       {load && (
         <Tile
           label="Fitness"

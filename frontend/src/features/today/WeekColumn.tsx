@@ -26,7 +26,7 @@ export function WeekColumn({ plan, thisWeek, lastWeek }: WeekColumnProps) {
       : 0;
 
   return (
-    <section className="bg-card shadow-card flex flex-col gap-1 rounded-2xl border p-4">
+    <section className="bg-card shadow-card short:gap-0 short:p-3 flex flex-col gap-1 rounded-2xl border p-4">
       <div className="flex items-baseline justify-between gap-3 px-2">
         <Link to="/plan" className="text-lg font-semibold underline-offset-4 hover:underline">
           This week
@@ -38,7 +38,7 @@ export function WeekColumn({ plan, thisWeek, lastWeek }: WeekColumnProps) {
           </span>
         )}
       </div>
-      <div className="bg-muted mx-2 mb-1 h-1.5 overflow-hidden rounded-full">
+      <div className="bg-muted short:hidden mx-2 mb-1 h-1.5 overflow-hidden rounded-full">
         <div className="bg-kind-run h-full rounded-full" style={{ width: `${pct}%` }} />
       </div>
       <div className="flex flex-[1.3] flex-col gap-1">

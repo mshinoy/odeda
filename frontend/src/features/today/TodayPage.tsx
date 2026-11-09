@@ -65,10 +65,10 @@ export function TodayPage() {
   const weeklyKm = race.data ? weeklyKmSeries(race.data.weekly_km, plan.data?.weeks ?? []) : [];
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid gap-5 lg:min-h-[calc(100svh-15rem)] lg:grid-cols-[minmax(0,1fr)_26rem]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+    <div className="short:gap-3 flex flex-col gap-5">
+      <div className="short:gap-3 grid gap-5 lg:min-h-[calc(100svh-13rem)] lg:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="short:gap-3 flex min-w-0 flex-col gap-5">
+          <div className="short:gap-3 grid gap-5 lg:grid-cols-[1.35fr_1fr]">
             <TodayCard
               day={today}
               headline={lines}

@@ -32,7 +32,7 @@ export function DayRow({ day }: { day: DayView }) {
   return (
     <div
       className={cn(
-        "grid flex-1 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg px-3 py-1.5",
+        "short:py-0.5 grid flex-1 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg px-3 py-1.5",
         tint,
         day.isToday && "bg-muted",
       )}
@@ -75,7 +75,7 @@ export function DayLine({ day }: { day: DayView }) {
   return (
     <div
       className={cn(
-        "grid flex-1 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg px-3 py-1",
+        "short:py-0.5 grid flex-1 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg px-3 py-1",
         tint,
       )}
     >

@@ -15,7 +15,7 @@ export function RaceCard({ race, forecast }: { race: SummaryRace; forecast?: Rac
   const warn = form?.verdict.level === "warning";
 
   return (
-    <section className="bg-card shadow-card flex flex-col gap-4 rounded-2xl border p-7">
+    <section className="bg-card shadow-card short:gap-2 short:p-5 flex flex-col gap-4 rounded-2xl border p-7">
       <span className="text-muted-foreground text-sm">{race.name}</span>
       <span className="flex items-baseline gap-3">
         <span className="text-3xl leading-tight font-semibold tracking-tight">
