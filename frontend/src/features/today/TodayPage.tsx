@@ -11,9 +11,9 @@ import {
 } from "@/api/queries/useStatus";
 import { EmptyState } from "@/components/EmptyState";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { PlanStrip } from "@/features/plan/PlanStrip";
 import { weeklyKmSeries } from "@/features/plan/planView";
 import { GymPanel } from "@/features/status/GymPanel";
+import { NoPlanNotice } from "@/features/today/NoPlanNotice";
 import { LoadPanel } from "@/features/status/LoadPanel";
 import { SyncStrip } from "@/features/status/SyncStrip";
 import { RaceCard } from "@/features/today/RaceCard";
@@ -90,7 +90,7 @@ export function TodayPage() {
         {plan.data?.subscribed ? (
           <WeekColumn plan={plan.data} thisWeek={thisWeek.data} lastWeek={lastWeek.data} />
         ) : (
-          plan.data && <PlanStrip plan={plan.data} week={undefined} />
+          plan.data && <NoPlanNotice />
         )}
       </div>
 

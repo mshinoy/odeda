@@ -43,8 +43,8 @@ export function DayRow({ day }: { day: DayView }) {
         <span className="text-muted-foreground text-sm">Rest</span>
       ) : (
         <div className="flex min-w-0 flex-col gap-0.5">
-          {day.sessions.map((s) => (
-            <div key={s.title} className="flex items-baseline justify-between gap-3">
+          {day.sessions.map((s, i) => (
+            <div key={`${i}-${s.title}`} className="flex items-baseline justify-between gap-3">
               <span className="flex min-w-0 items-baseline gap-2 text-sm font-medium">
                 <KindDot kind={s.kind} className="shrink-0 self-center" />
                 <span className="truncate" title={s.title}>
