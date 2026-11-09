@@ -29,7 +29,7 @@ function Tile({
   detail: React.ReactNode;
 }) {
   return (
-    <div className="bg-card shadow-card flex min-w-0 flex-col gap-1 rounded-2xl border p-6">
+    <div className="bg-card shadow-card flex h-full min-w-0 flex-col gap-1 rounded-2xl border p-5">
       <span className="text-muted-foreground text-xs">{label}</span>
       <span className="text-stat font-semibold tracking-tight">{value}</span>
       <span className="text-ink-secondary text-sm">{detail}</span>
@@ -40,18 +40,18 @@ function Tile({
 /** Three small answers: how fit, what you last did, whether the plan is being followed. */
 export function StatTiles({ load, latest, kmDonePct }: StatTilesProps) {
   return (
-    <div className="grid gap-5 sm:grid-cols-3">
+    <div className="grid items-stretch gap-5 sm:grid-cols-3">
       {load && (
         <Tile
           label="Fitness"
           value={formatDecimal(load.ctl)}
-          detail={`Fatigue ${formatDecimal(load.atl)} · Form ${formatSigned(load.tsb, 0)}, ${load.form}`}
+          detail={`Fatigue ${formatDecimal(load.atl)} · Form ${formatSigned(load.tsb, 0)}`}
         />
       )}
       {latest && (
         <Link
           to={`/activities/${latest.id}`}
-          className="min-w-0 transition-opacity hover:opacity-80"
+          className="flex min-w-0 flex-col transition-opacity hover:opacity-80 [&>*]:flex-1"
         >
           <Tile
             label={`Last activity, ${formatDate(latest.day)}`}
@@ -71,7 +71,7 @@ export function StatTiles({ load, latest, kmDonePct }: StatTilesProps) {
         <Tile
           label="Plan, last 4 weeks"
           value={`${Math.round(kmDonePct)}% of km`}
-          detail="Running kilometres done against the plan"
+          detail="Run km done against the plan"
         />
       )}
     </div>

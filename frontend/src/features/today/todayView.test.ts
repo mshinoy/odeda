@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PlanSession } from "@/api/queries/usePlan";
 import type { DailyRow } from "@/api/queries/useHealth";
 import {
+  daySummary,
   headline,
   previousWeekStart,
   sleepAverage,
@@ -10,6 +11,7 @@ import {
   weeksAround,
   weekDays,
 } from "@/features/today/todayView";
+import type { DaySession, DayView } from "@/features/today/todayView";
 
 function session(over: Partial<PlanSession>): PlanSession {
   return {
@@ -181,5 +183,46 @@ describe("weeksAround", () => {
       "w10",
       "w11",
     ]);
+  });
+});
+
+describe("daySummary", () => {
+  const mk = (sessions: Partial<DaySession>[]) =>
+    ({
+      day: "2026-11-02",
+      weekday: "Mon",
+      date: 2,
+      isToday: false,
+      tone: null,
+      sessions: sessions.map((s) => ({
+        title: "x",
+        kind: "run",
+        verdict: "upcoming",
+        outcome: "",
+        optional: false,
+        ...s,
+      })),
+    }) as DayView;
+
+  it("says rest for a day with nothing and to come for one not yet happened", () => {
+    expect(daySummary(mk([]))).toBe("Rest");
+    expect(daySummary(mk([{}]))).toBe("To come");
+  });
+  it("gives a single session's outcome", () => {
+    expect(daySummary(mk([{ verdict: "done", outcome: "Done · 41.6 km" }]))).toBe("Done · 41.6 km");
+  });
+  it("counts sessions that share a fate", () => {
+    const missed = { verdict: "missed", outcome: "Missed" } as const;
+    expect(daySummary(mk([missed, missed]))).toBe("Missed, 2 sessions");
+  });
+  it("leads a mixed day with its worst", () => {
+    expect(
+      daySummary(
+        mk([
+          { verdict: "done", outcome: "Done · 5.0 km" },
+          { verdict: "missed", outcome: "Missed" },
+        ]),
+      ),
+    ).toBe("Missed +1");
   });
 });

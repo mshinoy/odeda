@@ -20,7 +20,8 @@ import { RaceCard } from "@/features/today/RaceCard";
 import { StatTiles } from "@/features/today/StatTiles";
 import { TodayCard } from "@/features/today/TodayCard";
 import { TodayPageSkeleton } from "@/features/today/TodayPageSkeleton";
-import { WeekCard } from "@/features/today/WeekCard";
+import { ProgressCard } from "@/features/today/ProgressCard";
+import { WeekColumn } from "@/features/today/WeekColumn";
 import { headline, previousWeekStart, sleepNights, weekDays } from "@/features/today/todayView";
 import { formatWeekday } from "@/lib/format";
 
@@ -65,32 +66,33 @@ export function TodayPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid gap-5 lg:grid-cols-[3fr_2fr]">
-        <TodayCard
-          day={today}
-          headline={lines}
-          readiness={summary.data.readiness}
-          nights={sleepNights(daily.data?.rows ?? [])}
-        />
-        {raceSummary && <RaceCard race={raceSummary} forecast={forecast.data} />}
+      <div className="grid gap-5 lg:min-h-[calc(100svh-15rem)] lg:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+            <TodayCard
+              day={today}
+              headline={lines}
+              readiness={summary.data.readiness}
+              nights={sleepNights(daily.data?.rows ?? [])}
+            />
+            {raceSummary && <RaceCard race={raceSummary} forecast={forecast.data} />}
+          </div>
+          <StatTiles
+            load={load.data.current}
+            latest={latest.data?.rows[0]}
+            kmDonePct={forecast.data?.form?.km_done_pct ?? null}
+          />
+          {plan.data?.subscribed && (
+            <ProgressCard weeklyKm={weeklyKm} thisStart={thisStart ?? today} />
+          )}
+        </div>
+
+        {plan.data?.subscribed ? (
+          <WeekColumn plan={plan.data} thisWeek={thisWeek.data} lastWeek={lastWeek.data} />
+        ) : (
+          plan.data && <PlanStrip plan={plan.data} week={undefined} />
+        )}
       </div>
-
-      {plan.data?.subscribed ? (
-        <WeekCard
-          plan={plan.data}
-          thisWeek={thisWeek.data}
-          lastWeek={lastWeek.data}
-          weeklyKm={weeklyKm}
-        />
-      ) : (
-        plan.data && <PlanStrip plan={plan.data} week={undefined} />
-      )}
-
-      <StatTiles
-        load={load.data.current}
-        latest={latest.data?.rows[0]}
-        kmDonePct={forecast.data?.form?.km_done_pct ?? null}
-      />
 
       <Collapsible className="flex flex-col gap-6">
         <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 self-start text-sm">

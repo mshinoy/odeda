@@ -172,3 +172,21 @@ export function weeksAround<T extends { start: string }>(
   const centre = at === -1 ? weeks.length : at;
   return weeks.slice(Math.max(0, centre - before), centre + after + 1);
 }
+
+/**
+ * A day in one line for the compact week: what became of it, in words. Several sessions
+ * with the same fate are counted ("Missed, 2 sessions"); a mixed day leads with its worst
+ * and says how many more there were.
+ */
+export function daySummary(day: DayView): string {
+  if (day.sessions.length === 0) return "Rest";
+  const resolved = day.sessions.filter((s) => s.outcome !== "");
+  if (resolved.length === 0) return "To come";
+  const rank: Record<string, number> = { missed: 0, short: 1, "rest-broken": 1, done: 2 };
+  const worst = [...resolved].sort((a, b) => (rank[a.verdict] ?? 3) - (rank[b.verdict] ?? 3))[0];
+  if (!worst) return "To come";
+  if (resolved.length === 1) return worst.outcome;
+  const same = resolved.every((s) => s.verdict === worst.verdict);
+  const word = worst.outcome.split(" · ")[0] ?? worst.outcome;
+  return same ? `${word}, ${resolved.length} sessions` : `${worst.outcome} +${resolved.length - 1}`;
+}

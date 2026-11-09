@@ -22,11 +22,11 @@ export function TodayCard({ day, headline, readiness, nights }: TodayCardProps) 
   const average = sleepAverage(nights);
 
   return (
-    <section className="bg-card shadow-card flex flex-col gap-6 rounded-2xl border p-8">
+    <section className="bg-card shadow-card flex flex-col gap-6 rounded-2xl border p-7">
       <span className="text-muted-foreground text-sm">{formatLongDate(day)}</span>
       <div className="flex flex-col gap-2">
         <span className="text-muted-foreground text-xs">{headline.label}</span>
-        <h1 className="text-4xl leading-tight font-semibold tracking-tight">{headline.title}</h1>
+        <h1 className="text-3xl leading-tight font-semibold tracking-tight">{headline.title}</h1>
         {readiness.recommendation && (
           <p className="text-ink-secondary max-w-md text-base">{readiness.recommendation}</p>
         )}

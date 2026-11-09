@@ -15,12 +15,13 @@ export function RaceCard({ race, forecast }: { race: SummaryRace; forecast?: Rac
   const warn = form?.verdict.level === "warning";
 
   return (
-    <section className="bg-card shadow-card flex flex-col gap-5 rounded-2xl border p-8">
-      <span className="text-muted-foreground text-sm">
-        {race.name} · {formatDate(race.date)}
-      </span>
-      <span className="text-4xl leading-tight font-semibold tracking-tight">
-        {formatDays(race.days_to_go)}
+    <section className="bg-card shadow-card flex flex-col gap-4 rounded-2xl border p-7">
+      <span className="text-muted-foreground text-sm">{race.name}</span>
+      <span className="flex items-baseline gap-3">
+        <span className="text-3xl leading-tight font-semibold tracking-tight">
+          {formatDays(race.days_to_go)}
+        </span>
+        <span className="text-muted-foreground text-sm">{formatDate(race.date)}</span>
       </span>
 
       {finish ? (
