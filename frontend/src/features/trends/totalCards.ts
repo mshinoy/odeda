@@ -24,9 +24,9 @@ export interface TotalCard {
  * delta it carries the rate behind its own number instead.
  *
  * Average pace is the awkward one. Across running, cycling and swimming a single
- * minutes-per-kilometre figure means nothing, so with no sport chosen the card says so
- * rather than implying otherwise. Pick a type in the filter bar and the caveat goes,
- * because then it is a real pace: 8:31 /km over every run, not 17:35 over everything.
+ * minutes-per-kilometre figure means nothing, so with no sport chosen the card shows a
+ * dash and says to pick one. Choose a type in the filter bar and it is a real pace:
+ * 8:31 /km over every run, not 17:35 over everything.
  */
 export function toTotalCards(
   totals: LifetimeTotals,
@@ -53,8 +53,10 @@ export function toTotalCards(
     },
     {
       label: "Average pace",
-      value: formatPace(totals.avg_pace_s_per_km),
-      note: oneSport || totals.avg_pace_s_per_km === null ? null : "mixed sports",
+      // Across running, cycling and swimming one minutes-per-kilometre figure is a number
+      // with no meaning, so it is not shown: pick a sport and it is a real pace.
+      value: oneSport ? formatPace(totals.avg_pace_s_per_km) : "–",
+      note: oneSport || totals.avg_pace_s_per_km === null ? null : "pick one sport",
     },
     { label: "Average HR", value: formatHeartRate(totals.avg_hr), note: null },
     { label: "Elevation", value: formatElevation(totals.elevation_gain_m), note: null },

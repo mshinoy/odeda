@@ -61,20 +61,23 @@ describe("toTotalCards", () => {
     expect(byLabel.get("Distance")).toBe("1,396 km");
     // 1,472,776 s is 409 hours, not the 409:06:15 a stopwatch would read.
     expect(byLabel.get("Moving time")).toBe("409 h");
-    expect(byLabel.get("Average pace")).toBe("17:35 /km");
+    // Unfiltered, across every sport, a pace means nothing: it is not shown.
+    expect(byLabel.get("Average pace")).toBe("–");
     expect(byLabel.get("Average HR")).toBe("120 bpm");
     expect(byLabel.get("Elevation")).toBe("9,382 m");
   });
 
-  it("says an unfiltered average pace is mixed sports rather than implying it", () => {
+  it("shows no pace across sports, and says to pick one", () => {
     const pace = toTotalCards(totals).find((card) => card.label === "Average pace");
-    expect(pace?.note).toBe("mixed sports");
+    expect(pace?.value).toBe("–");
+    expect(pace?.note).toBe("pick one sport");
   });
 
-  it("drops the caveat once a sport has been chosen, because then it is a pace", () => {
+  it("shows the pace, with no caveat, once a sport has been chosen", () => {
     const pace = toTotalCards(totals, { oneSport: true }).find(
       (card) => card.label === "Average pace",
     );
+    expect(pace?.value).toBe("17:35 /km");
     expect(pace?.note).toBeNull();
   });
 
