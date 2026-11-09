@@ -54,6 +54,7 @@ Paste one of these into a fresh session.
 | 11 Loose ends | K: `approved` | 8 / 8 |
 | 12 The race comes from the calendar | L: `ready for review` | 1 / 1 |
 | 13 The long view | M: `ready for review` | 1 / 1 |
+| 14 Race prep | N: `ready for review` | 1 / 1 |
 
 ### Phase 0 — Foundations (done)
 
@@ -248,6 +249,25 @@ stops at 730 days.
 | ID | Task | Status | Depends on | Commit |
 |---|---|---|---|---|
 | T58 | Health reaches as far back as the data does | done | — | Health reaches as far back as the data does |
+
+### Phase 14 — Race prep · Checkpoint N: `ready for review`
+
+The race panel said what form is **today** and projected one time from one effort. It
+did not say what the rest of the plan does to fatigue, or how far to trust the time.
+Branch `race-forecast`.
+
+| ID | Task | Status | Depends on | Commit |
+|---|---|---|---|---|
+| T59 | Race morning: form forecast under the plan, and a finish-time range from every recent effort of 5 km and up | done | T57 | Race prep: how fresh the plan leaves you, and a finish range |
+
+The forecast prices the plan's remaining running km at the owner's load per km and runs
+the CTL/ATL recurrences to the day before the race. A second curve scales it by the
+running km done over the last 28 days against the km planned (not by the plan's session
+score, which gives a wrong-length run no credit). A verdict that form is fresh turns to
+a warning when fitness is falling, since doing less also gives a positive form. The time
+range is Riegel from each effort, always widened by the 1.04–1.08 exponent band; the
+fitness (±3% cap) and race-morning-form (+2% / −1%) adjustments are rules of thumb,
+returned apart from the raw range. Parked: course and heat, non-running load.
 
 ### Open decisions
 
