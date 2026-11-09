@@ -61,12 +61,40 @@ class TestDataVersion:
             assert cache_mod.data_version(settings) == before
 
 
+class TestTheDateIsPartOfTheVersion:
+    """The load curve runs to today, so the same data answers differently tomorrow."""
+
+    def test_a_new_day_changes_it_with_no_write(self, settings, store, monkeypatch):
+        monkeypatch.setattr(cache_mod, "_today", lambda: "2026-11-09")
+        before = cache_mod.data_version(settings)
+        monkeypatch.setattr(cache_mod, "_today", lambda: "2026-11-10")
+        assert cache_mod.data_version(settings) != before
+
+    def test_the_same_day_does_not(self, settings, store, monkeypatch):
+        monkeypatch.setattr(cache_mod, "_today", lambda: "2026-11-09")
+        before = cache_mod.data_version(settings)
+        assert cache_mod.data_version(settings) == before
+
+    def test_an_answer_about_today_is_recomputed_after_midnight(
+        self, settings, store, monkeypatch
+    ):
+        compute = Counter()
+        monkeypatch.setattr(cache_mod, "_today", lambda: "2026-11-09")
+        assert cache_mod.cached(settings, "k", compute) == 1
+        assert cache_mod.cached(settings, "k", compute) == 1
+        monkeypatch.setattr(cache_mod, "_today", lambda: "2026-11-10")
+        assert cache_mod.cached(settings, "k", compute) == 2
+
+
 class TestCached:
     def test_kept_while_nothing_is_written_however_long(self, settings, store, monkeypatch):
         compute = Counter()
+        # The date is held still; what is under test is that no expiry timer runs.
+        monkeypatch.setattr(cache_mod, "_today", lambda: "2026-11-09")
         assert cache_mod.cached(settings, "k", compute) == 1
-        # No clock is consulted: an hour later it is still the same answer.
-        monkeypatch.setattr(time, "time", lambda: 10**10)
+        # An hour later, same day: it is still the same answer.
+        later = time.time() + 3600
+        monkeypatch.setattr(time, "time", lambda: later)
         assert cache_mod.cached(settings, "k", compute) == 1
         assert compute.calls == 1
 

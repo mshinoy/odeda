@@ -15,6 +15,12 @@ WAL into the main file and deletes it, and the next connection creates a new, em
 one: on a quiet server that is every request, and counting it would empty the cache
 on every request without a single write.
 
+The version also carries today's date. Some analytics are answers about *today* (the load
+curve runs to it, the race countdown counts to it), so the same data gives a different
+answer after midnight. Without the date, those answers would sit unchanged until the next
+write, which on a quiet night is the next automatic sync. With it, the first request of
+the new day recomputes them, and the warmer refreshes them without waiting to be asked.
+
 A change empties the whole cache rather than marking entries stale: every entry
 depends on the same data, and it keeps the dict from growing once per filter tried.
 
@@ -27,6 +33,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -34,21 +41,26 @@ from ..config import Settings
 
 log = logging.getLogger(__name__)
 
-#: (main file mtime, WAL mtime, WAL size), in nanoseconds and bytes; zeros for a
-#: missing or empty WAL.
-DataVersion = tuple[int, int, int]
+#: (main file mtime, WAL mtime, WAL size, today), in nanoseconds, bytes and an ISO date;
+#: zeros for a missing or empty WAL.
+DataVersion = tuple[int, int, int, str]
 
 _cache: dict[str, Any] = {}
 _cache_version: DataVersion | None = None
 _lock = threading.Lock()
 
 
+def _today() -> str:
+    """The local date, as the analytics see it (`TZ`). A function so a test can move it."""
+    return date.today().isoformat()
+
+
 def data_version(settings: Settings) -> DataVersion:
-    """What changes whenever anything is written to the database."""
+    """What changes whenever anything is written to the database, or the date does."""
     main = _stat(settings.db_path)
     wal_mtime, wal_size = _stat(Path(f"{settings.db_path}-wal"))
     # An empty WAL holds nothing; it is created afresh by every first connection.
-    return (main[0], wal_mtime if wal_size > 0 else 0, wal_size)
+    return (main[0], wal_mtime if wal_size > 0 else 0, wal_size, _today())
 
 
 def _stat(path: Path) -> tuple[int, int]:
