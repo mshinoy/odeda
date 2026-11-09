@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isThemePreference, resolveTheme } from "@/design/theme";
+import { DEFAULT_PREFERENCE, isThemePreference, resolveTheme } from "@/design/theme";
 
 describe("resolveTheme", () => {
   it("takes an explicit choice over the OS", () => {
@@ -23,5 +23,12 @@ describe("isThemePreference", () => {
     expect(isThemePreference("")).toBe(false);
     expect(isThemePreference(null)).toBe(false);
     expect(isThemePreference("Dark")).toBe(false);
+  });
+});
+
+describe("DEFAULT_PREFERENCE", () => {
+  it("is light, whatever the OS says", () => {
+    expect(DEFAULT_PREFERENCE).toBe("light");
+    expect(resolveTheme(DEFAULT_PREFERENCE, "dark")).toBe("light");
   });
 });
