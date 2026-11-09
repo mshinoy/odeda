@@ -12,7 +12,7 @@ The web UI is a React app in [`frontend/`](frontend/), built and served from the
 container. Every view is there: **Status**, **Activities** (with editing, gym sessions
 and compare), **Map**, **Health**, **Trends**, and **Settings** and **Gear** behind the
 corner icon. It replaced a vanilla-JS dashboard view by view; how that was done, and
-every decision taken along the way, is in [`PLAN.md`](PLAN.md) and
+every decision taken along the way, is in [`PLAN-HISTORY.md`](PLAN-HISTORY.md) (what is next is in [`PLAN.md`](PLAN.md)) and
 [`DECISIONS.md`](DECISIONS.md). FastAPI's interactive docs are at `/docs`, behind the
 same session gate as the rest of the API.
 

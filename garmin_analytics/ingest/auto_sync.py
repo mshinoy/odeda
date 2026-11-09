@@ -42,7 +42,7 @@ log = logging.getLogger("garmin_analytics.auto_sync")
 #: the backfill's progress that the Sync panel reads.
 JOB = "auto"
 
-#: D8 in PLAN.md: four light runs a day.
+#: D8 in PLAN-HISTORY.md: four light runs a day.
 DEFAULT_INTERVAL_HOURS = 6.0
 
 #: How long after boot before the first check. Long enough for the server to be up and

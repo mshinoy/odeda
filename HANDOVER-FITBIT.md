@@ -182,7 +182,7 @@ says `lb` and you know the file is metric, that is a bug worth reporting.
 
 ## Decisions
 
-Recorded in PLAN.md as D4–D7, plus these from the migration:
+Recorded in PLAN-HISTORY.md as D4–D7, plus these from the migration:
 
 - **`body_composition` keeps its shape.** No migration. Time of day, device name and log
   id live in `raw_documents`, which is where provenance belongs.
