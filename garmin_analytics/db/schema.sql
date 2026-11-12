@@ -98,6 +98,29 @@ CREATE TABLE IF NOT EXISTS activity_samples (
 CREATE INDEX IF NOT EXISTS idx_samples_gps
     ON activity_samples (activity_id) WHERE lat IS NOT NULL;
 
+-- The watch's own laps, as Garmin's /splits endpoint reports them. A structured workout
+-- (4 min run / 1 min walk, say) gives one lap per step, tagged with the step's intensity,
+-- so the intervals are what the watch timed, not something guessed from the stream.
+-- `start_offset_s` is the lap's start in the activity's elapsed time, so a lap lines up
+-- with `activity_samples.elapsed_s`. `intensity` is Garmin's: WARMUP, ACTIVE, REST,
+-- RECOVERY, COOLDOWN, INTERVAL; NULL when the lap was a manual or auto lap.
+-- `avg_cadence_spm` is steps per minute, as on `activities` (the stream stores half).
+CREATE TABLE IF NOT EXISTS activity_laps (
+    activity_id      TEXT NOT NULL REFERENCES activities (activity_id) ON DELETE CASCADE,
+    lap_index        INTEGER NOT NULL,
+    start_offset_s   REAL,
+    duration_s       REAL,
+    distance_m       REAL,
+    intensity        TEXT,
+    wkt_step_index   INTEGER,
+    avg_hr           REAL,
+    max_hr           REAL,
+    avg_speed_mps    REAL,
+    avg_cadence_spm  REAL,
+    elevation_gain_m REAL,
+    PRIMARY KEY (activity_id, lap_index)
+);
+
 -- Rolling best efforts extracted from sample streams (fastest window for a distance).
 CREATE TABLE IF NOT EXISTS best_efforts (
     activity_id  TEXT NOT NULL REFERENCES activities (activity_id) ON DELETE CASCADE,

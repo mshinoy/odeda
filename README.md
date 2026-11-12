@@ -213,8 +213,8 @@ sync has moved the watermarks to today, a later run resumes from today and skips
 years behind it; `sync --full` re-walks the whole `--days` window instead.
 
 **After the first backfill, the app keeps itself current.** Every 6 hours the server
-runs that same incremental sync for Garmin, fetches streams for any new activities, and
-pulls Google Health weigh-ins, skipping whichever source is not connected. Best efforts
+runs that same incremental sync for Garmin, fetches streams and the watch's laps for any
+new activities, and pulls Google Health weigh-ins, skipping whichever source is not connected. Best efforts
 and routes are recomputed only when something new arrived. The interval is counted
 from the last run, which is stored in the database, so a restart does not reset it.
 Settings shows how the last run went. `GA_AUTO_SYNC_HOURS` changes the interval, and
@@ -393,6 +393,7 @@ garmin-analytics backfill       pull EVERYTHING back to the start of the account
 garmin-analytics backfill --estimate    size the job before starting it
 garmin-analytics sync           incremental pull (--full to re-walk the window)
 garmin-analytics renormalize    re-parse the raw archive, no network
+garmin-analytics laps           the watch's laps and workout intervals, newest first (--reparse: no network)
 garmin-analytics cluster        (re)group GPS activities into routes
 garmin-analytics import-zip     load Garmin's official data-export ZIP
 garmin-analytics import-fit     load .fit files

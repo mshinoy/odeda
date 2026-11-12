@@ -145,6 +145,41 @@ def cmd_renormalize(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_laps(args: argparse.Namespace) -> int:
+    """Fetch the watch's laps for activities that have none, newest first. Resumable."""
+    from .ingest import connect
+    from .ingest import laps as laps_mod
+
+    settings = load_settings()
+    with _store() as st:
+        if args.reparse:
+            counts = laps_mod.reparse_laps(st)
+            print(f"Re-parsed laps for {counts['activities']} activities ({counts['laps']} laps).")
+            _emit(counts, args.json)
+            return 0
+        try:
+            connect.resume(settings.token_dir)
+        except connect.NotAuthenticated as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        queue = laps_mod.activities_missing_laps(st, args.limit)
+        print(f"Fetching laps for {len(queue)} activities. Ctrl-C is safe: each is committed.")
+        done = failed = laps = 0
+        for i, aid in enumerate(queue, 1):
+            try:
+                laps += laps_mod.sync_activity_laps(st, aid, connect.fetch)["laps"]
+                done += 1
+            except connect.ConnectError as exc:
+                failed += 1
+                print(f"\n  {aid}: {exc}", file=sys.stderr)
+            print(f"  {i}/{len(queue)}  {laps} laps", end="\r", flush=True)
+    print()
+    result = {"activities": done, "laps": laps, "failed": failed}
+    print(f"Laps for {done} activities ({laps} laps), {failed} failed.")
+    _emit(result, args.json)
+    return 0 if not failed else 1
+
+
 def cmd_import_zip(args: argparse.Namespace) -> int:
     from .ingest import export_zip
 
@@ -598,6 +633,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     add("renormalize", cmd_renormalize,
         "re-parse everything already archived in raw_documents (no network)")
+
+    sp = add("laps", cmd_laps, "fetch the watch's laps and workout intervals, newest first")
+    sp.add_argument("--limit", type=int, default=None, help="stop after this many activities")
+    sp.add_argument("--reparse", action="store_true",
+                    help="rebuild laps from what is already archived (no network)")
 
     sp = add("import-zip", cmd_import_zip, "load Garmin's official data-export ZIP")
     sp.add_argument("path")
