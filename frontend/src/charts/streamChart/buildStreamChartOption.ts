@@ -50,6 +50,7 @@ const Y_QUANTILES: Record<MetricKey, [number, number]> = {
   hr: [0, 1],
   elevation: [0, 1],
   gradient: [0.02, 0.98],
+  headwind: [0.02, 0.98],
 };
 
 /**
@@ -61,6 +62,7 @@ const Y_MIN_SPAN: Partial<Record<MetricKey, number>> = {
   hr: 10,
   elevation: 10,
   gradient: 2,
+  headwind: 4,
 };
 
 /**
@@ -80,6 +82,7 @@ export function streamLineColor(
     case "hr":
       return tokens.hrZones[3];
     case "gradient":
+    case "headwind":
       return metricColor(tokens, 0.5);
   }
 }

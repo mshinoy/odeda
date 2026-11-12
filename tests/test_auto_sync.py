@@ -232,14 +232,16 @@ class TestRunOnce:
             garmin=lambda st, s: {"state": "done", "message": "1 new activity."},
             fitbit=lambda st, s: {"state": "skipped", "message": "not connected"},
             plan=lambda st, s: {"state": "done", "message": "7 prescribed sessions."},
+            weather=lambda st, s: {"state": "done", "message": "Weather for 3 activities."},
         )
         assert out == {
             "state": "done",
-            "message": "1 new activity. 7 prescribed sessions.",
+            "message": "1 new activity. 7 prescribed sessions. Weather for 3 activities.",
             "sources": {
                 "garmin": {"state": "done", "message": "1 new activity."},
                 "fitbit": {"state": "skipped", "message": "not connected"},
                 "plan": {"state": "done", "message": "7 prescribed sessions."},
+                "weather": {"state": "done", "message": "Weather for 3 activities."},
             },
         }
 

@@ -2535,7 +2535,7 @@ class AutoSyncStatus(_Model):
     finished_at: str | None
     next_run_at: str | None
     """Null when off. In the past when a run is due and waiting on a manual sync."""
-    sources: dict[Literal["garmin", "fitbit", "plan"], AutoSyncSource]
+    sources: dict[Literal["garmin", "fitbit", "plan", "weather"], AutoSyncSource]
     """One entry per source the automatic run touched. **Widen this when a source is
     added**: a key the Literal does not allow makes `/api/sync/auto` answer 500, which
     is how adding the plan announced itself."""
@@ -2701,6 +2701,31 @@ class ActivityPlan(_Model):
     part of the plan."""
     next: PlanSession | None
     """The next session of the same kind and sport still to come. Null without one."""
+
+
+class ActivityWeatherReading(_Model):
+    """The weather an outdoor activity was done in: one reading, averaged over its hours."""
+
+    source: Literal["archive", "forecast"]
+    """`forecast` is the recent past from the forecast models, replaced by the archive
+    about a week later."""
+    temp_c: float | None
+    feels_like_c: float | None
+    humidity_pct: float | None
+    dew_point_c: float | None
+    wind_kmh: float | None
+    wind_dir_deg: float | None
+    """Where the wind blows FROM, degrees clockwise from north."""
+    gust_kmh: float | None
+    precip_mm: float | None
+    cloud_pct: float | None
+
+
+class ActivityWeather(_Model):
+    """`GET /api/activities/{id}/weather`."""
+
+    weather: ActivityWeatherReading | None
+    """Null for an indoor activity, or one not looked up yet."""
 
 
 class PlanUnreadable(_Model):

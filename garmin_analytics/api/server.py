@@ -60,6 +60,7 @@ from ..edits import overrides as ov_mod
 from ..ingest import auto_sync as auto_mod
 from ..ingest import plan_ics as plan_ics_mod
 from ..ingest import backfill as backfill_mod
+from ..ingest import weather as weather_mod
 from ..seed import synthetic
 from . import auth as auth_mod
 from . import gym as gym_mod
@@ -75,6 +76,7 @@ from .schemas import (
     ActivityExercises,
     ActivityGaps,
     ActivityPlan,
+    ActivityWeather,
     ExerciseHistory,
     ActivityGearRequest,
     ActivityGearResult,
@@ -1018,6 +1020,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not ov_mod.activity_exists(st, activity_id):
                 raise HTTPException(404, f"no activity {activity_id!r}")
             return plan_mod.session_for_activity(st, activity_id)
+
+    @app.get("/api/activities/{activity_id}/weather", response_model=ActivityWeather)
+    def api_activity_weather(activity_id: str) -> dict[str, Any]:
+        """The weather the activity was done in, as looked up from Open-Meteo."""
+        with store() as st:
+            if not ov_mod.activity_exists(st, activity_id):
+                raise HTTPException(404, f"no activity {activity_id!r}")
+            return {"weather": weather_mod.weather_for(st, activity_id)}
 
     @app.get("/api/activities/{activity_id}/exercise-history", response_model=ExerciseHistory)
     def api_exercise_history(activity_id: str) -> dict[str, Any]:

@@ -1,10 +1,14 @@
 import { useMemo } from "react";
 import type { Activity } from "@/api/adapters";
+import type { WeatherReading } from "@/api/queries/useActivityWeather";
 import { InfoPopover } from "@/components/InfoPopover";
 import { bestEffortRows, hasZoneTime } from "@/features/activity/activityDetails";
 import { BestEffortsTable } from "@/features/activity/BestEffortsTable";
 import { detailRows } from "@/features/activity/details";
 import { HrZonesChart } from "@/features/activity/HrZonesChart";
+import { weatherHeadline, weatherRows, weatherSource } from "@/features/activity/weather";
+import { windShare } from "@/features/activity/wind";
+import { formatPercent } from "@/lib/format";
 
 /**
  * What used to be three folded sections and six big numbers, as chips that open a popup:
@@ -13,8 +17,11 @@ import { HrZonesChart } from "@/features/activity/HrZonesChart";
 export function ActivityChips({
   activity,
   newBests,
+  weather = null,
 }: {
   activity: Activity;
+  /** The weather it was done in, when it has been looked up. */
+  weather?: WeatherReading | null;
   /** The records this activity holds, e.g. "10 k". */
   newBests: readonly string[];
 }) {
@@ -24,10 +31,38 @@ export function ActivityChips({
     [activity.bestEfforts, kind],
   );
   const rows = useMemo(() => detailRows(activity), [activity]);
+  const share = useMemo(
+    () =>
+      activity.streams.headwindKmh
+        ? windShare(activity.streams.headwindKmh, activity.streams.distanceM)
+        : null,
+    [activity.streams],
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span className="text-muted-foreground mr-1 text-xs">The rest, one click away</span>
+
+      {weather && weatherHeadline(weather) !== "" && (
+        <InfoPopover title="Weather" trigger={{ kind: "chip", label: weatherHeadline(weather) }}>
+          <dl className="flex flex-col gap-2">
+            {weatherRows(weather).map((row) => (
+              <div key={row.label} className="flex items-baseline justify-between gap-4">
+                <dt>{row.label}</dt>
+                <dd className="text-foreground font-medium tabular-nums">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+          {share && (
+            <p>
+              Along the route you ran into the wind for {formatPercent(share.head * 100, 0)} of the
+              distance, with it behind you for {formatPercent(share.tail * 100, 0)}, and the rest
+              side-on. Under 3 km/h along the path counts as side-on.
+            </p>
+          )}
+          <p className="text-muted-foreground text-xs">{weatherSource(weather)}</p>
+        </InfoPopover>
+      )}
 
       {hasZoneTime(activity.hrZones) && (
         <InfoPopover title="Heart-rate zones" trigger={{ kind: "chip", label: "Heart-rate zones" }}>

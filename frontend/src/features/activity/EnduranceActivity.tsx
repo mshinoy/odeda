@@ -20,6 +20,9 @@ import { MetricToggle } from "@/features/activity/MetricToggle";
 import { trackDuration } from "@/features/activity/playback";
 import { PlaybackControls } from "@/features/activity/PlaybackControls";
 import { usePlayback } from "@/features/activity/usePlayback";
+import { useActivityWeather } from "@/api/queries/useActivityWeather";
+import { WindBadge } from "@/features/activity/WindBadge";
+import { withHeadwind } from "@/features/activity/wind";
 import { availableMetrics, type MetricKey } from "@/lib/metrics";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supportsWebGL } from "@/map/webgl";
@@ -36,7 +39,17 @@ const NO_GAPS: readonly ActivityGap[] = [];
  * then the map beside the kilometres, then the whole activity as one line, and the detail
  * behind chips. One control, the metric, colours the map and draws the chart.
  */
-export function EnduranceActivity({ activity }: { activity: Activity }) {
+export function EnduranceActivity({ activity: recorded }: { activity: Activity }) {
+  const weather = useActivityWeather(recorded.summary.id).data?.weather ?? null;
+  // The streams gain a headwind column once the wind is known, so the map and the chart
+  // can colour by it like any other metric.
+  const activity = useMemo(
+    () => ({
+      ...recorded,
+      streams: withHeadwind(recorded.streams, weather?.wind_kmh, weather?.wind_dir_deg),
+    }),
+    [recorded, weather],
+  );
   const [colorBy, setColorBy] = useState<MetricKey>("pace");
   const metricOptions = availableMetrics(activity.streams);
   // The replay clock is the activity's own elapsed time, so the map and the charts agree.
@@ -97,6 +110,7 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
               ) : (
                 <EmptyState message="Maps need WebGL. Turn on hardware acceleration in the browser." />
               )}
+              {weather && <WindBadge weather={weather} />}
               <div className="absolute top-3 left-3">
                 <MetricToggle
                   options={metricOptions}
@@ -138,7 +152,7 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
       {!activity.track && workoutPanel()}
 
       <AlongTheRun activity={activity} colorBy={colorBy} onColorBy={setColorBy} />
-      <ActivityChips activity={activity} newBests={bests} />
+      <ActivityChips activity={activity} newBests={bests} weather={weather} />
     </>
   );
 }

@@ -130,6 +130,20 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | T84 | A backup button in Settings: one file with the database and the raw archive | todo | — |
 | T85 | A weekly digest from the six-hourly sync: the week against the plan, in a few lines | todo | — |
 
+### Phase 22 — Weather and wind · Checkpoint V: `ready for review`
+
+Source: **Open-Meteo** (D26), no key, hourly, free for personal use. Fetched once per
+activity, stored, never re-asked. Steps run in order, one branch (`weather`).
+
+| ID | Task | Status | Depends on |
+|---|---|---|---|
+| T89 | Store it: an `activity_weather` table (temperature, feels-like, humidity, dew point, wind speed and direction, gusts, rain, cloud) averaged over the activity's hours at its start point, and an Open-Meteo client behind a fake-able transport, with tests | done | — |
+| T90 | Fetch it: backfill every outdoor activity with GPS in one batch, then each new activity in the six-hourly sync. Recent hours use the forecast API's past days, older ones the archive; a failure is recorded and retried, never raised | done | T89 |
+| T91 | Wind against the route: the headwind or tailwind share of each segment (heading against the wind), and an activity total | done | T89 |
+| T92 | The activity page: a weather chip (31 °C, humid, 14 km/h from the NW) with the working in a popup | done | T90 |
+| T93 | On the map: a wind arrow and weather readout, and "Headwind" as a fifth colour-by with its own legend | done | T91, T92 |
+| T94 | Analytics: pace and heart rate against heat and dew point, then a weather-adjusted pace for comparing runs. Later; ask the owner first | todo | T90 |
+
 ### Open decisions
 
 | ID | Question | Status |
@@ -150,6 +164,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D20 | **Today replaces Status.** The route stays `/status`; the nav says Today. Load and gym sit behind a toggle until a Train page exists. | 2026-11-09 |
 | D21 | **The race forecast prices the plan's kilometres at the owner's own load per km,** and judges the likely line by the kilometres run over the last 28 days against the plan, not by the plan's session score. A fresh race-morning form is a warning when fitness is falling. The finish range always takes in the Riegel exponent band; the fitness and form adjustments are rules of thumb and are returned apart from the raw range. | 2026-11-09 |
 | D22 | **The analytics cache version carries today's date,** so answers about today (the load curve, the race countdown) recompute after midnight and not at the next write. | 2026-11-09 |
+| D26 | **Weather comes from Open-Meteo.** Free for personal use, no key, hourly history to 1940 and the same fields as a forecast. Stored per activity so the app never depends on it being up. klimat.app could not be verified. | 2026-11-12 |
 
 ### Parked (not planned; ask the owner before starting)
 

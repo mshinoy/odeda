@@ -835,6 +835,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activities/{activity_id}/weather": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Activity Weather
+         * @description The weather the activity was done in, as looked up from Open-Meteo.
+         */
+        get: operations["api_activity_weather"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activities/{activity_id}/exercise-history": {
         parameters: {
             query?: never;
@@ -1998,6 +2018,48 @@ export interface components {
             lat: (number | null)[];
             /** Lon */
             lon: (number | null)[];
+        };
+        /**
+         * ActivityWeather
+         * @description `GET /api/activities/{id}/weather`.
+         */
+        ActivityWeather: {
+            /** @description Null for an indoor activity, or one not looked up yet. */
+            weather: components["schemas"]["ActivityWeatherReading"] | null;
+        };
+        /**
+         * ActivityWeatherReading
+         * @description The weather an outdoor activity was done in: one reading, averaged over its hours.
+         */
+        ActivityWeatherReading: {
+            /**
+             * Source
+             * @description `forecast` is the recent past from the forecast models, replaced by the archive
+             *     about a week later.
+             * @enum {string}
+             */
+            source: "archive" | "forecast";
+            /** Temp C */
+            temp_c: number | null;
+            /** Feels Like C */
+            feels_like_c: number | null;
+            /** Humidity Pct */
+            humidity_pct: number | null;
+            /** Dew Point C */
+            dew_point_c: number | null;
+            /** Wind Kmh */
+            wind_kmh: number | null;
+            /**
+             * Wind Dir Deg
+             * @description Where the wind blows FROM, degrees clockwise from north.
+             */
+            wind_dir_deg: number | null;
+            /** Gust Kmh */
+            gust_kmh: number | null;
+            /** Precip Mm */
+            precip_mm: number | null;
+            /** Cloud Pct */
+            cloud_pct: number | null;
         };
         /**
          * Aggregate
@@ -7764,6 +7826,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityPlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_activity_weather: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityWeather"];
                 };
             };
             /** @description Validation Error */
