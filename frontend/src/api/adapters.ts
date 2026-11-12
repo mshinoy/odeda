@@ -80,6 +80,11 @@ export interface ActivityStreams {
   gradientPct: (number | null)[];
   lat: (number | null)[];
   lon: (number | null)[];
+  /**
+   * The wind along the direction of travel, km/h: positive into a headwind, negative with
+   * a tailwind. Absent until the weather is known (`withHeadwind`).
+   */
+  headwindKmh?: (number | null)[];
 }
 
 /**

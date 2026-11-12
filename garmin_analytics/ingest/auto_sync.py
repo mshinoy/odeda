@@ -221,20 +221,32 @@ def sync_plan(store, settings) -> dict[str, Any]:
     }
 
 
+def sync_weather(store, settings) -> dict[str, Any]:
+    """Weather for activities that have none, from Open-Meteo; nothing to set up."""
+    from . import weather as weather_mod
+
+    result = weather_mod.sync_weather(store)
+    # Nothing to look up is the usual run, and says nothing in the status line.
+    if result["state"] == "done" and not result["fetched"] and not result["left"]:
+        return {"state": "skipped", "message": result["message"]}
+    return result
+
+
 def run_once(
     store,
     settings,
     garmin: Callable[[Any, Any], dict[str, Any]] = sync_garmin,
     fitbit: Callable[[Any, Any], dict[str, Any]] = sync_fitbit,
     plan: Callable[[Any, Any], dict[str, Any]] = sync_plan,
+    weather: Callable[[Any, Any], dict[str, Any]] = sync_weather,
 ) -> dict[str, Any]:
     """Every source, one after the other, recorded in the `auto` row of `sync_status`."""
     store.set_sync_status(
-        JOB, state="running", phase="garmin", done=0, total=3,
+        JOB, state="running", phase="garmin", done=0, total=4,
         started_at=_now(), finished_at=None, message="automatic sync started",
     )
     sources: dict[str, dict[str, Any]] = {}
-    for done, (name, step) in enumerate((("garmin", garmin), ("fitbit", fitbit), ("plan", plan))):
+    for done, (name, step) in enumerate((("garmin", garmin), ("fitbit", fitbit), ("plan", plan), ("weather", weather))):
         store.set_sync_status(JOB, phase=name, done=done)
         try:
             sources[name] = step(store, settings)
@@ -251,7 +263,7 @@ def run_once(
         state = "done"
         message = " ".join(r["message"] for r in sources.values() if r["state"] == "done")
     store.set_sync_status(
-        JOB, state=state, phase="", done=3, finished_at=_now(), message=message,
+        JOB, state=state, phase="", done=4, finished_at=_now(), message=message,
         cursor=json.dumps(sources),
     )
     return {"state": state, "message": message, "sources": sources}

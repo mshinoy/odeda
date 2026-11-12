@@ -14,7 +14,7 @@ import {
   formatSportSpeed,
 } from "@/lib/format";
 
-export type MetricKey = "pace" | "hr" | "elevation" | "gradient";
+export type MetricKey = "pace" | "hr" | "elevation" | "gradient" | "headwind";
 
 export interface MetricDefinition {
   key: MetricKey;
@@ -65,6 +65,18 @@ export const metrics: Record<MetricKey, MetricDefinition> = {
     plotValues: (s) => s.gradientPct,
     invertAxis: false,
     formatScaleValue: (pct) => formatPercent(pct, 0),
+  },
+  headwind: {
+    key: "headwind",
+    label: "Headwind",
+    // Positive is into the wind, so the high end of the ramp is the hard end.
+    scaleValues: (s) => s.headwindKmh ?? [],
+    plotValues: (s) => s.headwindKmh ?? [],
+    invertAxis: false,
+    formatScaleValue: (kmh) =>
+      Math.round(kmh) === 0
+        ? formatKmh(0, 0)
+        : `${formatKmh(Math.abs(kmh), 0)} ${kmh > 0 ? "head" : "tail"}`,
   },
 };
 

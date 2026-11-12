@@ -493,3 +493,27 @@ CREATE TABLE IF NOT EXISTS plan_links (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_plan_links_activity
     ON plan_links (activity_id) WHERE activity_id IS NOT NULL;
+
+-- The weather an outdoor activity was done in, one row per activity, taken once from
+-- Open-Meteo and never asked for again. Every figure is the average over the hours the
+-- activity ran (weighted by how much of each hour it covered) at its first GPS fix;
+-- `wind_dir_deg` is the direction the wind blows FROM, 0 = north, a vector mean weighted
+-- by speed; `gust_kmh` is the highest hour's. `source` is `archive` (the ERA5 reanalysis,
+-- final) or `forecast` (the recent past from the forecast models, which the archive
+-- replaces about a week later). Nothing here is Garmin's: the watch sync carries no weather.
+CREATE TABLE IF NOT EXISTS activity_weather (
+    activity_id    TEXT PRIMARY KEY REFERENCES activities (activity_id) ON DELETE CASCADE,
+    fetched_at     TEXT NOT NULL,
+    source         TEXT NOT NULL,         -- archive | forecast
+    lat            REAL NOT NULL,
+    lon            REAL NOT NULL,
+    temp_c         REAL,
+    feels_like_c   REAL,
+    humidity_pct   REAL,
+    dew_point_c    REAL,
+    wind_kmh       REAL,
+    wind_dir_deg   REAL,
+    gust_kmh       REAL,
+    precip_mm      REAL,
+    cloud_pct      REAL
+);

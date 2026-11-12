@@ -333,6 +333,17 @@ def cmd_import_fitbit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_weather(args: argparse.Namespace) -> int:
+    """Look up the weather of every outdoor activity that has none, from Open-Meteo."""
+    from .ingest import weather as weather_mod
+
+    with _store() as st:
+        result = weather_mod.sync_weather(st, cap=args.limit)
+    print(result["message"])
+    _emit(result, args.json)
+    return 0 if result["state"] == "done" else 1
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
     """Subscribe to the training calendar, and read what it prescribes.
 
@@ -651,6 +662,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--limit", type=int, default=None, help="stop after this many activities")
     sp.add_argument("--reparse", action="store_true",
                     help="rebuild laps from what is already archived (no network)")
+
+    sp = add("weather", cmd_weather,
+             "look up the weather of every outdoor activity that has none (Open-Meteo)")
+    sp.add_argument("--limit", type=int, default=None, help="stop after this many activities")
 
     sp = add("import-zip", cmd_import_zip, "load Garmin's official data-export ZIP")
     sp.add_argument("path")
