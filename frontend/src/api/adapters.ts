@@ -113,11 +113,25 @@ export interface Lap {
   distanceM: number | null;
   /** Garmin's step intensity (WARMUP, ACTIVE, REST, ...); null for a manual or auto lap. */
   intensity: string | null;
+  /** The workout step this lap belongs to; null for laps run after the workout ended. */
+  stepIndex: number | null;
   avgHr: number | null;
   maxHr: number | null;
   avgSpeedMps: number | null;
   /** Steps per minute. */
   avgCadenceSpm: number | null;
+}
+
+/** One step of the workout plan an activity followed. Units are Garmin's (see the API). */
+export interface PlanStep {
+  stepIndex: number;
+  intensity: string | null;
+  durationType: string | null;
+  durationValue: number | null;
+  targetType: string | null;
+  targetValue: number | null;
+  targetLow: number | null;
+  targetHigh: number | null;
 }
 
 export interface BestEffort {
@@ -307,6 +321,8 @@ export interface Activity {
   splits: Split[];
   /** The watch's laps, in order; empty when none were fetched. */
   laps: Lap[];
+  /** The plan the laps followed (the first workout, if a run held several); may be empty. */
+  plan: PlanStep[];
   bestEfforts: BestEffort[];
   decouplingPct: number | null;
   efficiencyFactor: number | null;
@@ -811,11 +827,24 @@ export function toActivity(
       durationS: l.duration_s,
       distanceM: l.distance_m,
       intensity: l.intensity,
+      stepIndex: l.wkt_step_index,
       avgHr: l.avg_hr,
       maxHr: l.max_hr,
       avgSpeedMps: l.avg_speed_mps,
       avgCadenceSpm: l.avg_cadence_spm,
     })),
+    plan: detail.workout_steps
+      .filter((w) => w.workout_index === (detail.workout_steps[0]?.workout_index ?? 0))
+      .map((w) => ({
+        stepIndex: w.step_index,
+        intensity: w.intensity,
+        durationType: w.duration_type,
+        durationValue: w.duration_value,
+        targetType: w.target_type,
+        targetValue: w.target_value,
+        targetLow: w.target_low,
+        targetHigh: w.target_high,
+      })),
     bestEfforts: detail.best_efforts.map((b) => ({
       label: b.label,
       distanceM: b.distance_m,

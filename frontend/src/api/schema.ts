@@ -1491,6 +1491,11 @@ export interface components {
              * @description The watch's laps in order; empty when none were fetched.
              */
             laps: components["schemas"]["Lap"][];
+            /**
+             * Workout Steps
+             * @description The plan the laps followed, in step order; empty when there was none.
+             */
+            workout_steps: components["schemas"]["WorkoutStep"][];
             /** Gear */
             gear: components["schemas"]["ActivityGear"][];
             /** Overrides */
@@ -6326,6 +6331,39 @@ export interface components {
             trend_kg: number;
             /** Ctl */
             ctl: number;
+        };
+        /**
+         * WorkoutStep
+         * @description One step of the workout plan the activity followed; laps point at it by
+         *     `wkt_step_index`.
+         */
+        WorkoutStep: {
+            /** Workout Index */
+            workout_index: number;
+            /** Step Index */
+            step_index: number;
+            /** Intensity */
+            intensity: string | null;
+            /**
+             * Duration Type
+             * @description TIME (seconds), DISTANCE (metres), OPEN (until the lap button), or REPEAT_*: go back
+             *     to step `duration_value`, `target_value` times.
+             */
+            duration_type: string | null;
+            /** Duration Value */
+            duration_value: number | null;
+            /**
+             * Target Type
+             * @description SPEED (m/s in low/high), CADENCE (steps/min), HEART_RATE (bpm in low/high, or a
+             *     zone number in `target_value`), OPEN or null for none.
+             */
+            target_type: string | null;
+            /** Target Value */
+            target_value: number | null;
+            /** Target Low */
+            target_low: number | null;
+            /** Target High */
+            target_high: number | null;
         };
         /** YearOverYear */
         YearOverYear: {

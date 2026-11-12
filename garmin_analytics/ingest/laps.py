@@ -6,8 +6,13 @@ a structured workout, each lap is one workout step and carries the step's
 back as the intervals the watch actually timed, with Garmin's own HR, pace and cadence
 for each. Nothing here has to infer an interval from the sample stream.
 
-Raw-first like everything else: the payload is archived before it is parsed, and
-`reparse_laps` rebuilds the table from the archive without a request.
+When the laps show a workout was followed, `/activity-service/activity/{id}/workouts`
+gives its plan: each step's planned time or distance and its target (a pace range, a
+cadence range, a heart-rate zone). Laps point at plan steps by `wktStepIndex`, which is
+what lets a step be judged against its own target.
+
+Raw-first like everything else: the payloads are archived before they are parsed, and
+`reparse_laps` rebuilds both tables from the archive without a request.
 """
 
 from __future__ import annotations
@@ -21,6 +26,8 @@ log = logging.getLogger(__name__)
 
 LAPS_PATH = "/activity-service/activity/{activity_id}/splits"
 ENDPOINT = "activity_laps"
+WORKOUT_PATH = "/activity-service/activity/{activity_id}/workouts"
+WORKOUT_ENDPOINT = "activity_workout"
 
 
 def _num(v: Any) -> float | None:
@@ -88,6 +95,67 @@ def normalize_laps(
     return rows
 
 
+def normalize_workout(payload: Any, activity_id: str) -> list[dict[str, Any]]:
+    """Turn a /workouts payload (a list of workouts) into `activity_workout_steps` rows."""
+    if not isinstance(payload, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for w_i, workout in enumerate(payload):
+        if not isinstance(workout, dict):
+            continue
+        w_index = int(workout.get("index") if workout.get("index") is not None else w_i)
+        for s_i, step in enumerate(workout.get("steps") or []):
+            if not isinstance(step, dict):
+                continue
+            intensity = step.get("intensity")
+            target = step.get("targetType")
+            rows.append(
+                {
+                    "activity_id": activity_id,
+                    "workout_index": w_index,
+                    "step_index": int(
+                        step["stepIndex"] if step.get("stepIndex") is not None else s_i
+                    ),
+                    "intensity": str(intensity).upper() if intensity else None,
+                    "duration_type": step.get("durationType"),
+                    "duration_value": _num(step.get("durationValue")),
+                    "target_type": str(target).upper() if target else None,
+                    "target_value": _num(step.get("targetValue")),
+                    "target_low": _num(step.get("targetValueLow")),
+                    "target_high": _num(step.get("targetValueHigh")),
+                }
+            )
+    return rows
+
+
+def store_workout(store, activity_id: str, rows: Iterable[dict[str, Any]]) -> int:
+    """Replace an activity's workout plan. Idempotent by construction."""
+    rows = list(rows)
+    with store.tx() as conn:
+        conn.execute("DELETE FROM activity_workout_steps WHERE activity_id = ?", (activity_id,))
+        conn.executemany(
+            "INSERT OR REPLACE INTO activity_workout_steps (activity_id, workout_index, "
+            "step_index, intensity, duration_type, duration_value, target_type, "
+            "target_value, target_low, target_high) VALUES (:activity_id, :workout_index, "
+            ":step_index, :intensity, :duration_type, :duration_value, :target_type, "
+            ":target_value, :target_low, :target_high)",
+            rows,
+        )
+    return len(rows)
+
+
+def sync_activity_workout(
+    store, activity_id: str, fetcher: Callable[[str], Any]
+) -> dict[str, Any]:
+    """Fetch, archive and normalise the workout plan one activity followed."""
+    payload = fetcher(WORKOUT_PATH.format(activity_id=activity_id))
+    store.store_raw(
+        "connect", WORKOUT_ENDPOINT, activity_id, payload if payload is not None else []
+    )
+    written = store_workout(store, activity_id, normalize_workout(payload, activity_id))
+    return {"activity_id": activity_id, "workout_steps": written}
+
+
 def store_laps(store, activity_id: str, rows: Iterable[dict[str, Any]]) -> int:
     """Replace an activity's laps. Idempotent by construction."""
     rows = list(rows)
@@ -113,13 +181,20 @@ def _start_utc(store, activity_id: str) -> str | None:
 def sync_activity_laps(
     store, activity_id: str, fetcher: Callable[[str], Any]
 ) -> dict[str, Any]:
-    """Fetch, archive and normalise one activity's laps."""
+    """Fetch, archive and normalise one activity's laps, and its plan if it had one."""
     payload = fetcher(LAPS_PATH.format(activity_id=activity_id))
     # Archived even when empty, so the queue below does not ask again.
     store.store_raw("connect", ENDPOINT, activity_id, payload if payload is not None else {})
     rows = normalize_laps(payload, activity_id, _start_utc(store, activity_id))
     written = store_laps(store, activity_id, rows)
-    return {"activity_id": activity_id, "laps": written}
+    out: dict[str, Any] = {"activity_id": activity_id, "laps": written}
+    # Only a run that followed a workout has a plan to fetch: one more request, not one
+    # per activity.
+    if any(r["wkt_step_index"] is not None for r in rows):
+        out["workout_steps"] = sync_activity_workout(store, activity_id, fetcher)[
+            "workout_steps"
+        ]
+    return out
 
 
 def activities_missing_laps(store, limit: int | None = None) -> list[str]:
@@ -140,6 +215,25 @@ def activities_missing_laps(store, limit: int | None = None) -> list[str]:
     return [r["activity_id"] for r in store.query(sql, (ENDPOINT,))]
 
 
+def activities_missing_workout(store, limit: int | None = None) -> list[str]:
+    """Activities whose laps show a workout but whose plan has not been fetched yet.
+
+    Laps fetched before plans were (the first build of this) land here; so does any run
+    whose plan request failed. Newest first, like the laps.
+    """
+    sql = (
+        "SELECT a.activity_id FROM activities a "
+        "WHERE EXISTS (SELECT 1 FROM activity_laps l "
+        "              WHERE l.activity_id = a.activity_id AND l.wkt_step_index IS NOT NULL) "
+        "AND NOT EXISTS (SELECT 1 FROM raw_documents r "
+        "                WHERE r.endpoint = ? AND r.ref_key = a.activity_id) "
+        "ORDER BY a.start_time_utc DESC, a.activity_id DESC"
+    )
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    return [r["activity_id"] for r in store.query(sql, (WORKOUT_ENDPOINT,))]
+
+
 def reparse_laps(store) -> dict[str, int]:
     """Re-normalise every archived laps payload without re-fetching anything."""
     rows = store.query(
@@ -155,4 +249,14 @@ def reparse_laps(store) -> dict[str, int]:
         aid = row["ref_key"]
         laps += store_laps(store, aid, normalize_laps(payload, aid, _start_utc(store, aid)))
         activities += 1
-    return {"activities": activities, "laps": laps}
+    steps = 0
+    for row in store.query(
+        "SELECT ref_key, payload FROM raw_documents WHERE endpoint = ? ORDER BY id",
+        (WORKOUT_ENDPOINT,),
+    ):
+        try:
+            payload = json.loads(row["payload"])
+        except (TypeError, ValueError):
+            continue
+        steps += store_workout(store, row["ref_key"], normalize_workout(payload, row["ref_key"]))
+    return {"activities": activities, "laps": laps, "workout_steps": steps}

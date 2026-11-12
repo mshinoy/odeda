@@ -126,6 +126,12 @@ def sync_garmin(
             log.warning("auto-sync: laps failed for %s: %s", aid, exc)
             continue
         laps += 1
+    # Plans for runs whose laps arrived before plans were fetched, or whose plan failed.
+    for aid in laps_mod.activities_missing_workout(store, DETAIL_LIMIT):
+        try:
+            laps_mod.sync_activity_workout(store, aid, fetcher)
+        except connect_mod.ConnectError as exc:
+            log.warning("auto-sync: workout plan failed for %s: %s", aid, exc)
 
     if new or streams:
         from ..analytics import performance as perf_mod

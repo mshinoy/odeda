@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { StepJudgement } from "@/features/activity/adherence";
 import type { IntervalRow, Intervals } from "@/features/activity/intervals";
 
 /**
@@ -70,37 +71,96 @@ function RunRow({
   at: (bpm: number) => number;
 }) {
   return (
-    <li className="grid grid-cols-[4.5rem_2.5rem_minmax(0,1fr)_4.5rem] items-center gap-2 text-sm">
-      <span className="font-medium">{row.label}</span>
-      <span
-        className={cn("tabular-nums", !row.onTime && "text-status-warning")}
-        title={row.pace ?? undefined}
-      >
-        {row.time}
-      </span>
-      <span className="bg-muted relative h-3 rounded-full">
-        {row.maxHr !== null && (
-          <span
-            className={cn(
-              "absolute inset-y-0 left-0 rounded-full",
-              row.overCeiling ? "bg-status-warning" : "bg-status-good",
-            )}
-            style={{ width: `${at(row.maxHr)}%` }}
-          />
-        )}
-        {ceilingPct !== null && (
-          <span
-            className="bg-foreground/60 absolute -inset-y-0.5 w-px"
-            style={{ left: `${ceilingPct}%` }}
-            aria-hidden
-          />
-        )}
-      </span>
-      <span className="text-right whitespace-nowrap tabular-nums">
-        <span className="text-muted-foreground text-xs">peak </span>
-        <span className={cn(row.overCeiling && "font-medium")}>{row.maxHr ?? "–"}</span>
-      </span>
+    <li className="flex flex-col gap-0.5">
+      <div className="grid grid-cols-[5rem_2.5rem_minmax(0,1fr)_4.5rem] items-center gap-2 text-sm">
+        <span className="font-medium">{row.label}</span>
+        <span
+          className={cn("tabular-nums", !row.onTime && "text-status-warning")}
+          title={row.pace ?? undefined}
+        >
+          {row.time}
+        </span>
+        <HrBar maxHr={row.maxHr} over={row.overCeiling} ceilingPct={ceilingPct} at={at} />
+        <span className="text-right whitespace-nowrap tabular-nums">
+          <span className="text-muted-foreground text-xs">peak </span>
+          <span className={cn(row.overCeiling && "font-medium")}>{row.maxHr ?? "–"}</span>
+        </span>
+      </div>
+      <PlanLine plan={row.plan} />
     </li>
+  );
+}
+
+/** A bar to the peak heart rate, green under the Zone 2 line and amber past it. */
+export function HrBar({
+  maxHr,
+  over,
+  ceilingPct,
+  at,
+}: {
+  maxHr: number | null;
+  over: boolean;
+  ceilingPct: number | null;
+  at: (bpm: number) => number;
+}) {
+  return (
+    <span className="bg-muted relative h-3 rounded-full">
+      {maxHr !== null && (
+        <span
+          className={cn(
+            "absolute inset-y-0 left-0 rounded-full",
+            over ? "bg-status-warning" : "bg-status-good",
+          )}
+          style={{ width: `${at(maxHr)}%` }}
+        />
+      )}
+      {ceilingPct !== null && (
+        <span
+          className="bg-foreground/60 absolute -inset-y-0.5 w-px"
+          style={{ left: `${ceilingPct}%` }}
+          aria-hidden
+        />
+      )}
+    </span>
+  );
+}
+
+/**
+ * The step's target and how this stretch measured up: "target 5:21–5:53 /km · 40% in
+ * range · 0:25 /km slow". Also the planned length, when it was not held.
+ */
+export function PlanLine({ plan }: { plan: StepJudgement | null }) {
+  if (!plan) return null;
+  const missedLength = plan.heldPlan === false && plan.planned;
+  if (!plan.target && !missedLength) return null;
+  return (
+    <p className="text-muted-foreground pl-[5.5rem] text-xs">
+      {plan.target && (
+        <>
+          target <span className="text-foreground tabular-nums">{plan.target}</span>
+          {plan.inRangePct !== null && (
+            <span className="tabular-nums"> · {plan.inRangePct}% in range</span>
+          )}
+          {plan.verdict && (
+            <span
+              className={cn(
+                "font-medium",
+                plan.side === "in" ? "text-status-good" : "text-status-warning",
+              )}
+            >
+              {" "}
+              · {plan.verdict}
+            </span>
+          )}
+        </>
+      )}
+      {missedLength && (
+        <span className="text-status-warning">
+          {plan.target ? " · " : ""}
+          planned {plan.planned}
+        </span>
+      )}
+    </p>
   );
 }
 
@@ -110,7 +170,7 @@ function QuietRow({ row }: { row: IntervalRow }) {
       ? `${row.hrIn} → ${row.hrOut}`
       : null;
   return (
-    <li className="text-muted-foreground grid grid-cols-[4.5rem_2.5rem_minmax(0,1fr)] items-center gap-2 pb-1 text-xs">
+    <li className="text-muted-foreground grid grid-cols-[5rem_2.5rem_minmax(0,1fr)] items-center gap-2 pb-1 text-xs">
       <span>{row.label}</span>
       <span
         className={cn("tabular-nums", row.kind === "walk" && !row.onTime && "text-status-warning")}

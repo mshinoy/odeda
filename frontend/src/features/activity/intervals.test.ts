@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Lap } from "@/api/adapters";
-import { intervals, isWorkout, zone2Ceiling } from "@/features/activity/intervals";
+import { blocks, intervals, isWorkout, zone2Ceiling } from "@/features/activity/intervals";
 
 function lap(
   index: number,
@@ -16,6 +16,8 @@ function lap(
     durationS,
     distanceM,
     intensity,
+    stepIndex:
+      intensity === "WARMUP" ? 0 : intensity === "ACTIVE" ? 1 : intensity === "REST" ? 2 : null,
     avgHr: maxHr === null ? null : maxHr - 10,
     maxHr,
     avgSpeedMps: null,
@@ -141,5 +143,120 @@ describe("intervals", () => {
     expect(intervals([lap(1, 0, 300, null), lap(2, 300, 300, null)], streams, 146).rows).toEqual(
       [],
     );
+  });
+});
+
+function stepLap(
+  index: number,
+  intensity: string,
+  stepIndex: number | null,
+  durationS: number,
+  distanceM: number,
+  avgHr: number,
+  maxHr: number,
+): Lap {
+  return {
+    index,
+    startS: null,
+    durationS,
+    distanceM,
+    intensity,
+    stepIndex,
+    avgHr,
+    maxHr,
+    avgSpeedMps: null,
+    avgCadenceSpm: null,
+  };
+}
+
+describe("running on after the workout ended", () => {
+  const withTail = [...laps, stepLap(9, "ACTIVE", null, 300, 600, 140, 150)];
+  const out = intervals(withTail, streams, 146);
+
+  it("is one row of its own, not more run reps", () => {
+    expect(out.rows.filter((r) => r.kind === "run")).toHaveLength(4);
+    const last = out.rows[out.rows.length - 1];
+    expect(last?.label).toBe("After the workout");
+    // 300 s over 0.6 km = 500 s/km -> 8:20
+    expect(last?.pace).toBe("8:20 /km");
+  });
+
+  it("is said at the end", () => {
+    expect(out.summary[out.summary.length - 1]).toBe("Then 600 m more after the workout ended.");
+  });
+});
+
+describe("blocks", () => {
+  // A threshold run: the watch auto-laps every kilometre inside each step.
+  const threshold: Lap[] = [
+    stepLap(1, "WARMUP", 0, 490, 1000, 118, 132),
+    stepLap(2, "WARMUP", 0, 110, 223, 125, 133),
+    stepLap(3, "ACTIVE", 1, 504, 1000, 130, 137),
+    stepLap(4, "ACTIVE", 1, 513, 1000, 133, 143),
+    stepLap(5, "ACTIVE", 1, 63, 91, 136, 139),
+    stepLap(6, "COOLDOWN", 2, 526, 1000, 133, 142),
+    stepLap(7, "COOLDOWN", 2, 74, 141, 136, 140),
+    stepLap(8, "ACTIVE", null, 358, 647, 138, 148),
+  ];
+  const out = blocks(threshold, 146);
+
+  it("makes one row per step, then the running after it", () => {
+    expect(out?.rows.map((r) => r.label)).toEqual([
+      "Warm-up",
+      "Main",
+      "Cool-down",
+      "After the workout",
+    ]);
+  });
+
+  it("adds a step's laps together", () => {
+    const main = out?.rows[1];
+    // 504 + 513 + 63 = 1080 s; 1000 + 1000 + 91 = 2091 m
+    expect(main?.time).toBe("18:00");
+    expect(main?.distance).toBe("2.1 km");
+    // (130*504 + 133*513 + 136*63) / 1080 = 142317 / 1080 = 131.8 -> 132
+    expect(main?.avgHr).toBe(132);
+    expect(main?.maxHr).toBe(143);
+  });
+
+  it("answers about the main part", () => {
+    // 1080 s / 2.091 km = 516.5 s/km
+    expect(out?.summary[0]).toMatch(
+      /^The main part: 2\.1 km in 18:00 at 8:3[67] \/km, heart rate averaging 132 and peaking at 143\.$/,
+    );
+    expect(out?.summary).toContain(
+      "Heart rate stayed under the Zone 2 ceiling (146) in the main part.",
+    );
+    expect(out?.summary).toContain("Then 647 m more after the workout ended.");
+  });
+
+  it("compares the first and last parts of a split run", () => {
+    const negative = blocks(
+      [
+        stepLap(1, "ACTIVE", 0, 433, 1000, 123, 139),
+        stepLap(2, "ACTIVE", 0, 477, 1000, 131, 141),
+        stepLap(3, "ACTIVE", 1, 496, 1000, 135, 144),
+      ],
+      146,
+    );
+    expect(negative?.rows.map((r) => r.label)).toEqual(["Part 1", "Part 2"]);
+    // Part 1: 910 s / 2 km = 455 s/km; part 2: 496 s/km; 41 s/km slower.
+    expect(negative?.summary).toContain("Part 2 was 0:41 /km slower than part 1.");
+  });
+
+  it("is null for a single step: that is a plain run", () => {
+    expect(
+      blocks(
+        [
+          stepLap(1, "ACTIVE", 0, 600, 1000, 120, 130),
+          stepLap(2, "ACTIVE", null, 600, 1000, 130, 140),
+        ],
+        146,
+      ),
+    ).toBeNull();
+  });
+
+  it("leaves interval workouts to intervals()", () => {
+    expect(blocks(laps, 146)).toBeNull();
   });
 });

@@ -45,6 +45,31 @@ def _payload():
     }
 
 
+def _plan():
+    """Warm-up (open), 4:00 run at 5:21-5:53 /km, 1:00 walk, back to step 1 ten times."""
+    return [{
+        "index": 0,
+        "steps": [
+            {"stepIndex": 0, "intensity": "WARMUP", "durationType": "OPEN",
+             "durationValue": None, "targetType": "OPEN", "targetValue": None,
+             "targetValueLow": None, "targetValueHigh": None},
+            {"stepIndex": 1, "intensity": "ACTIVE", "durationType": "TIME",
+             "durationValue": 240.0, "targetType": "SPEED", "targetValue": 0.0,
+             "targetValueLow": 2.833, "targetValueHigh": 3.111},
+            {"stepIndex": 2, "intensity": "REST", "durationType": "TIME",
+             "durationValue": 60.0, "targetType": "OPEN", "targetValue": None,
+             "targetValueLow": None, "targetValueHigh": None},
+            {"stepIndex": 3, "intensity": "ACTIVE", "durationType": "REPEAT_UNTIL_STEPS_CMPLT",
+             "durationValue": 1.0, "targetType": None, "targetValue": 10.0,
+             "targetValueLow": None, "targetValueHigh": None},
+        ],
+    }]
+
+
+def _garmin(path):
+    return _plan() if path.endswith("/workouts") else _payload()
+
+
 def _activity(store, aid=AID, start_utc="2026-11-11T18:49:58Z", samples=True):
     store.upsert("activities", ["activity_id"], {
         "activity_id": aid, "day": "2026-11-11", "start_time_local": "2026-11-11T21:49:58",
@@ -93,9 +118,11 @@ class TestSync:
     def test_fetches_archives_and_stores(self, store):
         _activity(store)
         asked: list[str] = []
-        out = L.sync_activity_laps(store, AID, lambda p: asked.append(p) or _payload())
-        assert asked == [f"/activity-service/activity/{AID}/splits"]
-        assert out == {"activity_id": AID, "laps": 4}
+        out = L.sync_activity_laps(store, AID, lambda p: asked.append(p) or _garmin(p))
+        # The laps carry step numbers, so the plan they followed is fetched too.
+        assert asked == [f"/activity-service/activity/{AID}/splits",
+                         f"/activity-service/activity/{AID}/workouts"]
+        assert out == {"activity_id": AID, "laps": 4, "workout_steps": 4}
         assert store.scalar("SELECT COUNT(*) FROM activity_laps WHERE activity_id = ?",
                             (AID,)) == 4
         assert store.scalar("SELECT COUNT(*) FROM raw_documents WHERE endpoint = ?",
@@ -103,9 +130,10 @@ class TestSync:
 
     def test_a_second_sync_replaces_rather_than_duplicates(self, store):
         _activity(store)
-        L.sync_activity_laps(store, AID, lambda p: _payload())
-        L.sync_activity_laps(store, AID, lambda p: _payload())
+        L.sync_activity_laps(store, AID, _garmin)
+        L.sync_activity_laps(store, AID, _garmin)
         assert store.scalar("SELECT COUNT(*) FROM activity_laps") == 4
+        assert store.scalar("SELECT COUNT(*) FROM activity_workout_steps") == 4
 
     def test_queue_is_activities_with_a_stream_and_no_laps_newest_first(self, store):
         _activity(store, "old", "2026-10-01T06:00:00Z")
@@ -118,10 +146,47 @@ class TestSync:
 
     def test_reparse_rebuilds_from_the_archive(self, store):
         _activity(store)
-        L.sync_activity_laps(store, AID, lambda p: _payload())
+        L.sync_activity_laps(store, AID, _garmin)
         store.conn.execute("DELETE FROM activity_laps")
-        assert L.reparse_laps(store) == {"activities": 1, "laps": 4}
+        store.conn.execute("DELETE FROM activity_workout_steps")
+        assert L.reparse_laps(store) == {"activities": 1, "laps": 4, "workout_steps": 4}
         assert store.scalar("SELECT COUNT(*) FROM activity_laps") == 4
+        assert store.scalar("SELECT COUNT(*) FROM activity_workout_steps") == 4
+
+
+class TestWorkoutPlan:
+    def test_each_step_keeps_its_duration_and_target(self):
+        rows = L.normalize_workout(_plan(), AID)
+        run = rows[1]
+        assert (run["intensity"], run["duration_type"], run["duration_value"]) == (
+            "ACTIVE", "TIME", 240.0)
+        assert (run["target_type"], run["target_low"], run["target_high"]) == (
+            "SPEED", 2.833, 3.111)
+        repeat = rows[3]
+        assert (repeat["duration_type"], repeat["duration_value"], repeat["target_value"]) == (
+            "REPEAT_UNTIL_STEPS_CMPLT", 1.0, 10.0)
+        assert repeat["target_type"] is None
+
+    def test_nothing_usable_is_no_steps(self):
+        assert L.normalize_workout(None, AID) == []
+        assert L.normalize_workout({}, AID) == []
+        assert L.normalize_workout([{"index": 0, "steps": None}], AID) == []
+
+    def test_auto_laps_do_not_ask_for_a_plan(self, store):
+        _activity(store)
+        auto = {"lapDTOs": [{"lapIndex": 1, "startTimeGMT": "2026-11-11T18:49:58.0",
+                             "duration": 300.0}]}
+        asked: list[str] = []
+        L.sync_activity_laps(store, AID, lambda p: asked.append(p) or auto)
+        assert asked == [f"/activity-service/activity/{AID}/splits"]
+
+    def test_laps_fetched_before_plans_are_queued_for_one(self, store):
+        _activity(store)
+        rows = L.normalize_laps(_payload(), AID, "2026-11-11T18:49:58Z")
+        L.store_laps(store, AID, rows)
+        assert L.activities_missing_workout(store) == [AID]
+        L.sync_activity_workout(store, AID, _garmin)
+        assert L.activities_missing_workout(store) == []
 
 
 class TestAutoSync:
@@ -133,10 +198,11 @@ class TestAutoSync:
                             lambda st: 0)
 
         def fetch(path):
-            return _payload() if path.endswith("/splits") else None
+            return _garmin(path) if path.endswith(("/splits", "/workouts")) else None
 
         out = A.sync_garmin(store, settings, fetcher=fetch, resume=lambda d: "runner")
         assert store.scalar("SELECT COUNT(*) FROM activity_laps") == 4
+        assert store.scalar("SELECT COUNT(*) FROM activity_workout_steps") == 4
         assert out["message"] == "1 new activity, laps for 1 activity."
 
     def test_failed_laps_do_not_end_the_run(self, store, settings, monkeypatch):
@@ -157,8 +223,13 @@ class TestAutoSync:
 class TestApi:
     def test_activity_detail_lists_its_laps_in_order(self, store, settings):
         _activity(store)
-        L.sync_activity_laps(store, AID, lambda p: _payload())
+        L.sync_activity_laps(store, AID, _garmin)
         body = TestClient(create_app(settings)).get(f"/api/activities/{AID}").json()
+        assert body["workout_steps"][1] == {
+            "workout_index": 0, "step_index": 1, "intensity": "ACTIVE", "duration_type": "TIME",
+            "duration_value": 240.0, "target_type": "SPEED", "target_value": 0.0,
+            "target_low": 2.833, "target_high": 3.111,
+        }
         assert [lap["intensity"] for lap in body["laps"]] == ["WARMUP", "ACTIVE", "REST",
                                                              "ACTIVE"]
         assert body["laps"][1] == {
@@ -171,4 +242,4 @@ class TestApi:
     def test_no_laps_is_an_empty_list(self, store, settings):
         _activity(store)
         body = TestClient(create_app(settings)).get(f"/api/activities/{AID}").json()
-        assert body["laps"] == []
+        assert body["laps"] == [] and body["workout_steps"] == []

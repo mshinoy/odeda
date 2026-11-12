@@ -155,6 +155,25 @@ class Lap(_Model):
     elevation_gain_m: float | None
 
 
+class WorkoutStep(_Model):
+    """One step of the workout plan the activity followed; laps point at it by
+    `wkt_step_index`."""
+
+    workout_index: int
+    step_index: int
+    intensity: str | None
+    duration_type: str | None
+    """TIME (seconds), DISTANCE (metres), OPEN (until the lap button), or REPEAT_*: go back
+    to step `duration_value`, `target_value` times."""
+    duration_value: float | None
+    target_type: str | None
+    """SPEED (m/s in low/high), CADENCE (steps/min), HEART_RATE (bpm in low/high, or a
+    zone number in `target_value`), OPEN or null for none."""
+    target_value: float | None
+    target_low: float | None
+    target_high: float | None
+
+
 class ActivityGear(_Model):
     """A `gear` row as attached to one activity, plus how it came to be attached."""
 
@@ -225,6 +244,8 @@ class ActivityDetail(_Model):
     km_splits: list[KmSplit]
     laps: list[Lap]
     """The watch's laps in order; empty when none were fetched."""
+    workout_steps: list[WorkoutStep]
+    """The plan the laps followed, in step order; empty when there was none."""
     gear: list[ActivityGear]
     overrides: list[Override]
     route: RouteAssignment | None

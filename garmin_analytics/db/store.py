@@ -16,7 +16,7 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 from ..config import Settings, load_settings
 from . import fields as fields_mod
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 #: What each version did, for the `schema_migrations` row. The newest is what a database
 #: reaching the current version is stamped with.
@@ -25,6 +25,7 @@ MIGRATION_NAMES: dict[int, str] = {
     4: "v4: the plan's start day",
     5: "v5: v_daily drops Garmin's -1 stress marker",
     6: "v6: the watch's laps and workout intervals",
+    7: "v7: the workout plan each activity followed",
 }
 
 #: Columns added to existing tables after v1 shipped. Applied with ALTER TABLE only

@@ -154,7 +154,8 @@ def cmd_laps(args: argparse.Namespace) -> int:
     with _store() as st:
         if args.reparse:
             counts = laps_mod.reparse_laps(st)
-            print(f"Re-parsed laps for {counts['activities']} activities ({counts['laps']} laps).")
+            print(f"Re-parsed laps for {counts['activities']} activities ({counts['laps']} laps, "
+                  f"{counts['workout_steps']} workout steps).")
             _emit(counts, args.json)
             return 0
         try:
@@ -173,9 +174,20 @@ def cmd_laps(args: argparse.Namespace) -> int:
                 failed += 1
                 print(f"\n  {aid}: {exc}", file=sys.stderr)
             print(f"  {i}/{len(queue)}  {laps} laps", end="\r", flush=True)
+        plans = laps_mod.activities_missing_workout(st, args.limit)
+        if plans:
+            print(f"\nFetching the workout plan for {len(plans)} earlier activities.")
+        for i, aid in enumerate(plans, 1):
+            try:
+                laps_mod.sync_activity_workout(st, aid, connect.fetch)
+            except connect.ConnectError as exc:
+                failed += 1
+                print(f"\n  {aid}: {exc}", file=sys.stderr)
+            print(f"  {i}/{len(plans)}", end="\r", flush=True)
     print()
-    result = {"activities": done, "laps": laps, "failed": failed}
-    print(f"Laps for {done} activities ({laps} laps), {failed} failed.")
+    result = {"activities": done, "laps": laps, "plans": len(plans), "failed": failed}
+    print(f"Laps for {done} activities ({laps} laps), {len(plans)} earlier plans, "
+          f"{failed} failed.")
     _emit(result, args.json)
     return 0 if not failed else 1
 
@@ -634,7 +646,8 @@ def build_parser() -> argparse.ArgumentParser:
     add("renormalize", cmd_renormalize,
         "re-parse everything already archived in raw_documents (no network)")
 
-    sp = add("laps", cmd_laps, "fetch the watch's laps and workout intervals, newest first")
+    sp = add("laps", cmd_laps,
+             "fetch the watch's laps and the workout plans they followed, newest first")
     sp.add_argument("--limit", type=int, default=None, help="stop after this many activities")
     sp.add_argument("--reparse", action="store_true",
                     help="rebuild laps from what is already archived (no network)")

@@ -11,8 +11,9 @@ import { AlongTheRun } from "@/features/activity/AlongTheRun";
 import { AnswerRow } from "@/features/activity/AnswerRow";
 import { newBests } from "@/features/activity/answers";
 import { GapNotes } from "@/features/activity/GapNote";
-import { intervals, zone2Ceiling } from "@/features/activity/intervals";
+import { blocks, intervals, zone2Ceiling } from "@/features/activity/intervals";
 import { IntervalsPanel } from "@/features/activity/IntervalsPanel";
+import { WorkoutPanel } from "@/features/activity/WorkoutPanel";
 import { KilometresPanel } from "@/features/activity/KilometresPanel";
 import { kilometres } from "@/features/activity/kilometres";
 import { MetricToggle } from "@/features/activity/MetricToggle";
@@ -54,11 +55,24 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
   const athlete = useConfig().data?.athlete;
   const ceiling = zone2Ceiling(athlete?.hr_rest, athlete?.hr_max);
   const reps = useMemo(
-    () => intervals(activity.laps, activity.streams, ceiling),
-    [activity.laps, activity.streams, ceiling],
+    () => intervals(activity.laps, activity.streams, ceiling, activity.plan),
+    [activity.laps, activity.streams, ceiling, activity.plan],
   );
-  const hasReps = reps.rows.length > 0;
-  // A workout opens on its intervals; the kilometres are one click away.
+  const steps = useMemo(
+    () =>
+      reps.rows.length > 0 ? null : blocks(activity.laps, ceiling, activity.streams, activity.plan),
+    [reps.rows.length, activity.laps, activity.streams, ceiling, activity.plan],
+  );
+  // An interval session shows its reps, any other workout its steps: one panel or none.
+  const workoutPanel = (className?: string) =>
+    reps.rows.length > 0 ? (
+      <IntervalsPanel data={reps} ceiling={ceiling} className={className} />
+    ) : steps ? (
+      <WorkoutPanel data={steps} ceiling={ceiling} className={className} />
+    ) : null;
+  const hasReps = reps.rows.length > 0 || steps !== null;
+  const workoutLabel = reps.rows.length > 0 ? "Intervals" : "Workout";
+  // A workout opens on its own panel; the kilometres are one click away.
   const [side, setSide] = useState<"intervals" | "km">("intervals");
   const showReps = hasReps && (side === "intervals" || km.rows.length === 0);
 
@@ -109,23 +123,19 @@ export function EnduranceActivity({ activity }: { activity: Activity }) {
                 className="bg-muted self-start rounded-lg p-0.5"
               >
                 <ToggleGroupItem value="intervals" className="px-3 text-xs">
-                  Intervals
+                  {workoutLabel}
                 </ToggleGroupItem>
                 <ToggleGroupItem value="km" className="px-3 text-xs">
                   Kilometres
                 </ToggleGroupItem>
               </ToggleGroup>
             )}
-            {showReps ? (
-              <IntervalsPanel data={reps} ceiling={ceiling} className="flex-1" />
-            ) : (
-              <KilometresPanel data={km} className="flex-1" />
-            )}
+            {showReps ? workoutPanel("flex-1") : <KilometresPanel data={km} className="flex-1" />}
           </div>
         </div>
       )}
 
-      {!activity.track && hasReps && <IntervalsPanel data={reps} ceiling={ceiling} />}
+      {!activity.track && workoutPanel()}
 
       <AlongTheRun activity={activity} colorBy={colorBy} onColorBy={setColorBy} />
       <ActivityChips activity={activity} newBests={bests} />

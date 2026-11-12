@@ -142,6 +142,12 @@ def _old_detail(st: Store, activity_id: str) -> dict[str, Any]:
             "elevation_gain_m FROM activity_laps WHERE activity_id = ? ORDER BY lap_index",
             (activity_id,),
         ),
+        "workout_steps": st.query(
+            "SELECT workout_index, step_index, intensity, duration_type, duration_value, "
+            "target_type, target_value, target_low, target_high FROM activity_workout_steps "
+            "WHERE activity_id = ? ORDER BY workout_index, step_index",
+            (activity_id,),
+        ),
         "gear": gear_mod.for_activity(st, activity_id),
         "overrides": ov_mod.list_overrides(st, activity_id),
         "route": routes_mod.activity_track(st, activity_id)["route"],
