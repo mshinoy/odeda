@@ -4,7 +4,7 @@
 import type { PickingInfo } from "@deck.gl/core";
 import { PathLayer } from "@deck.gl/layers";
 import type { Route, RouteSegment } from "@/api/adapters";
-import { hexToRgba, metricColor, normalize, percentileRange } from "@/design/scales";
+import { hexToRgba, routeColor, normalize, percentileRange } from "@/design/scales";
 import type { ColorTokens, Theme } from "@/design/tokens";
 
 export const SEGMENT_LAYER_ID = "route-segments";
@@ -29,7 +29,7 @@ export function segmentColor(
   range: [number, number] | null,
 ): string {
   if (segment.relativeSpeed === null || range === null) return tokens.inkMuted;
-  return metricColor(tokens, normalize(segment.relativeSpeed, range));
+  return routeColor(tokens, normalize(segment.relativeSpeed, range));
 }
 
 interface SegmentLayerOptions {

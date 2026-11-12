@@ -18,7 +18,7 @@ import {
 } from "@/map/layers/makeRouteLayer";
 
 const light = colorTokens.light;
-const ramp = light.metricRamp;
+const ramp = light.routeRamp;
 
 // Five samples; sample 2 has no fix, so the track has four coordinates.
 const track: ActivityTrack = {
@@ -150,7 +150,7 @@ describe("routeSegments", () => {
 
   it("follows the theme's ramp", () => {
     const dark = routeSegments(track, streams().hr, colorTokens.dark);
-    expect(dark[1]?.color).toEqual(hexToRgba(colorTokens.dark.metricRamp.at(-1) ?? ""));
+    expect(dark[1]?.color).toEqual(hexToRgba(colorTokens.dark.routeRamp.at(-1) ?? ""));
   });
 });
 

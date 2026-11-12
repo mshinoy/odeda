@@ -5,7 +5,7 @@ import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { bbox } from "@turf/turf";
 import type { Position } from "geojson";
 import type { Activity, ActivityTrack } from "@/api/adapters";
-import { hexToRgba, metricColor, normalize, percentileRange, type Rgba } from "@/design/scales";
+import { hexToRgba, routeColor, normalize, percentileRange, type Rgba } from "@/design/scales";
 import type { ColorTokens, Theme } from "@/design/tokens";
 import { metrics, type MetricKey } from "@/lib/metrics";
 import type { MapBounds } from "@/map/types";
@@ -88,7 +88,7 @@ function segmentColor(
   range: [number, number] | null,
 ): string {
   if (value === null || range === null) return tokens.inkMuted;
-  return metricColor(tokens, normalize(value, range));
+  return routeColor(tokens, normalize(value, range));
 }
 
 function toLonLat(position: Position | undefined): LonLat | null {

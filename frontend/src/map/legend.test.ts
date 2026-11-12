@@ -10,7 +10,7 @@ describe("steppedGradient", () => {
   });
 
   it("uses every step of the theme's ramp, low on the left", () => {
-    const ramp = colorTokens.light.metricRamp;
+    const ramp = colorTokens.light.routeRamp;
     const gradient = steppedGradient(ramp);
     expect(gradient.startsWith(`linear-gradient(to right, ${ramp[0]} 0% `)).toBe(true);
     expect(gradient.endsWith(`${ramp.at(-1)} 85.714% 100%)`)).toBe(true);

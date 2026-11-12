@@ -2,7 +2,7 @@
 
 /**
  * A CSS gradient with hard stops, one band per ramp step, so the bar is stepped like
- * the route colours are (metricColor does not interpolate).
+ * the route colours are (routeColor does not interpolate).
  */
 export function steppedGradient(ramp: readonly string[]): string {
   const band = 100 / ramp.length;
