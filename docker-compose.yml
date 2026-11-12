@@ -87,6 +87,11 @@ services:
       GA_DB: /data/garmin.db
       GA_RAW_DIR: /data/raw_archive
       GA_TOKEN_DIR: /data/tokens
+    # The built UI in garmin_analytics/ui is served here too: what the tailnet's :8444
+    # points at (one bundle, fast over a tailnet; Vite's unbundled dev page is not).
+    # Rebuild it with `npm run build` in frontend/ after UI changes.
+    ports:
+      - "127.0.0.1:${GA_API_DEV_PORT:-8001}:8000"
     working_dir: /src
     entrypoint:
       - sh

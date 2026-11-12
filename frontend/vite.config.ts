@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
     },
     server: {
+      allowedHosts: [".ts.net"],
       proxy: {
         "/api": { target: apiUrl, changeOrigin: true },
       },
