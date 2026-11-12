@@ -44,6 +44,13 @@ export function metricColor(tokens: ColorTokens, t: number): string {
   return ramp[Math.max(index, 0)] ?? tokens.inkMuted;
 }
 
+/** The route colour for t in 0..1 (0 = low, 1 = high), stepped like `metricColor`. */
+export function routeColor(tokens: ColorTokens, t: number): string {
+  const ramp = tokens.routeRamp;
+  const index = Math.min(Math.floor(t * ramp.length), ramp.length - 1);
+  return ramp[Math.max(index, 0)] ?? tokens.inkMuted;
+}
+
 /** "#rrggbb" to deck.gl's [r, g, b, a]. */
 export function hexToRgba(hex: string, alpha = 255): Rgba {
   const value = Number.parseInt(hex.replace("#", ""), 16);

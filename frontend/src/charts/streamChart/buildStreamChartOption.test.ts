@@ -25,6 +25,7 @@ const tokens: ColorTokens = {
   kind: { ...colorTokens.light.kind, run: "token-kind-run", ride: "token-kind-ride" },
   hrZones: ["token-z1", "token-z2", "token-z3", "token-z4", "token-z5"],
   metricRamp: ["r0", "r1", "r2", "r3", "r4", "r5", "r6"],
+  routeRamp: ["q0", "q1", "q2", "q3", "q4", "q5", "q6"],
 };
 
 /** `n` samples 10 s apart at 3 m/s (5:33 /km), HR 140-149, a gentle climb. */

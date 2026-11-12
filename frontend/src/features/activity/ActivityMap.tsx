@@ -3,7 +3,7 @@
 // whatever index is hovered, here, on a chart, or from route playback.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
-import type { Activity, ActivityGap } from "@/api/adapters";
+import { withPaceWindow, type Activity, type ActivityGap } from "@/api/adapters";
 import { useTheme, useTokens } from "@/design/theme";
 import { indexAtElapsed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
@@ -32,6 +32,8 @@ interface ActivityMapProps {
 // One empty list for every render, so no gaps never looks like new data to a memo.
 const NO_GAPS: readonly ActivityGap[] = [];
 
+const ROUTE_PACE_WINDOW_S = 90;
+
 export function ActivityMap({ activity, colorBy, playback, gaps = NO_GAPS }: ActivityMapProps) {
   const theme = useTheme();
   const tokens = useTokens();
@@ -48,13 +50,19 @@ export function ActivityMap({ activity, colorBy, playback, gaps = NO_GAPS }: Act
   const replaying = playback.playing || playback.currentS > 0;
 
   const initialBounds = useMemo(() => (track ? routeBounds(track) : null), [track]);
-  const legendRange = useMemo(() => activityMetricRange(activity, colorBy), [activity, colorBy]);
+  // The colours use a calmer pace than the hover does, so the walk breaks of a run and
+  // walk session read as stretches of the route, not as one colour change per few metres.
+  const coloured = useMemo(
+    () => ({ ...activity, streams: withPaceWindow(activity.streams, ROUTE_PACE_WINDOW_S) }),
+    [activity],
+  );
+  const legendRange = useMemo(() => activityMetricRange(coloured, colorBy), [coloured, colorBy]);
   const trips = useMemo(() => activityTrips(activity), [activity]);
 
   // Route data only depends on these, so a hover never rebuilds it.
   const routeLayer = useMemo(
-    () => makeRouteLayer({ activity, colorBy, tokens, theme }),
-    [activity, colorBy, tokens, theme],
+    () => makeRouteLayer({ activity: coloured, colorBy, tokens, theme }),
+    [coloured, colorBy, tokens, theme],
   );
   const tripsLayer = useMemo(
     () =>

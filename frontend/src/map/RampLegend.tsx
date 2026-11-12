@@ -8,10 +8,12 @@ interface RampLegendProps {
   /** Read out with the two ends for screen readers, e.g. "Pace". */
   label: string;
   tokens: ColorTokens;
+  /** The colours to draw; the route ramp unless a map says otherwise. */
+  ramp?: readonly string[];
 }
 
 /** The magnitude ramp with a value at each end, low on the left. Every map's legend. */
-export function RampLegend({ low, high, label, tokens }: RampLegendProps) {
+export function RampLegend({ low, high, label, tokens, ramp }: RampLegendProps) {
   return (
     <div
       role="img"
@@ -21,7 +23,7 @@ export function RampLegend({ low, high, label, tokens }: RampLegendProps) {
       <span>{low}</span>
       <div
         className="h-1.5 w-24 rounded-full"
-        style={{ backgroundImage: steppedGradient(tokens.metricRamp) }}
+        style={{ backgroundImage: steppedGradient(ramp ?? tokens.routeRamp) }}
       />
       <span>{high}</span>
     </div>

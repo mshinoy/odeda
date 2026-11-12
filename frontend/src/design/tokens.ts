@@ -43,6 +43,14 @@ export interface ColorTokens {
    */
   metricRamp: readonly string[];
 
+  /**
+   * What a route is coloured by (pace, heart rate, elevation, grade): cool blue for low
+   * through yellow to red for high. Several hues, so a lap that is faster than the one
+   * before stands out; a one-hue ramp makes every lap look the same. The blue-to-yellow
+   * axis stays readable with red-green colour blindness.
+   */
+  routeRamp: readonly string[];
+
   /** HR zones 1-5, the same hue as the metric ramp, stepped for ordinal reading. */
   hrZones: readonly [string, string, string, string, string];
 
@@ -106,6 +114,7 @@ export const colorTokens: Record<Theme, ColorTokens> = {
       other: neutralKind,
     },
     metricRamp: ["#86b6ef", "#6da7ec", "#5598e7", "#3987e5", "#2a78d6", "#1c5cab", "#104281"],
+    routeRamp: ["#2a78d6", "#34a8b8", "#5dbb6e", "#c9cf3f", "#f2b02b", "#ec7a2a", "#d63a2f"],
     hrZones: ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"],
     series: ["#08306b", "#d95f02", "#2ca25f", "#c051a5", "#8ec4dd"],
     status,
@@ -134,6 +143,7 @@ export const colorTokens: Record<Theme, ColorTokens> = {
       other: neutralKind,
     },
     metricRamp: ["#184f95", "#256abf", "#2a78d6", "#3987e5", "#6da7ec", "#9ec5f4", "#cde2fb"],
+    routeRamp: ["#2a78d6", "#34a8b8", "#5dbb6e", "#c9cf3f", "#f2b02b", "#ec7a2a", "#d63a2f"],
     hrZones: ["#184f95", "#256abf", "#3987e5", "#6da7ec", "#9ec5f4"],
     series: ["#3b82f6", "#f97316", "#22c55e", "#e879c9", "#bfe4f8"],
     status,

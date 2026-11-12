@@ -15,7 +15,7 @@ import {
 } from "@/map/layers/makeSegmentLayer";
 
 const light = colorTokens.light;
-const ramp = light.metricRamp;
+const ramp = light.routeRamp;
 
 function segment(overrides: Partial<RouteSegment> = {}): RouteSegment {
   return {

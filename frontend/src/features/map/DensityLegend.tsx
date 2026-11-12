@@ -7,5 +7,7 @@ import { RampLegend } from "@/map/RampLegend";
  * either end would claim a precision the picture does not have.
  */
 export function DensityLegend({ tokens }: { tokens: ColorTokens }) {
-  return <RampLegend low="Less" high="More" label="Visits" tokens={tokens} />;
+  return (
+    <RampLegend low="Less" high="More" label="Visits" tokens={tokens} ramp={tokens.metricRamp} />
+  );
 }
