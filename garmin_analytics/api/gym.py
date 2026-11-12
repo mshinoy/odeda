@@ -145,6 +145,90 @@ def _exercise(
 
 
 # ---------------------------------------------------------------------------
+# What the last time looked like
+# ---------------------------------------------------------------------------
+
+#: What Garmin files an exercise it could not name under.
+UNNAMED = "UNKNOWN"
+
+
+def _same_exercise(category: Any, sub_category: Any) -> tuple[str, str] | None:
+    """The key two exercises are compared by, or None when this one cannot be compared:
+    an exercise Garmin could not name has no history, because UNKNOWN is a pile of
+    different movements and not one of them."""
+    if not category or category == UNNAMED:
+        return None
+    return (str(category), str(sub_category or ""))
+
+
+def exercise_history(st: Store, activity_id: str) -> dict[str, Any] | None:
+    """For each exercise in a gym session, what it was the last time the same exercise was
+    done, and the session before it for a total to compare against.
+
+    "The same exercise" is the category and sub-category as the user left them, relabels
+    applied, so naming an unlabelled exercise gives it a history from then on. Only sessions
+    before this one are looked at, and only those with exercise data. None when the activity
+    does not exist.
+    """
+    this = st.query(
+        "SELECT day, start_time_local FROM v_activities WHERE activity_id = ?", (activity_id,)
+    )
+    session = activity_exercises(st, activity_id)
+    if not this or session is None:
+        return None
+
+    earlier = st.query(
+        "SELECT v.activity_id, v.day, raw.payload "
+        "FROM v_activities_included v JOIN raw_documents raw ON raw.id = v.raw_id "
+        "WHERE json_extract(raw.payload, '$.totalSets') IS NOT NULL "
+        "AND v.start_time_local < ? ORDER BY v.start_time_local DESC",
+        (this[0]["start_time_local"],),
+    )
+    relabels = relabels_mod.relabels_for(st, [r["activity_id"] for r in earlier])
+    parsed = [
+        (
+            r["activity_id"],
+            r["day"],
+            exercises_from_payload(
+                json.loads(r["payload"]) if r["payload"] else None, relabels.get(r["activity_id"])
+            ),
+        )
+        for r in earlier
+    ]
+
+    def last_time(key: tuple[str, str]) -> dict[str, Any] | None:
+        for other_id, day, body in parsed:
+            for ex in body["exercises"]:
+                if _same_exercise(ex["category"], ex["sub_category"]) == key:
+                    return {
+                        "activity_id": other_id,
+                        "day": day,
+                        "sets": ex["sets"],
+                        "reps": ex["reps"],
+                        "max_weight_g": ex["max_weight_g"],
+                        "volume_g": ex["volume_g"],
+                    }
+        return None
+
+    previous = None
+    if parsed:
+        other_id, day, body = parsed[0]
+        volumes = [e["volume_g"] for e in body["exercises"] if e["volume_g"] is not None]
+        previous = {
+            "activity_id": other_id,
+            "day": day,
+            "volume_g": sum(volumes) if volumes else None,
+            "sets": body["total_sets"],
+        }
+
+    exercises = []
+    for ex in session["exercises"]:
+        key = _same_exercise(ex["category"], ex["sub_category"])
+        exercises.append({"index": ex["index"], "last": None if key is None else last_time(key)})
+    return {"activity_id": activity_id, "previous": previous, "exercises": exercises}
+
+
+# ---------------------------------------------------------------------------
 # Gym this week (the Status page)
 # ---------------------------------------------------------------------------
 

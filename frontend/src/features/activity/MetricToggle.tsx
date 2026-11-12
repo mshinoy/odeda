@@ -8,10 +8,12 @@ interface MetricToggleProps {
   /** The sport, which decides whether the speed metric reads "Pace" or "Speed". */
   kind: ActivityKind;
   onChange: (key: MetricKey) => void;
+  /** Not floating over a map: no backdrop or shadow. */
+  plain?: boolean;
 }
 
 /** "Colour by" for the route: one word per option. */
-export function MetricToggle({ options, value, kind, onChange }: MetricToggleProps) {
+export function MetricToggle({ options, value, kind, onChange, plain = false }: MetricToggleProps) {
   return (
     <ToggleGroup
       type="single"
@@ -21,7 +23,11 @@ export function MetricToggle({ options, value, kind, onChange }: MetricTogglePro
         const option = options.find((o) => o.key === next);
         if (option) onChange(option.key);
       }}
-      className="bg-background/90 rounded-lg p-0.5 shadow-sm backdrop-blur"
+      className={
+        plain
+          ? "bg-muted rounded-lg p-0.5"
+          : "bg-background/90 rounded-lg p-0.5 shadow-sm backdrop-blur"
+      }
     >
       {options.map((option) => (
         <ToggleGroupItem key={option.key} value={option.key} className="px-3 text-xs">

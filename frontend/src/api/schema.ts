@@ -815,6 +815,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activities/{activity_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Activity Plan
+         * @description What the plan asked of this activity and how it went, and the next of its kind.
+         */
+        get: operations["api_activity_plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/activities/{activity_id}/exercise-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Exercise History
+         * @description What each exercise of a gym session was the last time it was done.
+         */
+        get: operations["api_exercise_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activities/{activity_id}/gaps": {
         parameters: {
             query?: never;
@@ -1755,6 +1795,20 @@ export interface components {
             exercises: components["schemas"]["Exercise"][];
         };
         /**
+         * ActivityPlan
+         * @description `GET /api/activities/{id}/plan`: what the plan asked of this activity, and what it
+         *     asks next of the same kind.
+         */
+        ActivityPlan: {
+            /**
+             * @description The prescribed session this activity fulfilled. Null for an activity that was not
+             *     part of the plan.
+             */
+            session: components["schemas"]["PlanSession"] | null;
+            /** @description The next session of the same kind and sport still to come. Null without one. */
+            next: components["schemas"]["PlanSession"] | null;
+        };
+        /**
          * ActivityPreviews
          * @description `GET /api/activities/previews`: each asked-for activity's route for its card.
          */
@@ -2660,6 +2714,49 @@ export interface components {
             garmin_category: string | null;
             /** Garmin Sub Category */
             garmin_sub_category: string | null;
+        };
+        /**
+         * ExerciseHistory
+         * @description `GET /api/activities/{id}/exercise-history`: what each exercise was last time.
+         */
+        ExerciseHistory: {
+            /** Activity Id */
+            activity_id: string;
+            /** @description The gym session before this one, for a total to compare against. */
+            previous: components["schemas"]["PreviousGymSession"] | null;
+            /** Exercises */
+            exercises: components["schemas"]["ExerciseHistoryEntry"][];
+        };
+        /** ExerciseHistoryEntry */
+        ExerciseHistoryEntry: {
+            /**
+             * Index
+             * @description The exercise's position in this session, as `/exercises` numbers it.
+             */
+            index: number;
+            /**
+             * @description The most recent earlier session with the same exercise. Null for a first time, and
+             *     for one Garmin could not name: name it and it has a history.
+             */
+            last: components["schemas"]["ExerciseLastTime"] | null;
+        };
+        /**
+         * ExerciseLastTime
+         * @description One earlier performance of an exercise. Units as Garmin sends them: grams.
+         */
+        ExerciseLastTime: {
+            /** Activity Id */
+            activity_id: string;
+            /** Day */
+            day: string;
+            /** Sets */
+            sets: number | null;
+            /** Reps */
+            reps: number | null;
+            /** Max Weight G */
+            max_weight_g: number | null;
+            /** Volume G */
+            volume_g: number | null;
         };
         /**
          * ExerciseRelabelRequest
@@ -4615,6 +4712,20 @@ export interface components {
             activity_id: string;
             /** Watts Per Kg */
             watts_per_kg: number;
+        };
+        /** PreviousGymSession */
+        PreviousGymSession: {
+            /** Activity Id */
+            activity_id: string;
+            /** Day */
+            day: string;
+            /**
+             * Volume G
+             * @description Total volume across its exercises, in grams x reps.
+             */
+            volume_g: number | null;
+            /** Sets */
+            sets: number | null;
         };
         /**
          * RaceForecast
@@ -7538,6 +7649,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityStreams"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_activity_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_exercise_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseHistory"];
                 };
             };
             /** @description Validation Error */

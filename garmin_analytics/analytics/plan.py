@@ -792,6 +792,37 @@ def clear_link(store, session_id: int) -> dict[str, Any]:
 _RACE_PREFIX = re.compile(r"^\s*RACE\s*[:\-–]\s*", re.IGNORECASE)
 
 
+def session_for_activity(
+    store, activity_id: str, today: date | None = None
+) -> dict[str, Any]:
+    """The plan session an activity fulfilled, and the next one of the same kind.
+
+    Both are null when the activity was not part of the plan (a ride nobody prescribed),
+    and `next` is also null when the plan has no further session of that kind. The kind
+    is what makes "the next long run" mean something: it is the one the activity answered.
+    """
+    today = today or date.today()
+    judged, _ = judge_all(store, today)
+    mine = next((i for i in judged if i.activity_id == activity_id), None)
+    if mine is None:
+        return {"session": None, "next": None}
+    upcoming = [
+        i
+        for i in judged
+        if i.verdict == "upcoming"
+        and not i.planned.optional
+        and not i.planned.ignored
+        and i.planned.kind == mine.planned.kind
+        and i.planned.sport == mine.planned.sport
+        and date.fromisoformat(i.planned.day) >= today
+    ]
+    following = min(upcoming, key=lambda i: i.planned.day, default=None)
+    return {
+        "session": _as_dict(mine),
+        "next": None if following is None else _as_dict(following),
+    }
+
+
 def goal_race(store, today: date | None = None) -> dict[str, Any] | None:
     """The race the training is pointed at: the nearest one still to come.
 

@@ -6,6 +6,7 @@ import {
   toActivityStreams,
   toActivitySummary,
   toActivityGaps,
+  withPaceWindow,
   toActivityTrack,
   toEditableFields,
   toEditableValues,
@@ -820,5 +821,35 @@ describe("toRouteSegments", () => {
       slowest_segments: [],
     });
     expect(rows.map((r) => r.index)).toEqual([0]);
+  });
+});
+
+describe("withPaceWindow", () => {
+  const raw = rawStreams({
+    elapsed_s: [0, 30, 60, 90, 120],
+    speed_mps: [4, 1, 4, 1, 4],
+    distance_m: [0, 100, 200, 300, 400],
+    lat: [null, null, null, null, null],
+    lon: [null, null, null, null, null],
+    hr: [100, 100, 100, 100, 100],
+    cadence_spm: [0, 0, 0, 0, 0],
+    altitude_m: [0, 0, 0, 0, 0],
+    sample_count: 5,
+  });
+  const short = toActivityStreams(raw);
+  const long = withPaceWindow(short, 120);
+
+  it("keeps every column the same length, so an index is the same moment", () => {
+    expect(long.length).toBe(short.length);
+    expect(long.paceSPerKm).toHaveLength(short.paceSPerKm.length);
+    expect(long.elapsedS).toBe(short.elapsedS);
+  });
+
+  it("calms an alternating run and walk: a longer window swings less", () => {
+    const swing = (s: typeof short) => {
+      const v = s.paceSPerKm.filter((p): p is number => p !== null);
+      return Math.max(...v) - Math.min(...v);
+    };
+    expect(swing(long)).toBeLessThan(swing(short));
   });
 });

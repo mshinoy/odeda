@@ -7,7 +7,10 @@ interface InfoPopoverProps {
   /** What the popup is called, at its top. */
   title: string;
   /** "link": the trigger is words. "icon": a small (i) that sits beside a heading. */
-  trigger?: { kind: "link"; label: string } | { kind: "icon" };
+  trigger?:
+    | { kind: "link"; label: string }
+    | { kind: "chip"; label: string; badge?: string }
+    | { kind: "icon" };
   children: ReactNode;
   className?: string;
 }
@@ -25,7 +28,21 @@ export function InfoPopover({
 }: InfoPopoverProps) {
   return (
     <Popover>
-      {trigger.kind === "link" ? (
+      {trigger.kind === "chip" ? (
+        <PopoverTrigger
+          className={cn(
+            "bg-card hover:bg-muted focus-visible:ring-ring inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
+            className,
+          )}
+        >
+          {trigger.label}
+          {trigger.badge && (
+            <span className="bg-status-good/15 rounded-full px-2 py-0.5 text-xs font-medium">
+              {trigger.badge}
+            </span>
+          )}
+        </PopoverTrigger>
+      ) : trigger.kind === "link" ? (
         <PopoverTrigger
           className={cn(
             "text-muted-foreground hover:text-foreground self-start text-left text-xs underline-offset-4 hover:underline",
