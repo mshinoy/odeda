@@ -134,6 +134,46 @@ class KmSplit(_Model):
     avg_hr: float | None
 
 
+class Lap(_Model):
+    """One of the watch's laps. In a structured workout, one workout step."""
+
+    lap_index: int
+    """1-based, as the watch numbers them."""
+    start_offset_s: float | None
+    """Where the lap starts in the activity's elapsed time (the streams' `elapsed_s`)."""
+    duration_s: float | None
+    distance_m: float | None
+    intensity: str | None
+    """Garmin's step intensity: WARMUP, ACTIVE, REST, RECOVERY, COOLDOWN or INTERVAL.
+    Null for a manual or auto lap, which is not part of a workout."""
+    wkt_step_index: int | None
+    avg_hr: float | None
+    max_hr: float | None
+    avg_speed_mps: float | None
+    avg_cadence_spm: float | None
+    """Steps per minute."""
+    elevation_gain_m: float | None
+
+
+class WorkoutStep(_Model):
+    """One step of the workout plan the activity followed; laps point at it by
+    `wkt_step_index`."""
+
+    workout_index: int
+    step_index: int
+    intensity: str | None
+    duration_type: str | None
+    """TIME (seconds), DISTANCE (metres), OPEN (until the lap button), or REPEAT_*: go back
+    to step `duration_value`, `target_value` times."""
+    duration_value: float | None
+    target_type: str | None
+    """SPEED (m/s in low/high), CADENCE (steps/min), HEART_RATE (bpm in low/high, or a
+    zone number in `target_value`), OPEN or null for none."""
+    target_value: float | None
+    target_low: float | None
+    target_high: float | None
+
+
 class ActivityGear(_Model):
     """A `gear` row as attached to one activity, plus how it came to be attached."""
 
@@ -202,6 +242,10 @@ class ActivityDetail(_Model):
     """Metres per minute per bpm, from the activity averages; null when the
     activity has no samples, no moving time or no average HR."""
     km_splits: list[KmSplit]
+    laps: list[Lap]
+    """The watch's laps in order; empty when none were fetched."""
+    workout_steps: list[WorkoutStep]
+    """The plan the laps followed, in step order; empty when there was none."""
     gear: list[ActivityGear]
     overrides: list[Override]
     route: RouteAssignment | None

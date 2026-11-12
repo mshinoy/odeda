@@ -98,6 +98,49 @@ CREATE TABLE IF NOT EXISTS activity_samples (
 CREATE INDEX IF NOT EXISTS idx_samples_gps
     ON activity_samples (activity_id) WHERE lat IS NOT NULL;
 
+-- The watch's own laps, as Garmin's /splits endpoint reports them. A structured workout
+-- (4 min run / 1 min walk, say) gives one lap per step, tagged with the step's intensity,
+-- so the intervals are what the watch timed, not something guessed from the stream.
+-- `start_offset_s` is the lap's start in the activity's elapsed time, so a lap lines up
+-- with `activity_samples.elapsed_s`. `intensity` is Garmin's: WARMUP, ACTIVE, REST,
+-- RECOVERY, COOLDOWN, INTERVAL; NULL when the lap was a manual or auto lap.
+-- `avg_cadence_spm` is steps per minute, as on `activities` (the stream stores half).
+CREATE TABLE IF NOT EXISTS activity_laps (
+    activity_id      TEXT NOT NULL REFERENCES activities (activity_id) ON DELETE CASCADE,
+    lap_index        INTEGER NOT NULL,
+    start_offset_s   REAL,
+    duration_s       REAL,
+    distance_m       REAL,
+    intensity        TEXT,
+    wkt_step_index   INTEGER,
+    avg_hr           REAL,
+    max_hr           REAL,
+    avg_speed_mps    REAL,
+    avg_cadence_spm  REAL,
+    elevation_gain_m REAL,
+    PRIMARY KEY (activity_id, lap_index)
+);
+
+-- The workout the watch ran, step by step: Garmin's /workouts endpoint for the activity.
+-- `step_index` is what `activity_laps.wkt_step_index` points at. Durations are seconds
+-- (TIME) or metres (DISTANCE); OPEN means "until the lap button". Targets keep Garmin's
+-- encoding: SPEED low/high in m/s, CADENCE in steps/min, HEART_RATE either bpm in
+-- low/high or a zone number in `target_value`; OPEN or NULL is no target. A repeat step
+-- (`duration_type` REPEAT_*) goes back to step `duration_value`, `target_value` times.
+CREATE TABLE IF NOT EXISTS activity_workout_steps (
+    activity_id    TEXT NOT NULL REFERENCES activities (activity_id) ON DELETE CASCADE,
+    workout_index  INTEGER NOT NULL,
+    step_index     INTEGER NOT NULL,
+    intensity      TEXT,
+    duration_type  TEXT,
+    duration_value REAL,
+    target_type    TEXT,
+    target_value   REAL,
+    target_low     REAL,
+    target_high    REAL,
+    PRIMARY KEY (activity_id, workout_index, step_index)
+);
+
 -- Rolling best efforts extracted from sample streams (fastest window for a distance).
 CREATE TABLE IF NOT EXISTS best_efforts (
     activity_id  TEXT NOT NULL REFERENCES activities (activity_id) ON DELETE CASCADE,

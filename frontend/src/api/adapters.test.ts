@@ -330,6 +330,8 @@ describe("toActivity", () => {
       decoupling_pct: 2.5,
       efficiency_factor: 1.242,
       km_splits: [{ km: 1, seconds: 282, avg_hr: 165 }],
+      laps: [],
+      workout_steps: [],
       gear: [],
       overrides: [],
       route: { route_id: 4, match_score: 0.93, assigned: "manual", name: "The Pearl loop" },

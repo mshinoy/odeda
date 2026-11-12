@@ -955,6 +955,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     float(act["moving_time_s"] or 0),
                     float(act["avg_hr"] or 0),
                 )
+            laps = st.query(
+                "SELECT lap_index, start_offset_s, duration_s, distance_m, intensity, "
+                "wkt_step_index, avg_hr, max_hr, avg_speed_mps, avg_cadence_spm, "
+                "elevation_gain_m FROM activity_laps WHERE activity_id = ? ORDER BY lap_index",
+                (activity_id,),
+            )
+            plan_steps = st.query(
+                "SELECT workout_index, step_index, intensity, duration_type, duration_value, "
+                "target_type, target_value, target_low, target_high FROM activity_workout_steps "
+                "WHERE activity_id = ? ORDER BY workout_index, step_index",
+                (activity_id,),
+            )
             route = st.query(
                 "SELECT m.route_id, m.match_score, m.assigned, r.name FROM route_members m "
                 "JOIN routes r ON r.route_id = m.route_id WHERE m.activity_id = ?",
@@ -970,6 +982,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "decoupling_pct": None if dec is None else round(dec, 2),
                 "efficiency_factor": None if ef is None else round(ef, 3),
                 "km_splits": _splits(sample_rows),
+                "laps": laps,
+                "workout_steps": plan_steps,
                 "gear": gear_mod.for_activity(st, activity_id),
                 "overrides": ov_mod.list_overrides(st, activity_id),
                 "route": route[0] if route else None,

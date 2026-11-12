@@ -1486,6 +1486,16 @@ export interface components {
             efficiency_factor: number | null;
             /** Km Splits */
             km_splits: components["schemas"]["KmSplit"][];
+            /**
+             * Laps
+             * @description The watch's laps in order; empty when none were fetched.
+             */
+            laps: components["schemas"]["Lap"][];
+            /**
+             * Workout Steps
+             * @description The plan the laps followed, in step order; empty when there was none.
+             */
+            workout_steps: components["schemas"]["WorkoutStep"][];
             /** Gear */
             gear: components["schemas"]["ActivityGear"][];
             /** Overrides */
@@ -3768,6 +3778,47 @@ export interface components {
             seconds: number;
             /** Avg Hr */
             avg_hr: number | null;
+        };
+        /**
+         * Lap
+         * @description One of the watch's laps. In a structured workout, one workout step.
+         */
+        Lap: {
+            /**
+             * Lap Index
+             * @description 1-based, as the watch numbers them.
+             */
+            lap_index: number;
+            /**
+             * Start Offset S
+             * @description Where the lap starts in the activity's elapsed time (the streams' `elapsed_s`).
+             */
+            start_offset_s: number | null;
+            /** Duration S */
+            duration_s: number | null;
+            /** Distance M */
+            distance_m: number | null;
+            /**
+             * Intensity
+             * @description Garmin's step intensity: WARMUP, ACTIVE, REST, RECOVERY, COOLDOWN or INTERVAL.
+             *     Null for a manual or auto lap, which is not part of a workout.
+             */
+            intensity: string | null;
+            /** Wkt Step Index */
+            wkt_step_index: number | null;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Max Hr */
+            max_hr: number | null;
+            /** Avg Speed Mps */
+            avg_speed_mps: number | null;
+            /**
+             * Avg Cadence Spm
+             * @description Steps per minute.
+             */
+            avg_cadence_spm: number | null;
+            /** Elevation Gain M */
+            elevation_gain_m: number | null;
         };
         /**
          * LifetimeTotals
@@ -6280,6 +6331,39 @@ export interface components {
             trend_kg: number;
             /** Ctl */
             ctl: number;
+        };
+        /**
+         * WorkoutStep
+         * @description One step of the workout plan the activity followed; laps point at it by
+         *     `wkt_step_index`.
+         */
+        WorkoutStep: {
+            /** Workout Index */
+            workout_index: number;
+            /** Step Index */
+            step_index: number;
+            /** Intensity */
+            intensity: string | null;
+            /**
+             * Duration Type
+             * @description TIME (seconds), DISTANCE (metres), OPEN (until the lap button), or REPEAT_*: go back
+             *     to step `duration_value`, `target_value` times.
+             */
+            duration_type: string | null;
+            /** Duration Value */
+            duration_value: number | null;
+            /**
+             * Target Type
+             * @description SPEED (m/s in low/high), CADENCE (steps/min), HEART_RATE (bpm in low/high, or a
+             *     zone number in `target_value`), OPEN or null for none.
+             */
+            target_type: string | null;
+            /** Target Value */
+            target_value: number | null;
+            /** Target Low */
+            target_low: number | null;
+            /** Target High */
+            target_high: number | null;
         };
         /** YearOverYear */
         YearOverYear: {

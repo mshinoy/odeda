@@ -11,7 +11,8 @@ What a run does, and deliberately no more:
   fact). Then streams for any activity that has none yet, capped per run, and the local
   derive steps *only if something new arrived*: best efforts cost seconds, route
   clustering half a minute on a 2-CPU box, and neither has anything to do on a run that
-  found nothing.
+  found nothing. Then the watch's laps for the newest activities that have none, capped
+  the same way, so a structured workout shows its intervals the morning after.
 * **Google Health** — `sync_body`, which resumes from its own watermark.
 
 Each source is skipped quietly when it is not connected, and a failure in one is
@@ -35,6 +36,7 @@ from typing import Any, Callable
 
 from . import connect as connect_mod
 from . import details as details_mod
+from . import laps as laps_mod
 
 log = logging.getLogger("garmin_analytics.auto_sync")
 
@@ -116,6 +118,21 @@ def sync_garmin(
         streams += 1
         gps += 1 if result.get("gps") else 0
 
+    laps = 0
+    for aid in laps_mod.activities_missing_laps(store, DETAIL_LIMIT):
+        try:
+            laps_mod.sync_activity_laps(store, aid, fetcher)
+        except connect_mod.ConnectError as exc:
+            log.warning("auto-sync: laps failed for %s: %s", aid, exc)
+            continue
+        laps += 1
+    # Plans for runs whose laps arrived before plans were fetched, or whose plan failed.
+    for aid in laps_mod.activities_missing_workout(store, DETAIL_LIMIT):
+        try:
+            laps_mod.sync_activity_workout(store, aid, fetcher)
+        except connect_mod.ConnectError as exc:
+            log.warning("auto-sync: workout plan failed for %s: %s", aid, exc)
+
     if new or streams:
         from ..analytics import performance as perf_mod
 
@@ -130,6 +147,8 @@ def sync_garmin(
         parts.append(f"{streams} stream{'' if streams == 1 else 's'}")
     if failed:
         parts.append(f"{failed} stream{'' if failed == 1 else 's'} failed")
+    if laps:
+        parts.append(f"laps for {laps} activit{'y' if laps == 1 else 'ies'}")
     return {
         "state": "done",
         "message": ", ".join(parts) + ".",

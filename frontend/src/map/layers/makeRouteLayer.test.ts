@@ -87,6 +87,8 @@ function activity(overrides: Partial<Activity> = {}): Activity {
     hasGps: true,
     hrZones: [],
     splits: [],
+    laps: [],
+    plan: [],
     bestEfforts: [],
     decouplingPct: null,
     efficiencyFactor: null,
