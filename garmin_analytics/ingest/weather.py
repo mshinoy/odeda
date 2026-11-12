@@ -40,7 +40,11 @@ log = logging.getLogger(__name__)
 #: Per automatic run; the first backfill drains in a few runs, a new activity is one call.
 RUN_CAP = 120
 #: A pause between calls, so a backfill is polite to a free service.
-PAUSE_S = 0.25
+PAUSE_S = 0.5
+#: A call is tried this many times before that activity is left for the next run.
+ATTEMPTS = 3
+#: Failures in a row that mean the service is down, not that one answer was bad.
+GIVE_UP_AFTER = 5
 USER_AGENT = "garmin-analytics (personal, self-hosted)"
 
 
@@ -53,7 +57,7 @@ class Transport(Protocol):
 
 
 class UrllibTransport:
-    def __init__(self, timeout: float = 20.0) -> None:
+    def __init__(self, timeout: float = 30.0) -> None:
         self.timeout = timeout
 
     def get_json(self, url: str) -> dict[str, Any]:
@@ -258,21 +262,32 @@ def sync_weather(
         return {"state": "done", "message": "Weather up to date.", "fetched": 0, "left": 0}
 
     batch = todo if cap is None else todo[:cap]
-    fetched = 0
+    fetched = failed = in_a_row = 0
+    last_error = ""
     for activity_id in batch:
-        try:
-            if fetch_activity(store, activity_id, transport, now) is not None:
-                fetched += 1
-        except WeatherError as exc:
-            return {
-                "state": "error",
-                "message": f"Weather: {exc}",
-                "fetched": fetched,
-                "left": len(todo) - fetched,
-            }
+        for attempt in range(ATTEMPTS):
+            try:
+                if fetch_activity(store, activity_id, transport, now) is not None:
+                    fetched += 1
+                in_a_row = 0
+                break
+            except WeatherError as exc:
+                last_error = str(exc)
+                if attempt + 1 < ATTEMPTS and pause_s:
+                    time.sleep(pause_s * 4 * (attempt + 1))
+        else:
+            failed += 1
+            in_a_row += 1
+            if in_a_row >= GIVE_UP_AFTER:
+                return {
+                    "state": "error",
+                    "message": f"Weather: {last_error}",
+                    "fetched": fetched,
+                    "left": len(todo) - fetched,
+                }
         if pause_s:
             time.sleep(pause_s)
-    left = len(todo) - len(batch)
+    left = len(todo) - len(batch) + failed
     note = f" {left} more next time." if left else ""
     return {
         "state": "done",

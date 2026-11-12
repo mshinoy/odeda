@@ -176,10 +176,31 @@ class TestSync:
         later = datetime(2026, 11, 20, tzinfo=timezone.utc)
         assert w.pending(store, later) == ["a1"]
 
-    def test_a_service_failure_stops_the_run_and_is_reported(self, store):
-        _activity(store)
+    def test_a_service_that_stays_down_stops_the_run_and_is_reported(self, store):
+        for i in range(w.GIVE_UP_AFTER):
+            _activity(store, f"a{i}", start=f"2026-10-0{i + 1}T06:30:00Z")
         out = w.sync_weather(store, FakeTransport(error=w.WeatherError("down")), pause_s=0, now=NOW)
-        assert out["state"] == "error" and "down" in out["message"] and out["left"] == 1
+        assert out["state"] == "error" and "down" in out["message"]
+        assert out["left"] == w.GIVE_UP_AFTER
+
+    def test_one_timeout_is_retried_and_one_bad_activity_does_not_stop_the_rest(self, store):
+        for i, day in enumerate(("2026-10-01", "2026-10-02", "2026-10-03")):
+            _activity(store, f"a{i}", start=f"{day}T06:30:00Z")
+        calls = []
+
+        class Flaky:
+            def get_json(self, url):
+                calls.append(url)
+                day = parse_qs(urlparse(url).query)["start_date"][0]
+                if day == "2026-10-02":
+                    raise w.WeatherError("always fails")
+                if len(calls) == 1:
+                    raise w.WeatherError("timed out once")
+                return _hours(6, [(25, 12, 90), (25, 12, 90)], day=day)
+
+        out = w.sync_weather(store, Flaky(), pause_s=0, now=NOW)
+        assert out["state"] == "done" and out["fetched"] == 2 and out["left"] == 1
+        assert w.weather_for(store, "a0") is not None and w.weather_for(store, "a1") is None
 
 
 class TestApi:
