@@ -12,10 +12,13 @@ import {
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEnv } from "@/map/basemap";
+import { applyCamera } from "@/map/camera";
 import {
   FIT_PADDING_PX,
+  MAX_PITCH,
   PICKING_RADIUS_PX,
   type MapBounds,
+  type MapCamera,
   type ProviderMapProps,
 } from "@/map/types";
 
@@ -26,6 +29,7 @@ export function MapboxBaseMap({
   onHover,
   onLeave,
   cursor,
+  camera,
   mapStyle,
 }: ProviderMapProps) {
   return (
@@ -39,6 +43,8 @@ export function MapboxBaseMap({
       pitchWithRotate={false}
       touchPitch={false}
       scrollZoom
+      maxPitch={MAX_PITCH}
+      interactive={!camera}
       attributionControl={false}
       logoPosition="bottom-right"
       cursor={cursor}
@@ -48,6 +54,7 @@ export function MapboxBaseMap({
       <NavigationControl position="top-right" showCompass={false} />
       <DeckOverlay layers={layers} onHover={onHover} />
       <FitBounds bounds={fitBounds} />
+      <CameraDriver camera={camera} bounds={initialBounds} />
     </MapboxMap>
   );
 }
@@ -66,6 +73,21 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
     }
     if (map && bounds) map.fitBounds(bounds, { padding: FIT_PADDING_PX });
   }, [map, bounds]);
+
+  return null;
+}
+
+// Follows a flyover camera frame by frame, and settles back to the route when it ends.
+// Same as the other provider's, but each library's `useMap` only works under its own <Map>.
+function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
+  const { current: map } = useMap();
+  const flying = useRef(false);
+
+  useEffect(() => {
+    if (!map) return;
+    applyCamera(map, camera ?? null, flying.current, bounds);
+    flying.current = Boolean(camera);
+  }, [map, camera, bounds]);
 
   return null;
 }

@@ -32,6 +32,8 @@ export function providerFor(env: MapEnv): MapProvider {
 export const mapEnv: MapEnv = readMapEnv();
 export const mapProvider: MapProvider = providerFor(mapEnv);
 
+const MAPBOX_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
+
 const MAPBOX_STYLES: Record<Theme, string> = {
   light: "mapbox://styles/mapbox/light-v11",
   dark: "mapbox://styles/mapbox/dark-v11",
@@ -43,8 +45,17 @@ const CARTO_STYLES: Record<Theme, string> = {
   dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
 };
 
-export function basemapStyle(provider: MapProvider, theme: Theme, env: MapEnv = mapEnv): string {
-  if (provider === "mapbox") return MAPBOX_STYLES[theme];
+/**
+ * `satellite` asks for imagery; only Mapbox has it here, and MapLibre's free styles
+ * ignore the request rather than fail it.
+ */
+export function basemapStyle(
+  provider: MapProvider,
+  theme: Theme,
+  env: MapEnv = mapEnv,
+  satellite = false,
+): string {
+  if (provider === "mapbox") return satellite ? MAPBOX_SATELLITE : MAPBOX_STYLES[theme];
   // `||`, not `??`: an empty value in .env means "not set" and falls back too.
   const configured = theme === "light" ? env.styleLight : env.styleDark;
   return configured || CARTO_STYLES[theme];

@@ -20,6 +20,17 @@ describe("basemapStyle", () => {
     expect(basemapStyle("mapbox", "dark", env)).toBe("mapbox://styles/mapbox/dark-v11");
   });
 
+  it("uses Mapbox's satellite imagery on request, in either theme", () => {
+    const env = readMapEnv({ VITE_MAPBOX_TOKEN: "pk.test" });
+    const satellite = "mapbox://styles/mapbox/satellite-streets-v12";
+    expect(basemapStyle("mapbox", "light", env, true)).toBe(satellite);
+    expect(basemapStyle("mapbox", "dark", env, true)).toBe(satellite);
+  });
+
+  it("has no free satellite, so MapLibre keeps its own style", () => {
+    expect(basemapStyle("maplibre", "light", readMapEnv({}), true)).toBe(POSITRON);
+  });
+
   it("uses the configured MapLibre styles", () => {
     const env = readMapEnv({
       VITE_MAP_STYLE_LIGHT: "https://tiles.example/light.json",

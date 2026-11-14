@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { withPaceWindow, type Activity, type ActivityGap } from "@/api/adapters";
 import { useTheme, useTokens } from "@/design/theme";
+import { buildFlyover, cameraAt, type CameraMode } from "@/features/activity/flyover";
 import { indexAtElapsed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
 import type { MetricKey } from "@/lib/metrics";
@@ -27,6 +28,9 @@ interface ActivityMapProps {
   playback: Playback;
   /** Stretches the watch did not record, drawn dashed where a path is known. */
   gaps?: readonly ActivityGap[];
+  /** `map` leaves the camera to the user; the others fly it along the playback clock. */
+  cameraMode?: CameraMode;
+  satellite?: boolean;
 }
 
 // One empty list for every render, so no gaps never looks like new data to a memo.
@@ -34,7 +38,14 @@ const NO_GAPS: readonly ActivityGap[] = [];
 
 const ROUTE_PACE_WINDOW_S = 90;
 
-export function ActivityMap({ activity, colorBy, playback, gaps = NO_GAPS }: ActivityMapProps) {
+export function ActivityMap({
+  activity,
+  colorBy,
+  playback,
+  gaps = NO_GAPS,
+  cameraMode = "map",
+  satellite = false,
+}: ActivityMapProps) {
   const theme = useTheme();
   const tokens = useTokens();
   const hover = useUiStore((state) => state.hover);
@@ -58,6 +69,14 @@ export function ActivityMap({ activity, colorBy, playback, gaps = NO_GAPS }: Act
   );
   const legendRange = useMemo(() => activityMetricRange(coloured, colorBy), [coloured, colorBy]);
   const trips = useMemo(() => activityTrips(activity), [activity]);
+  const flyover = useMemo(
+    () => (trips[0] ? buildFlyover(trips[0], activity.summary.kind) : null),
+    [trips, activity.summary.kind],
+  );
+  const camera = useMemo(
+    () => (flyover ? cameraAt(flyover, cameraMode, playback.currentS) : null),
+    [flyover, cameraMode, playback.currentS],
+  );
 
   // Route data only depends on these, so a hover never rebuilds it.
   const routeLayer = useMemo(
@@ -120,6 +139,8 @@ export function ActivityMap({ activity, colorBy, playback, gaps = NO_GAPS }: Act
         onHover={handleHover}
         onLeave={handleLeave}
         cursor={pointerOnRoute ? "pointer" : undefined}
+        camera={camera}
+        satellite={satellite}
       />
       {legendRange && (
         <div className="absolute bottom-3 left-3">

@@ -13,7 +13,7 @@ const MaplibreBaseMap = lazy(loadMaplibre);
 
 export function BaseMap(props: BaseMapProps) {
   const theme = useTheme();
-  const mapStyle = basemapStyle(mapProvider, theme);
+  const mapStyle = basemapStyle(mapProvider, theme, undefined, props.satellite);
 
   return (
     <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>

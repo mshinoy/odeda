@@ -1,6 +1,8 @@
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, Satellite } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/NativeSelect";
+import { Toggle } from "@/components/ui/toggle";
+import { CAMERA_LABELS, CAMERA_MODES, type CameraMode } from "@/features/activity/flyover";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
 import { formatDuration } from "@/lib/format";
@@ -8,10 +10,25 @@ import { formatDuration } from "@/lib/format";
 interface PlaybackControlsProps {
   playback: Playback;
   durationS: number;
+  cameraMode: CameraMode;
+  onCameraMode: (mode: CameraMode) => void;
+  /** Satellite imagery needs Mapbox; without it the toggle is not offered. */
+  satellite: boolean | null;
+  onSatellite: (on: boolean) => void;
 }
 
-/** Play/pause, the elapsed time, a scrubber and how fast it replays. */
-export function PlaybackControls({ playback, durationS }: PlaybackControlsProps) {
+/**
+ * Play/pause, the elapsed time, a scrubber, how fast it replays, and the camera: the
+ * flat map, or a chase camera or drone orbit flown along the replay.
+ */
+export function PlaybackControls({
+  playback,
+  durationS,
+  cameraMode,
+  onCameraMode,
+  satellite,
+  onSatellite,
+}: PlaybackControlsProps) {
   const { currentS, playing, speed, toggle, setSpeed, scrubTo } = playback;
 
   return (
@@ -50,6 +67,28 @@ export function PlaybackControls({ playback, durationS }: PlaybackControlsProps)
           </option>
         ))}
       </NativeSelect>
+      <NativeSelect
+        aria-label="Camera"
+        className="h-7 text-xs"
+        value={cameraMode}
+        onChange={(event) => onCameraMode(event.target.value as CameraMode)}
+      >
+        {CAMERA_MODES.map((mode) => (
+          <option key={mode} value={mode}>
+            {CAMERA_LABELS[mode]}
+          </option>
+        ))}
+      </NativeSelect>
+      {satellite !== null && (
+        <Toggle
+          size="sm"
+          aria-label="Satellite imagery"
+          pressed={satellite}
+          onPressedChange={onSatellite}
+        >
+          <Satellite />
+        </Toggle>
+      )}
     </div>
   );
 }

@@ -13,10 +13,13 @@ import {
 import { setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { applyCamera } from "@/map/camera";
 import {
   FIT_PADDING_PX,
+  MAX_PITCH,
   PICKING_RADIUS_PX,
   type MapBounds,
+  type MapCamera,
   type ProviderMapProps,
 } from "@/map/types";
 
@@ -33,6 +36,7 @@ export function MaplibreBaseMap({
   onHover,
   onLeave,
   cursor,
+  camera,
   mapStyle,
 }: ProviderMapProps) {
   return (
@@ -44,6 +48,8 @@ export function MaplibreBaseMap({
       pitchWithRotate={false}
       touchPitch={false}
       scrollZoom
+      maxPitch={MAX_PITCH}
+      interactive={!camera}
       attributionControl={false}
       cursor={cursor}
       onMouseOut={onLeave}
@@ -52,6 +58,7 @@ export function MaplibreBaseMap({
       <NavigationControl position="top-right" showCompass={false} />
       <DeckOverlay layers={layers} onHover={onHover} />
       <FitBounds bounds={fitBounds} />
+      <CameraDriver camera={camera} bounds={initialBounds} />
     </MaplibreMap>
   );
 }
@@ -70,6 +77,21 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
     }
     if (map && bounds) map.fitBounds(bounds, { padding: FIT_PADDING_PX });
   }, [map, bounds]);
+
+  return null;
+}
+
+// Follows a flyover camera frame by frame, and settles back to the route when it ends.
+// Same as the other provider's, but each library's `useMap` only works under its own <Map>.
+function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
+  const { current: map } = useMap();
+  const flying = useRef(false);
+
+  useEffect(() => {
+    if (!map) return;
+    applyCamera(map, camera ?? null, flying.current, bounds);
+    flying.current = Boolean(camera);
+  }, [map, camera, bounds]);
 
   return null;
 }

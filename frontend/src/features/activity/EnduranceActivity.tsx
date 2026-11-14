@@ -18,6 +18,7 @@ import { KilometresPanel } from "@/features/activity/KilometresPanel";
 import { kilometres } from "@/features/activity/kilometres";
 import { MetricToggle } from "@/features/activity/MetricToggle";
 import { trackDuration } from "@/features/activity/playback";
+import type { CameraMode } from "@/features/activity/flyover";
 import { PlaybackControls } from "@/features/activity/PlaybackControls";
 import { usePlayback } from "@/features/activity/usePlayback";
 import { useActivityWeather } from "@/api/queries/useActivityWeather";
@@ -25,6 +26,7 @@ import { WindBadge } from "@/features/activity/WindBadge";
 import { withHeadwind } from "@/features/activity/wind";
 import { availableMetrics, type MetricKey } from "@/lib/metrics";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { mapProvider } from "@/map/basemap";
 import { supportsWebGL } from "@/map/webgl";
 
 // deck.gl and the map libraries are large; load them only when a page shows a map.
@@ -55,6 +57,13 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
   // The replay clock is the activity's own elapsed time, so the map and the charts agree.
   const durationS = trackDuration(activity.streams.elapsedS);
   const playback = usePlayback(durationS);
+  const [cameraMode, setCameraMode] = useState<CameraMode>("map");
+  const [satellite, setSatellite] = useState(false);
+  // Picking a flyover starts the replay it flies along; going back to the map leaves it be.
+  const chooseCamera = (mode: CameraMode) => {
+    setCameraMode(mode);
+    if (mode !== "map" && !playback.playing) playback.toggle();
+  };
   const gaps = useActivityGaps(activity.summary.id, activity.track !== null).data ?? NO_GAPS;
   const performance = usePerformance();
   const bests = useMemo(
@@ -105,6 +114,8 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
                     colorBy={colorBy}
                     playback={playback}
                     gaps={gaps}
+                    cameraMode={cameraMode}
+                    satellite={satellite}
                   />
                 </Suspense>
               ) : (
@@ -121,7 +132,14 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
               </div>
             </section>
             {supportsWebGL() && durationS > 0 && (
-              <PlaybackControls playback={playback} durationS={durationS} />
+              <PlaybackControls
+                playback={playback}
+                durationS={durationS}
+                cameraMode={cameraMode}
+                onCameraMode={chooseCamera}
+                satellite={mapProvider === "mapbox" ? satellite : null}
+                onSatellite={setSatellite}
+              />
             )}
             <GapNotes gaps={gaps} kind={activity.summary.kind} />
           </div>
