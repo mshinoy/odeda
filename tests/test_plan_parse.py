@@ -190,7 +190,8 @@ class TestPrecedence:
         note = P.parse_week_note(WEEK_8_PEAK)
         pres, status = P.resolve("Long Run - DBRC", LONG_RUN_STANDING_NOTE, FRIDAY, note)
         assert status == "ok"
-        assert (pres.min_m, pres.max_m) == (19000, 20000)
+        # While Higdon's plan is on, his number is the target (12.9), not the owner's 19-20.
+        assert (pres.min_m, pres.max_m) == (12900, 12900)
         assert pres.sport == P.SPORT_RUN
 
     def test_a_hint_line_beats_everything(self):
@@ -254,7 +255,7 @@ class TestDaysWithTwoSports:
     def test_an_event_with_no_sport_of_its_own_still_takes_the_note(self):
         note = P.parse_week_note(WEEK_7)
         pres, _ = P.resolve("Session", "", FRIDAY, note)
-        assert pres.min_m == 18000
+        assert pres.min_m == 11300  # Higdon's, while his plan is on
 
 
 class TestTuesdayClubDistance:
@@ -300,3 +301,52 @@ class TestQuotedVersusOwnAnnotation:
     def test_the_real_race_is_still_a_race(self):
         note = P.parse_week_note(WEEK_12_RACE)
         assert note[FRIDAY].kind == "race"
+
+
+class TestHigdonIsTheBase:
+    """While Higdon's plan is on, every day is measured against his number: the club's
+    8-10 km on Tuesday and the owner's higher Friday target are what happens, not what is
+    owed."""
+
+    def test_tuesday_is_higdons_number_not_the_clubs(self):
+        note = P.parse_week_note(WEEK_7)
+        pres, status = P.resolve(
+            "Katara Hills - Run - DBRC",
+            "Higdon Novice 1 midweek run. Plan asks 4.8 km (wk1) ... the club runs 8-10 km",
+            TUESDAY, note,
+        )
+        assert status == "ok" and pres.sport == P.SPORT_RUN
+        assert (pres.min_m, pres.max_m) == (7200, 7200)
+
+    def test_friday_is_higdons_number_not_the_owners(self):
+        note = P.parse_week_note(WEEK_7)
+        pres, _ = P.resolve("Long Run - DBRC", LONG_RUN_STANDING_NOTE, FRIDAY, note)
+        assert (pres.min_m, pres.max_m) == (11300, 11300)
+        assert pres.kind == "long"
+
+    def test_a_number_with_no_unit_or_a_race_name_is_read(self):
+        assert P.find_plan_distance("Higdon prescribes 6.4 - lower than you run") == 6400
+        assert P.find_plan_distance("(Higdon prescribes 5K race - lower)") == 5000
+        assert P.find_plan_distance("Higdon prescribes HALF MARATHON") == P.HALF_MARATHON_M
+        assert P.find_plan_distance("target 18 km") is None
+
+    def test_a_gym_session_is_never_given_the_runs_number(self):
+        note = P.parse_week_note(WEEK_7)
+        pres, _ = P.resolve("Gym before swim", GYM_ROUTINE, MONDAY, note)
+        assert pres.sport == P.SPORT_GYM and pres.min_m is None
+
+    def test_a_hint_still_beats_the_plan(self):
+        note = P.parse_week_note(WEEK_7)
+        pres, _ = P.resolve("Long Run - DBRC", "GA: fri sport=run dist=14km", FRIDAY, note)
+        assert pres.min_m == 14000
+
+    def test_a_week_without_a_plan_keeps_the_calendars_number(self):
+        note = P.parse_week_note(BASE_PHASE)
+        assert (note[TUESDAY].min_m, note[TUESDAY].max_m) == (8000, 10000)
+        assert note[TUESDAY].plan_m is None
+
+    def test_a_dated_one_off_with_its_own_distance_keeps_it(self):
+        """`W12: Run 3.2 km` is the taper week's own entry, more specific than the note."""
+        note = P.parse_week_note(WEEK_7)
+        pres, _ = P.resolve("W12: Run 3.2 km", "", TUESDAY, note)
+        assert pres.min_m == 3200

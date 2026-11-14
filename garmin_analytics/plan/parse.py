@@ -123,6 +123,10 @@ class Prescription:
     max_m: float | None = None
     duration_s: float | None = None
     optional: bool = False
+    #: What the named plan (Higdon) asks of the day, in metres, when the week note
+    #: quotes it. While a plan is on it is the target: `resolve` puts it in `min_m` and
+    #: `max_m`, and the owner's or the club's own number stays out of the scoring.
+    plan_m: float | None = None
     #: Which layer produced it: `hint` · `week-note` · `title` · `description`.
     source: str = ""
 
@@ -140,6 +144,7 @@ class Prescription:
             max_m=self.max_m if self.max_m is not None else other.max_m,
             duration_s=self.duration_s if self.duration_s is not None else other.duration_s,
             optional=self.optional or other.optional,
+            plan_m=self.plan_m if self.plan_m is not None else other.plan_m,
             source=self.source or other.source,
         )
 
@@ -213,6 +218,27 @@ def _first_distance(text: str) -> tuple[float | None, float | None]:
     lo = round(float(match.group("lo")) * scale, 1)
     hi = round(float(match.group("hi")) * scale, 1) if match.group("hi") else lo
     return lo, hi
+
+
+#: `Higdon says 4.8 km`, `Higdon prescribes 6.4 - lower than you run`, `Higdon prescribes
+#: 5K race`, `Higdon prescribes HALF MARATHON`. The number is anchored to the cue, so a bare
+#: one is safe to read here (the explicit-unit rule guards against numbers found loose in
+#: prose, like a gym routine's `2x10-12`); with no unit it is kilometres.
+_PLAN_FIGURE = re.compile(
+    r"(?:HIGDON\s+(?:SAYS|PRESCRIBES|ASKS)|PLAN\s+ASKS)\s+"
+    r"(?:(?P<half>HALF\s+MARATHON)|(?P<n>\d+(?:\.\d+)?)\s*(?P<unit>km|k)?(?![A-Za-z0-9]))",
+    re.IGNORECASE,
+)
+
+
+def find_plan_distance(text: str) -> float | None:
+    """The distance the named plan asks for in this text, in metres, or None."""
+    match = _PLAN_FIGURE.search(text or "")
+    if not match:
+        return None
+    if match.group("half"):
+        return HALF_MARATHON_M
+    return round(float(match.group("n")) * 1000.0, 1)
 
 
 def find_duration(text: str) -> float | None:
@@ -309,6 +335,7 @@ def parse_week_note(description: str) -> dict[int, Prescription]:
                 max_m=hi,
                 duration_s=find_duration(clause),
                 optional=bool(_OPTIONAL.search(clause)),
+                plan_m=find_plan_distance(clause),
                 source="week-note",
             )
             for day in days:
@@ -422,6 +449,22 @@ def resolve(
         return own, "ok"
 
     noted = (week_note or {}).get(weekday)
+    # While a named plan is on, its number is the day's target (the owner's decision: the
+    # plan is the base, and it is what the day is measured against). That includes the
+    # club's Tuesday, whose own `8-10 km` is what the club runs, not what the plan asks.
+    # A hint above is still exact and is never overridden.
+    # An event that states its own distance in its title (`W12: Run 3.2 km`, a dated
+    # one-off) is more specific than a week note and keeps it.
+    if (
+        noted is not None
+        and noted.plan_m is not None
+        and own.sport in (None, SPORT_RUN)
+        and find_distance(title)[0] is None
+    ):
+        if noted.sport in (None, SPORT_RUN):
+            combined = noted.merged_under(own)
+            return replace(combined, sport=combined.sport or SPORT_RUN,
+                           min_m=noted.plan_m, max_m=noted.plan_m), "ok"
     # The note is written per *day*, but a day can hold two sports — every Monday here
     # is an easy run and a gym session. Applying the day's note to both gave the gym a
     # 7.2 km target. So a note speaks only for an event of the same sport, or for one

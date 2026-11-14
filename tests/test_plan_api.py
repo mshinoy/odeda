@@ -119,7 +119,7 @@ class TestThePlan:
         path — ICS, parse, collapse, match, serialise — the phase works."""
         week = planned.get("/api/plan/week", params={"start": "2026-09-28"}).json()
         friday = next(s for s in week["sessions"] if s["day"] == "2026-10-02")
-        assert friday["planned_min_m"] == 18000
+        assert friday["planned_min_m"] == 11300
         assert friday["kind"] == "long"
 
     def test_a_done_session_carries_what_did_it(self, planned):
@@ -138,7 +138,7 @@ class TestThePlan:
     def test_targets_come_from_the_plan(self, planned):
         targets = planned.get("/api/plan").json()["targets"]
         assert targets["source"] == "plan"
-        assert targets["peak_weekly_km"] == pytest.approx(25.2, abs=0.1)
+        assert targets["peak_weekly_km"] == pytest.approx(18.5, abs=0.1)
 
     def test_the_week_summary_is_weighted_not_counted(self, planned):
         """One of two sessions done, but the one missed is the long run, so adherence is
@@ -219,7 +219,7 @@ class TestTheRacePanelsTargets:
 
     def test_the_volume_target_is_the_plans_peak_week(self, planned):
         race = planned.get("/api/race").json()
-        assert race["weekly_km_target"] == pytest.approx(25.2, abs=0.1)
+        assert race["weekly_km_target"] == pytest.approx(18.5, abs=0.1)
         assert race["targets"]["source"] == "plan"
 
     def test_a_plan_with_no_load_to_price_it_still_has_no_ctl_target(self, planned):
