@@ -80,6 +80,9 @@ class Settings:
     #: alternative — env always winning — means a change made in Settings silently
     #: reverts on the next restart, which is worse than having to edit one file.
     plan_ics_url: str = ""
+    #: How much of a ride's heart-rate load counts toward a missed long run, as running
+    #: (`forecast.RIDE_TO_RUN`). 0 counts a ride for nothing; 1 counts it in full.
+    ride_to_run: float = 0.6
     #: Where the React SPA's production build lands (`npm run build` in frontend/).
     #: A build artifact, not source: absent in a fresh clone, and the API runs without it.
     ui_dir: Path = Path(__file__).resolve().parent / "ui"
@@ -113,4 +116,5 @@ def load_settings() -> Settings:
         auto_sync_hours=float(os.environ.get("GA_AUTO_SYNC_HOURS", 6)),
         cache_warm=os.environ.get("GA_CACHE_WARM", "1") != "0",
         plan_ics_url=os.environ.get("GA_PLAN_ICS_URL", "").strip(),
+        ride_to_run=min(max(float(os.environ.get("GA_RIDE_TO_RUN", 0.6)), 0.0), 1.0),
     )

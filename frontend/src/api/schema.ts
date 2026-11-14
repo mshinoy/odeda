@@ -4058,8 +4058,22 @@ export interface components {
             planned_km: number;
             /** Done Km */
             done_km: number;
-            /** Shortfall Km */
+            /**
+             * Shortfall Km
+             * @description What is still owed after any ride's credit.
+             */
             shortfall_km: number;
+            /**
+             * Ride Km
+             * @description Kilometres ridden on the day instead; null when there was no ride.
+             */
+            ride_km?: number | null;
+            /**
+             * Ride Credit Km
+             * @description That ride's heart-rate load, discounted (`GA_RIDE_TO_RUN`, 0.6) and put in
+             *     kilometres of running: what it paid off of the long run. Null without a ride.
+             */
+            ride_credit_km?: number | null;
             /**
              * Cost Seconds
              * @description Seconds on the finish, by the same rule of thumb as the fitness adjustment: rough,

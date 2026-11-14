@@ -20,11 +20,21 @@ export interface LongRunNote {
 export function longRunNote(run: LongRun): LongRunNote {
   const day = `${formatWeekday(run.day)} ${formatDate(run.day)}`;
   const missed = run.verdict === "missed";
-  const heading = missed ? `The long run on ${day} was missed` : `The long run on ${day} was short`;
+  // A ride on the day pays off part of the run: still not a long run, so not green, but
+  // not a day off either.
+  const rode = run.ride_km != null && run.ride_credit_km != null;
+  const heading = rode
+    ? `The long run on ${day} was ${missed ? "swapped for a ride" : "short, with a ride"}`
+    : missed
+      ? `The long run on ${day} was missed`
+      : `The long run on ${day} was short`;
 
-  const what = missed
+  const planned = missed
     ? `${formatDecimal(run.planned_km)} km planned`
     : `${formatDecimal(run.done_km)} of ${formatDecimal(run.planned_km)} km`;
+  const what = rode
+    ? `${planned}; the ${formatDecimal(run.ride_km ?? 0)} km ride counts for about ${formatDecimal(run.ride_credit_km ?? 0)} km of running`
+    : planned;
   const cost =
     run.cost_seconds === null
       ? ""
@@ -34,5 +44,9 @@ export function longRunNote(run: LongRun): LongRunNote {
       ? ""
       : ` Next: ${formatWeekday(run.next_day)} ${formatDate(run.next_day)}, ${formatDecimal(run.next_km)} km.`;
 
-  return { heading, detail: `${what}.${cost}${next}`, tone: missed ? "critical" : "warning" };
+  return {
+    heading,
+    detail: `${what}.${cost}${next}`,
+    tone: missed && !rode ? "critical" : "warning",
+  };
 }

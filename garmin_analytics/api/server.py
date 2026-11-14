@@ -696,7 +696,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/race/forecast", response_model=RaceForecast)
     def api_race_forecast() -> dict[str, Any]:
         with store() as st:
-            return forecast_mod.compute_forecast(st)
+            return forecast_mod.compute_forecast(st, ride_to_run=settings.ride_to_run)
 
     # -- training plan -------------------------------------------------------
 
