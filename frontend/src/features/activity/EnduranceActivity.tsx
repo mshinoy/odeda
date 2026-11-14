@@ -20,6 +20,9 @@ import { MetricToggle } from "@/features/activity/MetricToggle";
 import { trackDuration } from "@/features/activity/playback";
 import type { CameraMode } from "@/features/activity/flyover";
 import { PlaybackControls } from "@/features/activity/PlaybackControls";
+import { findCrossings } from "@/features/activity/crossings";
+import { readoutSeries } from "@/features/activity/readout";
+import { ReplayReadout } from "@/features/activity/ReplayReadout";
 import { usePlayback } from "@/features/activity/usePlayback";
 import { useActivityWeather } from "@/api/queries/useActivityWeather";
 import { WindBadge } from "@/features/activity/WindBadge";
@@ -27,6 +30,7 @@ import { withHeadwind } from "@/features/activity/wind";
 import { availableMetrics, type MetricKey } from "@/lib/metrics";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { mapProvider } from "@/map/basemap";
+import { activityTrips } from "@/map/layers/makeTripsLayer";
 import { supportsWebGL } from "@/map/webgl";
 
 // deck.gl and the map libraries are large; load them only when a page shows a map.
@@ -57,6 +61,7 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
   // The replay clock is the activity's own elapsed time, so the map and the charts agree.
   const durationS = trackDuration(activity.streams.elapsedS);
   const playback = usePlayback(durationS);
+  const replaying = playback.playing || playback.currentS > 0;
   const [cameraMode, setCameraMode] = useState<CameraMode>("map");
   const [satellite, setSatellite] = useState(false);
   // Turning the flyover on starts the replay it flies along; turning it off leaves it be.
@@ -65,6 +70,11 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
     if (mode !== "map" && !playback.playing) playback.toggle();
   };
   const gaps = useActivityGaps(activity.summary.id, activity.track !== null).data ?? NO_GAPS;
+  const readout = useMemo(() => {
+    const trip = activityTrips(activity)[0];
+    const crossings = trip ? findCrossings(trip, activity.track, gaps) : [];
+    return readoutSeries(activity.streams, crossings);
+  }, [activity, gaps]);
   const performance = usePerformance();
   const bests = useMemo(
     () => newBests(performance.data, activity.summary.id),
@@ -122,6 +132,18 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
                 <EmptyState message="Maps need WebGL. Turn on hardware acceleration in the browser." />
               )}
               {weather && <WindBadge weather={weather} />}
+              {replaying && (
+                <div className="absolute top-14 left-3">
+                  <ReplayReadout
+                    series={readout}
+                    seconds={playback.currentS}
+                    replaySpeed={playback.speed}
+                    kind={activity.summary.kind}
+                    hrRest={athlete?.hr_rest}
+                    hrMax={athlete?.hr_max}
+                  />
+                </div>
+              )}
               <div className="absolute top-3 left-3">
                 <MetricToggle
                   options={metricOptions}

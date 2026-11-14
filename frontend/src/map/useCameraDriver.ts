@@ -40,6 +40,7 @@ export function useCameraDriver(
     } else if (target.current && isJump(target.current, camera)) {
       // Scrubbed somewhere else: go there, rather than flying across the route.
       shown.current = camera;
+      applyCamera(map, camera, true, bounds);
     }
     target.current = camera;
 

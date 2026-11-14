@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { withPaceWindow, type Activity, type ActivityGap } from "@/api/adapters";
 import { useTheme, useTokens } from "@/design/theme";
+import { findCrossings, followRoads } from "@/features/activity/crossings";
 import { buildFlyover, cameraAt, type CameraMode } from "@/features/activity/flyover";
 import { indexAtElapsed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
@@ -71,7 +72,12 @@ export function ActivityMap({
     [activity],
   );
   const legendRange = useMemo(() => activityMetricRange(coloured, colorBy), [coloured, colorBy]);
-  const trips = useMemo(() => activityTrips(activity), [activity]);
+  // Through a tunnel the watch records no position. Where the road there is known from
+  // other rides, the dot, the trail and the camera follow it instead of cutting across.
+  const trips = useMemo(() => {
+    const [trip] = activityTrips(activity);
+    return trip ? [followRoads(trip, findCrossings(trip, activity.track, gaps))] : [];
+  }, [activity, gaps]);
   const flyover = useMemo(
     () => (trips[0] ? buildFlyover(trips[0], activity.summary.kind) : null),
     [trips, activity.summary.kind],
