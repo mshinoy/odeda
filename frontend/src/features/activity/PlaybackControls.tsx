@@ -1,6 +1,7 @@
-import { Pause, Play } from "lucide-react";
+import { Box, Pause, Play, Satellite } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/NativeSelect";
+import { Toggle } from "@/components/ui/toggle";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
 import { formatDuration } from "@/lib/format";
@@ -8,10 +9,26 @@ import { formatDuration } from "@/lib/format";
 interface PlaybackControlsProps {
   playback: Playback;
   durationS: number;
+  /** The 3D flyover: opens on a drone shot, then swoops down into a close follow. */
+  flyover: boolean;
+  onFlyover: (on: boolean) => void;
+  /** Satellite imagery needs Mapbox; without it the toggle is not offered. */
+  satellite: boolean | null;
+  onSatellite: (on: boolean) => void;
 }
 
-/** Play/pause, the elapsed time, a scrubber and how fast it replays. */
-export function PlaybackControls({ playback, durationS }: PlaybackControlsProps) {
+/**
+ * Play/pause, the elapsed time, a scrubber, how fast it replays, and whether the map
+ * flies along it in 3D.
+ */
+export function PlaybackControls({
+  playback,
+  durationS,
+  flyover,
+  onFlyover,
+  satellite,
+  onSatellite,
+}: PlaybackControlsProps) {
   const { currentS, playing, speed, toggle, setSpeed, scrubTo } = playback;
 
   return (
@@ -50,6 +67,20 @@ export function PlaybackControls({ playback, durationS }: PlaybackControlsProps)
           </option>
         ))}
       </NativeSelect>
+      <Toggle size="sm" aria-label="3D flyover" pressed={flyover} onPressedChange={onFlyover}>
+        <Box />
+        3D
+      </Toggle>
+      {satellite !== null && (
+        <Toggle
+          size="sm"
+          aria-label="Satellite imagery"
+          pressed={satellite}
+          onPressedChange={onSatellite}
+        >
+          <Satellite />
+        </Toggle>
+      )}
     </div>
   );
 }

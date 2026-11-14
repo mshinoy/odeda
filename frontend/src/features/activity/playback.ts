@@ -2,8 +2,8 @@
 // Playback time is the activity's own `elapsed_s`, so the map, the scrubber and the
 // charts' crosshair all speak the same clock.
 
-/** How much faster than real time playback runs. A 90-minute run takes ~54 s at 100×. */
-export const PLAYBACK_SPEEDS = [50, 100, 200] as const;
+/** How much faster than real time playback runs. A 90-minute run takes ~54 s at 100×, ~3.6 min at 25×. */
+export const PLAYBACK_SPEEDS = [25, 50, 100, 200] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
 export const DEFAULT_SPEED: PlaybackSpeed = 100;

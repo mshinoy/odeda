@@ -3,7 +3,7 @@
 // context per card, and browsers stop at about sixteen.
 import type { Theme } from "@/design/tokens";
 import { PIECE_SEPARATOR } from "@/lib/polyline";
-import { basemapStyle, mapEnv, providerFor, type MapEnv } from "@/map/basemap";
+import { mapEnv, providerFor, staticBasemapStyle, type MapEnv } from "@/map/basemap";
 
 const STATIC_API = "https://api.mapbox.com/styles/v1";
 
@@ -30,7 +30,7 @@ export interface StaticMapRequest {
  */
 export function staticMapUrl(request: StaticMapRequest, env: MapEnv = mapEnv): string | null {
   if (providerFor(env) !== "mapbox") return null;
-  const style = basemapStyle("mapbox", request.theme, env).replace(/^mapbox:\/\/styles\//, "");
+  const style = staticBasemapStyle(request.theme).replace(/^mapbox:\/\/styles\//, "");
   const width = Math.min(Math.round(request.width), MAX_SIDE_PX);
   const height = Math.min(Math.round(request.height), MAX_SIDE_PX);
   const color = request.color.replace(/^#/, "");

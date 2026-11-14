@@ -17,7 +17,7 @@ export function WindBadge({ weather }: { weather: WeatherReading }) {
       role="img"
       aria-label={label}
       title={label}
-      className="bg-background/90 text-muted-foreground pointer-events-none absolute right-3 bottom-14 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs tabular-nums shadow-sm backdrop-blur"
+      className="bg-background/90 text-muted-foreground pointer-events-none absolute right-3 bottom-14 z-10 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs tabular-nums shadow-sm backdrop-blur"
     >
       {/* `from` is where it comes from; the arrow points where it goes. */}
       <ArrowUp

@@ -5,6 +5,7 @@ import type { Activity, ActivityStreams, ActivityTrack } from "@/api/adapters";
 import { hexToRgba } from "@/design/scales";
 import { colorTokens } from "@/design/tokens";
 import {
+  crossedCount,
   cursorDots,
   cursorPosition,
   makeCursorLayer,
@@ -249,5 +250,40 @@ describe("routeSegments across a recording gap", () => {
     const paused: ActivityTrack = { ...track, gapBefore: [false, false, true, false] };
     const segments = routeSegments(paused, streams().hr, light);
     expect(segments.map((s) => s.streamIndex)).toEqual([1, 4]);
+  });
+});
+
+describe("crossedCount", () => {
+  // 100 pieces, the piece k coloured from stream index k + 1.
+  const pieces = Array.from({ length: 100 }, (_, k) => ({
+    path: [
+      [51 + k * 0.001, 25],
+      [51 + (k + 1) * 0.001, 25],
+    ] as [[number, number], [number, number]],
+    color: [0, 0, 0, 255] as [number, number, number, number],
+    streamIndex: k + 1,
+  }));
+
+  it("shows nothing before the start", () => {
+    expect(crossedCount(pieces, 0)).toBe(0);
+  });
+
+  it("shows only what has been crossed, in whole chunks", () => {
+    // 45 pieces crossed, held back to the last whole chunk of 30.
+    expect(crossedCount(pieces, 45)).toBe(30);
+    expect(crossedCount(pieces, 29)).toBe(0);
+    expect(crossedCount(pieces, 60)).toBe(60);
+    expect(crossedCount(pieces, 89)).toBe(60);
+  });
+
+  it("shows the whole route once it is done, whatever the chunk", () => {
+    expect(crossedCount(pieces, 100)).toBe(100);
+    expect(crossedCount(pieces, 5000)).toBe(100);
+  });
+
+  it("copes with a route that skips a recording gap", () => {
+    const gapped = pieces.filter((piece) => piece.streamIndex < 40 || piece.streamIndex > 60);
+    expect(crossedCount(gapped, 50, 1)).toBe(39);
+    expect(crossedCount(gapped, 61, 1)).toBe(40);
   });
 });

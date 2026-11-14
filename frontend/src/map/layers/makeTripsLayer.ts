@@ -79,6 +79,34 @@ export function makeTripsLayer({
   });
 }
 
+/**
+ * Where the trip is at `seconds`, interpolated between samples the way the trail's own
+ * head is, so a dot drawn here sits on the head instead of trailing at the last sample.
+ * Null for a trip with no path; before the start and after the end it holds the end.
+ */
+export function tripPositionAt(trip: Trip, seconds: number): [number, number] | null {
+  const { path, timestamps } = trip;
+  const last = path.length - 1;
+  if (last < 0) return null;
+  if (last === 0 || seconds <= (timestamps[0] ?? 0)) return path[0] ?? null;
+  if (seconds >= (timestamps[last] ?? 0)) return path[last] ?? null;
+
+  let lo = 0;
+  let hi = last;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if ((timestamps[mid] ?? Infinity) <= seconds) lo = mid;
+    else hi = mid - 1;
+  }
+  const from = path[lo];
+  const to = path[lo + 1];
+  if (!from || !to) return from ?? null;
+  const t0 = timestamps[lo] ?? 0;
+  const t1 = timestamps[lo + 1] ?? t0;
+  const fraction = t1 > t0 ? (seconds - t0) / (t1 - t0) : 0;
+  return [from[0] + (to[0] - from[0]) * fraction, from[1] + (to[1] - from[1]) * fraction];
+}
+
 /** An activity's trip as deck.gl data: one item, or none when it has no track. */
 export function activityTrips(activity: Activity): Trip[] {
   if (!activity.track) return [];
