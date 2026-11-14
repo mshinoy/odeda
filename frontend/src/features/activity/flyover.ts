@@ -3,18 +3,11 @@
 // frame, so scrubbing, pausing and replaying all land on the same shot.
 import type { ActivityKind } from "@/lib/activityKind";
 import type { Trip } from "@/map/layers/makeTripsLayer";
-import { normalise } from "@/map/camera";
+import { normalise, shortestTurn } from "@/map/camera";
 import type { MapCamera } from "@/map/types";
 
-/** `map` is the flat, user-driven map; the others take the camera over. */
-export const CAMERA_MODES = ["map", "chase", "orbit"] as const;
-export type CameraMode = (typeof CAMERA_MODES)[number];
-
-export const CAMERA_LABELS: Record<CameraMode, string> = {
-  map: "Map",
-  chase: "Chase camera",
-  orbit: "Drone orbit",
-};
+/** `map` is the flat, user-driven map; `flyover` takes the camera over. */
+export type CameraMode = "map" | "flyover";
 
 /** The camera looks this far down the road, so the heading starts turning before a bend. */
 const LOOKAHEAD_M = 200;
@@ -31,12 +24,16 @@ const CHASE_AHEAD_M = 60;
 const CHASE_ZOOM_RIDE = 15.6;
 const CHASE_ZOOM_ON_FOOT = 16.4;
 
-const ORBIT_PITCH = 58;
-/** The viewport the orbit zoom is fitted for; the camera does not know the real one. */
-const ORBIT_VIEWPORT_PX = 700;
-const ORBIT_FIT_MARGIN = 1.4;
-/** Tilting hides the far half of the ground, so the orbit sits a little further out. */
-const ORBIT_PITCH_ZOOM_OUT = 0.6;
+const DRONE_PITCH = 58;
+/** The swoop from the drone shot down to the follow camera lasts about this long on screen. */
+const SWOOP_WALL_S = 3;
+/** A short activity gets a short swoop: never more than this share of it. */
+const MAX_SWOOP_SHARE = 0.15;
+/** The viewport the drone zoom is fitted for; the camera does not know the real one. */
+const DRONE_VIEWPORT_PX = 700;
+const DRONE_FIT_MARGIN = 1.4;
+/** Tilting hides the far half of the ground, so the drone shot sits a little further out. */
+const DRONE_PITCH_ZOOM_OUT = 0.6;
 const MIN_ZOOM = 10;
 const MAX_ZOOM = 17;
 
@@ -55,7 +52,7 @@ export interface Flyover {
   heading: number[];
   centre: [number, number];
   chaseZoom: number;
-  orbitZoom: number;
+  droneZoom: number;
 }
 
 /** The camera's data for a trip, or null when there is no track worth flying over. */
@@ -83,35 +80,55 @@ export function buildFlyover(trip: Trip, kind: ActivityKind): Flyover | null {
     heading: smoothedHeading(path, distanceM),
     centre,
     chaseZoom: kind === "ride" ? CHASE_ZOOM_RIDE : CHASE_ZOOM_ON_FOOT,
-    orbitZoom: orbitZoomFor(extentM, centre[1]),
+    droneZoom: droneZoomFor(extentM, centre[1]),
   };
 }
 
 /**
- * The camera at `seconds`, or null for the plain map. Chase rides behind the point
- * looking where it is heading; orbit circles the whole route once, start to finish.
+ * The camera at `seconds`, or null for the plain map. A flyover opens on a drone shot
+ * high over the whole route, facing the way the rider sets off, and swoops quickly down
+ * behind the rider to follow close. `speed` is the replay's: the swoop takes about as
+ * long on screen at any speed.
  */
-export function cameraAt(flyover: Flyover, mode: CameraMode, seconds: number): MapCamera | null {
+export function cameraAt(
+  flyover: Flyover,
+  mode: CameraMode,
+  seconds: number,
+  speed: number,
+): MapCamera | null {
   if (mode === "map") return null;
 
-  const { trip, heading } = flyover;
-  const { index, fraction } = locate(trip.timestamps, seconds);
+  const { timestamps } = flyover.trip;
+  const start = timestamps[0] ?? 0;
+  const duration = Math.max((timestamps[timestamps.length - 1] ?? start) - start, 0);
+  const swoopS = Math.min(SWOOP_WALL_S * speed, duration * MAX_SWOOP_SHARE);
+  const elapsed = seconds - start;
 
-  if (mode === "orbit") {
-    const start = trip.timestamps[0] ?? 0;
-    const end = trip.timestamps[trip.timestamps.length - 1] ?? start;
-    const progress = end > start ? clamp((seconds - start) / (end - start), 0, 1) : 0;
-    return {
-      longitude: flyover.centre[0],
-      latitude: flyover.centre[1],
-      zoom: flyover.orbitZoom,
-      pitch: ORBIT_PITCH,
-      bearing: normalise((heading[0] ?? 0) + 360 * progress),
-    };
-  }
+  const follow = followCamera(flyover, seconds);
+  if (elapsed >= swoopS) return follow;
 
+  const drone: MapCamera = {
+    longitude: flyover.centre[0],
+    latitude: flyover.centre[1],
+    zoom: flyover.droneZoom,
+    pitch: DRONE_PITCH,
+    bearing: followCamera(flyover, start).bearing,
+  };
+  const blend = smoothstep(Math.max(elapsed, 0) / swoopS);
+  return {
+    longitude: drone.longitude + (follow.longitude - drone.longitude) * blend,
+    latitude: drone.latitude + (follow.latitude - drone.latitude) * blend,
+    zoom: drone.zoom + (follow.zoom - drone.zoom) * blend,
+    pitch: drone.pitch + (follow.pitch - drone.pitch) * blend,
+    bearing: normalise(drone.bearing + shortestTurn(drone.bearing, follow.bearing) * blend),
+  };
+}
+
+/** Close behind the rider, looking where the route is heading. */
+function followCamera(flyover: Flyover, seconds: number): MapCamera {
+  const { index, fraction } = locate(flyover.trip.timestamps, seconds);
   const here = interpolate(flyover.cameraPath, index, fraction);
-  const facing = interpolate1(heading, index, fraction);
+  const facing = interpolate1(flyover.heading, index, fraction);
   const ahead = offsetAlong(here, facing, CHASE_AHEAD_M);
   return {
     longitude: ahead[0],
@@ -122,6 +139,12 @@ export function cameraAt(flyover: Flyover, mode: CameraMode, seconds: number): M
   };
 }
 
+/** 0 to 1 with a soft start and finish, so a hand-off has no corner in it. */
+function smoothstep(x: number): number {
+  const t = clamp(x, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
 function clamp(value: number, low: number, high: number): number {
   return Math.min(Math.max(value, low), high);
 }
@@ -130,12 +153,12 @@ function metresPerDegLon(latitude: number): number {
   return METRES_PER_DEG_LON_AT_EQUATOR * Math.cos((latitude * Math.PI) / 180);
 }
 
-function orbitZoomFor(extentM: number, latitude: number): number {
-  const metresPerPixel = (extentM * ORBIT_FIT_MARGIN) / ORBIT_VIEWPORT_PX;
+function droneZoomFor(extentM: number, latitude: number): number {
+  const metresPerPixel = (extentM * DRONE_FIT_MARGIN) / DRONE_VIEWPORT_PX;
   const zoom =
     Math.log2(
       (WORLD_METRES_PER_PIXEL_AT_ZOOM_0 * Math.cos((latitude * Math.PI) / 180)) / metresPerPixel,
-    ) - ORBIT_PITCH_ZOOM_OUT;
+    ) - DRONE_PITCH_ZOOM_OUT;
   return clamp(zoom, MIN_ZOOM, MAX_ZOOM);
 }
 

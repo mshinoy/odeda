@@ -18,7 +18,7 @@ export function normalise(degrees: number): number {
 }
 
 /** The turn from `from` to `to` that is under 180°, signed. */
-function shortestTurn(from: number, to: number): number {
+export function shortestTurn(from: number, to: number): number {
   return ((((to - from) % 360) + 540) % 360) - 180;
 }
 

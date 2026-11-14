@@ -1,8 +1,7 @@
-import { Pause, Play, Satellite } from "lucide-react";
+import { Box, Pause, Play, Satellite } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/NativeSelect";
 import { Toggle } from "@/components/ui/toggle";
-import { CAMERA_LABELS, CAMERA_MODES, type CameraMode } from "@/features/activity/flyover";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
 import { formatDuration } from "@/lib/format";
@@ -10,22 +9,23 @@ import { formatDuration } from "@/lib/format";
 interface PlaybackControlsProps {
   playback: Playback;
   durationS: number;
-  cameraMode: CameraMode;
-  onCameraMode: (mode: CameraMode) => void;
+  /** The 3D flyover: opens on a drone shot, then swoops down into a close follow. */
+  flyover: boolean;
+  onFlyover: (on: boolean) => void;
   /** Satellite imagery needs Mapbox; without it the toggle is not offered. */
   satellite: boolean | null;
   onSatellite: (on: boolean) => void;
 }
 
 /**
- * Play/pause, the elapsed time, a scrubber, how fast it replays, and the camera: the
- * flat map, or a chase camera or drone orbit flown along the replay.
+ * Play/pause, the elapsed time, a scrubber, how fast it replays, and whether the map
+ * flies along it in 3D.
  */
 export function PlaybackControls({
   playback,
   durationS,
-  cameraMode,
-  onCameraMode,
+  flyover,
+  onFlyover,
   satellite,
   onSatellite,
 }: PlaybackControlsProps) {
@@ -67,18 +67,10 @@ export function PlaybackControls({
           </option>
         ))}
       </NativeSelect>
-      <NativeSelect
-        aria-label="Camera"
-        className="h-7 text-xs"
-        value={cameraMode}
-        onChange={(event) => onCameraMode(event.target.value as CameraMode)}
-      >
-        {CAMERA_MODES.map((mode) => (
-          <option key={mode} value={mode}>
-            {CAMERA_LABELS[mode]}
-          </option>
-        ))}
-      </NativeSelect>
+      <Toggle size="sm" aria-label="3D flyover" pressed={flyover} onPressedChange={onFlyover}>
+        <Box />
+        3D
+      </Toggle>
       {satellite !== null && (
         <Toggle
           size="sm"

@@ -12,9 +12,11 @@ import type { MetricKey } from "@/lib/metrics";
 import { BaseMap } from "@/map/BaseMap";
 import {
   activityMetricRange,
+  activityRouteSegments,
+  crossedCount,
+  makeRouteLayerFrom,
   makeCursorLayer,
   makeReplayCursorLayer,
-  makeRouteLayer,
   pickedStreamIndex,
   routeBounds,
 } from "@/map/layers/makeRouteLayer";
@@ -75,14 +77,32 @@ export function ActivityMap({
     [trips, activity.summary.kind],
   );
   const camera = useMemo(
-    () => (flyover ? cameraAt(flyover, cameraMode, playback.currentS) : null),
-    [flyover, cameraMode, playback.currentS],
+    () => (flyover ? cameraAt(flyover, cameraMode, playback.currentS, playback.speed) : null),
+    [flyover, cameraMode, playback.currentS, playback.speed],
   );
 
   // Route data only depends on these, so a hover never rebuilds it.
+  const routeSegments = useMemo(
+    () => activityRouteSegments({ activity: coloured, colorBy, tokens }),
+    [coloured, colorBy, tokens],
+  );
+  // In a flyover the route is drawn only where it has been crossed, so the way ahead
+  // stays a surprise. The count moves in chunks, so the layer is not rebuilt every frame.
+  const flying = camera !== null;
+  const crossed = useMemo(
+    () =>
+      routeSegments && flying
+        ? crossedCount(routeSegments, indexAtElapsed(elapsedS, playback.currentS))
+        : null,
+    [routeSegments, flying, elapsedS, playback.currentS],
+  );
+  const shownSegments = useMemo(
+    () => (routeSegments && crossed !== null ? routeSegments.slice(0, crossed) : routeSegments),
+    [routeSegments, crossed],
+  );
   const routeLayer = useMemo(
-    () => makeRouteLayer({ activity: coloured, colorBy, tokens, theme }),
-    [coloured, colorBy, tokens, theme],
+    () => (shownSegments ? makeRouteLayerFrom(shownSegments, { colorBy, theme }) : null),
+    [shownSegments, colorBy, theme],
   );
   const tripsLayer = useMemo(
     () =>

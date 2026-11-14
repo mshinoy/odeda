@@ -5,6 +5,10 @@ import type { Trip } from "@/map/layers/makeTripsLayer";
 
 // About 11 m per step at 25°N: 0.0001° of latitude, or a little more of longitude.
 const STEP_DEG = 0.0001;
+const SPEED = 100;
+// 200 points ten seconds apart is 1990 s; at 100× the swoop to the follow camera is
+// capped at 15% of it (298 s), so the follow camera is on from there.
+const FOLLOWING_FROM_S = 310;
 
 function tripOf(path: [number, number][]): Trip {
   return { path, timestamps: path.map((_, i) => i * 10) };
@@ -29,6 +33,13 @@ function flyoverOf(path: [number, number][]) {
   return flyover;
 }
 
+/** The flyover camera, which is never null once the mode is `flyover`. */
+function shot(path: ReturnType<typeof flyoverOf>, seconds: number, speed = SPEED) {
+  const camera = cameraAt(path, "flyover", seconds, speed);
+  if (!camera) throw new Error("expected a camera");
+  return camera;
+}
+
 describe("buildFlyover", () => {
   it("has nothing to follow on a single point or a parked track", () => {
     expect(buildFlyover(tripOf([[51.5, 25.3]]), "run")).toBeNull();
@@ -43,20 +54,18 @@ describe("buildFlyover", () => {
   });
 });
 
-describe("chase camera", () => {
+describe("the follow camera", () => {
   it("faces the direction of travel", () => {
     const east = flyoverOf(line(200, STEP_DEG, 0));
-    expect(apart(cameraAt(east, "chase", 1000)?.bearing ?? -999, 90)).toBeLessThan(2);
+    expect(apart(shot(east, 1000).bearing, 90)).toBeLessThan(2);
 
     const north = flyoverOf(line(200, 0, STEP_DEG));
-    expect(apart(cameraAt(north, "chase", 1000)?.bearing ?? -999, 0)).toBeLessThan(2);
+    expect(apart(shot(north, 1000).bearing, 0)).toBeLessThan(2);
   });
 
   it("looks ahead of the point, not at it", () => {
     const east = flyoverOf(line(200, STEP_DEG, 0));
-    const camera = cameraAt(east, "chase", 1000);
-    const here = 51.5 + 100 * STEP_DEG;
-    expect(camera?.longitude).toBeGreaterThan(here);
+    expect(shot(east, 1000).longitude).toBeGreaterThan(51.5 + 100 * STEP_DEG);
   });
 
   it("starts turning before a corner and finishes after it", () => {
@@ -67,9 +76,9 @@ describe("chase camera", () => {
       ...line(100, 0, STEP_DEG).map(([, lat]): [number, number] => [corner, lat]),
     ];
     const flyover = flyoverOf(path);
-    const before = cameraAt(flyover, "chase", 90 * 10)?.bearing ?? -999;
-    const atCorner = cameraAt(flyover, "chase", 99 * 10)?.bearing ?? -999;
-    const after = cameraAt(flyover, "chase", 190 * 10)?.bearing ?? -999;
+    const before = shot(flyover, 900).bearing;
+    const atCorner = shot(flyover, 990).bearing;
+    const after = shot(flyover, 1900).bearing;
 
     expect(before).toBeGreaterThan(40);
     expect(before).toBeLessThan(90);
@@ -85,58 +94,11 @@ describe("chase camera", () => {
       lat,
     ]);
     const flyover = flyoverOf(path);
-    for (const seconds of [200, 600, 1000, 1500]) {
-      expect(apart(cameraAt(flyover, "chase", seconds)?.bearing ?? -999, 0)).toBeLessThan(25);
+    for (const seconds of [800, 1000, 1500, 1900]) {
+      expect(apart(shot(flyover, seconds).bearing, 0)).toBeLessThan(25);
     }
   });
 
-  it("holds the same shot for the same time, whatever came before", () => {
-    const flyover = flyoverOf(line(200, STEP_DEG, STEP_DEG / 2));
-    const first = cameraAt(flyover, "chase", 700);
-    cameraAt(flyover, "chase", 1900);
-    cameraAt(flyover, "chase", 10);
-    expect(cameraAt(flyover, "chase", 700)).toEqual(first);
-  });
-
-  it("stays on the track before it starts and after it ends", () => {
-    const flyover = flyoverOf(line(200, STEP_DEG, 0));
-    const early = cameraAt(flyover, "chase", -50);
-    const start = cameraAt(flyover, "chase", 0);
-    const late = cameraAt(flyover, "chase", 99_999);
-    const end = cameraAt(flyover, "chase", 1990);
-    expect(early).toEqual(start);
-    expect(late).toEqual(end);
-  });
-});
-
-describe("drone orbit", () => {
-  it("circles the whole route once, start to finish, around its centre", () => {
-    const flyover = flyoverOf(line(200, STEP_DEG, STEP_DEG / 3));
-    const start = cameraAt(flyover, "orbit", 0);
-    const half = cameraAt(flyover, "orbit", 995);
-    const end = cameraAt(flyover, "orbit", 1990);
-
-    expect(apart(half?.bearing ?? -999, (start?.bearing ?? 0) + 180)).toBeLessThan(2);
-    expect(apart(end?.bearing ?? -999, start?.bearing ?? 0)).toBeLessThan(0.5);
-    expect(start?.longitude).toBe(flyover.centre[0]);
-    expect(start?.latitude).toBe(flyover.centre[1]);
-    expect(end?.zoom).toBe(start?.zoom);
-  });
-
-  it("sits further out over a bigger route", () => {
-    const small = flyoverOf(line(200, STEP_DEG, 0));
-    const big = flyoverOf(line(200, STEP_DEG * 20, 0));
-    expect(big.orbitZoom).toBeLessThan(small.orbitZoom);
-  });
-});
-
-describe("map", () => {
-  it("leaves the camera to the user", () => {
-    expect(cameraAt(flyoverOf(line(200, STEP_DEG, 0)), "map", 100)).toBeNull();
-  });
-});
-
-describe("camera path", () => {
   it("rounds a GPS zigzag into a smoother line than the track itself", () => {
     // Heading east, zigzagging 15 m north and south on alternate points.
     const zigzag = line(200, STEP_DEG, 0).map(([lon, lat], i): [number, number] => [
@@ -144,11 +106,92 @@ describe("camera path", () => {
       lat + (i % 2 === 0 ? 0.00015 : -0.00015),
     ]);
     const flyover = flyoverOf(zigzag);
-    const lats = [900, 905, 910, 915, 920].map(
-      (seconds) => cameraAt(flyover, "chase", seconds)?.latitude ?? 0,
-    );
+    const lats = [900, 905, 910, 915, 920].map((seconds) => shot(flyover, seconds).latitude);
     const spread = Math.max(...lats) - Math.min(...lats);
     // The track swings 0.0003° (about 33 m) peak to peak; the camera keeps under a third of it.
     expect(spread).toBeLessThan(0.0001);
+  });
+});
+
+describe("the drone shot", () => {
+  it("starts wide over the whole route, tilted, around its centre", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, STEP_DEG / 3));
+    const camera = shot(flyover, 0);
+    expect(camera.longitude).toBe(flyover.centre[0]);
+    expect(camera.latitude).toBe(flyover.centre[1]);
+    expect(camera.zoom).toBe(flyover.droneZoom);
+    expect(camera.zoom).toBeLessThan(flyover.chaseZoom);
+    expect(camera.pitch).toBeGreaterThan(0);
+  });
+
+  it("faces the way the rider sets off, and does not turn on the spot", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, 0));
+    expect(apart(shot(flyover, 0).bearing, 90)).toBeLessThan(2);
+    // Heading east throughout, so the whole swoop keeps facing east.
+    for (const seconds of [50, 150, 250, 400]) {
+      expect(apart(shot(flyover, seconds).bearing, 90)).toBeLessThan(2);
+    }
+  });
+
+  it("sits further out over a bigger route", () => {
+    const small = flyoverOf(line(200, STEP_DEG, 0));
+    const big = flyoverOf(line(200, STEP_DEG * 20, 0));
+    expect(big.droneZoom).toBeLessThan(small.droneZoom);
+  });
+});
+
+describe("the swoop from the drone shot to follow", () => {
+  it("has no jump in it: each step moves the view only a little", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, STEP_DEG / 3));
+    for (let seconds = 0; seconds < 330; seconds += 5) {
+      const a = shot(flyover, seconds);
+      const b = shot(flyover, seconds + 5);
+      expect(Math.abs(a.zoom - b.zoom)).toBeLessThan(0.15);
+      expect(Math.abs(a.pitch - b.pitch)).toBeLessThan(2);
+      expect(apart(a.bearing, b.bearing)).toBeLessThan(5);
+      expect(Math.abs(a.longitude - b.longitude)).toBeLessThan(0.0005);
+    }
+  });
+
+  it("comes down to the follow camera's own zoom and tilt", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, 0));
+    const camera = shot(flyover, FOLLOWING_FROM_S);
+    expect(camera.zoom).toBe(flyover.chaseZoom);
+    expect(camera.pitch).toBeGreaterThan(60);
+  });
+});
+
+describe("timing", () => {
+  it("swoops in about the same time on screen at any speed, so a slower replay swoops sooner", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, 0));
+    // At 200 s, a 50× replay (a 150 s swoop) is already following; a 100× one is not.
+    expect(shot(flyover, 200, 50).zoom).toBe(flyover.chaseZoom);
+    expect(shot(flyover, 200, 100).zoom).not.toBe(flyover.chaseZoom);
+  });
+
+  it("keeps a short activity's swoop to a share of it", () => {
+    const flyover = flyoverOf(line(20, STEP_DEG, 0));
+    // 190 s long: following by 30% of the way through at any speed.
+    expect(shot(flyover, 190 * 0.3, 200).zoom).toBe(flyover.chaseZoom);
+  });
+
+  it("holds the same shot for the same time, whatever came before", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, STEP_DEG / 2));
+    const first = shot(flyover, 900);
+    shot(flyover, 1900);
+    shot(flyover, 10);
+    expect(shot(flyover, 900)).toEqual(first);
+  });
+
+  it("stays on the track before it starts and after it ends", () => {
+    const flyover = flyoverOf(line(200, STEP_DEG, 0));
+    expect(shot(flyover, -50)).toEqual(shot(flyover, 0));
+    expect(shot(flyover, 99_999)).toEqual(shot(flyover, 1990));
+  });
+});
+
+describe("map", () => {
+  it("leaves the camera to the user", () => {
+    expect(cameraAt(flyoverOf(line(200, STEP_DEG, 0)), "map", 100, SPEED)).toBeNull();
   });
 });

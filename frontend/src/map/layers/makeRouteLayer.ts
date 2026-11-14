@@ -15,6 +15,8 @@ export const ROUTE_LAYER_ID = "activity-route";
 export const CURSOR_LAYER_ID = "activity-cursor";
 
 const ROUTE_WIDTH_PX = 4;
+/** Pieces of route revealed at a time during a flyover; the trail covers the held-back few. */
+const CROSSED_CHUNK = 30;
 const CURSOR_RADIUS_PX = 6;
 const CURSOR_STROKE_PX = 2;
 
@@ -178,12 +180,50 @@ export function makeRouteLayer({
   tokens,
   theme,
 }: RouteLayerOptions): PathLayer<RouteSegment> | null {
+  const segments = activityRouteSegments({ activity, colorBy, tokens });
+  return segments === null ? null : makeRouteLayerFrom(segments, { colorBy, theme });
+}
+
+/** The activity's coloured route pieces, or null without GPS. Costly: build once, not per frame. */
+export function activityRouteSegments({
+  activity,
+  colorBy,
+  tokens,
+}: Omit<RouteLayerOptions, "theme">): RouteSegment[] | null {
   if (!activity.track) return null;
   const values = metrics[colorBy].scaleValues(activity.streams);
+  return routeSegments(activity.track, values, tokens);
+}
 
+/**
+ * How many of the route's pieces a flyover has crossed by `throughIndex` (a stream
+ * index), rounded down to a whole `chunk` so the layer is rebuilt every few seconds of
+ * activity, not on every sample. The trail drawn over the head of the route covers the
+ * pieces the rounding holds back. The whole route once it is done.
+ */
+export function crossedCount(
+  segments: readonly RouteSegment[],
+  throughIndex: number,
+  chunk = CROSSED_CHUNK,
+): number {
+  let lo = 0;
+  let hi = segments.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((segments[mid]?.streamIndex ?? Infinity) <= throughIndex) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo === segments.length ? lo : lo - (lo % chunk);
+}
+
+/** The route drawn from pieces already built, so a caller can show only some of them. */
+export function makeRouteLayerFrom(
+  segments: readonly RouteSegment[],
+  { colorBy, theme }: { colorBy: MetricKey; theme: Theme },
+): PathLayer<RouteSegment> {
   return new PathLayer<RouteSegment>({
     id: ROUTE_LAYER_ID,
-    data: routeSegments(activity.track, values, tokens),
+    data: segments,
     getPath: (segment) => segment.path,
     getColor: (segment) => segment.color,
     getWidth: ROUTE_WIDTH_PX,

@@ -59,7 +59,7 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
   const playback = usePlayback(durationS);
   const [cameraMode, setCameraMode] = useState<CameraMode>("map");
   const [satellite, setSatellite] = useState(false);
-  // Picking a flyover starts the replay it flies along; going back to the map leaves it be.
+  // Turning the flyover on starts the replay it flies along; turning it off leaves it be.
   const chooseCamera = (mode: CameraMode) => {
     setCameraMode(mode);
     if (mode !== "map" && !playback.playing) playback.toggle();
@@ -135,8 +135,8 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
               <PlaybackControls
                 playback={playback}
                 durationS={durationS}
-                cameraMode={cameraMode}
-                onCameraMode={chooseCamera}
+                flyover={cameraMode === "flyover"}
+                onFlyover={(on) => chooseCamera(on ? "flyover" : "map")}
                 satellite={mapProvider === "mapbox" ? satellite : null}
                 onSatellite={setSatellite}
               />
