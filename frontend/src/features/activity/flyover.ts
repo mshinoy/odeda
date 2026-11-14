@@ -18,11 +18,20 @@ const PATH_SMOOTHING_M = 80;
 /** A track shorter than this has no direction worth following. */
 const MIN_TRAVEL_M = 50;
 
-const CHASE_PITCH = 65;
-/** The point rides below the middle of the screen, with the road ahead above it. */
+const CHASE_PITCH = 68;
+/**
+ * The point rides below the middle of the screen, with the road ahead above it: this far
+ * ahead at `REF_ZOOM`, and half as far for every zoom level closer, so the dot stays put
+ * on screen however close the camera is.
+ */
 const CHASE_AHEAD_M = 60;
-const CHASE_ZOOM_RIDE = 15.6;
-const CHASE_ZOOM_ON_FOOT = 16.4;
+const REF_ZOOM = 15.6;
+/** Low and close, for the drama of it. */
+const CHASE_ZOOM_RIDE = 16.5;
+const CHASE_ZOOM_ON_FOOT = 17.2;
+
+/** The helicopter's sway fades in over about this long on screen, once it has swooped in. */
+const SWAY_RAMP_WALL_S = 2;
 
 const DRONE_PITCH = 58;
 /** The swoop from the drone shot down to the follow camera lasts about this long on screen. */
@@ -95,6 +104,7 @@ export function cameraAt(
   mode: CameraMode,
   seconds: number,
   speed: number,
+  { sway: swayOn = true }: { sway?: boolean } = {},
 ): MapCamera | null {
   if (mode === "map") return null;
 
@@ -105,7 +115,11 @@ export function cameraAt(
   const elapsed = seconds - start;
 
   const follow = followCamera(flyover, seconds);
-  if (elapsed >= swoopS) return follow;
+  if (elapsed >= swoopS) {
+    if (!swayOn) return follow;
+    const amount = smoothstep((elapsed - swoopS) / (SWAY_RAMP_WALL_S * speed));
+    return withSway(follow, sway(elapsed / speed), amount);
+  }
 
   const drone: MapCamera = {
     longitude: flyover.centre[0],
@@ -124,12 +138,54 @@ export function cameraAt(
   };
 }
 
+/**
+ * How the helicopter moves, in seconds on screen: a few slow waves of different lengths
+ * that never quite line up, so it drifts and corrects like a pilot keeping up, not like a
+ * rail. Screen seconds, so it looks the same at 25x as at 200x.
+ */
+export function sway(screenS: number): {
+  bearing: number;
+  pitch: number;
+  zoom: number;
+  sideM: number;
+  aheadM: number;
+} {
+  const wave = (period: number, phase: number) =>
+    Math.sin((2 * Math.PI * screenS) / period + phase);
+  return {
+    bearing: 5 * wave(7.3, 0.4) + 2 * wave(3.1, 1.7),
+    pitch: 2.2 * wave(9.1, 2.1),
+    zoom: 0.1 * wave(11.7, 0.9),
+    sideM: 14 * wave(8.3, 3.0),
+    aheadM: 10 * wave(6.1, 0.2),
+  };
+}
+
+/** The follow camera pushed about by the sway, `amount` (0 to 1) of the way. */
+function withSway(follow: MapCamera, s: ReturnType<typeof sway>, amount: number): MapCamera {
+  // Metres on the ground matter less the closer the camera is: scale them with the zoom.
+  const scale = 2 ** (REF_ZOOM - follow.zoom);
+  const side = offsetAlong(
+    [follow.longitude, follow.latitude],
+    follow.bearing + 90,
+    s.sideM * amount * scale,
+  );
+  const moved = offsetAlong(side, follow.bearing, s.aheadM * amount * scale);
+  return {
+    longitude: moved[0],
+    latitude: moved[1],
+    zoom: follow.zoom + s.zoom * amount,
+    pitch: follow.pitch + s.pitch * amount,
+    bearing: normalise(follow.bearing + s.bearing * amount),
+  };
+}
+
 /** Close behind the rider, looking where the route is heading. */
 function followCamera(flyover: Flyover, seconds: number): MapCamera {
   const { index, fraction } = locate(flyover.trip.timestamps, seconds);
   const here = interpolate(flyover.cameraPath, index, fraction);
   const facing = interpolate1(flyover.heading, index, fraction);
-  const ahead = offsetAlong(here, facing, CHASE_AHEAD_M);
+  const ahead = offsetAlong(here, facing, CHASE_AHEAD_M * 2 ** (REF_ZOOM - flyover.chaseZoom));
   return {
     longitude: ahead[0],
     latitude: ahead[1],

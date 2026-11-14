@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFlyover, cameraAt } from "@/features/activity/flyover";
+import { buildFlyover, cameraAt, sway } from "@/features/activity/flyover";
 import { normalise } from "@/map/camera";
 import type { Trip } from "@/map/layers/makeTripsLayer";
 
@@ -35,7 +35,8 @@ function flyoverOf(path: [number, number][]) {
 
 /** The flyover camera, which is never null once the mode is `flyover`. */
 function shot(path: ReturnType<typeof flyoverOf>, seconds: number, speed = SPEED) {
-  const camera = cameraAt(path, "flyover", seconds, speed);
+  // Without the helicopter's sway, so the shots can be checked against the route.
+  const camera = cameraAt(path, "flyover", seconds, speed, { sway: false });
   if (!camera) throw new Error("expected a camera");
   return camera;
 }
@@ -193,5 +194,61 @@ describe("timing", () => {
 describe("map", () => {
   it("leaves the camera to the user", () => {
     expect(cameraAt(flyoverOf(line(200, STEP_DEG, 0)), "map", 100, SPEED)).toBeNull();
+  });
+});
+
+describe("the helicopter's sway", () => {
+  const east = () => flyoverOf(line(200, STEP_DEG, 0));
+  const swayed = (f: ReturnType<typeof flyoverOf>, seconds: number, speed = SPEED) => {
+    const camera = cameraAt(f, "flyover", seconds, speed);
+    if (!camera) throw new Error("expected a camera");
+    return camera;
+  };
+
+  it("flies low and close: a tighter zoom and a steeper tilt than a plain map", () => {
+    const flyover = east();
+    expect(flyover.chaseZoom).toBeGreaterThanOrEqual(16.5);
+    expect(shot(flyover, 1000).pitch).toBeGreaterThanOrEqual(68);
+  });
+
+  it("does not sway during the swoop, so the drone shot is steady", () => {
+    const flyover = east();
+    for (const seconds of [0, 100, 250]) {
+      expect(swayed(flyover, seconds)).toEqual(shot(flyover, seconds));
+    }
+  });
+
+  it("drifts around the follow shot, but only so far", () => {
+    const flyover = east();
+    let widest = 0;
+    for (let seconds = 800; seconds < 1900; seconds += 7) {
+      const base = shot(flyover, seconds);
+      const camera = swayed(flyover, seconds);
+      widest = Math.max(widest, apart(camera.bearing, base.bearing));
+      expect(apart(camera.bearing, base.bearing)).toBeLessThanOrEqual(7.01);
+      expect(Math.abs(camera.zoom - base.zoom)).toBeLessThanOrEqual(0.101);
+      expect(Math.abs(camera.pitch - base.pitch)).toBeLessThanOrEqual(2.201);
+    }
+    // It does sway: over a minute of screen time it leans well off the road's heading.
+    expect(widest).toBeGreaterThan(3);
+  });
+
+  it("moves a little each moment, never in a jerk", () => {
+    const flyover = east();
+    for (let seconds = 800; seconds < 1800; seconds += 1) {
+      const a = swayed(flyover, seconds);
+      const b = swayed(flyover, seconds + 1);
+      expect(apart(a.bearing, b.bearing)).toBeLessThan(0.5);
+      expect(Math.abs(a.zoom - b.zoom)).toBeLessThan(0.01);
+    }
+  });
+
+  it("sways at the same pace on screen at any replay speed", () => {
+    const flyover = east();
+    // 10 s of screen time into the follow shot at 100x and at 50x: the same sway.
+    const at100 = swayed(flyover, 1000, 100);
+    const at50 = swayed(flyover, 500, 50);
+    expect(at100.bearing).toBeCloseTo(at50.bearing, 6);
+    expect(sway(10).bearing).toBeCloseTo(sway(10).bearing, 9);
   });
 });

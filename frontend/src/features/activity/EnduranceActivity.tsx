@@ -64,12 +64,10 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
   const replaying = playback.playing || playback.currentS > 0;
   const [cameraMode, setCameraMode] = useState<CameraMode>("map");
   const [satellite, setSatellite] = useState(false);
-  // Turning the flyover on starts the replay it flies along, over the 3D map; turning it off
-  // leaves both be.
+  // Turning the flyover on starts the replay it flies along; turning it off leaves it be. The
+  // satellite button is separate, and holds in the flat map and the flyover alike.
   const chooseCamera = (mode: CameraMode) => {
     setCameraMode(mode);
-    // Satellite imagery is flat, so the flyover flies over Standard's 3D buildings instead.
-    if (mode === "flyover") setSatellite(false);
     if (mode !== "map" && !playback.playing) playback.toggle();
   };
   const gaps = useActivityGaps(activity.summary.id, activity.track !== null).data ?? NO_GAPS;
