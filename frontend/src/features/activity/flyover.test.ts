@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildFlyover, cameraAt, normalise } from "@/features/activity/flyover";
+import { buildFlyover, cameraAt } from "@/features/activity/flyover";
+import { normalise } from "@/map/camera";
 import type { Trip } from "@/map/layers/makeTripsLayer";
 
 // About 11 m per step at 25°N: 0.0001° of latitude, or a little more of longitude.
@@ -132,5 +133,22 @@ describe("drone orbit", () => {
 describe("map", () => {
   it("leaves the camera to the user", () => {
     expect(cameraAt(flyoverOf(line(200, STEP_DEG, 0)), "map", 100)).toBeNull();
+  });
+});
+
+describe("camera path", () => {
+  it("rounds a GPS zigzag into a smoother line than the track itself", () => {
+    // Heading east, zigzagging 15 m north and south on alternate points.
+    const zigzag = line(200, STEP_DEG, 0).map(([lon, lat], i): [number, number] => [
+      lon,
+      lat + (i % 2 === 0 ? 0.00015 : -0.00015),
+    ]);
+    const flyover = flyoverOf(zigzag);
+    const lats = [900, 905, 910, 915, 920].map(
+      (seconds) => cameraAt(flyover, "chase", seconds)?.latitude ?? 0,
+    );
+    const spread = Math.max(...lats) - Math.min(...lats);
+    // The track swings 0.0003° (about 33 m) peak to peak; the camera keeps under a third of it.
+    expect(spread).toBeLessThan(0.0001);
   });
 });

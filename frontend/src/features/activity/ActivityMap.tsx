@@ -13,12 +13,13 @@ import { BaseMap } from "@/map/BaseMap";
 import {
   activityMetricRange,
   makeCursorLayer,
+  makeReplayCursorLayer,
   makeRouteLayer,
   pickedStreamIndex,
   routeBounds,
 } from "@/map/layers/makeRouteLayer";
 import { makeGapLayer } from "@/map/layers/makeGapLayer";
-import { activityTrips, makeTripsLayer } from "@/map/layers/makeTripsLayer";
+import { activityTrips, makeTripsLayer, tripPositionAt } from "@/map/layers/makeTripsLayer";
 import { MetricLegend } from "@/map/MetricLegend";
 import { useUiStore } from "@/store/ui";
 
@@ -95,9 +96,14 @@ export function ActivityMap({
         : null,
     [trips, replaying, playback.currentS, activity.summary.kind, tokens],
   );
+  // While replaying, the dot rides the trail's head at the replay's own position; any
+  // other time it is the hovered sample, which the charts share.
   const cursorLayer = useMemo(
-    () => makeCursorLayer({ activity, hover, tokens }),
-    [activity, hover, tokens],
+    () =>
+      replaying && trips[0]
+        ? makeReplayCursorLayer(tripPositionAt(trips[0], playback.currentS), tokens)
+        : makeCursorLayer({ activity, hover, tokens }),
+    [replaying, trips, playback.currentS, activity, hover, tokens],
   );
   const gapLayer = useMemo(() => makeGapLayer(gaps, tokens), [gaps, tokens]);
   const layers: LayersList = useMemo(

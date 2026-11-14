@@ -12,7 +12,7 @@ import {
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEnv } from "@/map/basemap";
-import { applyCamera } from "@/map/camera";
+import { useCameraDriver } from "@/map/useCameraDriver";
 import {
   FIT_PADDING_PX,
   MAX_PITCH,
@@ -81,14 +81,7 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
 // Same as the other provider's, but each library's `useMap` only works under its own <Map>.
 function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
   const { current: map } = useMap();
-  const flying = useRef(false);
-
-  useEffect(() => {
-    if (!map) return;
-    applyCamera(map, camera ?? null, flying.current, bounds);
-    flying.current = Boolean(camera);
-  }, [map, camera, bounds]);
-
+  useCameraDriver(map, camera, bounds);
   return null;
 }
 

@@ -13,7 +13,7 @@ import {
 import { setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { applyCamera } from "@/map/camera";
+import { useCameraDriver } from "@/map/useCameraDriver";
 import {
   FIT_PADDING_PX,
   MAX_PITCH,
@@ -85,14 +85,7 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
 // Same as the other provider's, but each library's `useMap` only works under its own <Map>.
 function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
   const { current: map } = useMap();
-  const flying = useRef(false);
-
-  useEffect(() => {
-    if (!map) return;
-    applyCamera(map, camera ?? null, flying.current, bounds);
-    flying.current = Boolean(camera);
-  }, [map, camera, bounds]);
-
+  useCameraDriver(map, camera, bounds);
   return null;
 }
 

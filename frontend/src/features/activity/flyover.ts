@@ -3,6 +3,7 @@
 // frame, so scrubbing, pausing and replaying all land on the same shot.
 import type { ActivityKind } from "@/lib/activityKind";
 import type { Trip } from "@/map/layers/makeTripsLayer";
+import { normalise } from "@/map/camera";
 import type { MapCamera } from "@/map/types";
 
 /** `map` is the flat, user-driven map; the others take the camera over. */
@@ -19,6 +20,8 @@ export const CAMERA_LABELS: Record<CameraMode, string> = {
 const LOOKAHEAD_M = 200;
 /** The heading is averaged over this far either side, so a wobbly track does not shake the view. */
 const SMOOTHING_M = 250;
+/** The camera's own position is averaged over this far either side of the rider. */
+const PATH_SMOOTHING_M = 80;
 /** A track shorter than this has no direction worth following. */
 const MIN_TRAVEL_M = 50;
 
@@ -46,6 +49,8 @@ export interface Flyover {
   trip: Trip;
   /** Metres travelled at each vertex of the trip. */
   distanceM: number[];
+  /** Where the chase camera sits at each vertex: the trip, rounded off. */
+  cameraPath: [number, number][];
   /** Smoothed direction of travel at each vertex, degrees, continuous (not wrapped). */
   heading: number[];
   centre: [number, number];
@@ -74,6 +79,7 @@ export function buildFlyover(trip: Trip, kind: ActivityKind): Flyover | null {
   return {
     trip,
     distanceM,
+    cameraPath: smoothedPath(path, distanceM),
     heading: smoothedHeading(path, distanceM),
     centre,
     chaseZoom: kind === "ride" ? CHASE_ZOOM_RIDE : CHASE_ZOOM_ON_FOOT,
@@ -104,7 +110,7 @@ export function cameraAt(flyover: Flyover, mode: CameraMode, seconds: number): M
     };
   }
 
-  const here = interpolate(trip.path, index, fraction);
+  const here = interpolate(flyover.cameraPath, index, fraction);
   const facing = interpolate1(heading, index, fraction);
   const ahead = offsetAlong(here, facing, CHASE_AHEAD_M);
   return {
@@ -114,11 +120,6 @@ export function cameraAt(flyover: Flyover, mode: CameraMode, seconds: number): M
     pitch: CHASE_PITCH,
     bearing: normalise(facing),
   };
-}
-
-/** Degrees into [0, 360). */
-export function normalise(degrees: number): number {
-  return ((degrees % 360) + 360) % 360;
 }
 
 function clamp(value: number, low: number, high: number): number {
@@ -197,17 +198,52 @@ function smoothedHeading(
     raw[i] = current + 360 * Math.round((previous - current) / 360);
   }
 
+  return averageOverDistance(raw, distanceM, SMOOTHING_M);
+}
+
+/**
+ * Each value averaged with its neighbours up to `windowM` metres of track either side.
+ * By distance, not by index or time: a stop adds samples without adding ground, and
+ * should not drag the average towards where the rider was standing.
+ */
+function averageOverDistance(
+  values: readonly number[],
+  distanceM: readonly number[],
+  windowM: number,
+): number[] {
   const out: number[] = [];
   let low = 0;
   let high = 0;
   let sum = 0;
-  for (let i = 0; i < raw.length; i++) {
+  for (let i = 0; i < values.length; i++) {
     const at = distanceM[i] ?? 0;
-    while (high < raw.length && (distanceM[high] ?? 0) <= at + SMOOTHING_M) sum += raw[high++] ?? 0;
-    while ((distanceM[low] ?? 0) < at - SMOOTHING_M) sum -= raw[low++] ?? 0;
+    while (high < values.length && (distanceM[high] ?? 0) <= at + windowM)
+      sum += values[high++] ?? 0;
+    while ((distanceM[low] ?? 0) < at - windowM) sum -= values[low++] ?? 0;
     out.push(sum / (high - low));
   }
   return out;
+}
+
+/**
+ * The route the camera follows: the track with its corners rounded off and the GPS
+ * jitter averaged out. The marker still sits on the real track; only the view glides.
+ */
+function smoothedPath(
+  path: readonly [number, number][],
+  distanceM: readonly number[],
+): [number, number][] {
+  const lons = averageOverDistance(
+    path.map(([lon]) => lon),
+    distanceM,
+    PATH_SMOOTHING_M,
+  );
+  const lats = averageOverDistance(
+    path.map(([, lat]) => lat),
+    distanceM,
+    PATH_SMOOTHING_M,
+  );
+  return lons.map((lon, i): [number, number] => [lon, lats[i] ?? 0]);
 }
 
 /** The last vertex at or before `seconds`, and how far (0 to 1) towards the next one. */

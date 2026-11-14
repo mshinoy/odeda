@@ -6,6 +6,7 @@ import { colorTokens } from "@/design/tokens";
 import {
   makeTripsLayer,
   toTrip,
+  tripPositionAt,
   TRAIL_LENGTH_S,
   TRIPS_LAYER_ID,
   type Trip,
@@ -79,5 +80,39 @@ describe("makeTripsLayer", () => {
     const options = { currentTime: 0, kind: "run" as const, tokens: light };
     expect(makeTripsLayer({ trips: [empty], ...options })).toBeNull();
     expect(makeTripsLayer({ trips: [], ...options })).toBeNull();
+  });
+});
+
+describe("tripPositionAt", () => {
+  const trip: Trip = {
+    path: [
+      [51.0, 25.0],
+      [51.2, 25.4],
+      [51.4, 25.0],
+    ],
+    timestamps: [0, 10, 30],
+  };
+
+  it("sits between samples, where the trail's head is, not on the last one", () => {
+    const [lon, lat] = tripPositionAt(trip, 5) ?? [0, 0];
+    expect(lon).toBeCloseTo(51.1, 9);
+    expect(lat).toBeCloseTo(25.2, 9);
+    const [lon2] = tripPositionAt(trip, 20) ?? [0, 0];
+    expect(lon2).toBeCloseTo(51.3, 9);
+  });
+
+  it("moves a little every moment, not once per sample", () => {
+    const a = tripPositionAt(trip, 11)?.[0] ?? 0;
+    const b = tripPositionAt(trip, 12)?.[0] ?? 0;
+    expect(b).toBeGreaterThan(a);
+  });
+
+  it("holds the ends before the start and after the finish", () => {
+    expect(tripPositionAt(trip, -5)).toEqual([51.0, 25.0]);
+    expect(tripPositionAt(trip, 999)).toEqual([51.4, 25.0]);
+  });
+
+  it("has nowhere to be on an empty trip", () => {
+    expect(tripPositionAt({ path: [], timestamps: [] }, 5)).toBeNull();
   });
 });

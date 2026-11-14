@@ -213,7 +213,22 @@ export function makeCursorLayer({
   hover,
   tokens,
 }: CursorLayerOptions): ScatterplotLayer<CursorDot> | null {
-  const data = cursorDots(activity, hover);
+  return cursorLayer(cursorDots(activity, hover), tokens);
+}
+
+/**
+ * The dot during a replay: at a position of its own choosing, not a stream sample.
+ * The replay's position falls between samples; snapped to one, the dot would step
+ * while the trail's head glides on ahead of it.
+ */
+export function makeReplayCursorLayer(
+  position: [number, number] | null,
+  tokens: ColorTokens,
+): ScatterplotLayer<CursorDot> | null {
+  return cursorLayer(position === null ? [] : [{ position }], tokens);
+}
+
+function cursorLayer(data: CursorDot[], tokens: ColorTokens): ScatterplotLayer<CursorDot> | null {
   if (data.length === 0) return null;
 
   return new ScatterplotLayer<CursorDot>({
