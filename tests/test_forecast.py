@@ -399,3 +399,87 @@ class TestTaperCheck:
 
     def test_no_race_means_no_check(self, store):
         assert F.compute_forecast(store, TODAY)["taper"] is None
+
+
+def _ride_on(store, day, metres, load):
+    store.conn.execute(
+        "INSERT INTO activities (activity_id, day, start_time_local, activity_type, "
+        "distance_m, duration_s, trimp) VALUES (?, ?, ?, 'cycling', ?, 6840, ?)",
+        (f"ride-{day}", day, f"{day}T07:00:00", metres, load),
+    )
+    store.conn.commit()
+
+
+class TestRideOnALongRunDay:
+    """A ride done instead of the long run counts for part of it: its heart-rate load,
+    discounted because a bike trains the heart and lungs but not the running legs, in
+    kilometres of the owner's own running."""
+
+    def _setup(self, store):
+        add_calendar_race(store)
+        _runs(store, "2026-09-01", 50)
+        _plan_long(store, "2026-11-27", 16000)
+
+    def test_the_ride_is_credited_as_running_kilometres(self, store):
+        self._setup(store)
+        bare = F.compute_forecast(store, TODAY)
+        per_km = bare["form"]["load_per_km"]
+        _ride_on(store, "2026-11-27", 37200, load=127.0)
+        note = F.compute_forecast(store, TODAY, ride_to_run=0.6)["long_run"]
+        credit = 127.0 * 0.6 / per_km
+        assert note["verdict"] == "missed"
+        assert note["ride_km"] == 37.2
+        assert note["ride_credit_km"] == pytest.approx(round(credit, 1))
+        assert note["shortfall_km"] == pytest.approx(round(16.0 - credit, 1))
+
+    def test_the_credit_lowers_the_cost(self, store):
+        self._setup(store)
+        store.conn.executemany(
+            "INSERT INTO best_efforts (activity_id, distance_m, seconds, day) VALUES (?, ?, ?, ?)",
+            [("r-2026-10-10", 5000.0, 1500.0, "2026-10-10"),
+             ("r-2026-10-12", 10000.0, 3200.0, "2026-10-12")],
+        )
+        store.conn.commit()
+        missed = F.compute_forecast(store, TODAY)["long_run"]["cost_seconds"]
+        _ride_on(store, "2026-11-27", 37200, load=127.0)
+        swapped = F.compute_forecast(store, TODAY)["long_run"]["cost_seconds"]
+        assert 0 < swapped < missed
+
+    def test_the_credit_never_exceeds_what_was_missed(self, store):
+        self._setup(store)
+        _ride_on(store, "2026-11-27", 120000, load=5000.0)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["ride_credit_km"] == 16.0
+        assert note["shortfall_km"] == 0.0
+
+    def test_a_factor_of_zero_counts_the_ride_for_nothing(self, store):
+        self._setup(store)
+        _ride_on(store, "2026-11-27", 37200, load=127.0)
+        note = F.compute_forecast(store, TODAY, ride_to_run=0.0)["long_run"]
+        assert note["ride_credit_km"] == 0.0 and note["shortfall_km"] == 16.0
+
+    def test_a_ride_with_its_own_slot_in_the_plan_still_pays_off_the_run(self, store):
+        # The Aamal ride: in the calendar on the long run's day, so the plan gives the
+        # ride to its own slot and judges the long run missed.
+        self._setup(store)
+        sid = store.conn.execute("SELECT id FROM plan_sources ORDER BY id LIMIT 1").fetchone()[0]
+        store.conn.execute(
+            "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, start_local, "
+            "sport, kind, planned_min_m, planned_max_m, title, parse_status) VALUES "
+            "(?, 'ride', '', '2026-11-27', '2026-11-27T07:00:00', 'cycling', 'cross', "
+            "40000, 40000, 'Aamal Ride', 'ok')",
+            (sid,),
+        )
+        store.conn.commit()
+        _ride_on(store, "2026-11-27", 37200, load=127.0)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["verdict"] == "missed"
+        assert note["ride_km"] == 37.2 and note["ride_credit_km"] > 0
+        assert note["shortfall_km"] < 16.0
+
+    def test_a_ride_on_another_day_does_not_count(self, store):
+        self._setup(store)
+        _ride_on(store, "2026-11-26", 37200, load=127.0)
+        note = F.compute_forecast(store, TODAY)["long_run"]
+        assert note["ride_km"] is None and note["ride_credit_km"] is None
+        assert note["shortfall_km"] == 16.0

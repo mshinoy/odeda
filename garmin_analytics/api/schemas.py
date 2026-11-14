@@ -1777,6 +1777,12 @@ class LongRunNote(_Model):
     planned_km: float
     done_km: float
     shortfall_km: float
+    """What is still owed after any ride's credit."""
+    ride_km: float | None = None
+    """Kilometres ridden on the day instead; null when there was no ride."""
+    ride_credit_km: float | None = None
+    """That ride's heart-rate load, discounted (`GA_RIDE_TO_RUN`, 0.6) and put in
+    kilometres of running: what it paid off of the long run. Null without a ride."""
     cost_seconds: float | None
     """Seconds on the finish, by the same rule of thumb as the fitness adjustment: rough,
     and usually small. Null without a forecast to price it against."""

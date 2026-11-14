@@ -7,6 +7,8 @@ const short: LongRun = {
   planned_km: 15.5,
   done_km: 11.2,
   shortfall_km: 4.3,
+  ride_km: null,
+  ride_credit_km: null,
   cost_seconds: 16.8,
   next_day: "2026-11-13",
   next_km: 16,
@@ -32,5 +34,27 @@ describe("longRunNote", () => {
   it("leaves out a price it could not work out, and a next run there is not", () => {
     const note = longRunNote({ ...short, cost_seconds: null, next_day: null, next_km: null });
     expect(note.detail).toBe("11.2 of 15.5 km.");
+  });
+
+  it("says a ride on the day was a swap, and what it paid off", () => {
+    const note = longRunNote({
+      ...short,
+      day: "2026-11-13",
+      verdict: "missed",
+      planned_km: 16,
+      done_km: 0,
+      ride_km: 37.2,
+      ride_credit_km: 5.9,
+      shortfall_km: 10.1,
+      cost_seconds: 49.7,
+      next_day: "2026-11-20",
+      next_km: 16.5,
+    });
+    expect(note.heading).toBe("The long run on Fri Nov 13 was swapped for a ride");
+    expect(note.detail).toBe(
+      "16.0 km planned; the 37.2 km ride counts for about 5.9 km of running. " +
+        "That costs about 50 s on race day. Next: Fri Nov 20, 16.5 km.",
+    );
+    expect(note.tone).toBe("warning");
   });
 });

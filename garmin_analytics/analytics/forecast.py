@@ -488,6 +488,25 @@ def compute_taper(
 #: A long run older than this is history, not news.
 LONG_RUN_LOOKBACK_DAYS = 14
 
+#: How much of a ride's training load counts toward a missed long run, as running. A
+#: bike trains the heart and lungs, which heart-rate load measures, but not the impact,
+#: time on feet and running muscles a long run is for. No study settles the number:
+#: 0.6 is a judgement, not a constant, and `GA_RIDE_TO_RUN` changes it.
+RIDE_TO_RUN = 0.6
+
+
+def ride_on_day(store, day: str) -> tuple[float, float] | None:
+    """The rides on a day, as (kilometres, heart-rate load), or None without one."""
+    rides = tuple(t for t, s in plan_mod.ACTIVITY_SPORT.items() if s == plan_mod.P.SPORT_RIDE)
+    row = store.query(
+        "SELECT COUNT(*) AS n, SUM(COALESCE(distance_m, 0)) AS m, SUM(COALESCE(trimp, 0)) AS load "
+        f"FROM v_activities_included WHERE day = ? AND activity_type IN ({','.join('?' * len(rides))})",
+        (day, *rides),
+    )[0]
+    if not row["n"]:
+        return None
+    return float(row["m"]) / 1000.0, float(row["load"])
+
 
 def compute_long_run_note(
     judged: Sequence[plan_mod.Judged],
@@ -495,6 +514,8 @@ def compute_long_run_note(
     race: Mapping[str, Any],
     per_km: float | None,
     time: Mapping[str, Any] | None,
+    ride: tuple[float, float] | None = None,
+    ride_to_run: float = RIDE_TO_RUN,
 ) -> dict[str, Any] | None:
     """The last long run, if it was missed or cut short, and what that costs on race day.
 
@@ -503,6 +524,10 @@ def compute_long_run_note(
     priced the way the finish range prices fitness, so it is as rough as that is: a rule
     of thumb. It is usually small, and saying so is the point. One run barely moves the
     finish; a habit of missing them does.
+
+    `ride` is that day's riding as (km, heart-rate load). A ride done instead pays off part
+    of the shortfall: its load times `ride_to_run`, in kilometres of the owner's running,
+    never more than was missed. The note still says the run was missed: a ride is not one.
     """
     lo = today - timedelta(days=LONG_RUN_LOOKBACK_DAYS)
     past = [
@@ -517,14 +542,24 @@ def compute_long_run_note(
     if not past:
         return None
     last = max(past, key=lambda i: i.planned.day)
-    if last.verdict not in ("missed", "short"):
+    # A ride or a swim done instead (`substituted`) is a long run not run: the note says
+    # so, and a ride pays some of it off below.
+    if last.verdict not in ("missed", "short", "substituted"):
         return None
+    swapped = last.verdict == "substituted"
 
     # The least the plan asked for: what the verdict was judged against, so the note and
     # the week's own tile say the same number for the same run (`8-10 km` is 8, not 9).
     planned_m = last.planned.min_m or plan_mod._target(last.planned) or 0.0
-    done_m = last.actual_m or 0.0
+    done_m = 0.0 if swapped else (last.actual_m or 0.0)
     shortfall_km = max(planned_m - done_m, 0.0) / 1000.0
+    ride_km = ride_credit_km = None
+    if ride is not None:
+        ride_km = ride[0]
+        ride_credit_km = (
+            min(ride[1] * ride_to_run / per_km, shortfall_km) if per_km else 0.0
+        )
+        shortfall_km -= ride_credit_km
 
     cost_seconds = None
     ctl_race = None if time is None else time.get("ctl_race")
@@ -551,17 +586,32 @@ def compute_long_run_note(
     nxt = min(upcoming, key=lambda i: i.planned.day, default=None)
     return {
         "day": last.planned.day,
-        "verdict": last.verdict,
+        "verdict": "missed" if swapped else last.verdict,
         "planned_km": round(planned_m / 1000.0, 1),
         "done_km": round(done_m / 1000.0, 1),
         "shortfall_km": round(shortfall_km, 1),
+        "ride_km": None if ride_km is None else round(ride_km, 1),
+        "ride_credit_km": None if ride_credit_km is None else round(ride_credit_km, 1),
         "cost_seconds": cost_seconds,
         "next_day": None if nxt is None else nxt.planned.day,
         "next_km": None if nxt is None else round((plan_mod._target(nxt.planned) or 0.0) / 1000.0, 1),
     }
 
 
-def compute_forecast(store, today: date | None = None) -> dict[str, Any]:
+def _long_run(store, judged, today, race, per_km, time, ride_to_run):
+    """The note, with the ride on the missed day looked up only when there is a note."""
+    note = compute_long_run_note(judged, today, race, per_km, time)
+    if note is None:
+        return None
+    ride = ride_on_day(store, note["day"])
+    if ride is None:
+        return note
+    return compute_long_run_note(judged, today, race, per_km, time, ride, ride_to_run)
+
+
+def compute_forecast(
+    store, today: date | None = None, ride_to_run: float = RIDE_TO_RUN
+) -> dict[str, Any]:
     """Everything `/api/race/forecast` returns. Each half is null when it cannot be
     computed, so a calendar with a race but no distance still gets a form forecast."""
     today = today or date.today()
@@ -580,6 +630,6 @@ def compute_forecast(store, today: date | None = None) -> dict[str, Any]:
         "today": today.isoformat(),
         "form": form,
         "time": time,
-        "long_run": compute_long_run_note(judged, today, race, per_km, time),
+        "long_run": _long_run(store, judged, today, race, per_km, time, ride_to_run),
         "taper": compute_taper(judged, race, form),
     }
