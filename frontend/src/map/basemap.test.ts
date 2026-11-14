@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { basemapStyle, providerFor, readMapEnv } from "@/map/basemap";
+import { basemapStyle, mapboxLightPreset, providerFor, readMapEnv } from "@/map/basemap";
 
 const POSITRON = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const DARK_MATTER = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -14,15 +14,15 @@ describe("providerFor", () => {
 });
 
 describe("basemapStyle", () => {
-  it("uses Mapbox's light and dark styles", () => {
+  it("uses Mapbox Standard in both themes, lit differently rather than restyled", () => {
     const env = readMapEnv({ VITE_MAPBOX_TOKEN: "pk.test" });
-    expect(basemapStyle("mapbox", "light", env)).toBe("mapbox://styles/mapbox/light-v11");
-    expect(basemapStyle("mapbox", "dark", env)).toBe("mapbox://styles/mapbox/dark-v11");
+    expect(basemapStyle("mapbox", "light", env)).toBe("mapbox://styles/mapbox/standard");
+    expect(basemapStyle("mapbox", "dark", env)).toBe("mapbox://styles/mapbox/standard");
   });
 
   it("uses Mapbox's satellite imagery on request, in either theme", () => {
     const env = readMapEnv({ VITE_MAPBOX_TOKEN: "pk.test" });
-    const satellite = "mapbox://styles/mapbox/satellite-streets-v12";
+    const satellite = "mapbox://styles/mapbox/standard-satellite";
     expect(basemapStyle("mapbox", "light", env, true)).toBe(satellite);
     expect(basemapStyle("mapbox", "dark", env, true)).toBe(satellite);
   });
@@ -45,5 +45,17 @@ describe("basemapStyle", () => {
     const empty = readMapEnv({ VITE_MAP_STYLE_LIGHT: "", VITE_MAP_STYLE_DARK: "" });
     expect(basemapStyle("maplibre", "light", empty)).toBe(POSITRON);
     expect(basemapStyle("maplibre", "dark", empty)).toBe(DARK_MATTER);
+  });
+});
+
+describe("mapboxLightPreset", () => {
+  it("lights the dark theme as night and the light theme as day", () => {
+    expect(mapboxLightPreset("light")).toBe("day");
+    expect(mapboxLightPreset("dark")).toBe("night");
+  });
+
+  it("keeps satellite imagery in daylight whatever the theme", () => {
+    expect(mapboxLightPreset("dark", true)).toBe("day");
+    expect(mapboxLightPreset("light", true)).toBe("day");
   });
 });

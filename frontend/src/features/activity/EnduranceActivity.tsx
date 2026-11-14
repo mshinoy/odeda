@@ -64,9 +64,12 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
   const replaying = playback.playing || playback.currentS > 0;
   const [cameraMode, setCameraMode] = useState<CameraMode>("map");
   const [satellite, setSatellite] = useState(false);
-  // Turning the flyover on starts the replay it flies along; turning it off leaves it be.
+  // Turning the flyover on starts the replay it flies along, over the 3D map; turning it off
+  // leaves both be.
   const chooseCamera = (mode: CameraMode) => {
     setCameraMode(mode);
+    // Satellite imagery is flat, so the flyover flies over Standard's 3D buildings instead.
+    if (mode === "flyover") setSatellite(false);
     if (mode !== "map" && !playback.playing) playback.toggle();
   };
   const gaps = useActivityGaps(activity.summary.id, activity.track !== null).data ?? NO_GAPS;
@@ -133,7 +136,7 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
               )}
               {weather && <WindBadge weather={weather} />}
               {replaying && (
-                <div className="absolute top-14 left-3">
+                <div className="absolute top-14 left-3 z-10">
                   <ReplayReadout
                     series={readout}
                     seconds={playback.currentS}
@@ -144,7 +147,7 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
                   />
                 </div>
               )}
-              <div className="absolute top-3 left-3">
+              <div className="absolute top-3 left-3 z-10">
                 <MetricToggle
                   options={metricOptions}
                   value={colorBy}

@@ -31,6 +31,7 @@ export function MapboxBaseMap({
   cursor,
   camera,
   mapStyle,
+  lightPreset = "day",
 }: ProviderMapProps) {
   return (
     <MapboxMap
@@ -55,6 +56,7 @@ export function MapboxBaseMap({
       <DeckOverlay layers={layers} onHover={onHover} />
       <FitBounds bounds={fitBounds} />
       <CameraDriver camera={camera} bounds={initialBounds} />
+      <LightPreset preset={lightPreset} />
     </MapboxMap>
   );
 }
@@ -82,6 +84,33 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
 function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
   const { current: map } = useMap();
   useCameraDriver(map, camera, bounds);
+  return null;
+}
+
+// Sets the lighting of a Mapbox Standard style, and keeps its 3D buildings on: a new style
+// loads with its own defaults, so both are set again each time one loads. Styles without
+// those settings (and Standard Satellite, which has no 3D buildings) ignore them.
+function LightPreset({ preset }: { preset: "day" | "night" }) {
+  const { current: map } = useMap();
+
+  useEffect(() => {
+    const mapbox = map?.getMap();
+    if (!mapbox) return;
+    const apply = () => {
+      try {
+        mapbox.setConfigProperty("basemap", "lightPreset", preset);
+        mapbox.setConfigProperty("basemap", "show3dObjects", true);
+      } catch {
+        // A style with no "basemap" import, such as a custom one: nothing to light.
+      }
+    };
+    if (mapbox.isStyleLoaded()) apply();
+    mapbox.on("style.load", apply);
+    return () => {
+      mapbox.off("style.load", apply);
+    };
+  }, [map, preset]);
+
   return null;
 }
 

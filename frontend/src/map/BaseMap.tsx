@@ -3,7 +3,7 @@
 // downloaded; the style follows the app theme.
 import { lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { basemapStyle, mapProvider } from "@/map/basemap";
+import { basemapStyle, mapboxLightPreset, mapProvider } from "@/map/basemap";
 import { loadMapbox, loadMaplibre } from "@/map/loadBaseMap";
 import type { BaseMapProps } from "@/map/types";
 import { useTheme } from "@/design/theme";
@@ -18,7 +18,11 @@ export function BaseMap(props: BaseMapProps) {
   return (
     <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
       {mapProvider === "mapbox" ? (
-        <MapboxBaseMap {...props} mapStyle={mapStyle} />
+        <MapboxBaseMap
+          {...props}
+          mapStyle={mapStyle}
+          lightPreset={mapboxLightPreset(theme, props.satellite)}
+        />
       ) : (
         <MaplibreBaseMap {...props} mapStyle={mapStyle} />
       )}

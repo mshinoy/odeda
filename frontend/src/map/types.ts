@@ -43,6 +43,8 @@ export interface BaseMapProps {
 /** The provider modules also get the resolved style URL. */
 export interface ProviderMapProps extends BaseMapProps {
   mapStyle: string;
+  /** Lighting for Mapbox Standard styles; MapLibre's styles have none. */
+  lightPreset?: "day" | "night";
 }
 
 export const FIT_PADDING_PX = 32;

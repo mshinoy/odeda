@@ -175,7 +175,7 @@ export function ActivityMap({
         satellite={satellite}
       />
       {legendRange && (
-        <div className="absolute bottom-3 left-3">
+        <div className="absolute bottom-3 left-3 z-10">
           <MetricLegend
             colorBy={colorBy}
             range={legendRange}
