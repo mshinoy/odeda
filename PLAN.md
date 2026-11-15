@@ -59,7 +59,7 @@ when approved. Work one thing at a time: the box has two CPUs.
 ## Where things stand (15 Nov 2026)
 
 On `master` and in the app:
-- **MVP** (`v0.1.0`, phases 0 to 15), plus the tidy-up (16) and the data defects (19, two steps left).
+- **MVP** (`v0.1.0`, phases 0 to 15), plus the tidy-up (16) and the data defects (19, one step left: T87).
 - **Race prep** (20): the pacing plan, taper check and missed-long-run warning. The post-race page is not built.
 - **Weather and wind** (22): stored, shown on the activity page and map. The analytics are not built.
 - **Plan rules** (23): Higdon's number is the day's target; a ride pays off part of a missed long run.
@@ -84,7 +84,7 @@ nicer.
 ## Suggested order
 
 1. **Phase 16**: tidy and ship what is built. *Done.*
-2. **Phase 19**: the data defects. Small, and each one makes a number wrong. *Five of seven done; T87 and T88 wait on the owner.*
+2. **Phase 19**: the data defects. Small, and each one makes a number wrong. *Five of six done (T88 dropped); T87 is left.*
 3. **Phase 20**: race prep. Has a deadline. *Three of four done.*
 4. **Phases 17 and 18**: the nav and the page redesign. Big, no deadline. *Under way: see REDESIGN.md.*
 5. **Phase 21**: platform. *Not started.*
@@ -101,7 +101,7 @@ nicer.
 | 16 Tidy and ship | P: `ready for review` | 3 / 3 |
 | 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
 | 18 Page redesign | R: `open` | 0 / 6 |
-| 19 Data defects | S: `ready for review` | 5 / 7 |
+| 19 Data defects | S: `ready for review` | 5 / 6 (T88 dropped) |
 | 20 Race prep | T: `open` | 3 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
 | 22 Weather and wind | V: `ready for review` | 5 / 6 |
@@ -158,7 +158,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | T76 | Year over year shows "+14,153%" and "+16,767%" against a near-empty first year. No change is shown against a year with fewer than 12 activities | done | — |
 | T86 | A gap on a ride is drawn dashed along the path your other rides took between its two ends, with the speed it implies and a note saying it is a guess and not in the totals. Step 1 of 3 | done | T74 |
 | T87 | Mark the missing path yourself on the map when no other ride covers it, or the guess is wrong. Step 2 of 3 | todo | T86 |
-| T88 | Optionally count an estimated stretch in the ride's totals, with its effect on heart rate, load and best efforts shown first. Step 3 of 3 | needs decision: count it at all? | T86 |
+| T88 | Optionally count an estimated stretch in the ride's totals, with its effect on heart rate, load and best efforts shown first. Step 3 of 3 | dropped: decided 2026-11-15, totals use the recorded data as is (D30). Snapping to roads is an idea in `FUTURE.md` | T86 |
 | T77 | Sleep: Garmin gives no sleep score, and some nights have no recording. Today says how many of the last seven nights were recorded and leaves a gap for each missing one. (Health still to do, with T71) | done | — |
 
 ### Phase 20 — Race prep · Checkpoint T: `open`
@@ -247,6 +247,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D27 | **A named plan's number is the day's target.** While Higdon's plan is on it beats the club's and the owner's own number, on Mon, Tue and Fri alike. A `GA:` hint, an event stating its own distance, or a race wins. | 2026-11-14 |
 | D28 | **Mapbox Standard is the base map,** for its 3D buildings and the flyover. Google photorealistic 3D tiles are to be tried once there is a key. | 2026-11-14 |
 | D29 | **Publish as a self-hosted open-source project first.** Not a hosted service: that would hold other people's Garmin tokens and health data on an unofficial login. The official Garmin API is considered after about 500 stars. Detail and steps in `FUTURE.md`. | 2026-11-15 |
+| D30 | **A ride's totals use the recorded data as is.** A stretch estimated across a recording gap (T86) is drawn dashed and noted, and never counted in distance, heart rate, load or best efforts (T88 dropped). Whether to snap GPS to roads and estimate true numbers is an idea in `FUTURE.md`. | 2026-11-15 |
 
 ### Parked (not planned; ask the owner before starting)
 
