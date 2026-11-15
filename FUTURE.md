@@ -14,8 +14,9 @@ building it. When one is started, move it into `PLAN.md` as tasks and leave a po
 
 ## 1. Race-scoped plans
 
-*Raised 2026-11-14. Waiting on a second race in the calendar (Doha Half on 2027-01-15 is the
-only one), so there is nothing real to test against yet.*
+*Raised 2026-11-14, checked against the code 2026-11-15: still not built. Waiting on a second
+race in the calendar (Doha Half on 2027-01-15 is the only one), so there is nothing real to test
+against yet.*
 
 **Why.** The Higdon change made the named plan the base for each day. The same idea applies
 one level up: the goal race's plan should be the focus, and every number should be measured
@@ -35,10 +36,11 @@ the plan's peak, so the next block would be judged against a build that is over.
 3. **A label.** "Higdon Novice 1 · week 3 of 12 · Doha Half in 63 days" on Today and the
    activity page. Cosmetic, but it says which plan is driving the number.
 
-**Rules already decided** (2026-11-14): while a named plan is on, its number is the target
-for every day (Mon, Tue, Fri alike), over the club's and the owner's own. A `GA:` hint, or an
-event stating its own distance in its title (a dated taper one-off), still wins. A race beats
-everything on its day and in its taper.
+**Rules already decided and built** (2026-11-14, D27 and T95 in `PLAN.md`): while a named plan
+is on, its number is the target for every day (Mon, Tue, Fri alike), over the club's and the
+owner's own. A `GA:` hint, or an event stating its own distance in its title (a dated taper
+one-off), still wins. A race beats everything on its day and in its taper. The long-run ride
+credit (T96) is not block-aware either; a block would have to scope it too.
 
 **Open.** Does a race with no named plan (just a date) get a block? Probably: the calendar's
 own sessions, as before. Back-to-back races a week apart: which block owns the days between?
@@ -49,11 +51,13 @@ own sessions, as before. Back-to-back races a week apart: which block owns the d
 
 ## 2. Moved and swapped runs
 
-*Raised 2026-11-14, deferred by the owner.*
+*Raised 2026-11-14, deferred by the owner. Checked 2026-11-15: still only the one-day
+tolerance.*
 
 **Why.** The Higdon rule is strict: a day is judged against the plan's number. The stated
 exception is when a run is moved or swapped, which today only has a one-day tolerance
-(`MOVE_TOLERANCE_DAYS`) and a ride-for-run "substituted" verdict.
+(`MOVE_TOLERANCE_DAYS` in `analytics/plan.py`), a ride-for-run "substituted" verdict, and, since
+2026-11-14, a ride on a long-run day paying off part of a missed long run (T96).
 
 **Shape.** Let a run done on another day of the same week satisfy the missed day (the plan's
 number, not the day it fell on), with the week still adding up. Let the owner say "this was
@@ -74,10 +78,11 @@ activity page's plan card.
 
 ## 4. Weather analytics (T94 in `PLAN.md`)
 
-*Ask the owner before starting.*
+*Ask the owner before starting. Tracked as T94; this entry holds the direction.*
 
-Weather is now stored per activity (Open-Meteo, backfilled to all 274 outdoor activities).
-Directions, in order of payoff:
+Done already (T89 to T93): weather stored per activity from Open-Meteo, the weather chip, wind
+against the route and "Headwind" as a colour-by. Not built: the analytics on top. Directions,
+in order of payoff:
 - Pace and heart rate against heat and dew point, the owner's own curve rather than a rule
   of thumb.
 - A weather-adjusted pace, so a hot week is not read as a fitness drop.
@@ -198,7 +203,7 @@ medical or coaching advice. Say so in the UI.
 ### 8. Summaries that come to you
 
 **Why.** An app you have to open is an app you forget. A short weekly or monthly note brings
-the numbers to the user. This widens the weekly digest idea (T85, listed in 14).
+the numbers to the user. This widens the weekly digest idea (T85 in `PLAN.md`).
 
 **Shape.**
 - Weekly (Monday morning): the week against the plan, load and recovery in a few lines, and
@@ -306,8 +311,8 @@ Provide a one-time migration note for existing installs (volume name, command na
 ## 14. Smaller leads kept from earlier work
 
 - **Gear chip** ("add shoes") and key stats from the activity-page design, not built.
-- **A post-race page** (T81): the result against the projection, then a recovery block.
-- **A weekly digest** (T85) from the six-hourly sync: the week against the plan in a few lines.
+- **Post-race page and weekly digest** are tasks T81 and T85 in `PLAN.md`; the digest is
+  widened in section 8. Not repeated here.
 - **Per-set gym detail**: needs a new Garmin fetch of `exerciseSets` and a backfill.
 - **Non-running load and course in the race forecast.**
 - **Monday easy runs** were missed about 8 of the last 9 weeks. Worth asking whether they
