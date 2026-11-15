@@ -90,6 +90,47 @@ in order of payoff:
 
 ---
 
+## 4b. Snap GPS to roads and estimate the real distance
+
+*Raised 2026-11-15. The owner decided today that totals use the recorded data as is (D30, T88
+dropped); this is the idea behind that question, kept for later, not planned.*
+
+**Why.** GPS is noisy. Under trees, between buildings and in tunnels the track wanders or
+jumps, so distance, pace and the best efforts built on them are a little off, and a recording
+gap (T86) leaves a straight line or a guess. Matching the points to the road or path actually
+travelled would give a cleaner track and a better estimate of the real ride or run.
+
+**What it would take.**
+1. **A map matcher.** Fit the track to the road network with a standard map-matching service
+   (OSRM, Valhalla, or Mapbox's Map Matching API). Run it locally in Docker over an OpenStreetMap
+   extract: CONTRIBUTING's ground rule 2 allows one runtime call off the machine, and sending
+   every GPS point of someone's runs to a third party is a privacy cost. A local matcher is the
+   likely choice and needs a regional extract.
+2. **Keep both tracks.** The matched track is stored beside the raw one and never replaces it
+   (raw-first and user-edits-win, ground rules 3 and 4). The raw data stays the source of truth.
+3. **Derived numbers, labelled.** A corrected distance, pace, and best efforts from the matched
+   track, shown as "estimated" next to the recorded figures, with a switch for which one the
+   charts use. Elevation is not fixed by this (roads do not carry accurate heights here).
+4. **Use it where it helps.** Route clustering and segments (cleaner loops), recording gaps and
+   tunnels (a filled path rather than a dashed guess, T86 and T87), the compare map.
+
+**Risks to settle first.**
+- Runs on trails, parks, tracks and open ground have no road to snap to, and matching can pull a
+  track onto the wrong road. It must be off for those, or only offered where the match is good.
+- The watch's own distance (wheel or foot sensor, calibrated stride) can be better than the
+  matched geometry. The matcher may make numbers worse, so they must differ visibly from
+  Garmin's, never silently.
+- Numbers that no longer match Garmin Connect cost trust. Default to the recorded figures.
+
+**Open.** Replace the recorded numbers or only show alongside (leaning alongside)? How good does
+a match have to be before it is offered? Try first on a few activities with gaps and tunnels
+and compare against the known route.
+
+**Build when:** the owner asks. A prototype on a handful of activities would answer the open
+questions cheaply.
+
+---
+
 ## Toward other people: the open-source route
 
 *Raised 2026-11-15. The decision: publish on GitHub as a self-hosted project, grow it there,
