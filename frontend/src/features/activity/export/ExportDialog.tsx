@@ -109,7 +109,6 @@ export function ExportDialog({
   );
   // The speed follows from how long the video should be: the ride, squeezed into that.
   const speed = speedForLength(durationS, lengthS);
-  const [timings, setTimings] = useState<FrameTimings | null>(null);
   const [moment, setMoment] = useState<Moment>("ride");
   // The video is made when "Make video" is pressed, and kept until it is saved or a choice
   // changes. The maps that draw it exist only while it is being made.
@@ -117,7 +116,12 @@ export function ExportDialog({
   const [rendering, setRendering] = useState(false);
   const [made, setMade] = useState<(ExportResult & { key: string }) | null>(null);
   const [renderedS, setRenderedS] = useState<number | null>(null);
-  const [progress, setProgress] = useState({ done: 0, total: 1, etaS: null as number | null });
+  const [progress, setProgress] = useState({
+    done: 0,
+    total: 1,
+    etaS: null as number | null,
+    elapsedS: 0,
+  });
   const recent = useRef<{ done: number; at: number }[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -257,8 +261,9 @@ export function ExportDialog({
       setMade(null);
       setSavedName(null);
       setRenderedS(null);
-      setTimings(null);
-      setProgress({ done: 0, total: frames.count, etaS: null });
+      setProgress({ done: 0, total: frames.count, etaS: null, elapsedS: 0 });
+      // Where the time went, kept for the console when the video is done (not shown).
+      const last: { timings: FrameTimings | null } = { timings: null };
       setRendering(true);
       try {
         const handles = renderStages.current
@@ -272,7 +277,7 @@ export function ExportDialog({
           speed,
           onProgress: (done, total, perFrame) => {
             if (id !== runId.current) return;
-            setTimings(perFrame);
+            last.timings = perFrame;
             // The time left comes from the last few seconds, not from the start: the first
             // frames include loading the maps, which says nothing about the pace once going.
             const now = Date.now();
@@ -283,13 +288,43 @@ export function ExportDialog({
             const first = recent.current[0];
             const framesPerS =
               first && done > first.done ? ((done - first.done) * 1000) / (now - first.at) : 0;
-            setProgress({ done, total, etaS: framesPerS > 0 ? (total - done) / framesPerS : null });
+            setProgress({
+              done,
+              total,
+              etaS: framesPerS > 0 ? (total - done) / framesPerS : null,
+              elapsedS: (now - started) / 1000,
+            });
           },
           signal: controller.signal,
         });
         if (id !== runId.current) return;
+        const tookS = (Date.now() - started) / 1000;
         setMade({ ...done, key: settingsKey });
-        setRenderedS((Date.now() - started) / 1000);
+        setRenderedS(tookS);
+        // For a bug report or a later look at speed: the settings and where a frame's time went.
+        console.info("[video export]", {
+          activity: latest.current.activity.summary.id,
+          crop,
+          quality,
+          size: `${exportSize(crop, quality).width}x${exportSize(crop, quality).height}`,
+          fps: frames.fps,
+          frames: frames.count,
+          replaySpeed: Math.round(speed),
+          maps,
+          codec: done.codec,
+          megabytes: Number((done.blob.size / 1_000_000).toFixed(1)),
+          tookSeconds: Number(tookS.toFixed(1)),
+          // Averages per frame on each map, in milliseconds.
+          perFrameMs: last.timings && {
+            page: Math.round(last.timings.render),
+            tiles: Math.round(last.timings.tiles),
+            routeLayer: Math.round(last.timings.layers),
+            drawing: Math.round(last.timings.draw),
+            encoderWait: Math.round(last.timings.encode),
+            drawsPerFrame: Number(last.timings.renders.toFixed(1)),
+            tilesReadyOnFirstDrawPct: Math.round(last.timings.readyFirstPct),
+          },
+        });
       } catch (caught) {
         if (id !== runId.current) return;
         if (!(caught instanceof DOMException && caught.name === "AbortError")) {
@@ -299,7 +334,7 @@ export function ExportDialog({
         if (id === runId.current) setRendering(false);
       }
     },
-    [crop, quality, speed, maps, frames.count, settingsKey],
+    [crop, quality, speed, maps, frames.count, frames.fps, settingsKey],
   );
 
   // Makes the video when asked. The maps that draw it are mounted first (flushed, so they
@@ -460,20 +495,11 @@ export function ExportDialog({
               />
             </div>
             <span className="text-muted-foreground text-xs tabular-nums">
-              Making the video with {maps} maps · {percent}% · frame {progress.done} of{" "}
-              {progress.total}
+              {percent}% · frame {progress.done} of {progress.total}
               {progress.etaS !== null &&
                 ` · about ${formatDuration(Math.round(progress.etaS))} left`}
+              {` · ${formatDuration(Math.round(progress.elapsedS))} elapsed`}
             </span>
-            {timings && (
-              <span className="text-muted-foreground text-xs tabular-nums">
-                Per frame on each map, in ms: page {Math.round(timings.render)} · tiles{" "}
-                {Math.round(timings.tiles)} · route layer {Math.round(timings.layers)} · drawing{" "}
-                {Math.round(timings.draw)} · encoder wait {Math.round(timings.encode)} · draws{" "}
-                {timings.renders.toFixed(1)} · tiles ready on the first draw{" "}
-                {Math.round(timings.readyFirstPct)}%
-              </span>
-            )}
           </div>
         )}
         {error && (
@@ -484,21 +510,10 @@ export function ExportDialog({
         {result && (
           <p className="text-sm">
             Ready: {megabytes(result.blob.size)}
-            {renderedS !== null && `, made in ${formatDuration(Math.round(renderedS))}`} with {maps}{" "}
-            maps.
+            {renderedS !== null && `, made in ${formatDuration(Math.round(renderedS))}`}.
           </p>
         )}
         {savedName && <p className="text-sm">{savedName}</p>}
-        {!rendering && timings && (
-          <p className="text-muted-foreground text-xs tabular-nums">
-            Per frame on each map, in ms: page {Math.round(timings.render)} · tiles{" "}
-            {Math.round(timings.tiles)} · route layer {Math.round(timings.layers)} · drawing{" "}
-            {Math.round(timings.draw)} · encoder {Math.round(timings.encode)} · draws{" "}
-            {timings.renders.toFixed(1)} · tiles ready on the first draw{" "}
-            {Math.round(timings.readyFirstPct)}%
-          </p>
-        )}
-
         <DialogFooter>
           {rendering ? (
             <Button type="button" variant="outline" onClick={() => job.current?.abort()}>
