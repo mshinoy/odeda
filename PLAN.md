@@ -70,7 +70,7 @@ In progress, not on `master`: the Map, Routes, Health and Trends redesign on
 `redesign-map-health-trends` (see [`REDESIGN.md`](REDESIGN.md)). Map and Routes as one page, the
 Health cards and the Trends cards are built there and waiting for review.
 
-Not started: the nav (17), the rest of the redesign (18), platform (21). Direction beyond that
+Not started: the nav (17), the rest of the redesign (18), platform (21), and the Plan page that steers and can change the plan (26). Direction beyond that
 is in [`FUTURE.md`](FUTURE.md): publish as a self-hosted open-source project first (D29).
 
 ## The date that matters
@@ -108,6 +108,7 @@ nicer.
 | 23 Plan rules | W: `ready for review` | 2 / 2 |
 | 24 Flyover and video export | X: `ready for review` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `ready for review` | 4 / 4 |
+| 26 The Plan page: steer, and change the plan | Z: `open` | 0 / 8 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
@@ -142,7 +143,7 @@ merges, then `done`.
 |---|---|---|---|
 | T68 | Activity page: answers first (plan, route, effort / volume), then the map beside the kilometres, one chart, the rest one click away. Run, cycle and strength sessions (each exercise against last time) | in review | — |
 | T69 | Map: filters as chips, no empty native date pickers, Routes as a real control | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | T65 |
-| T70 | Plan: the sticky weekday header covers the top of the week above it; read the week as a column like Today | todo | — |
+| T70 | Plan: the sticky weekday header covers the top of the week above it; read the week as a column like Today. Superseded by T105 and T107, which replace the grid | todo | — |
 | T71 | Health: one big number per metric with a sparkline, detail on click. Built as three cards (Recovery, Body, Activity level) with the last reading when today's has not synced | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | T66 |
 | T72 | One control style: the native selects and date inputs match the rest | todo | — |
 | T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today. Done so far on the redesign branch: Map, Health and Trends (five cards). Plan, Race, Compare, Gear and Settings still to check | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | — |
@@ -223,6 +224,38 @@ Merged 2026-11-12. Extends the activity page redesign (T68).
 | T102 | Routes are coloured blue to red, not shades of one blue | done | — |
 | T103 | Dev: Vite allows tailnet hosts, and api-dev's port is published for a built UI | done | — |
 
+### Phase 26 — The Plan page: steer, and change the plan · Checkpoint Z: `open`
+
+The page's job is one question: **will this plan get me to the Doha Half on 15 Jan 2027 in
+shape, and what do I do this week to stay on it?** Today it is a 22-week grid that reports on
+the past. It should steer, and it should let the owner change the plan, or replace it with an
+uploaded one, without leaving the page.
+
+How the plan works now, because it decides how change can work: the plan is a Google
+Calendar read over a private iCal address (`ingest/plan_ics.py`). The app never writes to
+it. Each session is a `plan_sessions` row keyed by calendar `uid` and `recurrence_id`; a
+session that leaves the feed is stamped `withdrawn_at` and kept, so a finished week is always
+judged against what was asked at the time. So:
+
+- **Edits live in the app, on top of the calendar**, in their own table that a sync never
+  overwrites (the same idea as activity edits). The calendar stays as it is.
+- **An uploaded plan is a second kind of source** next to the subscribed address. It takes
+  over from a chosen day; earlier weeks keep the plan they were judged against.
+
+Order: T104 first (everything on the page reads it), then the page (T105 to T107), then the
+change area (T108 to T110), then verification (T111). One branch per task, from `master`.
+
+| ID | Task | Status | Depends on |
+|---|---|---|---|
+| T104 | The steering answer, `GET /api/plan/steer`: weeks to race, ahead / level / behind (kilometres run over the last 28 days against the plan, as the race forecast does, D21), this week's key session, and at most two things at risk (a skipped long run, a run of missed days), each with one plain suggestion | todo | — |
+| T105 | The Plan page, top: the verdict card (one sentence plus adherence, peak week, fitness it implies), then **This week** with the seven days large and readable, then a lighter **Next week** | todo | T104 |
+| T106 | The road to race day: planned weekly kilometres as a line from now to race day (build, peak, taper), finished weeks filled in, the race-day projection at the end | todo | T104 |
+| T107 | History: past weeks as one compact row each (the week's date, a bar of done against planned, km, a strip of seven dots for the days). Opening a row shows the week's detail with Link, Ignore and "Let the matcher decide" as today | todo | T105 |
+| T108 | Change a session: move it to another day, change its distance, skip it, or add a session of your own. Kept in a `plan_edits` table, shown as "edited", never overwritten by a sync, and one click to undo | todo | — |
+| T109 | Upload a plan: an `.ics` file or a CSV (`date, title, distance`) becomes a new plan source. A preview shows what it will add and from which day before anything changes. `POST /api/plan/upload` | todo | D30, D31 |
+| T110 | A **Change the plan** area on the Plan page: Upload, Edit a week, and which source is live. Settings keeps the calendar address and the plan start date | todo | T108, T109 |
+| T111 | Verify on the real data (the plan, the race countdown, an uploaded test plan removed afterwards), tests for each rule, then rebuild prod | todo | T104 to T110 |
+
 ### Open decisions
 
 | ID | Question | Status |
@@ -230,6 +263,9 @@ Merged 2026-11-12. Extends the activity page redesign (T68).
 | D23 | Does Trends fold into Train and Body, or stay its own page? | open |
 | D24 | Is there a Doha half-marathon course GPX to build the pacing plan from? | answered: no official file; one was traced from the published course map (approximate, 30 to 80 m, 21.06 km) and is in `courses/`. Use the organiser's own if one is published |
 | D25 | Should the page changes reach the old pages at once (T73), or only as each page is redone? | open |
+| D30 | Which files can be uploaded as a plan? Recommended: `.ics` (what a calendar exports) and CSV (`date, title, distance`). PDF and spreadsheets later, if a plan the owner wants only comes that way | open |
+| D31 | When a new plan is uploaded, what happens to the old one? Recommended: it takes over from a day the owner picks (default next Monday). Earlier weeks keep the old plan's sessions and the judgement they already got; the old source is kept, switched off | open |
+| D32 | Edits stay in the app and are not written back to the Google calendar (the feed is read-only, and writing would need a Google login). Recommended: yes | open |
 
 ### Decided
 
