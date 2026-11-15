@@ -33,6 +33,9 @@ import {
 /** H.264 first: it is what Instagram and YouTube want. The rest are for browsers without it. */
 const CODEC_PREFERENCE: VideoCodec[] = ["avc", "hevc", "vp9", "av1"];
 
+/** How many frames in a row one map draws before taking another stretch. */
+const FRAME_BLOCK = 8;
+
 export interface ExportJob {
   /** One hidden map each; they draw different frames at the same time. */
   stages: readonly StageHandle[];
@@ -178,7 +181,10 @@ export async function runExport(job: ExportJob): Promise<ExportResult> {
     await runOrdered<VideoSample>({
       count: lastFlying + 1,
       workers: stages.length,
-      lookahead: stages.length * 2,
+      // Each map takes a short run of frames in a row, so its camera moves a little each time
+      // and the tiles it has are reused.
+      block: FRAME_BLOCK,
+      lookahead: stages.length * FRAME_BLOCK,
       signal,
       produce: async (index, worker) => {
         const stage = stages[worker];

@@ -125,6 +125,34 @@ describe("runOrdered", () => {
     expect(made).toBeLessThan(40);
   });
 
+  it("gives a worker consecutive frames when asked for blocks, and still hands over in order", async () => {
+    const made: Record<number, number[]> = {};
+    const seen: number[] = [];
+    await runOrdered({
+      count: 40,
+      workers: 3,
+      block: 8,
+      lookahead: 24,
+      produce: async (index, worker) => {
+        (made[worker] ??= []).push(index);
+        await sleep(1 + (index % 3));
+        return index;
+      },
+      consume: async (index) => {
+        seen.push(index);
+      },
+    });
+    expect(seen).toEqual(Array.from({ length: 40 }, (_, i) => i));
+    for (const frames of Object.values(made)) {
+      // Within a block a map's frames follow one another.
+      for (let k = 1; k < frames.length; k++) {
+        const prev = frames[k - 1] as number;
+        const here = frames[k] as number;
+        if (here % 8 !== 0) expect(here).toBe(prev + 1);
+      }
+    }
+  });
+
   it("copes with no frames at all", async () => {
     await runOrdered({
       count: 0,

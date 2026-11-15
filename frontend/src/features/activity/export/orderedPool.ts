@@ -7,6 +7,12 @@ export interface OrderedPoolOptions<T> {
   /** How many frames can be in the making at once: one per map. */
   workers: number;
   /**
+   * How many consecutive frames a worker takes at a time. A map whose frames are next to each
+   * other moves a little each time and reuses what it has loaded; one that is dealt every
+   * `workers`-th frame jumps ahead each time and starts afresh. Default 1.
+   */
+  block?: number;
+  /**
    * How far past the frame the consumer is waiting on the workers may run. Finished frames
    * wait in memory, so this is the cap on how many; it must be at least `workers`.
    */
@@ -42,7 +48,8 @@ function aborted(): DOMException {
 
 export async function runOrdered<T>(options: OrderedPoolOptions<T>): Promise<void> {
   const { count, workers, produce, consume, signal } = options;
-  const lookahead = Math.max(options.lookahead, workers, 1);
+  const block = Math.max(Math.floor(options.block ?? 1), 1);
+  const lookahead = Math.max(options.lookahead, workers, block, 1);
   const slots = Array.from({ length: count }, () => deferred<T>());
 
   let next = 0;
@@ -71,14 +78,19 @@ export async function runOrdered<T>(options: OrderedPoolOptions<T>): Promise<voi
   const work = async (worker: number) => {
     while (!failure) {
       if (signal?.aborted) return fail(aborted());
-      const index = next++;
-      if (index >= count) return;
-      while (index - consumed >= lookahead && !failure) await room(index);
-      if (failure) return;
-      try {
-        slots[index]?.resolve(await produce(index, worker));
-      } catch (error) {
-        fail(error);
+      const first = next;
+      next += block;
+      if (first >= count) return;
+      for (let index = first; index < Math.min(first + block, count); index++) {
+        if (signal?.aborted) return fail(aborted());
+        while (index - consumed >= lookahead && !failure) await room(index);
+        if (failure) return;
+        try {
+          slots[index]?.resolve(await produce(index, worker));
+        } catch (error) {
+          fail(error);
+          return;
+        }
       }
     }
   };

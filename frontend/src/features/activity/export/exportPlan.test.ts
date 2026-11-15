@@ -126,13 +126,13 @@ describe("speedForLength", () => {
 
 describe("mapsFor", () => {
   it("uses more maps for a small picture and fewer for a big one", () => {
-    expect(mapsFor(exportSize("vertical", "draft"))).toBe(8);
-    expect(mapsFor(exportSize("vertical", "hd"))).toBe(8);
-    expect(mapsFor(exportSize("vertical", "2k"))).toBe(4);
+    expect(mapsFor(exportSize("vertical", "draft"))).toBe(4);
+    expect(mapsFor(exportSize("vertical", "hd"))).toBe(4);
+    expect(mapsFor(exportSize("vertical", "2k"))).toBe(3);
   });
 
-  it("is never fewer than two, or more than eight", () => {
+  it("is never fewer than two, or more than four", () => {
     expect(mapsFor({ width: 8000, height: 8000 })).toBe(2);
-    expect(mapsFor({ width: 100, height: 100 })).toBe(8);
+    expect(mapsFor({ width: 100, height: 100 })).toBe(4);
   });
 });
