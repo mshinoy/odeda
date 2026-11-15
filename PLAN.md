@@ -36,6 +36,23 @@ steps under Versions in `CONTRIBUTING.md`, and each phase that ships adds a chan
 **One branch per task or phase**, named for the work, from `master`, merged and deleted
 when approved. Work one thing at a time: the box has two CPUs.
 
+## Where things stand (15 Nov 2026)
+
+On `master` and in the app:
+- **MVP** (`v0.1.0`, phases 0 to 15), plus the tidy-up (16) and the data defects (19, two steps left).
+- **Race prep** (20): the pacing plan, taper check and missed-long-run warning. The post-race page is not built.
+- **Weather and wind** (22): stored, shown on the activity page and map. The analytics are not built.
+- **Plan rules** (23): Higdon's number is the day's target; a ride pays off part of a missed long run.
+- **Activity page** (18's T68, 25): run, cycle and muscles pages, laps, workout steps, blue-to-red routes.
+- **Flyover and video export** (24): a 3D flyover of an activity and an MP4 export of it.
+
+In progress, not on `master`: the Map, Routes, Health and Trends redesign on
+`redesign-map-health-trends` (see [`REDESIGN.md`](REDESIGN.md)). Map and Routes as one page, the
+Health cards and the Trends cards are built there and waiting for review.
+
+Not started: the nav (17), the rest of the redesign (18), platform (21). Direction beyond that
+is in [`FUTURE.md`](FUTURE.md): publish as a self-hosted open-source project first (D29).
+
 ## The date that matters
 
 **Doha Half Marathon, Friday 15 January 2027, 07:35.** On 15 Nov 2026 that is 61 days away.
@@ -46,11 +63,11 @@ nicer.
 
 ## Suggested order
 
-1. **Phase 16**: tidy and ship what is built.
-2. **Phase 19**: the data defects. Small, and each one makes a number wrong.
-3. **Phase 20**: race prep. Has a deadline.
-4. **Phases 17 and 18**: the nav and the page redesign. Big, no deadline.
-5. **Phase 21**: platform.
+1. **Phase 16**: tidy and ship what is built. *Done.*
+2. **Phase 19**: the data defects. Small, and each one makes a number wrong. *Five of seven done; T87 and T88 wait on the owner.*
+3. **Phase 20**: race prep. Has a deadline. *Three of four done.*
+4. **Phases 17 and 18**: the nav and the page redesign. Big, no deadline. *Under way: see REDESIGN.md.*
+5. **Phase 21**: platform. *Not started.*
 
 ## Status
 
@@ -70,6 +87,7 @@ nicer.
 | 22 Weather and wind | V: `ready for review` | 5 / 6 |
 | 23 Plan rules | W: `ready for review` | 2 / 2 |
 | 24 Flyover and video export | X: `ready for review` | 3 / 3 |
+| 25 Activity page additions and dev setup | Y: `ready for review` | 4 / 4 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
@@ -87,7 +105,7 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T64 | Train: the plan, training load, the race and the performance trends in one page | todo | — |
-| T65 | Places: the map and the routes in one page, routes as a side sheet on the map | todo | — |
+| T65 | Places: the map and the routes in one page, routes as a side sheet on the map. The Map and Routes page is built (routes list on the right, the chosen route on the map, heat map when none is chosen); the Places nav entry is not | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | — |
 | T66 | Body: health, sleep and weight in one page | todo | — |
 | T67 | The nav, the routes and their redirects (`/status` stays working); Trends folds into Train and Body | todo | T64, T65, T66 |
 
@@ -96,17 +114,18 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 The brief is ease of retrieval: the answer first, the working one click away, and no wall
 of information. Today is the pattern: a few numbers, then what it means.
 
-The plan for Map, Routes, Health and Trends is [`REDESIGN.md`](REDESIGN.md); the Map and
-Routes page is being built on `redesign-map-health-trends` and these rows change when it merges.
+The plan for Map, Routes, Health and Trends is [`REDESIGN.md`](REDESIGN.md). Those four are built
+on `redesign-map-health-trends` and waiting for review; the rows below say `in progress` until it
+merges, then `done`.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T68 | Activity page: answers first (plan, route, effort / volume), then the map beside the kilometres, one chart, the rest one click away. Run, cycle and strength sessions (each exercise against last time) | in review | — |
-| T69 | Map: filters as chips, no empty native date pickers, Routes as a real control | todo | T65 |
+| T69 | Map: filters as chips, no empty native date pickers, Routes as a real control | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | T65 |
 | T70 | Plan: the sticky weekday header covers the top of the week above it; read the week as a column like Today | todo | — |
-| T71 | Health: one big number per metric with a sparkline, detail on click | todo | T66 |
+| T71 | Health: one big number per metric with a sparkline, detail on click. Built as three cards (Recovery, Body, Activity level) with the last reading when today's has not synced | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | T66 |
 | T72 | One control style: the native selects and date inputs match the rest | todo | — |
-| T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today | todo | — |
+| T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today. Done so far on the redesign branch: Map, Health and Trends (five cards). Plan, Race, Compare, Gear and Settings still to check | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | — |
 
 ### Phase 19 — Data defects · Checkpoint S: `ready for review`
 
@@ -173,6 +192,17 @@ Merged 2026-11-14 and 2026-11-15. Ideas not built are in `FUTURE.md`.
 | T98 | Mapbox Standard as the base map, with its 3D buildings and a satellite choice (D28) | done | — |
 | T99 | Export the flyover as an MP4: length picker, 24 fps, several maps drawing frames at once, encoding while drawing, hardware encoding where available. About 38 s for a 60 s HD vertical video | done | T97, T98 |
 
+### Phase 25 — Activity page additions and dev setup · Checkpoint Y: `ready for review`
+
+Merged 2026-11-12. Extends the activity page redesign (T68).
+
+| ID | Task | Status | Depends on |
+|---|---|---|---|
+| T100 | Laps: a structured workout's intervals, as the watch timed them | done | T68 |
+| T101 | Workouts: every step against its plan, and steps for workouts without rests; adherence to the plan | done | T100 |
+| T102 | Routes are coloured blue to red, not shades of one blue | done | — |
+| T103 | Dev: Vite allows tailnet hosts, and api-dev's port is published for a built UI | done | — |
+
 ### Open decisions
 
 | ID | Question | Status |
@@ -196,6 +226,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D26 | **Weather comes from Open-Meteo.** Free for personal use, no key, hourly history to 1940 and the same fields as a forecast. Stored per activity so the app never depends on it being up. klimat.app could not be verified. | 2026-11-12 |
 | D27 | **A named plan's number is the day's target.** While Higdon's plan is on it beats the club's and the owner's own number, on Mon, Tue and Fri alike. A `GA:` hint, an event stating its own distance, or a race wins. | 2026-11-14 |
 | D28 | **Mapbox Standard is the base map,** for its 3D buildings and the flyover. Google photorealistic 3D tiles are to be tried once there is a key. | 2026-11-14 |
+| D29 | **Publish as a self-hosted open-source project first.** Not a hosted service: that would hold other people's Garmin tokens and health data on an unofficial login. The official Garmin API is considered after about 500 stars. Detail and steps in `FUTURE.md`. | 2026-11-15 |
 
 ### Parked (not planned; ask the owner before starting)
 
