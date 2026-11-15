@@ -108,7 +108,7 @@ nicer.
 | 23 Plan rules | W: `ready for review` | 2 / 2 |
 | 24 Flyover and video export | X: `ready for review` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `ready for review` | 4 / 4 |
-| 26 The Plan page: steer, and change the plan | Z: `open` | 7 / 8 |
+| 26 The Plan page: steer, and change the plan | Z: `ready for review` | 8 / 8 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
@@ -224,7 +224,7 @@ Merged 2026-11-12. Extends the activity page redesign (T68).
 | T102 | Routes are coloured blue to red, not shades of one blue | done | — |
 | T103 | Dev: Vite allows tailnet hosts, and api-dev's port is published for a built UI | done | — |
 
-### Phase 26 — The Plan page: steer, and change the plan · Checkpoint Z: `open`
+### Phase 26 — The Plan page: steer, and change the plan · Checkpoint Z: `ready for review`
 
 The page's job is one question: **will this plan get me to the Doha Half on 15 Jan 2027 in
 shape, and what do I do this week to stay on it?** Today it is a 22-week grid that reports on
@@ -254,7 +254,7 @@ change area (T108 to T110), then verification (T111). One branch per task, from 
 | T108 | Change a session: move it to another day, change its distance, skip it, or add a session of your own. Kept in a `plan_edits` table, shown as "edited", never overwritten by a sync, and one click to undo | done | — |
 | T109 | Upload a plan: an `.ics` file or a CSV (`date, title, distance`) becomes a new plan source. A preview shows what it will add and from which day before anything changes. `POST /api/plan/upload` | done | D30, D31 |
 | T110 | A **Change the plan** area on the Plan page: Upload, Edit a week, and which source is live. Settings keeps the calendar address and the plan start date | done | T108, T109 |
-| T111 | Verify on the real data (the plan, the race countdown, an uploaded test plan removed afterwards), tests for each rule, then rebuild prod | todo | T104 to T110 |
+| T111 | Verify on the real data (the plan, the race countdown, an uploaded test plan removed afterwards), tests for each rule, then rebuild prod | done (on prod 2026-11-15; an upload was previewed on the real data, not applied) | T104 to T110 |
 
 ### Open decisions
 
