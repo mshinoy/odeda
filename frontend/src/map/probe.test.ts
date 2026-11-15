@@ -64,4 +64,28 @@ describe("probeOf", () => {
     expect(map.listeners.size).toBe(0);
     vi.useRealTimers();
   });
+
+  it("says whether the tiles were already in on the first draw, and how many draws it took", async () => {
+    const ready = fakeMap();
+    const first = probeOf(ready).whenIdle();
+    ready.render();
+    expect(await first).toEqual({ renders: 1, readyFirst: true, timedOut: false });
+
+    const slow = fakeMap({ tiles: false, style: true });
+    const second = probeOf(slow).whenIdle();
+    slow.render();
+    slow.render();
+    slow.state.tiles = true;
+    slow.render();
+    expect(await second).toEqual({ renders: 3, readyFirst: false, timedOut: false });
+  });
+
+  it("reports a timeout as one", async () => {
+    vi.useFakeTimers();
+    const map = fakeMap({ tiles: false, style: true });
+    const waiting = probeOf(map).whenIdle(300);
+    vi.advanceTimersByTime(300);
+    expect((await waiting).timedOut).toBe(true);
+    vi.useRealTimers();
+  });
 });

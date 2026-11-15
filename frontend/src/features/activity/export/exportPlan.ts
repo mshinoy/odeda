@@ -47,11 +47,11 @@ export const EXPORT_FPS = 24;
 /**
  * How many maps draw frames at once. Drawing a frame is mostly waiting (for tiles, for the
  * screen), so more maps overlap the waits; each holds its own tiles and canvases, so the count
- * falls as the picture grows. About 12 million pixels of map in all.
+ * falls as the picture grows. About 17 million pixels of map in all.
  */
-const PIXEL_BUDGET = 12_000_000;
+const PIXEL_BUDGET = 17_000_000;
 const MIN_MAPS = 2;
-const MAX_MAPS = 4;
+const MAX_MAPS = 8;
 
 export function mapsFor(size: ExportSize): number {
   const fit = Math.floor(PIXEL_BUDGET / (size.width * size.height));

@@ -47,6 +47,12 @@ import { cn } from "@/lib/utils";
 
 /** The time left is worked out from this much of the most recent progress. */
 const RECENT_MS = 15_000;
+/** Tiles start loading ahead this long after the last change to shape, sharpness or satellite. */
+const WARM_DELAY_MS = 1500;
+/** One stop along the route about this often, so every tile on the way gets asked for. */
+const WARM_STEP_S = 45;
+const WARM_MIN_STOPS = 20;
+const WARM_MAX_STOPS = 200;
 
 type Moment = "opening" | "ride" | "ending";
 
@@ -120,6 +126,10 @@ export function ExportDialog({
   // One small map for the preview, and a set of full-size ones that draw the video's frames.
   const stage = useRef<StageHandle>(null);
   const renderStages = useRef<(StageHandle | null)[]>([]);
+  // A map the size of the video that walks the route while the choices are being made, so the
+  // browser already has the tiles when the real maps ask for them.
+  const warmStage = useRef<StageHandle>(null);
+  const [warming, setWarming] = useState(false);
   const previewCanvas = useRef<HTMLCanvasElement>(null);
   const job = useRef<AbortController | null>(null);
   const runId = useRef(0);
@@ -206,6 +216,38 @@ export function ExportDialog({
     draftSize,
   ]);
 
+  // Loads the route's map tiles in the background while the choices are made. It makes no
+  // frames and encodes nothing, and starts over if the shape, sharpness or satellite change,
+  // because those change which tiles are asked for. It stops when the video is made.
+  const warmable = open && !making && result === null;
+  useEffect(() => {
+    if (!warmable) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      const handle = warmStage.current;
+      if (!handle) return;
+      setWarming(true);
+      try {
+        const stops = Math.min(
+          Math.max(Math.ceil(durationS / WARM_STEP_S), WARM_MIN_STOPS),
+          WARM_MAX_STOPS,
+        );
+        for (let k = 0; k < stops; k++) {
+          if (controller.signal.aborted) return;
+          await handle.show((durationS * k) / Math.max(stops - 1, 1));
+        }
+      } catch {
+        // Warming is an extra: a map that fails here is simply not warmed.
+      } finally {
+        if (!controller.signal.aborted) setWarming(false);
+      }
+    }, WARM_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [warmable, durationS, finalKey, satellite, colorBy, activity.summary.id]);
+
   const render = useCallback(
     async (controller: AbortController) => {
       const id = ++runId.current;
@@ -263,7 +305,10 @@ export function ExportDialog({
   // Makes the video when asked. The maps that draw it are mounted first (flushed, so they
   // exist and their handles are set), and the choices are locked while it runs.
   const make = () => {
-    flushSync(() => setMaking(true));
+    flushSync(() => {
+      setMaking(true);
+      setWarming(false);
+    });
     const controller = new AbortController();
     job.current = controller;
     void render(controller).finally(() => setMaking(false));
@@ -400,6 +445,9 @@ export function ExportDialog({
               {finalSize.width}×{finalSize.height} · {frames.count.toLocaleString()} frames ·{" "}
               {Math.round(speed)}× · about {megabytes((bitrate * frames.videoS) / 8)}
             </p>
+            {warming && (
+              <p className="text-muted-foreground text-xs">Loading the route's map tiles ahead…</p>
+            )}
           </div>
         </div>
 
@@ -421,7 +469,9 @@ export function ExportDialog({
               <span className="text-muted-foreground text-xs tabular-nums">
                 Per frame on each map, in ms: page {Math.round(timings.render)} · tiles{" "}
                 {Math.round(timings.tiles)} · route layer {Math.round(timings.layers)} · drawing{" "}
-                {Math.round(timings.draw)} · encoder wait {Math.round(timings.encode)}
+                {Math.round(timings.draw)} · encoder wait {Math.round(timings.encode)} · draws{" "}
+                {timings.renders.toFixed(1)} · tiles ready on the first draw{" "}
+                {Math.round(timings.readyFirstPct)}%
               </span>
             )}
           </div>
@@ -443,7 +493,9 @@ export function ExportDialog({
           <p className="text-muted-foreground text-xs tabular-nums">
             Per frame on each map, in ms: page {Math.round(timings.render)} · tiles{" "}
             {Math.round(timings.tiles)} · route layer {Math.round(timings.layers)} · drawing{" "}
-            {Math.round(timings.draw)} · encoder {Math.round(timings.encode)}
+            {Math.round(timings.draw)} · encoder {Math.round(timings.encode)} · draws{" "}
+            {timings.renders.toFixed(1)} · tiles ready on the first draw{" "}
+            {Math.round(timings.readyFirstPct)}%
           </p>
         )}
 
@@ -470,6 +522,18 @@ export function ExportDialog({
           )}
         </DialogFooter>
 
+        {warmable && (
+          <ExportStage
+            key={`warm-${finalKey}`}
+            ref={warmStage}
+            activity={activity}
+            colorBy={colorBy}
+            gaps={gaps}
+            satellite={satellite}
+            size={finalSize}
+            speed={speed}
+          />
+        )}
         {open && (
           <ExportStage
             key={`preview-${draftKey}`}

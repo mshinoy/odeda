@@ -59,6 +59,10 @@ export interface FrameTimings {
   draw: number;
   /** The encoder taking a frame: near zero when it keeps up. */
   encode: number;
+  /** Draws a map made per frame before every tile was in: 1 means none were waited for. */
+  renders: number;
+  /** The share of frames, 0 to 100, whose tiles were all in on the first draw. */
+  readyFirstPct: number;
 }
 
 export interface ExportResult {
@@ -119,7 +123,7 @@ export async function runExport(job: ExportJob): Promise<ExportResult> {
     }
   }
 
-  const sum = { render: 0, tiles: 0, layers: 0, draw: 0, encode: 0 };
+  const sum = { render: 0, tiles: 0, layers: 0, draw: 0, encode: 0, renders: 0, ready: 0 };
   let rendered = 0;
   let encoded = 0;
   let holdShot: StageShot | null = null;
@@ -165,6 +169,8 @@ export async function runExport(job: ExportJob): Promise<ExportResult> {
       layers: sum.layers / n,
       draw: sum.draw / encoded,
       encode: sum.encode / encoded,
+      renders: sum.renders / n,
+      readyFirstPct: (100 * sum.ready) / n,
     });
   };
 
@@ -182,6 +188,8 @@ export async function runExport(job: ExportJob): Promise<ExportResult> {
         sum.render += shot.timings.render;
         sum.tiles += shot.timings.tiles;
         sum.layers += shot.timings.layers;
+        sum.renders += shot.timings.renders;
+        if (shot.timings.readyFirst) sum.ready += 1;
         rendered += 1;
         if (index === lastFlying) holdShot = shot;
         return drawOne(index, target[1], target[0], shot);

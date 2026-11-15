@@ -34,6 +34,10 @@ export interface StageTimings {
   render: number;
   /** Waiting for the map to finish drawing, tiles included. */
   tiles: number;
+  /** Draws until one had every tile (1 = they were already in). */
+  renders: number;
+  /** The first draw already had every tile. */
+  readyFirst: boolean;
   /** Waiting for the route and dot layer, which draws a refresh or two later. */
   layers: number;
 }
@@ -106,7 +110,7 @@ export const ExportStage = forwardRef<StageHandle, ExportStageProps>(function Ex
       // Effects (the camera, the layers) run before the next paint; then the map draws.
       await nextFrame();
       const t1 = performance.now();
-      await mapProbe.whenIdle();
+      const idle = await mapProbe.whenIdle();
       const t2 = performance.now();
       // The route layer draws on its own cycle: give it two frames to catch up.
       await nextFrame();
@@ -119,7 +123,13 @@ export const ExportStage = forwardRef<StageHandle, ExportStageProps>(function Ex
       return {
         canvases: [...root.querySelectorAll("canvas")],
         logo: await logo.current,
-        timings: { render: t1 - t0, tiles: t2 - t1, layers: t3 - t2 },
+        timings: {
+          render: t1 - t0,
+          tiles: t2 - t1,
+          layers: t3 - t2,
+          renders: idle.renders,
+          readyFirst: idle.readyFirst,
+        },
       };
     },
   }));
