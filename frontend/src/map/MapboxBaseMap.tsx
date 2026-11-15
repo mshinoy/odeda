@@ -1,6 +1,6 @@
 // The Mapbox basemap. Loaded lazily by BaseMap, so mapbox-gl is only downloaded when a
 // Mapbox token is configured.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import {
@@ -12,6 +12,7 @@ import {
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEnv } from "@/map/basemap";
+import { probeOf, type MapProbe } from "@/map/probe";
 import { useCameraDriver } from "@/map/useCameraDriver";
 import {
   FIT_PADDING_PX,
@@ -30,9 +31,12 @@ export function MapboxBaseMap({
   onLeave,
   cursor,
   camera,
+  capture = false,
+  onMap,
   mapStyle,
   lightPreset = "day",
 }: ProviderMapProps) {
+  const overlay = useRef<MapboxOverlay | null>(null);
   return (
     <MapboxMap
       mapboxAccessToken={mapEnv.mapboxToken}
@@ -46,6 +50,8 @@ export function MapboxBaseMap({
       scrollZoom
       maxPitch={MAX_PITCH}
       interactive={!camera}
+      preserveDrawingBuffer={capture}
+      {...(capture ? { fadeDuration: 0 } : {})}
       attributionControl={false}
       logoPosition="bottom-right"
       cursor={cursor}
@@ -53,9 +59,10 @@ export function MapboxBaseMap({
     >
       <AttributionControl position="bottom-right" compact />
       <NavigationControl position="top-right" showCompass={false} />
-      <DeckOverlay layers={layers} onHover={onHover} />
+      <DeckOverlay layers={layers} onHover={onHover} overlayRef={overlay} />
       <FitBounds bounds={fitBounds} />
-      <CameraDriver camera={camera} bounds={initialBounds} />
+      <CameraDriver camera={camera} bounds={initialBounds} exact={capture} />
+      <ProbeReporter onMap={onMap} overlayRef={overlay} />
       <LightPreset preset={lightPreset} />
     </MapboxMap>
   );
@@ -81,9 +88,17 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
 
 // Follows a flyover camera frame by frame, and settles back to the route when it ends.
 // Same as the other provider's, but each library's `useMap` only works under its own <Map>.
-function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
+function CameraDriver({
+  camera,
+  bounds,
+  exact,
+}: {
+  camera?: MapCamera | null;
+  bounds: MapBounds;
+  exact: boolean;
+}) {
   const { current: map } = useMap();
-  useCameraDriver(map, camera, bounds);
+  useCameraDriver(map, camera, bounds, exact);
   return null;
 }
 
@@ -114,18 +129,57 @@ function LightPreset({ preset }: { preset: "day" | "night" }) {
   return null;
 }
 
+// Hands the caller a way to wait for the map to be idle. Same as the other provider's, but
+// each library's `useMap` only works under its own <Map>.
+function ProbeReporter({
+  onMap,
+  overlayRef,
+}: {
+  onMap?: (probe: MapProbe | null) => void;
+  overlayRef: MutableRefObject<MapboxOverlay | null>;
+}) {
+  const { current: map } = useMap();
+
+  useEffect(() => {
+    if (!map || !onMap) return;
+    const base = probeOf(map.getMap() as unknown as Parameters<typeof probeOf>[0]);
+    onMap({
+      ...base,
+      // A reason forces deck.gl to draw now, with the view the map has just been given.
+      drawOverlay: () => (overlayRef.current as unknown as OverlayDeck | null)?._deck?.redraw("export"),
+    });
+    return () => onMap(null);
+  }, [map, onMap, overlayRef]);
+
+  return null;
+}
+
 interface DeckOverlayProps {
   layers: LayersList;
   onHover?: (info: PickingInfo) => void;
+  /** Gets the overlay, so a video export can ask it to draw at once. */
+  overlayRef: MutableRefObject<MapboxOverlay | null>;
+}
+
+/** The deck behind a MapboxOverlay: private in its types, and all that is needed to draw now. */
+interface OverlayDeck {
+  _deck?: { redraw(reason: string): void };
 }
 
 // deck.gl draws on its own canvas above the map (interleaved: false), kept in step with
 // the map's camera by MapboxOverlay. Same as the MapLibre module's, but each library's
 // `useControl` only works under its own <Map>.
-function DeckOverlay({ layers, onHover }: DeckOverlayProps) {
+function DeckOverlay({ layers, onHover, overlayRef }: DeckOverlayProps) {
   const overlay = useControl(
     () => new MapboxOverlay({ interleaved: false, pickingRadius: PICKING_RADIUS_PX }),
   );
+
+  useEffect(() => {
+    overlayRef.current = overlay;
+    return () => {
+      overlayRef.current = null;
+    };
+  }, [overlay, overlayRef]);
 
   useEffect(() => {
     overlay.setProps({ layers, onHover });

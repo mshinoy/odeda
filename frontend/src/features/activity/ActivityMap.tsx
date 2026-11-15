@@ -11,6 +11,7 @@ import { indexAtElapsed } from "@/features/activity/playback";
 import type { Playback } from "@/features/activity/usePlayback";
 import type { MetricKey } from "@/lib/metrics";
 import { BaseMap } from "@/map/BaseMap";
+import type { MapProbe } from "@/map/probe";
 import {
   activityMetricRange,
   activityRouteSegments,
@@ -35,6 +36,13 @@ interface ActivityMapProps {
   /** `map` leaves the camera to the user; the others fly it along the playback clock. */
   cameraMode?: CameraMode;
   satellite?: boolean;
+  /**
+   * Draws for a video frame: the camera is exact, the map can be copied from, and the replay
+   * leaves the shared crosshair alone, since it is not the one on screen.
+   */
+  capture?: boolean;
+  /** Receives a probe to wait for the map to be idle: what a video export needs. */
+  onMap?: (probe: MapProbe | null) => void;
 }
 
 // One empty list for every render, so no gaps never looks like new data to a memo.
@@ -49,6 +57,8 @@ export function ActivityMap({
   gaps = NO_GAPS,
   cameraMode = "map",
   satellite = false,
+  capture = false,
+  onMap,
 }: ActivityMapProps) {
   const theme = useTheme();
   const tokens = useTokens();
@@ -139,9 +149,9 @@ export function ActivityMap({
 
   // The charts' crosshair follows the replay, because both read the same hover.
   useEffect(() => {
-    if (!replaying) return;
+    if (!replaying || capture) return;
     setHover({ activityId, index: indexAtElapsed(elapsedS, playback.currentS) });
-  }, [replaying, playback.currentS, activityId, elapsedS, setHover]);
+  }, [replaying, capture, playback.currentS, activityId, elapsedS, setHover]);
 
   const handleHover = useCallback(
     (info: PickingInfo) => {
@@ -173,6 +183,8 @@ export function ActivityMap({
         cursor={pointerOnRoute ? "pointer" : undefined}
         camera={camera}
         satellite={satellite}
+        capture={capture}
+        onMap={onMap}
       />
       {legendRange && (
         <div className="absolute bottom-3 left-3 z-10">

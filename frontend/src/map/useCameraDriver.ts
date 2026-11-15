@@ -16,6 +16,7 @@ export function useCameraDriver(
   map: CameraTarget | undefined,
   camera: MapCamera | null | undefined,
   bounds: MapBounds,
+  exact = false,
 ): void {
   const target = useRef<MapCamera | null>(null);
   const shown = useRef<MapCamera | null>(null);
@@ -31,6 +32,14 @@ export function useCameraDriver(
       applyCamera(map, null, shown.current !== null, bounds);
       shown.current = null;
       target.current = null;
+      return;
+    }
+
+    if (exact) {
+      // Rendering video: every frame is its own shot, so go straight to it.
+      shown.current = camera;
+      target.current = camera;
+      applyCamera(map, camera, true, bounds);
       return;
     }
 
@@ -58,7 +67,7 @@ export function useCameraDriver(
       frame.current = requestAnimationFrame(tick);
     };
     frame.current = requestAnimationFrame(tick);
-  }, [map, camera, bounds]);
+  }, [map, camera, bounds, exact]);
 
   // Only on unmount: the loop outlives the effect above so it survives every new camera.
   useEffect(
