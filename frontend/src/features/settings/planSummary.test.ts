@@ -75,6 +75,21 @@ describe("feedStatus", () => {
     expect(status.text).toContain("reset");
   });
 
+  it("calls an uploaded plan in use, not read", () => {
+    const uploaded = plan({
+      source: {
+        label: "Coach block",
+        kind: "upload",
+        url_masked: "Coach block",
+        last_fetch_at: "2026-11-14T10:00:00Z",
+        last_error: null,
+      },
+    });
+    const status = feedStatus(uploaded, NOW);
+    expect(status.tone).toBe("good");
+    expect(status.text).toContain("Uploaded plan in use");
+  });
+
   it("distinguishes subscribed-but-never-read from working", () => {
     const fresh = plan({
       source: { label: null, kind: "ics", url_masked: "…", last_fetch_at: null, last_error: null },

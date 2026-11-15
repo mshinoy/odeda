@@ -236,3 +236,40 @@ export function useRemovePlanSession() {
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
   });
 }
+
+export type PlanUploadSummary = components["schemas"]["PlanUploadSummary"];
+
+interface UploadArgs {
+  content: string;
+  effectiveDay: string;
+  label?: string | null;
+}
+
+/** What uploading a plan would do, from a given day. Writes nothing. */
+export function usePreviewPlanUpload() {
+  return useMutation({
+    mutationFn: async ({ content, effectiveDay, label }: UploadArgs) =>
+      unwrap(
+        await api.POST("/api/plan/upload/preview", {
+          body: { content, effective_day: effectiveDay, label: label ?? null },
+        }),
+      ),
+  });
+}
+
+/**
+ * Make an uploaded file the plan from a day. Every figure that reads the plan moves,
+ * on Today and the race as much as here, so the whole cache is refreshed.
+ */
+export function useUploadPlan() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ content, effectiveDay, label }: UploadArgs) =>
+      unwrap(
+        await api.POST("/api/plan/upload", {
+          body: { content, effective_day: effectiveDay, label: label ?? null },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries(),
+  });
+}

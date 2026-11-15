@@ -108,7 +108,7 @@ nicer.
 | 23 Plan rules | W: `ready for review` | 2 / 2 |
 | 24 Flyover and video export | X: `ready for review` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `ready for review` | 4 / 4 |
-| 26 The Plan page: steer, and change the plan | Z: `open` | 6 / 8 |
+| 26 The Plan page: steer, and change the plan | Z: `open` | 7 / 8 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
@@ -253,7 +253,7 @@ change area (T108 to T110), then verification (T111). One branch per task, from 
 | T107 | History: past weeks as one compact row each (the week's date, a bar of done against planned, km, a strip of seven dots for the days). Opening a row shows the week's detail with Link, Ignore and "Let the matcher decide" as today | done | T105 |
 | T108 | Change a session: move it to another day, change its distance, skip it, or add a session of your own. Kept in a `plan_edits` table, shown as "edited", never overwritten by a sync, and one click to undo | done | — |
 | T109 | Upload a plan: an `.ics` file or a CSV (`date, title, distance`) becomes a new plan source. A preview shows what it will add and from which day before anything changes. `POST /api/plan/upload` | done | D30, D31 |
-| T110 | A **Change the plan** area on the Plan page: Upload, Edit a week, and which source is live. Settings keeps the calendar address and the plan start date | todo | T108, T109 |
+| T110 | A **Change the plan** area on the Plan page: Upload, Edit a week, and which source is live. Settings keeps the calendar address and the plan start date | done | T108, T109 |
 | T111 | Verify on the real data (the plan, the race countdown, an uploaded test plan removed afterwards), tests for each rule, then rebuild prod | todo | T104 to T110 |
 
 ### Open decisions

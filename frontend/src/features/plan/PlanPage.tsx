@@ -11,6 +11,7 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calendarWeeks, weeklyKmSeries } from "@/features/plan/planView";
+import { ChangePlanCard } from "@/features/plan/ChangePlanCard";
 import { PlanHistory } from "@/features/plan/PlanHistory";
 import { PlanRoadCard } from "@/features/plan/PlanRoadCard";
 import { PlanWeekCard } from "@/features/plan/PlanWeekCard";
@@ -93,6 +94,13 @@ export function PlanPage() {
       )}
 
       <PlanRoadCard weeks={weeklyKm} />
+
+      <ChangePlanCard
+        plan={plan.data}
+        onEditWeek={() => {
+          if (current && openWeek !== current.start) toggleWeek(current.start);
+        }}
+      />
 
       {!sessions.isPending && (
         <PlanHistory

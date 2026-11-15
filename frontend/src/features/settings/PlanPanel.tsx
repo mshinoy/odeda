@@ -79,14 +79,16 @@ export function PlanPanel() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={sync.isPending || running}
-                onClick={() => sync.mutate()}
-              >
-                {sync.isPending || running ? "Syncing…" : "Sync now"}
-              </Button>
+              {plan.data.source.kind !== "upload" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={sync.isPending || running}
+                  onClick={() => sync.mutate()}
+                >
+                  {sync.isPending || running ? "Syncing…" : "Sync now"}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -108,7 +110,9 @@ export function PlanPanel() {
 
           <div className="flex flex-col gap-2 pt-1">
             <p className="text-muted-foreground text-xs">
-              Replace the address — Google issues a new one whenever it is reset.
+              {plan.data.source.kind === "upload"
+                ? "This plan was uploaded as a file. To go back to a calendar, enter its address."
+                : "Replace the address — Google issues a new one whenever it is reset."}
             </p>
             <SourceForm
               url={url}
