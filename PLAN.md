@@ -19,9 +19,29 @@ Garmin history, and it already does this:
 The history file also holds the **Rules**, **How to work on a task** and every earlier task
 card. Those rules still apply. Read them before changing anything.
 
-Bigger ideas that are **not scheduled** live in [`FUTURE.md`](FUTURE.md), with the reasoning.
-A task that is started moves from there to here, and leaves a pointer. A task is tracked in one
-place only: T81, T85 and T94 are tasks here, and FUTURE.md points to them.
+## How work moves
+
+Nothing is built without a row here. Every piece of work goes through the same four places:
+
+1. **Idea → [`FUTURE.md`](FUTURE.md).** Anything not yet decided: the *why*, what it would take,
+   and what would trigger building it. Nothing here is scheduled.
+2. **Decided → this file.** When the owner says "build this", it becomes a phase with task rows
+   (ID, task, status, depends on) and a checkpoint. The idea leaves a pointer in FUTURE.md and
+   its detail is not copied. A piece too big for a table (a redesign, a launch) gets its own
+   plan file, like [`REDESIGN.md`](REDESIGN.md), linked from the phase, with `- [ ]` tick boxes
+   for its steps; this file still has one row per step, and the row's status is the truth.
+3. **Working → keep the row current.** One branch per task, from `master`. The status goes to
+   `in progress (<branch>, <date>)` when it starts, and to `done` in the same commit as the work.
+   Update the phase count in the status table. A question for the owner is a row under Open
+   decisions; a choice made is a row under Decided.
+4. **Shipped → the record.** A release adds a [`CHANGELOG.md`](CHANGELOG.md) entry. Finished
+   phases move to [`PLAN-HISTORY.md`](PLAN-HISTORY.md) when this file gets long. Work that is
+   dropped or put off goes back to FUTURE.md (or Parked, below) with the reason.
+
+If the owner asks for something directly, add its row first, in the same commit as the work.
+A task has one home: T81, T85 and T94 are tasks here, and FUTURE.md only points to them.
+Verify the snapshot at the top of this file whenever a phase changes.
+
 
 This file is the tracker. Agents pick tasks from the tables below and update them in the
 same commit as the work; the owner reads them to see what is done. `git log -p PLAN.md`
