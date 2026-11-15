@@ -235,3 +235,20 @@ export function weeklyKmSeries(
     plannedKm: plannedByWeek.get(start) ?? null,
   }));
 }
+
+/** The day's worst verdict, so one missed session is not hidden by a done one beside it. */
+const SEVERITY: PlanVerdict[] = [
+  "missed",
+  "short",
+  "rest-broken",
+  "substituted",
+  "done",
+  "rest-kept",
+  "upcoming",
+];
+
+export function dayVerdict(day: CalendarDay): PlanVerdict | null {
+  const verdicts = day.sessions.filter((s) => !s.ignored && !s.optional).map((s) => s.verdict);
+  if (verdicts.length === 0) return null;
+  return SEVERITY.find((v) => verdicts.includes(v)) ?? null;
+}

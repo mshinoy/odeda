@@ -108,7 +108,7 @@ nicer.
 | 23 Plan rules | W: `ready for review` | 2 / 2 |
 | 24 Flyover and video export | X: `ready for review` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `ready for review` | 4 / 4 |
-| 26 The Plan page: steer, and change the plan | Z: `open` | 0 / 8 |
+| 26 The Plan page: steer, and change the plan | Z: `open` | 4 / 8 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
@@ -247,10 +247,10 @@ change area (T108 to T110), then verification (T111). One branch per task, from 
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
-| T104 | The steering answer, `GET /api/plan/steer`: weeks to race, ahead / level / behind (kilometres run over the last 28 days against the plan, as the race forecast does, D21), this week's key session, and at most two things at risk (a skipped long run, a run of missed days), each with one plain suggestion | todo | — |
-| T105 | The Plan page, top: the verdict card (one sentence plus adherence, peak week, fitness it implies), then **This week** with the seven days large and readable, then a lighter **Next week** | todo | T104 |
-| T106 | The road to race day: planned weekly kilometres as a line from now to race day (build, peak, taper), finished weeks filled in, the race-day projection at the end | todo | T104 |
-| T107 | History: past weeks as one compact row each (the week's date, a bar of done against planned, km, a strip of seven dots for the days). Opening a row shows the week's detail with Link, Ignore and "Let the matcher decide" as today | todo | T105 |
+| T104 | The steering answer, `GET /api/plan/steer`: weeks to race, ahead / level / behind (kilometres run over the last 28 days against the plan, as the race forecast does, D21), this week's key session, and at most two things at risk (a skipped long run, a run of missed days), each with one plain suggestion | done | — |
+| T105 | The Plan page, top: the verdict card (one sentence plus adherence, peak week, fitness it implies), then **This week** with the seven days large and readable, then a lighter **Next week** | done | T104 |
+| T106 | The road to race day: planned weekly kilometres as a line from now to race day (build, peak, taper), finished weeks filled in, the race-day projection at the end | done | T104 |
+| T107 | History: past weeks as one compact row each (the week's date, a bar of done against planned, km, a strip of seven dots for the days). Opening a row shows the week's detail with Link, Ignore and "Let the matcher decide" as today | done | T105 |
 | T108 | Change a session: move it to another day, change its distance, skip it, or add a session of your own. Kept in a `plan_edits` table, shown as "edited", never overwritten by a sync, and one click to undo | todo | — |
 | T109 | Upload a plan: an `.ics` file or a CSV (`date, title, distance`) becomes a new plan source. A preview shows what it will add and from which day before anything changes. `POST /api/plan/upload` | todo | D30, D31 |
 | T110 | A **Change the plan** area on the Plan page: Upload, Edit a week, and which source is live. Settings keeps the calendar address and the plan start date | todo | T108, T109 |
@@ -264,7 +264,6 @@ change area (T108 to T110), then verification (T111). One branch per task, from 
 | D24 | Is there a Doha half-marathon course GPX to build the pacing plan from? | answered: no official file; one was traced from the published course map (approximate, 30 to 80 m, 21.06 km) and is in `courses/`. Use the organiser's own if one is published |
 | D25 | Should the page changes reach the old pages at once (T73), or only as each page is redone? | open |
 | D30 | Which files can be uploaded as a plan? Recommended: `.ics` (what a calendar exports) and CSV (`date, title, distance`). PDF and spreadsheets later, if a plan the owner wants only comes that way | open |
-| D31 | When a new plan is uploaded, what happens to the old one? Recommended: it takes over from a day the owner picks (default next Monday). Earlier weeks keep the old plan's sessions and the judgement they already got; the old source is kept, switched off | open |
 | D32 | Edits stay in the app and are not written back to the Google calendar (the feed is read-only, and writing would need a Google login). Recommended: yes | open |
 
 ### Decided
@@ -283,6 +282,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D27 | **A named plan's number is the day's target.** While Higdon's plan is on it beats the club's and the owner's own number, on Mon, Tue and Fri alike. A `GA:` hint, an event stating its own distance, or a race wins. | 2026-11-14 |
 | D28 | **Mapbox Standard is the base map,** for its 3D buildings and the flyover. Google photorealistic 3D tiles are to be tried once there is a key. | 2026-11-14 |
 | D29 | **Publish as a self-hosted open-source project first.** Not a hosted service: that would hold other people's Garmin tokens and health data on an unofficial login. The official Garmin API is considered after about 500 stars. Detail and steps in `FUTURE.md`. | 2026-11-15 |
+| D31 | **A new plan takes over from a day the owner picks** (default next Monday). Earlier weeks keep the old plan's sessions and the judgement they already got; the old source is kept, switched off. | 2026-11-15 |
 
 ### Parked (not planned; ask the owner before starting)
 

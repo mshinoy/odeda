@@ -11,6 +11,8 @@ export type PlanWeekDetail = components["schemas"]["PlanWeekDetail"];
 export type PlanSession = components["schemas"]["PlanSession"];
 export type PlanUnplanned = components["schemas"]["PlanUnplanned"];
 export type PlanDecision = components["schemas"]["PlanDecision"];
+export type PlanSteer = components["schemas"]["PlanSteer"];
+export type SteerRisk = components["schemas"]["SteerRisk"];
 export type PlanVerdict = PlanSession["verdict"];
 export type RacePanelData = components["schemas"]["RacePanel"];
 export type RaceForecast = components["schemas"]["RaceForecast"];
@@ -33,6 +35,14 @@ export function usePlanSessions() {
   return useQuery({
     queryKey: queryKeys.planSessions,
     queryFn: async () => unwrap(await api.GET("/api/plan/sessions")),
+  });
+}
+
+/** Where the owner stands against the plan, and what puts the race at risk. */
+export function usePlanSteer() {
+  return useQuery({
+    queryKey: queryKeys.planSteer,
+    queryFn: async () => unwrap(await api.GET("/api/plan/steer")),
   });
 }
 
