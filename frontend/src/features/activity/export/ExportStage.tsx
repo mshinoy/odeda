@@ -106,15 +106,20 @@ export const ExportStage = forwardRef<StageHandle, ExportStageProps>(function Ex
       const mapProbe =
         probe.current ?? (await new Promise<MapProbe>((resolve) => waiting.current.push(resolve)));
       const t0 = performance.now();
+      // Renders the page for this moment, and has run its effects (the camera, the layers) by
+      // the time it returns: React flushes the effects of a synchronous update before it ends.
       flushSync(() => setSeconds(activityS));
-      // Effects (the camera, the layers) run before the next paint; then the map draws.
-      await nextFrame();
       const t1 = performance.now();
       const idle = await mapProbe.whenIdle();
       const t2 = performance.now();
-      // The route layer draws on its own cycle: give it two frames to catch up.
-      await nextFrame();
-      await nextFrame();
+      if (mapProbe.drawOverlay) {
+        // The route and dot layer sit on a canvas of their own that would draw on a later screen
+        // refresh: draw it now, in step with the map that has just finished.
+        mapProbe.drawOverlay();
+      } else {
+        await nextFrame();
+        await nextFrame();
+      }
       const t3 = performance.now();
 
       const root = container.current;

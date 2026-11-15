@@ -18,6 +18,12 @@ export interface MapProbe {
    * waits for every label to finish fading and costs about a third of a second a frame.
    */
   whenIdle(timeoutMs?: number): Promise<IdleInfo>;
+  /**
+   * Draws the overlay layers (the route, the dot) right now, in step with the map's current view,
+   * instead of leaving them to their own next screen refresh. Only where the provider has an
+   * overlay of its own; absent otherwise.
+   */
+  drawOverlay?(): void;
 }
 
 /** The part of a Mapbox or MapLibre map this needs. */

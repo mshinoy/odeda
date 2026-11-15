@@ -1,6 +1,6 @@
 // The Mapbox basemap. Loaded lazily by BaseMap, so mapbox-gl is only downloaded when a
 // Mapbox token is configured.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import {
@@ -36,6 +36,7 @@ export function MapboxBaseMap({
   mapStyle,
   lightPreset = "day",
 }: ProviderMapProps) {
+  const overlay = useRef<MapboxOverlay | null>(null);
   return (
     <MapboxMap
       mapboxAccessToken={mapEnv.mapboxToken}
@@ -58,10 +59,10 @@ export function MapboxBaseMap({
     >
       <AttributionControl position="bottom-right" compact />
       <NavigationControl position="top-right" showCompass={false} />
-      <DeckOverlay layers={layers} onHover={onHover} />
+      <DeckOverlay layers={layers} onHover={onHover} overlayRef={overlay} />
       <FitBounds bounds={fitBounds} />
       <CameraDriver camera={camera} bounds={initialBounds} exact={capture} />
-      <ProbeReporter onMap={onMap} />
+      <ProbeReporter onMap={onMap} overlayRef={overlay} />
       <LightPreset preset={lightPreset} />
     </MapboxMap>
   );
@@ -130,14 +131,25 @@ function LightPreset({ preset }: { preset: "day" | "night" }) {
 
 // Hands the caller a way to wait for the map to be idle. Same as the other provider's, but
 // each library's `useMap` only works under its own <Map>.
-function ProbeReporter({ onMap }: { onMap?: (probe: MapProbe | null) => void }) {
+function ProbeReporter({
+  onMap,
+  overlayRef,
+}: {
+  onMap?: (probe: MapProbe | null) => void;
+  overlayRef: MutableRefObject<MapboxOverlay | null>;
+}) {
   const { current: map } = useMap();
 
   useEffect(() => {
     if (!map || !onMap) return;
-    onMap(probeOf(map.getMap() as unknown as Parameters<typeof probeOf>[0]));
+    const base = probeOf(map.getMap() as unknown as Parameters<typeof probeOf>[0]);
+    onMap({
+      ...base,
+      // A reason forces deck.gl to draw now, with the view the map has just been given.
+      drawOverlay: () => (overlayRef.current as unknown as OverlayDeck | null)?._deck?.redraw("export"),
+    });
     return () => onMap(null);
-  }, [map, onMap]);
+  }, [map, onMap, overlayRef]);
 
   return null;
 }
@@ -145,15 +157,29 @@ function ProbeReporter({ onMap }: { onMap?: (probe: MapProbe | null) => void }) 
 interface DeckOverlayProps {
   layers: LayersList;
   onHover?: (info: PickingInfo) => void;
+  /** Gets the overlay, so a video export can ask it to draw at once. */
+  overlayRef: MutableRefObject<MapboxOverlay | null>;
+}
+
+/** The deck behind a MapboxOverlay: private in its types, and all that is needed to draw now. */
+interface OverlayDeck {
+  _deck?: { redraw(reason: string): void };
 }
 
 // deck.gl draws on its own canvas above the map (interleaved: false), kept in step with
 // the map's camera by MapboxOverlay. Same as the MapLibre module's, but each library's
 // `useControl` only works under its own <Map>.
-function DeckOverlay({ layers, onHover }: DeckOverlayProps) {
+function DeckOverlay({ layers, onHover, overlayRef }: DeckOverlayProps) {
   const overlay = useControl(
     () => new MapboxOverlay({ interleaved: false, pickingRadius: PICKING_RADIUS_PX }),
   );
+
+  useEffect(() => {
+    overlayRef.current = overlay;
+    return () => {
+      overlayRef.current = null;
+    };
+  }, [overlay, overlayRef]);
 
   useEffect(() => {
     overlay.setProps({ layers, onHover });

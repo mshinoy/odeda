@@ -109,7 +109,7 @@ export async function runExport(job: ExportJob): Promise<ExportResult> {
   await document.fonts.load('650 54px "Geist"');
   await document.fonts.load('700 92px "Geist"');
 
-  const source = new VideoSampleSource({ codec, bitrate });
+  const source = new VideoSampleSource({ codec, bitrate, hardwareAcceleration: "prefer-hardware" });
   output.addVideoTrack(source, { frameRate: frames.fps });
   await output.start();
 
