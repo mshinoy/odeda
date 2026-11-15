@@ -158,7 +158,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | T76 | Year over year shows "+14,153%" and "+16,767%" against a near-empty first year. No change is shown against a year with fewer than 12 activities | done | — |
 | T86 | A gap on a ride is drawn dashed along the path your other rides took between its two ends, with the speed it implies and a note saying it is a guess and not in the totals. Step 1 of 3 | done | T74 |
 | T87 | Mark the missing path yourself on the map when no other ride covers it, or the guess is wrong. Step 2 of 3 | todo | T86 |
-| T88 | Optionally count an estimated stretch in the ride's totals, with its effect on heart rate, load and best efforts shown first. Step 3 of 3 | dropped: decided 2026-11-15, totals use the recorded data as is (D30). Snapping to roads is an idea in `FUTURE.md` | T86 |
+| T88 | Optionally count an estimated stretch in the ride's totals, with its effect on heart rate, load and best efforts shown first. Step 3 of 3 | dropped: decided 2026-11-15, totals use the recorded data as is (D33). Snapping to roads is an idea in `FUTURE.md` | T86 |
 | T77 | Sleep: Garmin gives no sleep score, and some nights have no recording. Today says how many of the last seven nights were recorded and leaves a gap for each missing one. (Health still to do, with T71) | done | — |
 
 ### Phase 20 — Race prep · Checkpoint T: `open`
@@ -247,7 +247,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D27 | **A named plan's number is the day's target.** While Higdon's plan is on it beats the club's and the owner's own number, on Mon, Tue and Fri alike. A `GA:` hint, an event stating its own distance, or a race wins. | 2026-11-14 |
 | D28 | **Mapbox Standard is the base map,** for its 3D buildings and the flyover. Google photorealistic 3D tiles are to be tried once there is a key. | 2026-11-14 |
 | D29 | **Publish as a self-hosted open-source project first.** Not a hosted service: that would hold other people's Garmin tokens and health data on an unofficial login. The official Garmin API is considered after about 500 stars. Detail and steps in `FUTURE.md`. | 2026-11-15 |
-| D30 | **A ride's totals use the recorded data as is.** A stretch estimated across a recording gap (T86) is drawn dashed and noted, and never counted in distance, heart rate, load or best efforts (T88 dropped). Whether to snap GPS to roads and estimate true numbers is an idea in `FUTURE.md`. | 2026-11-15 |
+| D33 | **A ride's totals use the recorded data as is.** A stretch estimated across a recording gap (T86) is drawn dashed and noted, and never counted in distance, heart rate, load or best efforts (T88 dropped). Whether to snap GPS to roads and estimate true numbers is an idea in `FUTURE.md`. | 2026-11-15 |
 
 ### Parked (not planned; ask the owner before starting)
 

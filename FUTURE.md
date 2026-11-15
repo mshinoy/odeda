@@ -92,7 +92,7 @@ in order of payoff:
 
 ## 4b. Snap GPS to roads and estimate the real distance
 
-*Raised 2026-11-15. The owner decided today that totals use the recorded data as is (D30, T88
+*Raised 2026-11-15. The owner decided today that totals use the recorded data as is (D33, T88
 dropped); this is the idea behind that question, kept for later, not planned.*
 
 **Why.** GPS is noisy. Under trees, between buildings and in tunnels the track wanders or
