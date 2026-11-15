@@ -27,13 +27,17 @@ Agreed (heat map kept when no route is chosen). Built:
 - `/routes` redirects to `/map`; links to `/routes/:id` keep working.
 - Narrow screens: list under the map.
 
-## 2. Health
+## 2. Health (built)
+
+Three cards: Recovery, Body, Activity level. Each chart lost its "Whole range" label and drag hint (the hint is in the info popover); the top row shows the last reading and its day when today's has not synced.
 
 Move to cards with the shadow lift. Clean up what is shown: look at what the page already
 displays (baseline cards, body panel, sleep stages, one chart per metric, Body Battery,
 readiness) and present it as an answer first, then the charts behind it.
 
-## 3. Trends
+## 3. Trends (built)
+
+Five cards: Volume, Patterns, Records, Running performance, Bodyweight and performance. Same card, same title/question header (`components/SectionCard.tsx`).
 
 Same treatment. Today it is a long stack of panels (totals, distributions, records,
 running performance, bodyweight and performance) with a filter bar. Cards, a clear
@@ -51,4 +55,5 @@ Plan, Race, Compare, Gear, Settings: look at each once the three above are done.
 
 ## Open questions
 
-1. Health and Trends: which numbers answer the page's question first?
+1. Trends is still long (Patterns and Running performance especially); decide with the owner what to fold away.
+2. Plan, Race, Compare, Gear, Settings: next.
