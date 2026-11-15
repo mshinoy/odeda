@@ -18,12 +18,12 @@ Today `/map` is a heat map and `/routes` is a list of cards, and the routes matt
 Direction (from the owner): `/map` shows the routes, as a list on the right; clicking a
 route changes the map. The heat map may go or stay as a secondary view. To be discussed.
 
-Draft proposal, not yet agreed:
+Agreed (heat map kept when no route is chosen). Built:
 - Map on the left (as tall as the window leaves it), route list on the right.
 - Clicking a route draws it on the map and shows its answer (distance, times run, best,
   latest) in a card; the route's own page (`/routes/:id`) stays for the detail.
 - The kind filter (loop / out-and-back / ...) sits above the list.
-- Heat map: dropped, or one toggle ("All my routes" density) when nothing is selected.
+- Heat map: shown while no route is chosen, with its type and date filters; choosing a route replaces it.
 - `/routes` redirects to `/map`; links to `/routes/:id` keep working.
 - Narrow screens: list under the map.
 
@@ -51,5 +51,4 @@ Plan, Race, Compare, Gear, Settings: look at each once the three above are done.
 
 ## Open questions
 
-1. Map + Routes: keep the heat map at all, and where?
-2. Health and Trends: which numbers answer the page's question first?
+1. Health and Trends: which numbers answer the page's question first?
