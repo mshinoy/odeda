@@ -28,7 +28,10 @@ interface HealthChartProps {
   legend?: ReactNode;
 }
 
-export const HEALTH_CHART_HEIGHT = 320;
+export const HEALTH_CHART_HEIGHT = 260;
+
+/** The summary line is a glance, not a table: the first few numbers say what the chart does. */
+const STATS_SHOWN = 4;
 
 /** A press that moves less than this is a click, not the start of a selection. */
 const DRAG_THRESHOLD_PX = 4;
@@ -124,9 +127,10 @@ export function HealthChart({
       <figcaption className="flex flex-col gap-1">
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="flex items-center gap-1">
-            <span className="text-lg leading-tight font-semibold tracking-tight">{title}</span>
+            <span className="text-base leading-tight font-medium tracking-tight">{title}</span>
             <InfoPopover title={title}>
               <p>{description}</p>
+              <p>Drag across the chart to select a range; double-click to reset.</p>
             </InfoPopover>
           </span>
           {legend}
@@ -151,9 +155,12 @@ export function HealthChart({
       </figcaption>
 
       <div className="flex flex-col gap-1">
-        <span className="text-muted-foreground text-xs">{scopeText(zoom)}</span>
-        <dl className="flex flex-wrap gap-x-6 gap-y-1">
-          {stats.map((stat) => (
+        {/* "Whole range" is the default and says nothing; only a zoom or a selection is news. */}
+        {(zoom.zoom !== null || zoom.selection !== null) && (
+          <span className="text-muted-foreground text-xs">{scopeText(zoom)}</span>
+        )}
+        <dl className="flex flex-wrap gap-x-5 gap-y-1">
+          {stats.slice(0, STATS_SHOWN).map((stat) => (
             <div key={stat.label} className="flex items-baseline gap-1.5">
               <dt className="text-muted-foreground text-xs">{stat.label}</dt>
               <dd className="text-sm font-medium tabular-nums">{stat.value}</dd>
@@ -183,10 +190,6 @@ export function HealthChart({
           />
         )}
       </div>
-
-      <p className="text-muted-foreground text-xs">
-        Drag across the chart to select a range · double-click to reset
-      </p>
     </figure>
   );
 }

@@ -8,11 +8,14 @@ import { BodyBatteryChart } from "@/features/health/BodyBatteryChart";
 import {
   CARD_METRICS,
   CHART_METRICS,
+  RECOVERY_CARD_METRICS,
+  STEPS_METRIC,
   missingMetrics,
   recordedMetrics,
 } from "@/features/health/healthMetrics";
 import { HealthPageSkeleton } from "@/features/health/HealthPageSkeleton";
 import { MetricTrendChart } from "@/features/health/MetricTrendChart";
+import { SectionCard } from "@/features/health/SectionCard";
 import { RangeToggle } from "@/features/health/RangeToggle";
 import { ReadinessChart } from "@/features/health/ReadinessChart";
 import { SleepStagesChart } from "@/features/health/SleepStagesChart";
@@ -40,13 +43,18 @@ export function HealthPage() {
   if (readiness.error) return <EmptyState message={readiness.error.message} />;
   if (body.error) return <EmptyState message={body.error.message} />;
 
-  const charted = recordedMetrics(CHART_METRICS, trends.data);
   const missing = missingMetrics(CARD_METRICS, trends.data);
   // Weighing in is recording something, even when the watch was in a drawer all month.
   const nothingRecorded = missing.length === CARD_METRICS.length && !body.data.has_data;
+  // Steps is how active the day was, not how rested: it has its own card.
+  const recoveryCharts = recordedMetrics(
+    CHART_METRICS.filter((metric) => metric.key !== STEPS_METRIC.key),
+    trends.data,
+  );
+  const stepsTrend = recordedMetrics([STEPS_METRIC], trends.data)[0];
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <RangeToggle value={days} onChange={setDays} />
 
       {nothingRecorded ? (
@@ -60,16 +68,37 @@ export function HealthPage() {
         />
       ) : (
         <>
-          <BaselineCards trends={trends.data} />
-          <BodyPanel body={body.data} />
-          <SleepStagesChart rows={daily.data.rows} />
-          <div className="grid gap-8 lg:grid-cols-2">
-            {charted.map(({ metric, trend }) => (
-              <MetricTrendChart key={metric.key} metric={metric} trend={trend} />
-            ))}
-            <BodyBatteryChart rows={daily.data.rows} />
-          </div>
-          <ReadinessChart series={readiness.data.series} />
+          <SectionCard
+            title="Recovery"
+            question="Is today a normal day for me, and how have I been resting?"
+          >
+            <BaselineCards trends={trends.data} metrics={RECOVERY_CARD_METRICS} />
+            <ReadinessChart series={readiness.data.series} />
+            <SleepStagesChart rows={daily.data.rows} />
+            <div className="grid gap-8 lg:grid-cols-2">
+              {recoveryCharts.map(({ metric, trend }) => (
+                <MetricTrendChart key={metric.key} metric={metric} trend={trend} />
+              ))}
+              <BodyBatteryChart rows={daily.data.rows} />
+            </div>
+          </SectionCard>
+
+          {body.data.has_data && (
+            <SectionCard
+              title="Body"
+              question="Where is my weight heading, and is it fat or muscle?"
+            >
+              <BodyPanel body={body.data} />
+            </SectionCard>
+          )}
+
+          {stepsTrend && (
+            <SectionCard title="Activity level" question="How much do I move outside of training?">
+              <BaselineCards trends={trends.data} metrics={[STEPS_METRIC]} />
+              <MetricTrendChart metric={stepsTrend.metric} trend={stepsTrend.trend} />
+            </SectionCard>
+          )}
+
           {missing.length > 0 && (
             <p className="text-muted-foreground text-xs">
               Not recorded in this range: {missing.map((metric) => metric.label).join(", ")}.
