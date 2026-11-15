@@ -19,6 +19,10 @@ Garmin history, and it already does this:
 The history file also holds the **Rules**, **How to work on a task** and every earlier task
 card. Those rules still apply. Read them before changing anything.
 
+Bigger ideas that are **not scheduled** live in [`FUTURE.md`](FUTURE.md), with the reasoning.
+A task that is started moves from there to here, and leaves a pointer. A task is tracked in one
+place only: T81, T85 and T94 are tasks here, and FUTURE.md points to them.
+
 This file is the tracker. Agents pick tasks from the tables below and update them in the
 same commit as the work; the owner reads them to see what is done. `git log -p PLAN.md`
 is the history.
@@ -34,8 +38,8 @@ when approved. Work one thing at a time: the box has two CPUs.
 
 ## The date that matters
 
-**Doha Half Marathon, Friday 15 January 2027, 07:35.** On 9 Nov 2026 that is 67 days away.
-The race card projects **3:25 to 3:33** and warns that fitness falls from 30 to 18 at the
+**Doha Half Marathon, Friday 15 January 2027, 07:35.** On 15 Nov 2026 that is 61 days away.
+As of 9 Nov the race card projects **3:25 to 3:33** and warns that fitness falls from 30 to 18 at the
 current pace: only about a quarter of the plan's kilometres were run in the last four
 weeks. Anything that helps the training happen comes before anything that makes the app
 nicer.
@@ -63,6 +67,9 @@ nicer.
 | 19 Data defects | S: `ready for review` | 5 / 7 |
 | 20 Race prep | T: `open` | 3 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
+| 22 Weather and wind | V: `ready for review` | 5 / 6 |
+| 23 Plan rules | W: `ready for review` | 2 / 2 |
+| 24 Flyover and video export | X: `ready for review` | 3 / 3 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
 
@@ -88,6 +95,9 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 
 The brief is ease of retrieval: the answer first, the working one click away, and no wall
 of information. Today is the pattern: a few numbers, then what it means.
+
+The plan for Map, Routes, Health and Trends is [`REDESIGN.md`](REDESIGN.md); the Map and
+Routes page is being built on `redesign-map-health-trends` and these rows change when it merges.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
@@ -144,6 +154,25 @@ activity, stored, never re-asked. Steps run in order, one branch (`weather`).
 | T93 | On the map: a wind arrow and weather readout, and "Headwind" as a fifth colour-by with its own legend | done | T91, T92 |
 | T94 | Analytics: pace and heart rate against heat and dew point, then a weather-adjusted pace for comparing runs. Later; ask the owner first | todo | T90 |
 
+### Phase 23 — Plan rules · Checkpoint W: `ready for review`
+
+Merged 2026-11-14. Recorded here because the plan's numbers changed.
+
+| ID | Task | Status | Depends on |
+|---|---|---|---|
+| T95 | While a named plan (Higdon's) is on, its number is the day's target, over the club's and the owner's own; a `GA:` hint, an event stating its own distance, and a race still win (D27) | done | — |
+| T96 | A ride on a long-run day pays off part of a missed long run | done | T80 |
+
+### Phase 24 — Flyover and video export · Checkpoint X: `ready for review`
+
+Merged 2026-11-14 and 2026-11-15. Ideas not built are in `FUTURE.md`.
+
+| ID | Task | Status | Depends on |
+|---|---|---|---|
+| T97 | A 3D flyover of an activity (drone shot that swoops to follow, route shown once crossed) with a replay readout of distance, speed and heart rate, up to 25x | done | — |
+| T98 | Mapbox Standard as the base map, with its 3D buildings and a satellite choice (D28) | done | — |
+| T99 | Export the flyover as an MP4: length picker, 24 fps, several maps drawing frames at once, encoding while drawing, hardware encoding where available. About 38 s for a 60 s HD vertical video | done | T97, T98 |
+
 ### Open decisions
 
 | ID | Question | Status |
@@ -165,13 +194,13 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D21 | **The race forecast prices the plan's kilometres at the owner's own load per km,** and judges the likely line by the kilometres run over the last 28 days against the plan, not by the plan's session score. A fresh race-morning form is a warning when fitness is falling. The finish range always takes in the Riegel exponent band; the fitness and form adjustments are rules of thumb and are returned apart from the raw range. | 2026-11-09 |
 | D22 | **The analytics cache version carries today's date,** so answers about today (the load curve, the race countdown) recompute after midnight and not at the next write. | 2026-11-09 |
 | D26 | **Weather comes from Open-Meteo.** Free for personal use, no key, hourly history to 1940 and the same fields as a forecast. Stored per activity so the app never depends on it being up. klimat.app could not be verified. | 2026-11-12 |
+| D27 | **A named plan's number is the day's target.** While Higdon's plan is on it beats the club's and the owner's own number, on Mon, Tue and Fri alike. A `GA:` hint, an event stating its own distance, or a race wins. | 2026-11-14 |
+| D28 | **Mapbox Standard is the base map,** for its 3D buildings and the flyover. Google photorealistic 3D tiles are to be tried once there is a key. | 2026-11-14 |
 
 ### Parked (not planned; ask the owner before starting)
 
-- **Per-set gym detail**: each set's weight and reps, order and rest. Needs a new Garmin
-  fetch of `/activity-service/activity/{id}/exerciseSets` in `ingest/` and a backfill.
 - **`indoor_cardio` and `hiit` become `other`** in `activities` (`ingest/normalize.py`
   `TYPE_MAP`). The original type survives only in the raw payload.
-- **Strava import** for gaps Garmin leaves.
 - **A brute-force lockout on `APP_PASSWORD`**: login is off by the owner's choice (D2).
-- **Course, heat and non-running load in the race forecast.**
+- Per-set gym detail, Strava and other sources, and course, heat and non-running load in the race
+  forecast: see `FUTURE.md`, which holds the detail.
