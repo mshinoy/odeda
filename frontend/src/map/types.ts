@@ -1,4 +1,5 @@
 import type { LayersList, PickingInfo } from "@deck.gl/core";
+import type { MapProbe } from "@/map/probe";
 
 /** [[minLon, minLat], [maxLon, maxLat]] */
 export type MapBounds = [[number, number], [number, number]];
@@ -36,6 +37,13 @@ export interface BaseMapProps {
    * answering the pointer. Back to null refits `initialBounds`, flat and facing north.
    */
   camera?: MapCamera | null;
+  /**
+   * For rendering video: the map snaps to every camera it is given, with no easing, so a
+   * frame shows exactly its moment, and it keeps its drawing buffer so it can be copied.
+   */
+  capture?: boolean;
+  /** Receives a probe once the map exists (and null when it goes), to wait for it to be idle. */
+  onMap?: (probe: MapProbe | null) => void;
   /** Satellite imagery under the layers, where the provider has it (Mapbox only). */
   satellite?: boolean;
 }

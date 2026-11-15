@@ -21,6 +21,8 @@ import { trackDuration } from "@/features/activity/playback";
 import type { CameraMode } from "@/features/activity/flyover";
 import { PlaybackControls } from "@/features/activity/PlaybackControls";
 import { findCrossings } from "@/features/activity/crossings";
+import { ExportDialog } from "@/features/activity/export/ExportDialog";
+import { canEncodeVideo } from "@/features/activity/export/runExport";
 import { readoutSeries } from "@/features/activity/readout";
 import { ReplayReadout } from "@/features/activity/ReplayReadout";
 import { usePlayback } from "@/features/activity/usePlayback";
@@ -64,6 +66,7 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
   const replaying = playback.playing || playback.currentS > 0;
   const [cameraMode, setCameraMode] = useState<CameraMode>("map");
   const [satellite, setSatellite] = useState(false);
+  const [exporting, setExporting] = useState(false);
   // Turning the flyover on starts the replay it flies along; turning it off leaves it be. The
   // satellite button is separate, and holds in the flat map and the flyover alike.
   const chooseCamera = (mode: CameraMode) => {
@@ -162,9 +165,25 @@ export function EnduranceActivity({ activity: recorded }: { activity: Activity }
                 onFlyover={(on) => chooseCamera(on ? "flyover" : "map")}
                 satellite={mapProvider === "mapbox" ? satellite : null}
                 onSatellite={setSatellite}
+                onExport={
+                  mapProvider === "mapbox" && canEncodeVideo() ? () => setExporting(true) : null
+                }
               />
             )}
             <GapNotes gaps={gaps} kind={activity.summary.kind} />
+            {exporting && (
+              <ExportDialog
+                open
+                onOpenChange={setExporting}
+                activity={activity}
+                colorBy={colorBy}
+                gaps={gaps}
+                satellite={satellite}
+                readout={readout}
+                hrRest={athlete?.hr_rest}
+                hrMax={athlete?.hr_max}
+              />
+            )}
           </div>
           <div className="flex min-h-0 flex-col gap-2 lg:max-h-[38rem]">
             {hasReps && km.rows.length > 0 && (

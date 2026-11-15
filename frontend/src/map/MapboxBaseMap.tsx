@@ -12,6 +12,7 @@ import {
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEnv } from "@/map/basemap";
+import { probeOf, type MapProbe } from "@/map/probe";
 import { useCameraDriver } from "@/map/useCameraDriver";
 import {
   FIT_PADDING_PX,
@@ -30,6 +31,8 @@ export function MapboxBaseMap({
   onLeave,
   cursor,
   camera,
+  capture = false,
+  onMap,
   mapStyle,
   lightPreset = "day",
 }: ProviderMapProps) {
@@ -46,6 +49,8 @@ export function MapboxBaseMap({
       scrollZoom
       maxPitch={MAX_PITCH}
       interactive={!camera}
+      preserveDrawingBuffer={capture}
+      {...(capture ? { fadeDuration: 0 } : {})}
       attributionControl={false}
       logoPosition="bottom-right"
       cursor={cursor}
@@ -55,7 +60,8 @@ export function MapboxBaseMap({
       <NavigationControl position="top-right" showCompass={false} />
       <DeckOverlay layers={layers} onHover={onHover} />
       <FitBounds bounds={fitBounds} />
-      <CameraDriver camera={camera} bounds={initialBounds} />
+      <CameraDriver camera={camera} bounds={initialBounds} exact={capture} />
+      <ProbeReporter onMap={onMap} />
       <LightPreset preset={lightPreset} />
     </MapboxMap>
   );
@@ -81,9 +87,17 @@ function FitBounds({ bounds }: { bounds?: MapBounds | null }) {
 
 // Follows a flyover camera frame by frame, and settles back to the route when it ends.
 // Same as the other provider's, but each library's `useMap` only works under its own <Map>.
-function CameraDriver({ camera, bounds }: { camera?: MapCamera | null; bounds: MapBounds }) {
+function CameraDriver({
+  camera,
+  bounds,
+  exact,
+}: {
+  camera?: MapCamera | null;
+  bounds: MapBounds;
+  exact: boolean;
+}) {
   const { current: map } = useMap();
-  useCameraDriver(map, camera, bounds);
+  useCameraDriver(map, camera, bounds, exact);
   return null;
 }
 
@@ -110,6 +124,20 @@ function LightPreset({ preset }: { preset: "day" | "night" }) {
       mapbox.off("style.load", apply);
     };
   }, [map, preset]);
+
+  return null;
+}
+
+// Hands the caller a way to wait for the map to be idle. Same as the other provider's, but
+// each library's `useMap` only works under its own <Map>.
+function ProbeReporter({ onMap }: { onMap?: (probe: MapProbe | null) => void }) {
+  const { current: map } = useMap();
+
+  useEffect(() => {
+    if (!map || !onMap) return;
+    onMap(probeOf(map.getMap() as unknown as Parameters<typeof probeOf>[0]));
+    return () => onMap(null);
+  }, [map, onMap]);
 
   return null;
 }

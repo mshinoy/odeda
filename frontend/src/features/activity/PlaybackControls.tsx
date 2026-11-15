@@ -1,4 +1,4 @@
-import { Box, Pause, Play, Satellite } from "lucide-react";
+import { Box, Clapperboard, Pause, Play, Satellite } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/NativeSelect";
 import { Toggle } from "@/components/ui/toggle";
@@ -15,6 +15,8 @@ interface PlaybackControlsProps {
   /** Satellite imagery needs Mapbox; without it the toggle is not offered. */
   satellite: boolean | null;
   onSatellite: (on: boolean) => void;
+  /** Opens the video export; null when this browser or map cannot make one. */
+  onExport: (() => void) | null;
 }
 
 /**
@@ -28,6 +30,7 @@ export function PlaybackControls({
   onFlyover,
   satellite,
   onSatellite,
+  onExport,
 }: PlaybackControlsProps) {
   const { currentS, playing, speed, toggle, setSpeed, scrubTo } = playback;
 
@@ -80,6 +83,18 @@ export function PlaybackControls({
         >
           <Satellite />
         </Toggle>
+      )}
+      {onExport && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          aria-label="Export video"
+          title="Export video"
+          onClick={onExport}
+        >
+          <Clapperboard />
+        </Button>
       )}
     </div>
   );
