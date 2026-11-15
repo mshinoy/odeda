@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   isThemePreference,
@@ -18,8 +19,7 @@ export function ThemeToggle() {
   const setPreference = useThemeStore((state) => state.setPreference);
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Theme</h2>
+    <SectionCard title="Theme" question="Light, dark, or follow the device.">
       <ToggleGroup
         type="single"
         size="sm"
@@ -36,6 +36,6 @@ export function ThemeToggle() {
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-    </section>
+    </SectionCard>
   );
 }

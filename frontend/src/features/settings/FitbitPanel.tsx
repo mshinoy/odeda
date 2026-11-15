@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { useState } from "react";
 import {
   fetchFitbitAuthorizeUrl,
@@ -112,14 +113,12 @@ export function FitbitPanel() {
   const notice = status.data ? signinNotice(status.data) : null;
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Fitbit (the scale)</h2>
-
+    <SectionCard title="Fitbit (the scale)" question="Where your weigh-ins come from.">
       {status.isPending && <Skeleton className="h-24 w-full" />}
       {status.error && <p className="text-delta-bad text-sm">{status.error.message}</p>}
 
       {status.data && stage === "no_credentials" && (
-        <div className="flex max-w-lg flex-col gap-2">
+        <div className="flex w-full flex-col gap-2">
           <StatusDot
             tone="neutral"
             label="No Google Health app registered. Nothing can connect until there is one."
@@ -137,14 +136,14 @@ export function FitbitPanel() {
       )}
 
       {status.data && stage === "not_connected" && (
-        <div className="flex max-w-lg flex-col gap-3">
+        <div className="flex w-full flex-col gap-3">
           <StatusDot tone="neutral" label="Not connected. No weigh-ins can arrive." />
           <ConsentSteps label="Connect Fitbit" />
         </div>
       )}
 
       {status.data && stage === "connected" && (
-        <div className="flex max-w-lg flex-col gap-3 rounded-lg border p-4">
+        <div className="flex w-full flex-col gap-3 rounded-lg border p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <StatusDot tone="good" label="Connected" />
@@ -187,6 +186,6 @@ export function FitbitPanel() {
       )}
 
       <FitbitImportForm />
-    </section>
+    </SectionCard>
   );
 }

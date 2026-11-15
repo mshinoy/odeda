@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 interface SectionCardProps {
   title: string;
   /** One line on what the card answers. */
-  question: string;
+  question?: string;
   /** A note beside the title, such as what a filter does not reach. */
   note?: string;
   children: ReactNode;

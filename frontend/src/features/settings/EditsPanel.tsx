@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { Link } from "react-router-dom";
 import { useOverridesSummary } from "@/api/queries/useSettings";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,8 @@ export function EditsPanel() {
   const summary = useOverridesSummary();
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Your edits</h2>
-
-      {summary.isPending && <Skeleton className="h-20 w-full max-w-lg" />}
+    <SectionCard title="Your edits" question="What you have corrected by hand.">
+      {summary.isPending && <Skeleton className="h-20 w-full" />}
       {summary.error && <p className="text-delta-bad text-sm">{summary.error.message}</p>}
 
       {summary.data &&
@@ -30,7 +29,7 @@ export function EditsPanel() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            <div className="grid max-w-lg grid-cols-2 gap-6">
+            <div className="grid w-full grid-cols-2 gap-6">
               <StatCard label="Edits" value={formatInteger(summary.data.total)} />
               <StatCard
                 label="Activities edited"
@@ -38,7 +37,7 @@ export function EditsPanel() {
               />
             </div>
 
-            <ul className="text-muted-foreground flex max-w-lg flex-col gap-1 text-sm">
+            <ul className="text-muted-foreground flex w-full flex-col gap-1 text-sm">
               {toEditCounts(summary.data).map((row) => (
                 <li key={row.key} className="flex justify-between border-b py-1.5">
                   <span>{row.label}</span>
@@ -54,6 +53,6 @@ export function EditsPanel() {
             </div>
           </div>
         ))}
-    </section>
+    </SectionCard>
   );
 }

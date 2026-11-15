@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { useGarminStatus } from "@/api/queries/useGarmin";
 import { useSyncEstimate, useStopSync } from "@/api/queries/useSettings";
 import { lastSyncedAt, useAutoSync, useStartSync, useSyncStatus } from "@/api/queries/useStatus";
@@ -27,10 +28,8 @@ export function SyncPanel() {
   const connected = garmin.data?.connected === true;
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Sync</h2>
-
-      {sync.isPending && <Skeleton className="h-24 w-full max-w-lg" />}
+    <SectionCard title="Sync" question="Is the data up to date?">
+      {sync.isPending && <Skeleton className="h-24 w-full" />}
       {sync.error && <p className="text-delta-bad text-sm">{sync.error.message}</p>}
 
       {sync.data && (
@@ -108,6 +107,6 @@ export function SyncPanel() {
           <WatermarkTable watermarks={sync.data.watermarks} />
         </div>
       )}
-    </section>
+    </SectionCard>
   );
 }
