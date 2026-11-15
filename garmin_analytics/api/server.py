@@ -47,6 +47,7 @@ from ..analytics import load as load_mod
 from ..analytics import pacing as pacing_mod
 from ..analytics import performance as perf
 from ..analytics import plan as plan_mod
+from ..analytics import steer as steer_mod
 from ..analytics import readiness as ready_mod
 from ..analytics import reports as reports_mod
 from ..analytics import routes as routes_mod
@@ -120,6 +121,7 @@ from .schemas import (
     PlanSourceRequest,
     PlanStartRequest,
     PlanSyncResult,
+    PlanSteer,
     PlanWeekDetail,
     RaceForecast,
     RacePacing,
@@ -704,6 +706,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_plan() -> dict[str, Any]:
         with store() as st:
             return plan_mod.compute_plan(st)
+
+    @app.get("/api/plan/steer", response_model=PlanSteer)
+    def api_plan_steer() -> dict[str, Any]:
+        with store() as st:
+            return steer_mod.compute_steer(st)
 
     @app.get("/api/plan/week", response_model=PlanWeekDetail)
     def api_plan_week(start: str = Query(..., description="any day in the week")) -> dict[str, Any]:

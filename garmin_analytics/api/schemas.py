@@ -2784,6 +2784,35 @@ class Plan(_Model):
     unplanned: list[PlanUnplanned]
 
 
+class SteerRace(_Model):
+    name: str
+    date: str
+    days_to_go: int | None
+    weeks_to_go: float | None
+
+
+class SteerRisk(_Model):
+    """One thing that puts the goal at risk. `code` is stable; the page words it."""
+
+    code: str
+    severity: int
+    km_done_pct: float | None = None
+    day: str | None = None
+    verdict: str | None = None
+    count: int | None = None
+
+
+class PlanSteer(_Model):
+    """`GET /api/plan/steer`: where the owner stands against the plan, and what to do."""
+
+    today: str
+    race: SteerRace | None
+    standing: str
+    km_done_pct: float | None
+    key_session: PlanSession | None
+    risks: list[SteerRisk]
+
+
 class PlanWeekDetail(_Model):
     """`GET /api/plan/week`."""
 
