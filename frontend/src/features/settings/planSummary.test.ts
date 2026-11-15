@@ -16,6 +16,7 @@ function plan(over: Partial<Plan> = {}): Plan {
     subscribed: true,
     source: {
       label: "Training",
+      kind: "ics",
       url_masked: "https://calendar.google.com/calendar/ical/…/basic.ics",
       last_fetch_at: "2026-10-08T11:00:00",
       last_error: null,
@@ -63,6 +64,7 @@ describe("feedStatus", () => {
     const broken = plan({
       source: {
         label: null,
+        kind: "ics",
         url_masked: "…/basic.ics",
         last_fetch_at: "2026-10-01T06:00:00",
         last_error: "the calendar's secret address was reset; copy the new one",

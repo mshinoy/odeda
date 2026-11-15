@@ -644,6 +644,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/upload/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Api Plan Upload Preview */
+        post: operations["api_plan_upload_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Api Plan Upload */
+        post: operations["api_plan_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan/sessions/{session_id}/edit": {
         parameters: {
             query?: never;
@@ -4717,6 +4751,12 @@ export interface components {
         PlanSource: {
             /** Label */
             label: string | null;
+            /**
+             * Kind
+             * @description `ics` for the subscribed calendar, `upload` for a plan uploaded as a file.
+             * @default ics
+             */
+            kind: string;
             /** Url Masked */
             url_masked: string;
             /** Last Fetch At */
@@ -4866,6 +4906,78 @@ export interface components {
             description: string | null;
             /** Parse Status */
             parse_status: string;
+        };
+        /** PlanUploadRace */
+        PlanUploadRace: {
+            /** Name */
+            name: string;
+            /** Date */
+            date: string;
+        };
+        /**
+         * PlanUploadRequest
+         * @description `POST /api/plan/upload` and `/preview`: a plan as the text of an `.ics` or CSV file.
+         */
+        PlanUploadRequest: {
+            /** Content */
+            content: string;
+            /**
+             * Effective Day
+             * @description The day the new plan takes over from, `2026-11-16`. Earlier days keep the old plan.
+             */
+            effective_day: string;
+            /** Label */
+            label?: string | null;
+        };
+        /** PlanUploadSummary */
+        PlanUploadSummary: {
+            /**
+             * Status
+             * @default preview
+             */
+            status: string;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "ics" | "csv";
+            /** Effective Day */
+            effective_day: string;
+            /**
+             * Sessions
+             * @description Sessions on or after the day it takes over from.
+             */
+            sessions: number;
+            /**
+             * Skipped Before
+             * @description Sessions in the file before that day, which are left out.
+             */
+            skipped_before: number;
+            /** First Day */
+            first_day: string;
+            /** Last Day */
+            last_day: string;
+            /**
+             * Replaced
+             * @description Live calendar sessions from that day on that the upload would stop.
+             */
+            replaced: number;
+            /**
+             * Own Removed
+             * @description Sessions the owner added themselves, from that day on, that it would stop.
+             */
+            own_removed: number;
+            race: components["schemas"]["PlanUploadRace"] | null;
+            /**
+             * Race Lost
+             * @description True when the current plan's race is on or after that day and the file does not hold it.
+             */
+            race_lost: boolean;
+            /**
+             * Past Kept
+             * @description Sessions before that day, which keep the plan they were judged against.
+             */
+            past_kept: number;
         };
         /** PlanWeek */
         PlanWeek: {
@@ -7638,6 +7750,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanSyncResult"];
+                };
+            };
+        };
+    };
+    api_plan_upload_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanUploadSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_plan_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanUploadSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -60,6 +60,7 @@ from ..edits import gear as gear_mod
 from ..edits import overrides as ov_mod
 from ..ingest import auto_sync as auto_mod
 from ..ingest import plan_ics as plan_ics_mod
+from ..ingest import plan_upload as plan_upload_mod
 from ..ingest import backfill as backfill_mod
 from ..ingest import weather as weather_mod
 from ..seed import synthetic
@@ -125,6 +126,8 @@ from .schemas import (
     PlanEditRequest,
     PlanEditResult,
     PlanSteer,
+    PlanUploadRequest,
+    PlanUploadSummary,
     PlanWeekDetail,
     RaceForecast,
     RacePacing,
@@ -762,6 +765,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 # The message already says what to do about it, and naming the calendar
                 # is the owner's problem to fix, not a server fault.
                 raise HTTPException(502, str(exc)) from exc
+
+    @app.post("/api/plan/upload/preview", response_model=PlanUploadSummary)
+    def api_plan_upload_preview(payload: PlanUploadRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_upload_mod.preview(st, payload.content, payload.effective_day)
+            except plan_upload_mod.PlanUploadError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/plan/upload", response_model=PlanUploadSummary)
+    def api_plan_upload(payload: PlanUploadRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_upload_mod.apply(
+                    st, payload.content, payload.effective_day, payload.label
+                )
+            except plan_upload_mod.PlanUploadError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @app.put("/api/plan/sessions/{session_id}/edit", response_model=PlanEditResult)
     def api_plan_edit(session_id: int, payload: PlanEditRequest = Body(...)) -> dict[str, Any]:

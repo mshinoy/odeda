@@ -592,7 +592,13 @@ def compute_plan(store, today: date | None = None) -> dict[str, Any]:
         "subscribed": source is not None,
         "source": None if source is None else {
             "label": source["label"],
-            "url_masked": plan_ics.mask_url(str(source["url"])),
+            "kind": source["kind"],
+            # An uploaded plan has no address; its name is what identifies it.
+            "url_masked": (
+                str(source["label"] or "Uploaded plan")
+                if source["kind"] == "upload"
+                else plan_ics.mask_url(str(source["url"]))
+            ),
             "last_fetch_at": source["last_fetch_at"],
             "last_error": source["last_error"],
             "start_day": source["start_day"],

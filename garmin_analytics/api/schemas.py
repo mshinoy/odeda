@@ -2638,6 +2638,8 @@ class PlanSource(_Model):
     read access to the whole calendar to anyone holding it."""
 
     label: str | None
+    kind: str = "ics"
+    """`ics` for the subscribed calendar, `upload` for a plan uploaded as a file."""
     url_masked: str
     last_fetch_at: str | None
     last_error: str | None
@@ -2843,6 +2845,41 @@ class PlanSourceRequest(_Model):
     url: str
     """The calendar's secret iCal address. Stored, never returned."""
     label: str | None = None
+
+
+class PlanUploadRequest(_Model):
+    """`POST /api/plan/upload` and `/preview`: a plan as the text of an `.ics` or CSV file."""
+
+    content: str
+    effective_day: str
+    """The day the new plan takes over from, `2026-11-16`. Earlier days keep the old plan."""
+    label: str | None = None
+
+
+class PlanUploadRace(_Model):
+    name: str
+    date: str
+
+
+class PlanUploadSummary(_Model):
+    status: str = "preview"
+    format: Literal["ics", "csv"]
+    effective_day: str
+    sessions: int
+    """Sessions on or after the day it takes over from."""
+    skipped_before: int
+    """Sessions in the file before that day, which are left out."""
+    first_day: str
+    last_day: str
+    replaced: int
+    """Live calendar sessions from that day on that the upload would stop."""
+    own_removed: int
+    """Sessions the owner added themselves, from that day on, that it would stop."""
+    race: PlanUploadRace | None
+    race_lost: bool
+    """True when the current plan's race is on or after that day and the file does not hold it."""
+    past_kept: int
+    """Sessions before that day, which keep the plan they were judged against."""
 
 
 class PlanStartRequest(_Model):
