@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { Activity, ActivityGap } from "@/api/adapters";
 import { NativeSelect } from "@/components/NativeSelect";
 import { Button } from "@/components/ui/button";
@@ -46,8 +47,6 @@ import { cn } from "@/lib/utils";
 
 /** The time left is worked out from this much of the most recent progress. */
 const RECENT_MS = 15_000;
-/** The video starts being made this long after the last change to the choices. */
-const RENDER_DELAY_MS = 1200;
 
 type Moment = "opening" | "ride" | "ending";
 
@@ -106,9 +105,11 @@ export function ExportDialog({
   const speed = speedForLength(durationS, lengthS);
   const [timings, setTimings] = useState<FrameTimings | null>(null);
   const [moment, setMoment] = useState<Moment>("ride");
-  // The video is made as soon as the choices settle, and kept until it is saved or they change.
+  // The video is made when "Make video" is pressed, and kept until it is saved or a choice
+  // changes. The maps that draw it exist only while it is being made.
+  const [making, setMaking] = useState(false);
   const [rendering, setRendering] = useState(false);
-  const [result, setResult] = useState<ExportResult | null>(null);
+  const [made, setMade] = useState<(ExportResult & { key: string }) | null>(null);
   const [renderedS, setRenderedS] = useState<number | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 1, etaS: null as number | null });
   const recent = useRef<{ done: number; at: number }[]>([]);
@@ -133,6 +134,9 @@ export function ExportDialog({
   // Memoised: a new object on every render would restart the preview on every render, and the
   // preview itself causes renders, so it would never finish.
   const draftSize = useMemo(() => exportSize(crop, "draft"), [crop]);
+  // What a finished video was made from: change any of it and the video is out of date.
+  const settingsKey = [crop, quality, lengthS, colorBy, satellite, activity.summary.id].join("|");
+  const result = made?.key === settingsKey ? made : null;
   const draftKey = `${draftSize.width}x${draftSize.height}`;
   const maps = mapsFor(finalSize);
   const finalKey = `${finalSize.width}x${finalSize.height}`;
@@ -202,18 +206,13 @@ export function ExportDialog({
     draftSize,
   ]);
 
-  // Closing the dialog stops an export in progress.
-  useEffect(() => {
-    if (!open) job.current?.abort();
-  }, [open]);
-
   const render = useCallback(
     async (controller: AbortController) => {
       const id = ++runId.current;
       const started = Date.now();
       recent.current = [];
       setError(null);
-      setResult(null);
+      setMade(null);
       setSavedName(null);
       setRenderedS(null);
       setTimings(null);
@@ -223,7 +222,7 @@ export function ExportDialog({
         const handles = renderStages.current
           .slice(0, maps)
           .filter((handle): handle is StageHandle => handle !== null);
-        const made = await runExport({
+        const done = await runExport({
           stages: handles,
           ...latest.current,
           crop,
@@ -247,7 +246,7 @@ export function ExportDialog({
           signal: controller.signal,
         });
         if (id !== runId.current) return;
-        setResult(made);
+        setMade({ ...done, key: settingsKey });
         setRenderedS((Date.now() - started) / 1000);
       } catch (caught) {
         if (id !== runId.current) return;
@@ -258,27 +257,20 @@ export function ExportDialog({
         if (id === runId.current) setRendering(false);
       }
     },
-    [crop, quality, speed, maps, frames.count],
+    [crop, quality, speed, maps, frames.count, settingsKey],
   );
 
-  // Starts making the video once the choices have held still for a moment, and starts over if
-  // they change. The finished video is kept, encoded, until it is saved or the dialog closes.
-  useEffect(() => {
-    if (!open) return;
+  // Makes the video when asked. The maps that draw it are mounted first (flushed, so they
+  // exist and their handles are set), and the choices are locked while it runs.
+  const make = () => {
+    flushSync(() => setMaking(true));
     const controller = new AbortController();
     job.current = controller;
-    const timer = setTimeout(() => void render(controller), RENDER_DELAY_MS);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [open, render, colorBy, satellite, activity.summary.id]);
-
-  const renderAgain = () => {
-    const controller = new AbortController();
-    job.current = controller;
-    void render(controller);
+    void render(controller).finally(() => setMaking(false));
   };
+
+  // Closing the dialog stops a video being made.
+  useEffect(() => () => job.current?.abort(), []);
 
   const save = () => {
     if (!result) return;
@@ -329,6 +321,7 @@ export function ExportDialog({
                   key={option}
                   type="button"
                   size="sm"
+                  disabled={making}
                   variant={moment === option ? "secondary" : "ghost"}
                   onClick={() => setMoment(option)}
                 >
@@ -348,6 +341,7 @@ export function ExportDialog({
                     type="button"
                     role="radio"
                     aria-checked={crop === option}
+                    disabled={making}
                       onClick={() => setCrop(option)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
@@ -376,6 +370,7 @@ export function ExportDialog({
               <span className="text-muted-foreground text-xs">Sharpness</span>
               <NativeSelect
                 value={quality}
+                disabled={making}
                 onChange={(event) => setQuality(event.target.value as ExportQuality)}
               >
                 {EXPORT_QUALITIES.map((option) => (
@@ -390,6 +385,7 @@ export function ExportDialog({
               <span className="text-muted-foreground text-xs">Video length</span>
               <NativeSelect
                 value={String(lengthS)}
+                disabled={making}
                 onChange={(event) => setLengthS(Number(event.target.value))}
               >
                 {lengths.map((option) => (
@@ -466,7 +462,7 @@ export function ExportDialog({
                   Save MP4
                 </Button>
               ) : (
-                <Button type="button" onClick={renderAgain}>
+                <Button type="button" onClick={make}>
                   Make video
                 </Button>
               )}
@@ -487,6 +483,7 @@ export function ExportDialog({
           />
         )}
         {open &&
+          making &&
           Array.from({ length: maps }, (_, k) => (
             <ExportStage
               key={`${finalKey}-${k}`}
