@@ -43,6 +43,20 @@ export function exportSize(crop: ExportCrop, quality: ExportQuality): ExportSize
 
 /** 24 frames a second: what film runs at, and plenty for a flyover. Fewer frames to draw. */
 export const EXPORT_FPS = 24;
+
+/**
+ * How many maps draw frames at once. Drawing a frame is mostly waiting (for tiles, for the
+ * screen), so more maps overlap the waits; each holds its own tiles and canvases, so the count
+ * falls as the picture grows. About 12 million pixels of map in all.
+ */
+const PIXEL_BUDGET = 12_000_000;
+const MIN_MAPS = 2;
+const MAX_MAPS = 4;
+
+export function mapsFor(size: ExportSize): number {
+  const fit = Math.floor(PIXEL_BUDGET / (size.width * size.height));
+  return Math.min(Math.max(fit, MIN_MAPS), MAX_MAPS);
+}
 /** A bit of picture per pixel per frame: enough for sharp map detail without a huge file. */
 const BITS_PER_PIXEL = 0.12;
 

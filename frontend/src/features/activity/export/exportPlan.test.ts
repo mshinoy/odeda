@@ -10,6 +10,7 @@ import {
   exportFrames,
   exportSize,
   lengthsFor,
+  mapsFor,
   speedForLength,
 } from "@/features/activity/export/exportPlan";
 
@@ -120,5 +121,18 @@ describe("speedForLength", () => {
     const speed = speedForLength(7200, 60);
     expect(speed).toBeCloseTo(125.2, 0);
     expect(exportFrames(7200, speed).count).toBe(1440);
+  });
+});
+
+describe("mapsFor", () => {
+  it("uses more maps for a small picture and fewer for a big one", () => {
+    expect(mapsFor(exportSize("vertical", "draft"))).toBe(4);
+    expect(mapsFor(exportSize("vertical", "hd"))).toBe(4);
+    expect(mapsFor(exportSize("vertical", "2k"))).toBe(3);
+  });
+
+  it("is never fewer than two, or more than four", () => {
+    expect(mapsFor({ width: 8000, height: 8000 })).toBe(2);
+    expect(mapsFor({ width: 100, height: 100 })).toBe(4);
   });
 });

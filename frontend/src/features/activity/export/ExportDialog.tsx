@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Activity, ActivityGap } from "@/api/adapters";
 import { NativeSelect } from "@/components/NativeSelect";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,7 @@ import {
   exportFrames,
   exportSize,
   lengthsFor,
+  mapsFor,
   QUALITY_LABELS,
   speedForLength,
   type ExportCrop,
@@ -29,7 +29,11 @@ import {
 } from "@/features/activity/export/exportPlan";
 import { ExportStage, type StageHandle } from "@/features/activity/export/ExportStage";
 import { drawFrame } from "@/features/activity/export/renderFrame";
-import { runExport, type FrameTimings } from "@/features/activity/export/runExport";
+import {
+  runExport,
+  type ExportResult,
+  type FrameTimings,
+} from "@/features/activity/export/runExport";
 import {
   heartRateZone,
   readoutAt,
@@ -42,6 +46,8 @@ import { cn } from "@/lib/utils";
 
 /** The time left is worked out from this much of the most recent progress. */
 const RECENT_MS = 15_000;
+/** The video starts being made this long after the last change to the choices. */
+const RENDER_DELAY_MS = 1200;
 
 type Moment = "opening" | "ride" | "ending";
 
@@ -100,26 +106,36 @@ export function ExportDialog({
   const speed = speedForLength(durationS, lengthS);
   const [timings, setTimings] = useState<FrameTimings | null>(null);
   const [moment, setMoment] = useState<Moment>("ride");
-  const [working, setWorking] = useState(false);
+  // The video is made as soon as the choices settle, and kept until it is saved or they change.
+  const [rendering, setRendering] = useState(false);
+  const [result, setResult] = useState<ExportResult | null>(null);
+  const [renderedS, setRenderedS] = useState<number | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 1, etaS: null as number | null });
-  const startedAt = useRef(0);
   const recent = useRef<{ done: number; at: number }[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  const [savedName, setSavedName] = useState<string | null>(null);
 
+  // One small map for the preview, and a set of full-size ones that draw the video's frames.
   const stage = useRef<StageHandle>(null);
+  const renderStages = useRef<(StageHandle | null)[]>([]);
   const previewCanvas = useRef<HTMLCanvasElement>(null);
   const job = useRef<AbortController | null>(null);
+  const runId = useRef(0);
+  // What a render reads but should not restart for when the page hands over a new object.
+  const latest = useRef({ activity, readout, hrRest, hrMax });
+  useEffect(() => {
+    latest.current = { activity, readout, hrRest, hrMax };
+  }, [activity, readout, hrRest, hrMax]);
 
   const frames = useMemo(() => exportFrames(durationS, speed), [durationS, speed]);
   const finalSize = exportSize(crop, quality);
   // Memoised: a new object on every render would restart the preview on every render, and the
   // preview itself causes renders, so it would never finish.
   const draftSize = useMemo(() => exportSize(crop, "draft"), [crop]);
-  // The hidden map is draft size to preview and the final size to export.
-  const stageSize = working ? finalSize : draftSize;
-  const stageKey = `${stageSize.width}x${stageSize.height}`;
+  const draftKey = `${draftSize.width}x${draftSize.height}`;
+  const maps = mapsFor(finalSize);
+  const finalKey = `${finalSize.width}x${finalSize.height}`;
   const bitrate = exportBitrate(finalSize, frames.fps);
 
   const title = useMemo(() => titleCard(activity.summary), [activity.summary]);
@@ -127,7 +143,7 @@ export function ExportDialog({
 
   // A still of the frame the video would have, redrawn when the choices change.
   useEffect(() => {
-    if (!open || working) return;
+    if (!open) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       setPreviewing(true);
@@ -172,11 +188,10 @@ export function ExportDialog({
     };
   }, [
     open,
-    working,
     crop,
     speed,
     moment,
-    stageKey,
+    draftKey,
     frames,
     readout,
     activity.summary.kind,
@@ -192,66 +207,93 @@ export function ExportDialog({
     if (!open) job.current?.abort();
   }, [open]);
 
-  const start = async () => {
-    setError(null);
-    setSaved(null);
+  const render = useCallback(
+    async (controller: AbortController) => {
+      const id = ++runId.current;
+      const started = Date.now();
+      recent.current = [];
+      setError(null);
+      setResult(null);
+      setSavedName(null);
+      setRenderedS(null);
+      setTimings(null);
+      setProgress({ done: 0, total: frames.count, etaS: null });
+      setRendering(true);
+      try {
+        const handles = renderStages.current
+          .slice(0, maps)
+          .filter((handle): handle is StageHandle => handle !== null);
+        const made = await runExport({
+          stages: handles,
+          ...latest.current,
+          crop,
+          quality,
+          speed,
+          onProgress: (done, total, perFrame) => {
+            if (id !== runId.current) return;
+            setTimings(perFrame);
+            // The time left comes from the last few seconds, not from the start: the first
+            // frames include loading the maps, which says nothing about the pace once going.
+            const now = Date.now();
+            recent.current.push({ done, at: now });
+            while (recent.current.length > 1 && now - (recent.current[0]?.at ?? now) > RECENT_MS) {
+              recent.current.shift();
+            }
+            const first = recent.current[0];
+            const framesPerS =
+              first && done > first.done ? ((done - first.done) * 1000) / (now - first.at) : 0;
+            setProgress({ done, total, etaS: framesPerS > 0 ? (total - done) / framesPerS : null });
+          },
+          signal: controller.signal,
+        });
+        if (id !== runId.current) return;
+        setResult(made);
+        setRenderedS((Date.now() - started) / 1000);
+      } catch (caught) {
+        if (id !== runId.current) return;
+        if (!(caught instanceof DOMException && caught.name === "AbortError")) {
+          setError(caught instanceof Error ? caught.message : "The export failed");
+        }
+      } finally {
+        if (id === runId.current) setRendering(false);
+      }
+    },
+    [crop, quality, speed, maps, frames.count],
+  );
+
+  // Starts making the video once the choices have held still for a moment, and starts over if
+  // they change. The finished video is kept, encoded, until it is saved or the dialog closes.
+  useEffect(() => {
+    if (!open) return;
     const controller = new AbortController();
     job.current = controller;
-    // The hidden map is remade at the video's size before the first frame.
-    flushSync(() => {
-      setWorking(true);
-      startedAt.current = Date.now();
-      recent.current = [];
-      setProgress({ done: 0, total: frames.count, etaS: null });
-      setTimings(null);
-    });
-    try {
-      const current = stage.current;
-      if (!current) throw new Error("The export map is not ready");
-      const result = await runExport({
-        stage: current,
-        activity,
-        crop,
-        quality,
-        speed,
-        readout,
-        hrRest,
-        hrMax,
-        onProgress: (done, total, perFrame) => {
-          setTimings(perFrame);
-          // The time left comes from the last few seconds, not from the start: the first frames
-          // include loading the map, which says nothing about the pace once it is going.
-          const now = Date.now();
-          recent.current.push({ done, at: now });
-          while (recent.current.length > 1 && now - (recent.current[0]?.at ?? now) > RECENT_MS) {
-            recent.current.shift();
-          }
-          const first = recent.current[0];
-          const framesPerS =
-            first && done > first.done ? ((done - first.done) * 1000) / (now - first.at) : 0;
-          setProgress({ done, total, etaS: framesPerS > 0 ? (total - done) / framesPerS : null });
-        },
-        signal: controller.signal,
-      });
-      const name = exportFileName(activity.summary.name, activity.summary.day, crop);
-      const url = URL.createObjectURL(result.blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      const codecNote =
-        result.codec === "avc"
-          ? ""
-          : ` This browser made ${result.codec.toUpperCase()}, not H.264; Instagram may re-encode it or refuse it. Chrome makes H.264.`;
-      setSaved(`Saved ${name} (${megabytes(result.blob.size)}).${codecNote}`);
-    } catch (caught) {
-      if (!(caught instanceof DOMException && caught.name === "AbortError")) {
-        setError(caught instanceof Error ? caught.message : "The export failed");
-      }
-    } finally {
-      setWorking(false);
-    }
+    const timer = setTimeout(() => void render(controller), RENDER_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [open, render, colorBy, satellite, activity.summary.id]);
+
+  const renderAgain = () => {
+    const controller = new AbortController();
+    job.current = controller;
+    void render(controller);
+  };
+
+  const save = () => {
+    if (!result) return;
+    const name = exportFileName(activity.summary.name, activity.summary.day, crop);
+    const url = URL.createObjectURL(result.blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    const codecNote =
+      result.codec === "avc"
+        ? ""
+        : ` This browser made ${result.codec.toUpperCase()}, not H.264; Instagram may re-encode it or refuse it. Chrome makes H.264.`;
+    setSavedName(`Saved ${name} (${megabytes(result.blob.size)}).${codecNote}`);
   };
 
   const percent = Math.round((progress.done / progress.total) * 100);
@@ -288,7 +330,6 @@ export function ExportDialog({
                   type="button"
                   size="sm"
                   variant={moment === option ? "secondary" : "ghost"}
-                  disabled={working}
                   onClick={() => setMoment(option)}
                 >
                   {MOMENT_LABELS[option]}
@@ -307,8 +348,7 @@ export function ExportDialog({
                     type="button"
                     role="radio"
                     aria-checked={crop === option}
-                    disabled={working}
-                    onClick={() => setCrop(option)}
+                      onClick={() => setCrop(option)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                       crop === option ? "bg-muted border-foreground/40" : "hover:bg-muted/60",
@@ -336,7 +376,6 @@ export function ExportDialog({
               <span className="text-muted-foreground text-xs">Sharpness</span>
               <NativeSelect
                 value={quality}
-                disabled={working}
                 onChange={(event) => setQuality(event.target.value as ExportQuality)}
               >
                 {EXPORT_QUALITIES.map((option) => (
@@ -351,7 +390,6 @@ export function ExportDialog({
               <span className="text-muted-foreground text-xs">Video length</span>
               <NativeSelect
                 value={String(lengthS)}
-                disabled={working}
                 onChange={(event) => setLengthS(Number(event.target.value))}
               >
                 {lengths.map((option) => (
@@ -369,7 +407,7 @@ export function ExportDialog({
           </div>
         </div>
 
-        {working && (
+        {rendering && (
           <div className="flex flex-col gap-1.5" role="status">
             <div className="bg-muted h-2 overflow-hidden rounded-full">
               <div
@@ -378,13 +416,14 @@ export function ExportDialog({
               />
             </div>
             <span className="text-muted-foreground text-xs tabular-nums">
-              {percent}% · frame {progress.done} of {progress.total}
+              Making the video with {maps} maps · {percent}% · frame {progress.done} of{" "}
+              {progress.total}
               {progress.etaS !== null &&
                 ` · about ${formatDuration(Math.round(progress.etaS))} left`}
             </span>
             {timings && (
               <span className="text-muted-foreground text-xs tabular-nums">
-                Per frame, in ms: page {Math.round(timings.render)} · tiles{" "}
+                Per frame on each map, in ms: page {Math.round(timings.render)} · tiles{" "}
                 {Math.round(timings.tiles)} · route layer {Math.round(timings.layers)} · drawing{" "}
                 {Math.round(timings.draw)} · encoder wait {Math.round(timings.encode)}
               </span>
@@ -396,17 +435,24 @@ export function ExportDialog({
             {error}
           </p>
         )}
-        {saved && <p className="text-sm">{saved}</p>}
-        {saved && timings && (
+        {result && (
+          <p className="text-sm">
+            Ready: {megabytes(result.blob.size)}
+            {renderedS !== null && `, made in ${formatDuration(Math.round(renderedS))}`} with {maps}{" "}
+            maps.
+          </p>
+        )}
+        {savedName && <p className="text-sm">{savedName}</p>}
+        {!rendering && timings && (
           <p className="text-muted-foreground text-xs tabular-nums">
-            Per frame, in ms: page {Math.round(timings.render)} · tiles {Math.round(timings.tiles)}{" "}
-            · route layer {Math.round(timings.layers)} · drawing {Math.round(timings.draw)} ·
-            encoder wait {Math.round(timings.encode)}
+            Per frame on each map, in ms: page {Math.round(timings.render)} · tiles{" "}
+            {Math.round(timings.tiles)} · route layer {Math.round(timings.layers)} · drawing{" "}
+            {Math.round(timings.draw)} · encoder {Math.round(timings.encode)}
           </p>
         )}
 
         <DialogFooter>
-          {working ? (
+          {rendering ? (
             <Button type="button" variant="outline" onClick={() => job.current?.abort()}>
               Cancel
             </Button>
@@ -415,25 +461,46 @@ export function ExportDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
-              <Button type="button" onClick={start}>
-                Export MP4
-              </Button>
+              {result ? (
+                <Button type="button" onClick={save}>
+                  Save MP4
+                </Button>
+              ) : (
+                <Button type="button" onClick={renderAgain}>
+                  Make video
+                </Button>
+              )}
             </>
           )}
         </DialogFooter>
 
         {open && (
           <ExportStage
-            key={stageKey}
+            key={`preview-${draftKey}`}
             ref={stage}
             activity={activity}
             colorBy={colorBy}
             gaps={gaps}
             satellite={satellite}
-            size={stageSize}
+            size={draftSize}
             speed={speed}
           />
         )}
+        {open &&
+          Array.from({ length: maps }, (_, k) => (
+            <ExportStage
+              key={`${finalKey}-${k}`}
+              ref={(handle) => {
+                renderStages.current[k] = handle;
+              }}
+              activity={activity}
+              colorBy={colorBy}
+              gaps={gaps}
+              satellite={satellite}
+              size={finalSize}
+              speed={speed}
+            />
+          ))}
       </DialogContent>
     </Dialog>
   );
