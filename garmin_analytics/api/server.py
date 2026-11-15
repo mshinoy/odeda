@@ -121,6 +121,9 @@ from .schemas import (
     PlanSourceRequest,
     PlanStartRequest,
     PlanSyncResult,
+    PlanAddRequest,
+    PlanEditRequest,
+    PlanEditResult,
     PlanSteer,
     PlanWeekDetail,
     RaceForecast,
@@ -759,6 +762,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 # The message already says what to do about it, and naming the calendar
                 # is the owner's problem to fix, not a server fault.
                 raise HTTPException(502, str(exc)) from exc
+
+    @app.put("/api/plan/sessions/{session_id}/edit", response_model=PlanEditResult)
+    def api_plan_edit(session_id: int, payload: PlanEditRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.edit_session(st, session_id, payload.day, payload.distance_m)
+            except LookupError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.delete("/api/plan/sessions/{session_id}/edit", response_model=PlanEditResult)
+    def api_plan_unedit(session_id: int) -> dict[str, Any]:
+        with store() as st:
+            return plan_mod.clear_edit(st, session_id)
+
+    @app.post("/api/plan/sessions", response_model=PlanEditResult)
+    def api_plan_add(payload: PlanAddRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.add_session(
+                    st, payload.day, payload.sport, payload.distance_m, payload.title
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.delete("/api/plan/sessions/{session_id}", response_model=PlanEditResult)
+    def api_plan_remove(session_id: int) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.remove_session(st, session_id)
+            except LookupError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.put("/api/plan/sessions/{session_id}/link", response_model=PlanLinkResult)
     def api_plan_link(session_id: int, payload: PlanLinkRequest = Body(...)) -> dict[str, Any]:

@@ -602,7 +602,8 @@ export interface paths {
         /** Api Plan Sessions */
         get: operations["api_plan_sessions"];
         put?: never;
-        post?: never;
+        /** Api Plan Add */
+        post: operations["api_plan_add"];
         delete?: never;
         options?: never;
         head?: never;
@@ -638,6 +639,41 @@ export interface paths {
         /** Api Plan Sync */
         post: operations["api_plan_sync"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/sessions/{session_id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Api Plan Edit */
+        put: operations["api_plan_edit"];
+        post?: never;
+        /** Api Plan Unedit */
+        delete: operations["api_plan_unedit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Api Plan Remove */
+        delete: operations["api_plan_remove"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4503,6 +4539,20 @@ export interface components {
             unplanned: components["schemas"]["PlanUnplanned"][];
         };
         /**
+         * PlanAddRequest
+         * @description `POST /api/plan/sessions`: a session of the owner's own.
+         */
+        PlanAddRequest: {
+            /** Day */
+            day: string;
+            /** Sport */
+            sport: string;
+            /** Distance M */
+            distance_m?: number | null;
+            /** Title */
+            title?: string | null;
+        };
+        /**
          * PlanDecision
          * @description A match the owner overruled by hand. The only part of the plan's judgement that
          *     is stored rather than recomputed, which is why Settings lists it.
@@ -4526,6 +4576,26 @@ export interface components {
             activity_id: string | null;
             /** Linked At */
             linked_at: string | null;
+        };
+        /**
+         * PlanEditRequest
+         * @description `PUT /api/plan/sessions/{id}/edit`. Omit a field to leave the calendar's.
+         */
+        PlanEditRequest: {
+            /** Day */
+            day?: string | null;
+            /** Distance M */
+            distance_m?: number | null;
+        };
+        /** PlanEditResult */
+        PlanEditResult: {
+            /** Session Id */
+            session_id: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "edited" | "cleared" | "added" | "removed";
         };
         /** PlanLinkRequest */
         PlanLinkRequest: {
@@ -4609,6 +4679,20 @@ export interface components {
              * @description The day the fulfilling activity actually happened, when it was not this one.
              */
             moved_from: string | null;
+            /**
+             * Edited
+             * @description The owner moved it or changed its distance; `original_day` says where it was.
+             * @default false
+             */
+            edited: boolean;
+            /**
+             * Own
+             * @description The owner added it; it is not in the calendar.
+             * @default false
+             */
+            own: boolean;
+            /** Original Day */
+            original_day?: string | null;
         };
         /**
          * PlanSessionList
@@ -7472,6 +7556,39 @@ export interface operations {
             };
         };
     };
+    api_plan_add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanAddRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanEditResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     api_plan_start: {
         parameters: {
             query?: never;
@@ -7521,6 +7638,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanSyncResult"];
+                };
+            };
+        };
+    };
+    api_plan_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanEditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanEditResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_plan_unedit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanEditResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_plan_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanEditResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

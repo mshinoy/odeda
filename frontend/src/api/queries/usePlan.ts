@@ -172,3 +172,67 @@ export function useClearPlanLink() {
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
   });
 }
+
+/** The owner's changes to the plan: move a session, change its distance, add one, remove one. */
+export function useEditPlanSession() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      day,
+      distanceM,
+    }: {
+      sessionId: number;
+      day?: string | null;
+      distanceM?: number | null;
+    }) =>
+      unwrap(
+        await api.PUT("/api/plan/sessions/{session_id}/edit", {
+          params: { path: { session_id: sessionId } },
+          body: { day: day ?? null, distance_m: distanceM ?? null },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+/** Undo the owner's change to a calendar session. */
+export function useClearPlanEdit() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: number) =>
+      unwrap(
+        await api.DELETE("/api/plan/sessions/{session_id}/edit", {
+          params: { path: { session_id: sessionId } },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+export function useAddPlanSession() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      day: string;
+      sport: string;
+      distance_m: number | null;
+      title: string | null;
+    }) => unwrap(await api.POST("/api/plan/sessions", { body })),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+/** Remove a session the owner added. A calendar session cannot be removed here. */
+export function useRemovePlanSession() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: number) =>
+      unwrap(
+        await api.DELETE("/api/plan/sessions/{session_id}", {
+          params: { path: { session_id: sessionId } },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}

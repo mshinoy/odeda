@@ -99,6 +99,11 @@ class PlannedDay:
     #: The owner said this day does not count. Unlike `optional`, which is the
     #: calendar's own word, this is a decision they made afterwards.
     ignored: bool = False
+    #: The owner moved it or changed its distance (`plan_edits`), or wrote it themselves.
+    edited: bool = False
+    own: bool = False
+    #: The calendar's day, when the owner moved the session off it.
+    original_day: str | None = None
 
     @property
     def weight(self) -> float:
@@ -180,6 +185,9 @@ def collapse(
                 title=str(best.get("title") or ""),
                 session_ids=ids,
                 ignored=any(i in ignored for i in ids),
+                edited=any(bool(r.get("edited")) for r in rows),
+                own=any(bool(r.get("own")) for r in rows),
+                original_day=next((r.get("original_day") for r in rows if r.get("original_day")), None),
             )
         )
     return out
@@ -433,19 +441,31 @@ def rolling_adherence(weeks: Sequence[Mapping[str, Any]], window: int = 4) -> fl
 
 
 def _sessions(store, start: str | None = None, end: str | None = None) -> list[dict[str, Any]]:
+    """The live sessions, with the owner's edits read on top of the calendar's.
+
+    The filters are on the day *as edited*: a session moved into the window belongs to it,
+    and one moved out does not, whatever the calendar says.
+    """
+    day = "COALESCE(e.day, s.day)"
     sql = (
-        "SELECT id, day, sport, kind, planned_min_m, planned_max_m, title, "
-        "       recurring, optional, parse_source AS source, parse_status "
-        "FROM plan_sessions WHERE withdrawn_at IS NULL"
+        f"SELECT s.id, {day} AS day, s.sport, s.kind, "
+        "       COALESCE(e.planned_m, s.planned_min_m) AS planned_min_m, "
+        "       COALESCE(e.planned_m, s.planned_max_m) AS planned_max_m, "
+        "       s.title, s.recurring, s.optional, s.parse_source AS source, s.parse_status, "
+        "       (e.plan_session_id IS NOT NULL) AS edited, "
+        "       (s.uid LIKE 'own:%') AS own, "
+        "       CASE WHEN e.day IS NOT NULL AND e.day <> s.day THEN s.day END AS original_day "
+        "FROM plan_sessions s LEFT JOIN plan_edits e ON e.plan_session_id = s.id "
+        "WHERE s.withdrawn_at IS NULL"
     )
     params: list[Any] = []
     if start:
-        sql += " AND day >= ?"
+        sql += f" AND {day} >= ?"
         params.append(start)
     if end:
-        sql += " AND day <= ?"
+        sql += f" AND {day} <= ?"
         params.append(end)
-    return store.query(sql + " ORDER BY day, start_local", params)
+    return store.query(sql + f" ORDER BY {day}, s.start_local", params)
 
 
 def _activities(store, start: str | None = None, end: str | None = None) -> list[dict[str, Any]]:
@@ -547,6 +567,9 @@ def _as_dict(item: Judged) -> dict[str, Any]:
         "actual_m": item.actual_m,
         "actual_s": item.actual_s,
         "moved_from": item.moved_from,
+        "edited": p.edited,
+        "own": p.own,
+        "original_day": p.original_day,
     }
 
 
@@ -786,6 +809,107 @@ def clear_link(store, session_id: int) -> dict[str, Any]:
     with store.tx():
         store.conn.execute("DELETE FROM plan_links WHERE plan_session_id = ?", (session_id,))
     return {"plan_session_id": session_id, "activity_id": None, "link_type": "cleared"}
+
+
+# ---------------------------------------------------------------------------
+# The owner's own changes to the plan
+# ---------------------------------------------------------------------------
+
+OWN_SPORTS = ("running", "cycling", "strength", "swimming", "walking")
+#: The kind a session of the owner's own gets when they do not say; it decides how the
+#: session is weighted and what it is called.
+OWN_KINDS = {"running": "easy", "cycling": "cross", "strength": "gym", "swimming": "cross", "walking": "cross"}
+
+
+def _check_day(day: str) -> str:
+    try:
+        return date.fromisoformat(day).isoformat()
+    except ValueError as exc:
+        raise ValueError(f"not a day: {day!r}") from exc
+
+
+def edit_session(
+    store, session_id: int, day: str | None = None, distance_m: float | None = None
+) -> dict[str, Any]:
+    """Move a calendar session to another day, and/or ask for a different distance.
+
+    Kept in `plan_edits`, read on top of the calendar and never overwritten by a sync.
+    Asking for what the calendar already says is not an edit, so it clears one.
+    """
+    from ..db.store import utcnow
+
+    row = store.query("SELECT day, planned_min_m FROM plan_sessions WHERE id = ?", (session_id,))
+    if not row:
+        raise LookupError(f"no plan session {session_id}")
+    if distance_m is not None and not 0 < distance_m <= 500_000:
+        raise ValueError("distance must be between 0 and 500 km")
+    new_day = None if day is None else _check_day(day)
+    if new_day == row[0]["day"]:
+        new_day = None
+    if distance_m is not None and row[0]["planned_min_m"] is not None and abs(
+        distance_m - float(row[0]["planned_min_m"])
+    ) < 1.0:
+        distance_m = None
+    if new_day is None and distance_m is None:
+        return clear_edit(store, session_id)
+
+    with store.tx():
+        store.conn.execute(
+            "INSERT INTO plan_edits (plan_session_id, day, planned_m, edited_at) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT (plan_session_id) DO UPDATE SET "
+            "day = excluded.day, planned_m = excluded.planned_m, edited_at = excluded.edited_at",
+            (session_id, new_day, distance_m, utcnow()),
+        )
+    return {"session_id": session_id, "state": "edited"}
+
+
+def clear_edit(store, session_id: int) -> dict[str, Any]:
+    with store.tx():
+        store.conn.execute("DELETE FROM plan_edits WHERE plan_session_id = ?", (session_id,))
+    return {"session_id": session_id, "state": "cleared"}
+
+
+def add_session(
+    store, day: str, sport: str, distance_m: float | None = None, title: str | None = None
+) -> dict[str, Any]:
+    """A session of the owner's own. It is a `plan_sessions` row with no source, so no
+    sync can withdraw it, and it flows through the matcher like any other."""
+    import uuid
+
+    if sport not in OWN_SPORTS:
+        raise ValueError(f"sport must be one of {', '.join(OWN_SPORTS)}")
+    day = _check_day(day)
+    if distance_m is not None and not 0 < distance_m <= 500_000:
+        raise ValueError("distance must be between 0 and 500 km")
+    label = (title or "").strip() or f"{sport.capitalize()} (added by you)"
+    with store.tx():
+        cur = store.conn.execute(
+            "INSERT INTO plan_sessions (source_id, uid, recurrence_id, day, title, sport, kind, "
+            "planned_min_m, planned_max_m, optional, recurring, parse_source, parse_status) "
+            "VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'edit', 'ok')",
+            (f"own:{uuid.uuid4().hex[:12]}", day, day, label[:120], sport, OWN_KINDS[sport],
+             distance_m, distance_m),
+        )
+        new_id = int(cur.lastrowid or 0)
+    return {"session_id": new_id, "state": "added"}
+
+
+def remove_session(store, session_id: int) -> dict[str, Any]:
+    """Take away a session the owner added. A calendar session is not theirs to remove:
+    the calendar owns it, and `Ignore` already says "this one does not count"."""
+    from ..db.store import utcnow
+
+    own = store.scalar(
+        "SELECT id FROM plan_sessions WHERE id = ? AND uid LIKE 'own:%' AND withdrawn_at IS NULL",
+        (session_id,),
+    )
+    if own is None:
+        raise LookupError(f"no session of your own with id {session_id}")
+    with store.tx():
+        store.conn.execute(
+            "UPDATE plan_sessions SET withdrawn_at = ? WHERE id = ?", (utcnow(), session_id)
+        )
+    return {"session_id": session_id, "state": "removed"}
 
 
 #: How a race's title reads once the keyword that identified it is taken off.

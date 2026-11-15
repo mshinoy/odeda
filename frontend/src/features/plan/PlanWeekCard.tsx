@@ -95,6 +95,7 @@ function SessionLine({ session }: { session: PlanSession }) {
             {session.moved_from && " · moved"}
           </span>
         )}
+        {(session.edited || session.own) && <span>{session.own ? "added by you" : "edited"}</span>}
         {session.ignored ? (
           "Ignored"
         ) : session.verdict === "upcoming" ? null : (

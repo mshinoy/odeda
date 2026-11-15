@@ -64,7 +64,11 @@ export function riskText(risk: SteerRisk): string {
 /** "Long run · Fri 13 Nov · 8.0 km: Missed", or null with no long run in the plan. */
 export function keySessionLine(session: PlanSession | null): string | null {
   if (session === null) return null;
-  const parts = [sessionLabel(session), `${formatWeekday(session.day)} ${formatDate(session.day)}`];
+  const label = sessionLabel(session);
+  const parts = [
+    label.charAt(0).toUpperCase() + label.slice(1),
+    `${formatWeekday(session.day)} ${formatDate(session.day)}`,
+  ];
   if (session.planned_min_m) parts.push(formatDistance(session.planned_min_m));
   const verdict = VERDICT_DISPLAY[session.verdict];
   const ahead = session.verdict === "upcoming";

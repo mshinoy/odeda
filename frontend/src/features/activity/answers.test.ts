@@ -35,6 +35,9 @@ function session(over: Partial<Session> = {}): Session {
     actual_m: 11241,
     actual_s: 6161,
     moved_from: null,
+    edited: false,
+    own: false,
+    original_day: null,
     ...over,
   };
 }

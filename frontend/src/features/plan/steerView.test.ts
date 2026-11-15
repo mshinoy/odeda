@@ -25,6 +25,9 @@ const longRun = (verdict: PlanSession["verdict"]): PlanSession => ({
   actual_m: null,
   actual_s: null,
   moved_from: null,
+  edited: false,
+  own: false,
+  original_day: null,
 });
 
 describe("standing", () => {
@@ -85,6 +88,7 @@ describe("riskText", () => {
 describe("keySessionLine", () => {
   it("shows the verdict once the day has passed, not before", () => {
     expect(keySessionLine(longRun("missed"))).toContain("Missed");
+    expect(keySessionLine(longRun("missed"))).toMatch(/^Long run/);
     expect(keySessionLine(longRun("upcoming"))).not.toContain(":");
   });
 

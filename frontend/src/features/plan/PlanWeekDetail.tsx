@@ -5,6 +5,7 @@ import type {
   PlanWeekDetail as WeekDetail,
 } from "@/api/queries/usePlan";
 import { Button } from "@/components/ui/button";
+import { AddSession, ChangeSession } from "@/features/plan/PlanEditControls";
 import { StatusDot } from "@/components/StatusDot";
 import { linkCandidates, sportLabel, VERDICT_DISPLAY } from "@/features/plan/planView";
 import { formatDate, formatDistance, formatWeekday } from "@/lib/format";
@@ -20,7 +21,12 @@ interface PlanWeekDetailProps {
 /** One week opened out: every prescribed day, what fulfilled it, and how to correct that. */
 export function PlanWeekDetail({ week, onLink, onIgnore, onClear, busy }: PlanWeekDetailProps) {
   if (week.sessions.length === 0) {
-    return <p className="text-muted-foreground px-2 py-3 text-sm">Nothing prescribed this week.</p>;
+    return (
+      <div className="flex flex-col gap-3 px-2 py-3">
+        <p className="text-muted-foreground text-sm">Nothing prescribed this week.</p>
+        <AddSession weekStart={week.start} />
+      </div>
+    );
   }
 
   return (
@@ -36,6 +42,7 @@ export function PlanWeekDetail({ week, onLink, onIgnore, onClear, busy }: PlanWe
           busy={busy}
         />
       ))}
+      <AddSession weekStart={week.start} />
       {week.unplanned.length > 0 && (
         <p className="text-muted-foreground text-xs">
           Not asked for this week:{" "}
@@ -89,10 +96,14 @@ function SessionDetail({
           </Link>
         )}
         {session.moved_from && <span>not on the day it was asked for</span>}
+        {session.original_day && <span>moved by you from {formatDate(session.original_day)}</span>}
+        {session.own && <span>added by you</span>}
         {session.actual_sport && session.actual_sport !== session.sport && (
           <span>swapped for a {sportLabel(session.actual_sport)}</span>
         )}
       </div>
+
+      <ChangeSession session={session} />
 
       {sessionId !== undefined && (
         <div className="flex flex-wrap items-center gap-2 pt-1">

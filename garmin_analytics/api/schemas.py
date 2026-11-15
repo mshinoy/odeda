@@ -2696,6 +2696,11 @@ class PlanSession(_Model):
     actual_s: float | None
     moved_from: str | None
     """The day the fulfilling activity actually happened, when it was not this one."""
+    edited: bool = False
+    """The owner moved it or changed its distance; `original_day` says where it was."""
+    own: bool = False
+    """The owner added it; it is not in the calendar."""
+    original_day: str | None = None
 
 
 class ActivityPlan(_Model):
@@ -2861,6 +2866,27 @@ class PlanLinkRequest(_Model):
     activity_id: str | None = None
     """Null with `ignore` true, or to clear the link."""
     ignore: bool = False
+
+
+class PlanEditRequest(_Model):
+    """`PUT /api/plan/sessions/{id}/edit`. Omit a field to leave the calendar's."""
+
+    day: str | None = None
+    distance_m: float | None = None
+
+
+class PlanAddRequest(_Model):
+    """`POST /api/plan/sessions`: a session of the owner's own."""
+
+    day: str
+    sport: str
+    distance_m: float | None = None
+    title: str | None = None
+
+
+class PlanEditResult(_Model):
+    session_id: int
+    state: Literal["edited", "cleared", "added", "removed"]
 
 
 class PlanLinkResult(_Model):

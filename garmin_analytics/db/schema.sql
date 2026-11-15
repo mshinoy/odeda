@@ -494,6 +494,18 @@ CREATE TABLE IF NOT EXISTS plan_links (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_plan_links_activity
     ON plan_links (activity_id) WHERE activity_id IS NOT NULL;
 
+-- The owner's changes to a calendar session: moved to another day, or asked for a
+-- different distance. They live here and not on `plan_sessions` because a sync rewrites
+-- that row's day, title and parse every time it reads the feed; a correction written
+-- there would last until the next sync. A row here is read on top of the session and
+-- never touched by one. Deleting the row is the undo.
+CREATE TABLE IF NOT EXISTS plan_edits (
+    plan_session_id  INTEGER PRIMARY KEY REFERENCES plan_sessions (id) ON DELETE CASCADE,
+    day              TEXT,       -- moved to this day; NULL keeps the calendar's
+    planned_m        REAL,       -- asked distance in metres; NULL keeps the calendar's
+    edited_at        TEXT NOT NULL
+);
+
 -- The weather an outdoor activity was done in, one row per activity, taken once from
 -- Open-Meteo and never asked for again. Every figure is the average over the hours the
 -- activity ran (weighted by how much of each hour it covered) at its first GPS fix;
