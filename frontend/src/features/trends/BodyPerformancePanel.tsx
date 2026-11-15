@@ -54,7 +54,7 @@ export function BodyPerformancePanel({ body }: { body: BodyComposition }) {
   if (!body.has_data) return null;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-8">
       {/*
         Two panels over one day axis rather than two lines on one chart: kilograms and
         CTL are not the same quantity, and the only way to draw them together is a

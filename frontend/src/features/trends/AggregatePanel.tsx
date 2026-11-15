@@ -21,7 +21,7 @@ export function AggregatePanel({ aggregate }: { aggregate: Aggregate }) {
   }
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-8">
       <TotalsPanel totals={aggregate.totals} oneSport={oneSport} />
 
       <figure className="flex flex-col gap-1">
@@ -31,7 +31,7 @@ export function AggregatePanel({ aggregate }: { aggregate: Aggregate }) {
 
       {yearRows.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-muted-foreground text-xs">Year over year</h2>
+          <h3 className="text-muted-foreground text-xs">Year over year</h3>
           <YearOverYearTable rows={yearRows} />
         </section>
       )}

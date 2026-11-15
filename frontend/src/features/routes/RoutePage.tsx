@@ -48,7 +48,7 @@ export function RoutePage() {
         message="This route no longer exists: it was merged into another or regrouped."
         action={
           <Button variant="outline" size="sm" asChild>
-            <Link to="/routes">All routes</Link>
+            <Link to="/map">All routes</Link>
           </Button>
         }
       />
@@ -68,7 +68,7 @@ export function RoutePage() {
               label={activityTypeLabel(detail.route.activityType)}
             />
             <span>{LAYOUT_LABELS[detail.route.layout]}</span>
-            <Link to="/routes" className="hover:text-foreground underline underline-offset-4">
+            <Link to="/map" className="hover:text-foreground underline underline-offset-4">
               All routes
             </Link>
           </div>

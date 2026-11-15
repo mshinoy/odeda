@@ -2,7 +2,7 @@
 // trailing baseline. Pure: the cards and the charts both come through here, so a card
 // and its chart can never disagree about a unit.
 import type { MetricTrend, Trends, TrendMetricName } from "@/api/queries/useHealth";
-import { formatSigned, formatWithUnit } from "@/lib/format";
+import { formatDate, formatSigned, formatWithUnit } from "@/lib/format";
 
 export interface HealthMetric {
   /** The `/api/trends` metric this reads. */
@@ -110,6 +110,15 @@ export const CHART_METRICS: readonly HealthMetric[] = [
   STRESS_METRIC,
 ];
 
+/** The recovery card's row: how rested, and how the body is carrying it. */
+export const RECOVERY_CARD_METRICS: readonly HealthMetric[] = [
+  SLEEP_DURATION_METRIC,
+  HRV_METRIC,
+  RESTING_HR_METRIC,
+  STRESS_METRIC,
+  BODY_BATTERY_METRIC,
+];
+
 /** Every metric with a card, in the order the row shows them. */
 export const CARD_METRICS: readonly HealthMetric[] = [
   SLEEP_DURATION_METRIC,
@@ -161,17 +170,34 @@ export function missingMetrics(list: readonly HealthMetric[], trends: Trends): H
  * would read as news when there is none.
  */
 export function baselineCard(metric: HealthMetric, trend: MetricTrend): BaselineCard {
+  // Today's reading may not have synced: show the last one, and say which day it is.
+  const last = trend.latest === null ? lastReading(trend) : null;
+  const value = trend.latest ?? last?.value ?? null;
   const difference =
-    trend.latest === null || trend.baseline_mean === null
+    value === null || trend.baseline_mean === null
       ? null
-      : (trend.latest - trend.baseline_mean) * metric.scale;
+      : (value - trend.baseline_mean) * metric.scale;
+  const vsBaseline =
+    difference === null ? null : `${formatSigned(difference, metric.digits)} vs baseline`;
 
   return {
     label: metric.label,
-    value: formatWithUnit(scaled(trend.latest, metric), metric.unit, metric.digits),
-    delta: difference === null ? null : `${formatSigned(difference, metric.digits)} vs baseline`,
+    value: formatWithUnit(scaled(value, metric), metric.unit, metric.digits),
+    delta: last
+      ? [`last ${formatDate(last.day)}`, vsBaseline].filter(Boolean).join(" · ")
+      : vsBaseline,
     tone: deltaTone(trend),
   };
+}
+
+/** The newest day with a reading, for a metric whose latest has not come in. */
+function lastReading(trend: MetricTrend): { day: string; value: number } | null {
+  for (let i = trend.values.length - 1; i >= 0; i--) {
+    const value = trend.values[i];
+    const day = trend.days[i];
+    if (value !== null && value !== undefined && day !== undefined) return { day, value };
+  }
+  return null;
 }
 
 function deltaTone(trend: MetricTrend): DeltaTone {

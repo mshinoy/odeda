@@ -92,11 +92,15 @@ describe("baselineCard", () => {
     expect(baselineCard(restingHr, trend({ metric: "resting_hr", z: 3 })).tone).toBe("neutral");
   });
 
-  it("has no delta when there is no reading or no baseline", () => {
+  it("shows the last reading, and its day, when today's has not come in", () => {
     const noReading = trend({ metric: "hrv", latest: null });
     const noBaseline = trend({ metric: "hrv", baseline_mean: null });
-    expect(baselineCard(hrv, noReading).delta).toBeNull();
-    expect(baselineCard(hrv, noReading).value).toBe("–");
+    // The fixture's values are all present, so the last one stands in for today's.
+    expect(baselineCard(hrv, noReading).delta).toMatch(/^last /);
+    expect(baselineCard(hrv, noReading).value).not.toBe("–");
+    const nothingAtAll = trend({ metric: "hrv", latest: null, values: [null, null] });
+    expect(baselineCard(hrv, nothingAtAll).value).toBe("–");
+    expect(baselineCard(hrv, nothingAtAll).delta).toBeNull();
     expect(baselineCard(hrv, noBaseline).delta).toBeNull();
   });
 });

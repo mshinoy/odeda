@@ -7,8 +7,8 @@ import { HealthPage } from "@/features/health/HealthPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
 import { PlanPage } from "@/features/plan/PlanPage";
+import { RoutesToMap } from "@/features/routes/RoutesToMap";
 import { RoutePage } from "@/features/routes/RoutePage";
-import { RoutesPage } from "@/features/routes/RoutesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { AppShell } from "@/features/shell/AppShell";
 import { NotFound } from "@/features/shell/NotFound";
@@ -35,7 +35,8 @@ export const router = createBrowserRouter([
           { path: "activities/:id", element: <ActivityPage /> },
           { path: "map", element: <MapPage /> },
           { path: "health", element: <HealthPage /> },
-          { path: "routes", element: <RoutesPage /> },
+          // The list of routes lives on the map now; old links keep their ?route= and ?kind=.
+          { path: "routes", element: <RoutesToMap /> },
           { path: "routes/:id", element: <RoutePage /> },
           { path: "compare", element: <ComparePage /> },
           { path: "trends", element: <TrendsPage /> },

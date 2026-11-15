@@ -26,6 +26,7 @@ export function RouteKindFilter({ options, value, onChange, total }: RouteKindFi
     <ToggleGroup
       type="single"
       size="sm"
+      className="flex-wrap justify-start"
       value={value ?? ALL}
       aria-label="Filter routes by kind"
       onValueChange={(next) => {

@@ -33,7 +33,7 @@ export function DistributionsPanel({
   const zoneSeconds = zones.reduce((sum, zone) => sum + zone.seconds, 0);
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-8">
       <div className="grid gap-8 lg:grid-cols-2">
         <HistogramChart
           buckets={distributions.pace}
