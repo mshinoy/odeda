@@ -97,6 +97,21 @@ Directions, in order of payoff:
 
 ---
 
+## Video export, ideas not built
+
+The export takes about 0:38 for a 60 s HD vertical video and is now limited by the encoder
+(~41 fps). Ideas left on the table:
+
+- Two encoders working in parallel, joined in order.
+- Hand canvases to the encoder as `OffscreenCanvas` instead of snapshotting them.
+- A cleaner Mapbox Standard setup for export (no labels or 3D objects) so tiles load faster.
+- Longer runs of consecutive frames per map (16 instead of 8).
+- Square and horizontal crops, 2K and satellite are untested end to end; so are real
+  Instagram and YouTube uploads.
+- The `[video export]` console entry could be stored (server or download) for later analytics.
+
+---
+
 ## Trajectory
 
 Where the app is heading, as a direction rather than a task list:
