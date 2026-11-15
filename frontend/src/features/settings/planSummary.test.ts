@@ -77,7 +77,7 @@ describe("feedStatus", () => {
 
   it("distinguishes subscribed-but-never-read from working", () => {
     const fresh = plan({
-      source: { label: null, url_masked: "…", last_fetch_at: null, last_error: null },
+      source: { label: null, kind: "ics", url_masked: "…", last_fetch_at: null, last_error: null },
     });
     expect(feedStatus(fresh, NOW).tone).toBe("warning");
     expect(feedStatus(plan(), NOW).tone).toBe("good");
