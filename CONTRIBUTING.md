@@ -9,6 +9,14 @@ history of how it was built; [`frontend/README.md`](frontend/README.md) is the
 day-to-day guide — how to run it, what to run before pushing, and how to add a chart
 or a map layer.
 
+## How work is planned and tracked
+
+Ideas that are not decided go in [`FUTURE.md`](FUTURE.md). Once decided they become tasks in
+[`PLAN.md`](PLAN.md), which is the tracker; a large piece may have its own plan file linked
+from there. Releases are recorded in [`CHANGELOG.md`](CHANGELOG.md). Nothing is built without
+a row in `PLAN.md`, and its status is updated in the same commit as the work. The full flow
+is under "How work moves" in `PLAN.md`.
+
 ## Versions
 
 `MAJOR.MINOR.PATCH`, in [`CHANGELOG.md`](CHANGELOG.md). To release: bump the version in
