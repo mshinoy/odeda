@@ -31,6 +31,9 @@ function session(over: Partial<PlanSession>): PlanSession {
     actual_m: null,
     actual_s: null,
     moved_from: null,
+    edited: false,
+    own: false,
+    original_day: null,
     ...over,
   };
 }

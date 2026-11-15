@@ -2638,6 +2638,8 @@ class PlanSource(_Model):
     read access to the whole calendar to anyone holding it."""
 
     label: str | None
+    kind: str = "ics"
+    """`ics` for the subscribed calendar, `upload` for a plan uploaded as a file."""
     url_masked: str
     last_fetch_at: str | None
     last_error: str | None
@@ -2696,6 +2698,11 @@ class PlanSession(_Model):
     actual_s: float | None
     moved_from: str | None
     """The day the fulfilling activity actually happened, when it was not this one."""
+    edited: bool = False
+    """The owner moved it or changed its distance; `original_day` says where it was."""
+    own: bool = False
+    """The owner added it; it is not in the calendar."""
+    original_day: str | None = None
 
 
 class ActivityPlan(_Model):
@@ -2784,6 +2791,35 @@ class Plan(_Model):
     unplanned: list[PlanUnplanned]
 
 
+class SteerRace(_Model):
+    name: str
+    date: str
+    days_to_go: int | None
+    weeks_to_go: float | None
+
+
+class SteerRisk(_Model):
+    """One thing that puts the goal at risk. `code` is stable; the page words it."""
+
+    code: str
+    severity: int
+    km_done_pct: float | None = None
+    day: str | None = None
+    verdict: str | None = None
+    count: int | None = None
+
+
+class PlanSteer(_Model):
+    """`GET /api/plan/steer`: where the owner stands against the plan, and what to do."""
+
+    today: str
+    race: SteerRace | None
+    standing: str
+    km_done_pct: float | None
+    key_session: PlanSession | None
+    risks: list[SteerRisk]
+
+
 class PlanWeekDetail(_Model):
     """`GET /api/plan/week`."""
 
@@ -2811,6 +2847,41 @@ class PlanSourceRequest(_Model):
     label: str | None = None
 
 
+class PlanUploadRequest(_Model):
+    """`POST /api/plan/upload` and `/preview`: a plan as the text of an `.ics` or CSV file."""
+
+    content: str
+    effective_day: str
+    """The day the new plan takes over from, `2026-11-16`. Earlier days keep the old plan."""
+    label: str | None = None
+
+
+class PlanUploadRace(_Model):
+    name: str
+    date: str
+
+
+class PlanUploadSummary(_Model):
+    status: str = "preview"
+    format: Literal["ics", "csv"]
+    effective_day: str
+    sessions: int
+    """Sessions on or after the day it takes over from."""
+    skipped_before: int
+    """Sessions in the file before that day, which are left out."""
+    first_day: str
+    last_day: str
+    replaced: int
+    """Live calendar sessions from that day on that the upload would stop."""
+    own_removed: int
+    """Sessions the owner added themselves, from that day on, that it would stop."""
+    race: PlanUploadRace | None
+    race_lost: bool
+    """True when the current plan's race is on or after that day and the file does not hold it."""
+    past_kept: int
+    """Sessions before that day, which keep the plan they were judged against."""
+
+
 class PlanStartRequest(_Model):
     start_day: str | None = None
     """The day this block began, `2026-09-01`. Null clears it back to the whole
@@ -2832,6 +2903,27 @@ class PlanLinkRequest(_Model):
     activity_id: str | None = None
     """Null with `ignore` true, or to clear the link."""
     ignore: bool = False
+
+
+class PlanEditRequest(_Model):
+    """`PUT /api/plan/sessions/{id}/edit`. Omit a field to leave the calendar's."""
+
+    day: str | None = None
+    distance_m: float | None = None
+
+
+class PlanAddRequest(_Model):
+    """`POST /api/plan/sessions`: a session of the owner's own."""
+
+    day: str
+    sport: str
+    distance_m: float | None = None
+    title: str | None = None
+
+
+class PlanEditResult(_Model):
+    session_id: int
+    state: Literal["edited", "cleared", "added", "removed"]
 
 
 class PlanLinkResult(_Model):

@@ -30,6 +30,10 @@ export function feedStatus(plan: Plan, now: Date = new Date()): { tone: Tone; te
   if (plan.source.last_error) {
     return { tone: "critical", text: plan.source.last_error };
   }
+  if (plan.source.kind === "upload") {
+    const when = plan.source.last_fetch_at ? ` ${formatAgo(plan.source.last_fetch_at, now)}` : "";
+    return { tone: "good", text: `Uploaded plan in use${when}` };
+  }
   if (!plan.source.last_fetch_at) {
     return { tone: "warning", text: "Subscribed, but never read. Sync it." };
   }

@@ -16,6 +16,7 @@ function plan(over: Partial<Plan> = {}): Plan {
     subscribed: true,
     source: {
       label: "Training",
+      kind: "ics",
       url_masked: "https://calendar.google.com/calendar/ical/…/basic.ics",
       last_fetch_at: "2026-10-08T11:00:00",
       last_error: null,
@@ -63,6 +64,7 @@ describe("feedStatus", () => {
     const broken = plan({
       source: {
         label: null,
+        kind: "ics",
         url_masked: "…/basic.ics",
         last_fetch_at: "2026-10-01T06:00:00",
         last_error: "the calendar's secret address was reset; copy the new one",
@@ -73,9 +75,24 @@ describe("feedStatus", () => {
     expect(status.text).toContain("reset");
   });
 
+  it("calls an uploaded plan in use, not read", () => {
+    const uploaded = plan({
+      source: {
+        label: "Coach block",
+        kind: "upload",
+        url_masked: "Coach block",
+        last_fetch_at: "2026-11-14T10:00:00Z",
+        last_error: null,
+      },
+    });
+    const status = feedStatus(uploaded, NOW);
+    expect(status.tone).toBe("good");
+    expect(status.text).toContain("Uploaded plan in use");
+  });
+
   it("distinguishes subscribed-but-never-read from working", () => {
     const fresh = plan({
-      source: { label: null, url_masked: "…", last_fetch_at: null, last_error: null },
+      source: { label: null, kind: "ics", url_masked: "…", last_fetch_at: null, last_error: null },
     });
     expect(feedStatus(fresh, NOW).tone).toBe("warning");
     expect(feedStatus(plan(), NOW).tone).toBe("good");

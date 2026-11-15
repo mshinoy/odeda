@@ -77,6 +77,8 @@ export const queryKeys = {
   planWeek: (start: string) => ["plan", "week", start] as const,
   /** Every judged session at once, so the calendar is one request and not twenty-one. */
   planSessions: ["plan", "sessions"] as const,
+  /** Where the owner stands against the plan; under the plan prefix so a re-link refreshes it. */
+  planSteer: ["plan", "steer"] as const,
   /** Under the plan prefix, so re-linking a session or syncing the calendar refreshes it. */
   raceForecast: ["plan", "forecast"] as const,
   /** The race panel's own payload: countdown, 26 weeks of km, and the plan's targets. */

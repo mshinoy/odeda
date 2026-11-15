@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { useConfig } from "@/api/queries/useSettings";
 import { useSummary } from "@/api/queries/useStatus";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +10,7 @@ export function AboutPanel() {
   const summary = useSummary();
 
   if (config.isPending || summary.isPending) {
-    return <Skeleton className="h-20 w-full max-w-lg" />;
+    return <Skeleton className="h-20 w-full" />;
   }
 
   const range = summary.data?.day_range;
@@ -25,9 +26,8 @@ export function AboutPanel() {
   ];
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">About</h2>
-      <dl className="flex max-w-lg flex-col gap-1 text-sm">
+    <SectionCard title="About" question="This install.">
+      <dl className="flex w-full flex-col gap-1 text-sm">
         {facts.map((fact) => (
           <div key={fact.label} className="flex justify-between border-b py-1.5">
             <dt className="text-muted-foreground">{fact.label}</dt>
@@ -35,6 +35,6 @@ export function AboutPanel() {
           </div>
         ))}
       </dl>
-    </section>
+    </SectionCard>
   );
 }

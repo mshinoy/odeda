@@ -188,7 +188,9 @@ def set_start_day(store, day: str | None) -> None:
 
 
 def get_source(store) -> dict[str, Any] | None:
-    rows = store.query("SELECT * FROM plan_sources ORDER BY id LIMIT 1")
+    # The live one: an enabled source first, and the newest of those. After an upload the
+    # old subscription is kept but switched off, and it must not be the one reported.
+    rows = store.query("SELECT * FROM plan_sources ORDER BY enabled DESC, id DESC LIMIT 1")
     return rows[0] if rows else None
 
 
@@ -271,6 +273,8 @@ def sync_plan(
     source = get_source(store)
     if source is None or not source["enabled"]:
         return {"status": "skipped", "reason": "no calendar subscribed"}
+    if source["kind"] != "ics":
+        return {"status": "skipped", "reason": "an uploaded plan has nothing to sync"}
 
     transport = transport or UrllibTransport()
     tz = ZoneInfo(tz_name)

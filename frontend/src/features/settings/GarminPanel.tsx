@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { useReducer } from "react";
 import { useGarminStatus } from "@/api/queries/useGarmin";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,9 +20,7 @@ export function GarminPanel() {
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Garmin account</h2>
-
+    <SectionCard title="Garmin account" question="Where your training comes from.">
       {status.isPending && <Skeleton className="h-24 w-full" />}
       {status.error && <p className="text-delta-bad text-sm">{status.error.message}</p>}
 
@@ -58,6 +57,6 @@ export function GarminPanel() {
           />
         </p>
       )}
-    </section>
+    </SectionCard>
   );
 }

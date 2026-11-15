@@ -11,6 +11,8 @@ export type PlanWeekDetail = components["schemas"]["PlanWeekDetail"];
 export type PlanSession = components["schemas"]["PlanSession"];
 export type PlanUnplanned = components["schemas"]["PlanUnplanned"];
 export type PlanDecision = components["schemas"]["PlanDecision"];
+export type PlanSteer = components["schemas"]["PlanSteer"];
+export type SteerRisk = components["schemas"]["SteerRisk"];
 export type PlanVerdict = PlanSession["verdict"];
 export type RacePanelData = components["schemas"]["RacePanel"];
 export type RaceForecast = components["schemas"]["RaceForecast"];
@@ -33,6 +35,14 @@ export function usePlanSessions() {
   return useQuery({
     queryKey: queryKeys.planSessions,
     queryFn: async () => unwrap(await api.GET("/api/plan/sessions")),
+  });
+}
+
+/** Where the owner stands against the plan, and what puts the race at risk. */
+export function usePlanSteer() {
+  return useQuery({
+    queryKey: queryKeys.planSteer,
+    queryFn: async () => unwrap(await api.GET("/api/plan/steer")),
   });
 }
 
@@ -160,5 +170,106 @@ export function useClearPlanLink() {
         }),
       ),
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+/** The owner's changes to the plan: move a session, change its distance, add one, remove one. */
+export function useEditPlanSession() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      day,
+      distanceM,
+    }: {
+      sessionId: number;
+      day?: string | null;
+      distanceM?: number | null;
+    }) =>
+      unwrap(
+        await api.PUT("/api/plan/sessions/{session_id}/edit", {
+          params: { path: { session_id: sessionId } },
+          body: { day: day ?? null, distance_m: distanceM ?? null },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+/** Undo the owner's change to a calendar session. */
+export function useClearPlanEdit() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: number) =>
+      unwrap(
+        await api.DELETE("/api/plan/sessions/{session_id}/edit", {
+          params: { path: { session_id: sessionId } },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+export function useAddPlanSession() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      day: string;
+      sport: string;
+      distance_m: number | null;
+      title: string | null;
+    }) => unwrap(await api.POST("/api/plan/sessions", { body })),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+/** Remove a session the owner added. A calendar session cannot be removed here. */
+export function useRemovePlanSession() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: number) =>
+      unwrap(
+        await api.DELETE("/api/plan/sessions/{session_id}", {
+          params: { path: { session_id: sessionId } },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.planAll }),
+  });
+}
+
+export type PlanUploadSummary = components["schemas"]["PlanUploadSummary"];
+
+interface UploadArgs {
+  content: string;
+  effectiveDay: string;
+  label?: string | null;
+}
+
+/** What uploading a plan would do, from a given day. Writes nothing. */
+export function usePreviewPlanUpload() {
+  return useMutation({
+    mutationFn: async ({ content, effectiveDay, label }: UploadArgs) =>
+      unwrap(
+        await api.POST("/api/plan/upload/preview", {
+          body: { content, effective_day: effectiveDay, label: label ?? null },
+        }),
+      ),
+  });
+}
+
+/**
+ * Make an uploaded file the plan from a day. Every figure that reads the plan moves,
+ * on Today and the race as much as here, so the whole cache is refreshed.
+ */
+export function useUploadPlan() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ content, effectiveDay, label }: UploadArgs) =>
+      unwrap(
+        await api.POST("/api/plan/upload", {
+          body: { content, effective_day: effectiveDay, label: label ?? null },
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries(),
   });
 }

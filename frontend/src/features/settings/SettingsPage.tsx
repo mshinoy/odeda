@@ -9,16 +9,20 @@ import { ThemeToggle } from "@/features/settings/ThemeToggle";
 /** Everything that is about the app rather than about a workout. */
 export function SettingsPage() {
   return (
-    <div className="flex flex-col gap-12">
-      <GarminPanel />
-      {/* The second source, beside the first: Garmin brings the training, Fitbit the scale. */}
-      <FitbitPanel />
-      {/* The third source. It brings no measurements, only what was meant to happen. */}
-      <PlanPanel />
-      <SyncPanel />
-      <EditsPanel />
-      <ThemeToggle />
-      <AboutPanel />
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="flex flex-col gap-6">
+        <GarminPanel />
+        {/* The second source, beside the first: Garmin brings the training, Fitbit the scale. */}
+        <FitbitPanel />
+        {/* The third source. It brings no measurements, only what was meant to happen. */}
+        <PlanPanel />
+      </div>
+      <div className="flex flex-col gap-6">
+        <SyncPanel />
+        <EditsPanel />
+        <ThemeToggle />
+        <AboutPanel />
+      </div>
     </div>
   );
 }

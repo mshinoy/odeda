@@ -47,6 +47,7 @@ from ..analytics import load as load_mod
 from ..analytics import pacing as pacing_mod
 from ..analytics import performance as perf
 from ..analytics import plan as plan_mod
+from ..analytics import steer as steer_mod
 from ..analytics import readiness as ready_mod
 from ..analytics import reports as reports_mod
 from ..analytics import routes as routes_mod
@@ -59,6 +60,7 @@ from ..edits import gear as gear_mod
 from ..edits import overrides as ov_mod
 from ..ingest import auto_sync as auto_mod
 from ..ingest import plan_ics as plan_ics_mod
+from ..ingest import plan_upload as plan_upload_mod
 from ..ingest import backfill as backfill_mod
 from ..ingest import weather as weather_mod
 from ..seed import synthetic
@@ -120,6 +122,12 @@ from .schemas import (
     PlanSourceRequest,
     PlanStartRequest,
     PlanSyncResult,
+    PlanAddRequest,
+    PlanEditRequest,
+    PlanEditResult,
+    PlanSteer,
+    PlanUploadRequest,
+    PlanUploadSummary,
     PlanWeekDetail,
     RaceForecast,
     RacePacing,
@@ -705,6 +713,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with store() as st:
             return plan_mod.compute_plan(st)
 
+    @app.get("/api/plan/steer", response_model=PlanSteer)
+    def api_plan_steer() -> dict[str, Any]:
+        with store() as st:
+            return steer_mod.compute_steer(st)
+
     @app.get("/api/plan/week", response_model=PlanWeekDetail)
     def api_plan_week(start: str = Query(..., description="any day in the week")) -> dict[str, Any]:
         try:
@@ -752,6 +765,57 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 # The message already says what to do about it, and naming the calendar
                 # is the owner's problem to fix, not a server fault.
                 raise HTTPException(502, str(exc)) from exc
+
+    @app.post("/api/plan/upload/preview", response_model=PlanUploadSummary)
+    def api_plan_upload_preview(payload: PlanUploadRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_upload_mod.preview(st, payload.content, payload.effective_day)
+            except plan_upload_mod.PlanUploadError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/plan/upload", response_model=PlanUploadSummary)
+    def api_plan_upload(payload: PlanUploadRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_upload_mod.apply(
+                    st, payload.content, payload.effective_day, payload.label
+                )
+            except plan_upload_mod.PlanUploadError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.put("/api/plan/sessions/{session_id}/edit", response_model=PlanEditResult)
+    def api_plan_edit(session_id: int, payload: PlanEditRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.edit_session(st, session_id, payload.day, payload.distance_m)
+            except LookupError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.delete("/api/plan/sessions/{session_id}/edit", response_model=PlanEditResult)
+    def api_plan_unedit(session_id: int) -> dict[str, Any]:
+        with store() as st:
+            return plan_mod.clear_edit(st, session_id)
+
+    @app.post("/api/plan/sessions", response_model=PlanEditResult)
+    def api_plan_add(payload: PlanAddRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.add_session(
+                    st, payload.day, payload.sport, payload.distance_m, payload.title
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.delete("/api/plan/sessions/{session_id}", response_model=PlanEditResult)
+    def api_plan_remove(session_id: int) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return plan_mod.remove_session(st, session_id)
+            except LookupError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.put("/api/plan/sessions/{session_id}/link", response_model=PlanLinkResult)
     def api_plan_link(session_id: int, payload: PlanLinkRequest = Body(...)) -> dict[str, Any]:

@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/SectionCard";
 import { useState } from "react";
 import {
   useClearPlanLink,
@@ -46,14 +47,12 @@ export function PlanPanel() {
   const autoProblem = auto.data ? planAutoSyncProblem(auto.data) : null;
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Training plan</h2>
-
+    <SectionCard title="Training plan" question="Where the plan comes from.">
       {plan.isPending && <Skeleton className="h-24 w-full" />}
       {plan.error && <p className="text-delta-bad text-sm">{plan.error.message}</p>}
 
       {plan.data && !plan.data.subscribed && (
-        <div className="flex max-w-lg flex-col gap-3">
+        <div className="flex w-full flex-col gap-3">
           <StatusDot tone="neutral" label="No calendar subscribed. Nothing is prescribed." />
           <p className="text-muted-foreground text-sm">
             In Google Calendar, open the settings for that calendar and copy “Secret address in iCal
@@ -71,7 +70,7 @@ export function PlanPanel() {
       )}
 
       {plan.data?.subscribed && plan.data.source && status && (
-        <div className="flex max-w-lg flex-col gap-3 rounded-lg border p-4">
+        <div className="flex w-full flex-col gap-3 rounded-lg border p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <StatusDot tone={status.tone} label={status.text} />
@@ -80,14 +79,16 @@ export function PlanPanel() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={sync.isPending || running}
-                onClick={() => sync.mutate()}
-              >
-                {sync.isPending || running ? "Syncing…" : "Sync now"}
-              </Button>
+              {plan.data.source.kind !== "upload" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={sync.isPending || running}
+                  onClick={() => sync.mutate()}
+                >
+                  {sync.isPending || running ? "Syncing…" : "Sync now"}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -109,7 +110,9 @@ export function PlanPanel() {
 
           <div className="flex flex-col gap-2 pt-1">
             <p className="text-muted-foreground text-xs">
-              Replace the address — Google issues a new one whenever it is reset.
+              {plan.data.source.kind === "upload"
+                ? "This plan was uploaded as a file. To go back to a calendar, enter its address."
+                : "Replace the address — Google issues a new one whenever it is reset."}
             </p>
             <SourceForm
               url={url}
@@ -160,7 +163,7 @@ export function PlanPanel() {
       )}
 
       {plan.data && plan.data.unreadable.length > 0 && (
-        <div className="flex max-w-lg flex-col gap-2 rounded-lg border p-4">
+        <div className="flex w-full flex-col gap-2 rounded-lg border p-4">
           <StatusDot tone="warning" label={unreadable ?? ""} />
           <ul className="text-muted-foreground flex flex-col gap-1 text-xs">
             {plan.data.unreadable.map((entry) => (
@@ -176,7 +179,7 @@ export function PlanPanel() {
       )}
 
       {plan.data && plan.data.decisions.length > 0 && (
-        <div className="flex max-w-lg flex-col gap-2 rounded-lg border p-4">
+        <div className="flex w-full flex-col gap-2 rounded-lg border p-4">
           <p className="text-sm">Matches you set by hand</p>
           <p className="text-muted-foreground text-xs">
             Everything else is recomputed on every read, so a retyped activity moves its match with
@@ -204,7 +207,7 @@ export function PlanPanel() {
           </ul>
         </div>
       )}
-    </section>
+    </SectionCard>
   );
 }
 

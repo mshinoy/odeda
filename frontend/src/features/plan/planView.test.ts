@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Plan, PlanSession, PlanWeek } from "@/api/queries/usePlan";
+import type { CalendarDay } from "@/features/plan/planView";
 import {
   adherenceDelta,
   calendarWeeks,
+  dayVerdict,
   efficacySentence,
   isCurrentWeek,
   linkCandidates,
@@ -46,6 +48,9 @@ function session(over: Partial<PlanSession> = {}): PlanSession {
     actual_m: null,
     actual_s: null,
     moved_from: null,
+    edited: false,
+    own: false,
+    original_day: null,
     ...over,
   };
 }
@@ -289,5 +294,24 @@ describe("calendarWeeks", () => {
   it("ignores a session outside every week it was given", () => {
     const rows = calendarWeeks(weeks, [session({ day: "2021-08-10" })], "2026-10-07");
     expect(rows.flatMap((r) => r.days).every((d) => d.sessions.length === 0)).toBe(true);
+  });
+});
+
+describe("dayVerdict", () => {
+  const day = (verdicts: PlanSession["verdict"][]) =>
+    ({
+      date: "2026-11-10",
+      isToday: false,
+      isFuture: false,
+      sessions: verdicts.map((verdict) => ({ ...session(), verdict })),
+    }) as CalendarDay;
+
+  it("shows the worst verdict, so a miss is not hidden by a done session beside it", () => {
+    expect(dayVerdict(day(["done", "missed"]))).toBe("missed");
+    expect(dayVerdict(day(["done", "short"]))).toBe("short");
+  });
+
+  it("is null for a day with nothing that counts", () => {
+    expect(dayVerdict(day([]))).toBeNull();
   });
 });
