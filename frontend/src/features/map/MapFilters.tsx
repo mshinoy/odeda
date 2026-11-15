@@ -12,7 +12,7 @@ interface MapFiltersProps {
 /** Type and date range, in one row above the map. */
 export function MapFilters({ state, types, onChange }: MapFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3 [&>div]:w-full">
       <TypeSelect
         types={types}
         value={state.type}

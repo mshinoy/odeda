@@ -1,5 +1,4 @@
 import { Map } from "lucide-react";
-import { KindBadge } from "@/components/KindBadge";
 import { kindColor } from "@/design/scales";
 import { useTokens } from "@/design/theme";
 import { RouteCardDetail } from "@/features/routes/RouteCardDetail";
@@ -26,7 +25,7 @@ export function RouteListItem({ row, selected, onSelect }: RouteListItemProps) {
   return (
     <li
       className={cn(
-        "overflow-hidden rounded-xl border transition-colors",
+        "shrink-0 overflow-hidden rounded-xl border transition-colors",
         selected ? "bg-muted/60 border-foreground/25" : "hover:bg-muted/40 border-transparent",
       )}
     >
@@ -50,9 +49,7 @@ export function RouteListItem({ row, selected, onSelect }: RouteListItemProps) {
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate text-sm font-medium">{row.name}</span>
-          <span className="text-muted-foreground flex items-center gap-x-1.5 text-xs">
-            <KindBadge kind={row.kind} label={row.typeLabel} />
-            <span aria-hidden>·</span>
+          <span className="text-muted-foreground flex items-center gap-x-1.5 text-xs whitespace-nowrap">
             <span className="tabular-nums">{row.attempts}×</span>
             <span aria-hidden>·</span>
             <span className="tabular-nums">{row.distance}</span>

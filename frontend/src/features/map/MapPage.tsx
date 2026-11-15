@@ -93,15 +93,19 @@ export function MapPage() {
             Show everywhere I have been
           </Button>
         ) : (
-          <MapFilters state={state} types={types.data ?? []} onChange={updateFilters} />
+          <div className="[&_input]:h-8 [&_input]:min-w-0 [&_input]:flex-1 [&_input]:px-2 [&_input]:text-xs [&_select]:w-full">
+            <MapFilters state={state} types={types.data ?? []} onChange={updateFilters} />
+          </div>
         )}
 
-        <RouteKindFilter
-          options={options}
-          value={kind}
-          total={rows?.length ?? 0}
-          onChange={(next) => patch({ kind: next })}
-        />
+        <div>
+          <RouteKindFilter
+            options={options}
+            value={kind}
+            total={rows?.length ?? 0}
+            onChange={(next) => patch({ kind: next })}
+          />
+        </div>
 
         <ul className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
           {shown
@@ -113,7 +117,7 @@ export function MapPage() {
                   onSelect={() => patch({ route: selected === row.id ? null : String(row.id) })}
                 />
               ))
-            : SKELETONS.map((key) => <Skeleton key={key} className="h-[72px] rounded-xl" />)}
+            : SKELETONS.map((key) => <Skeleton key={key} className="h-[72px] shrink-0 rounded-xl" />)}
           {rows?.length === 0 && (
             <li className="text-muted-foreground py-6 text-center text-sm">
               No routes yet. They appear once two activities follow the same track.
