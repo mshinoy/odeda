@@ -1,6 +1,7 @@
 import { useAggregate, useAggregateFilters } from "@/api/queries/useAggregate";
 import { useBody } from "@/api/queries/useBody";
 import { usePerformance } from "@/api/queries/usePerformance";
+import { SectionCard } from "@/components/SectionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { AggregatePanel } from "@/features/trends/AggregatePanel";
@@ -38,7 +39,7 @@ export function TrendsPage() {
   const nothingMatches = aggregate.data.totals.activities === 0;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-6">
       <TrendsFilterBar
         filters={filters}
         types={options.data?.types.map((type) => type.value) ?? []}
@@ -57,13 +58,19 @@ export function TrendsPage() {
         />
       ) : (
         <>
-          <AggregatePanel aggregate={aggregate.data} />
-          <DistributionsPanel
-            distributions={aggregate.data.distributions}
-            patterns={aggregate.data.patterns}
-            totalMovingTimeS={aggregate.data.totals.moving_time_s}
-          />
-          <RecordsPanel streaks={aggregate.data.streaks} records={aggregate.data.records} />
+          <SectionCard title="Volume" question="How much have I done, and is it growing?">
+            <AggregatePanel aggregate={aggregate.data} />
+          </SectionCard>
+          <SectionCard title="Patterns" question="How hard, how fast and when do I train?">
+            <DistributionsPanel
+              distributions={aggregate.data.distributions}
+              patterns={aggregate.data.patterns}
+              totalMovingTimeS={aggregate.data.totals.moving_time_s}
+            />
+          </SectionCard>
+          <SectionCard title="Records" question="What are my best efforts and longest streaks?">
+            <RecordsPanel streaks={aggregate.data.streaks} records={aggregate.data.records} />
+          </SectionCard>
         </>
       )}
 
@@ -72,22 +79,22 @@ export function TrendsPage() {
         any means teaching `analytics/performance` to filter, which is not a view's
         decision to make. The block says so rather than looking as if it had answered.
       */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-muted-foreground flex items-baseline gap-2 text-xs">
-          Running performance
-          {filtered && <span>all running, not filtered</span>}
-        </h2>
+      <SectionCard
+        title="Running performance"
+        question="Am I getting faster, and more efficient?"
+        note={filtered ? "all running, not filtered" : undefined}
+      >
         <PerformancePanel performance={performance.data} />
-      </section>
+      </SectionCard>
 
       {body.data.has_data && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-muted-foreground flex items-baseline gap-2 text-xs">
-            Bodyweight and performance
-            {filtered && <span>everything, not filtered</span>}
-          </h2>
+        <SectionCard
+          title="Bodyweight and performance"
+          question="Does my weight move my running?"
+          note={filtered ? "everything, not filtered" : undefined}
+        >
           <BodyPerformancePanel body={body.data} />
-        </section>
+        </SectionCard>
       )}
     </div>
   );

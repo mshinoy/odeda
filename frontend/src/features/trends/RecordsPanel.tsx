@@ -15,7 +15,7 @@ export function RecordsPanel({ streaks, records }: RecordsPanelProps) {
   const rows = useMemo(() => toExtremeRows(records.extremes), [records.extremes]);
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-8">
       <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
         {cards.map((card) => (
           <StatCard
@@ -29,7 +29,7 @@ export function RecordsPanel({ streaks, records }: RecordsPanelProps) {
 
       {rows.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-muted-foreground text-xs">Records</h2>
+          <h3 className="text-muted-foreground text-xs">Best sessions</h3>
           <ExtremesTable rows={rows} />
         </section>
       )}

@@ -15,7 +15,7 @@ import {
 } from "@/features/health/healthMetrics";
 import { HealthPageSkeleton } from "@/features/health/HealthPageSkeleton";
 import { MetricTrendChart } from "@/features/health/MetricTrendChart";
-import { SectionCard } from "@/features/health/SectionCard";
+import { SectionCard } from "@/components/SectionCard";
 import { RangeToggle } from "@/features/health/RangeToggle";
 import { ReadinessChart } from "@/features/health/ReadinessChart";
 import { SleepStagesChart } from "@/features/health/SleepStagesChart";
