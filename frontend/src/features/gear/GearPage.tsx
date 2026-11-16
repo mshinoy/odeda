@@ -31,11 +31,11 @@ export function GearPage() {
 
   const retiredCount = gear.filter((item) => item.retired).length;
 
-  if (collection.isPending) return <Skeleton className="h-64 w-full" />;
+  if (collection.isPending) return <Skeleton className="h-64 w-full rounded-2xl" />;
   if (collection.error) return <EmptyState message={collection.error.message} />;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-4">
         {/* With no gear at all the empty state already asks for the first item;
             two "Add gear" buttons on one screen is one too many. */}

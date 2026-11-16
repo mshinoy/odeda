@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useRacePacing } from "@/api/queries/usePlan";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoPopover } from "@/components/InfoPopover";
+import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +26,7 @@ export function RacePage() {
   const [copied, setCopied] = useState(false);
   const pacing = useRacePacing(target, strategy);
 
-  if (pacing.isPending) return <Skeleton className="h-[40rem] rounded-2xl" />;
+  if (pacing.isPending) return <Skeleton className="mx-auto h-[40rem] max-w-4xl rounded-2xl" />;
   if (pacing.error) return <EmptyState message={pacing.error.message} />;
   const plan = pacing.data;
   if (plan.race === null) {
@@ -66,82 +67,92 @@ export function RacePage() {
         </span>
       </div>
 
-      <section className="bg-card shadow-card flex flex-wrap items-end gap-x-8 gap-y-4 rounded-2xl border p-6">
-        <div className="flex flex-col gap-2">
-          <span className="text-muted-foreground text-xs">Target</span>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={plan.presets.find((p) => p.target_s === chosen)?.label ?? ""}
-            aria-label="Target finish"
-            onValueChange={(label) => {
-              const preset = plan.presets.find((p) => p.label === label);
-              if (preset) setTarget(preset.target_s);
-            }}
-          >
-            {plan.presets.map((preset) => (
-              <ToggleGroupItem key={preset.label} value={preset.label} className="px-3 text-xs">
-                {preset.label} {formatDuration(preset.target_s)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitTyped();
-          }}
-        >
-          <label htmlFor="target" className="text-muted-foreground text-xs">
-            Or type a time
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="target"
-              value={typed}
-              onChange={(event) => {
-                setTyped(event.target.value);
-                setTypedError(false);
+      <SectionCard
+        title="Target"
+        question="What finish time am I running for, and how should the race be shaped?"
+      >
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-muted-foreground text-xs">Finish</span>
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={plan.presets.find((p) => p.target_s === chosen)?.label ?? ""}
+              aria-label="Target finish"
+              onValueChange={(label) => {
+                const preset = plan.presets.find((p) => p.label === label);
+                if (preset) setTarget(preset.target_s);
               }}
-              placeholder="3:30:00"
-              inputMode="numeric"
-              aria-invalid={typedError}
-              className="w-28"
-            />
-            <Button type="submit" variant="outline" size="sm">
-              Set
-            </Button>
+            >
+              {plan.presets.map((preset) => (
+                <ToggleGroupItem key={preset.label} value={preset.label} className="px-3 text-xs">
+                  {preset.label} {formatDuration(preset.target_s)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
-          {typedError && <span className="text-delta-bad text-xs">Use h:mm:ss, like 3:30:00.</span>}
-        </form>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-muted-foreground text-xs">Shape</span>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={strategy}
-            aria-label="Pacing shape"
-            onValueChange={(next) => {
-              if (next === "even" || next === "negative") setStrategy(next);
+          <form
+            className="flex flex-col gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitTyped();
             }}
           >
-            <ToggleGroupItem value="even" className="px-3 text-xs">
-              Even
-            </ToggleGroupItem>
-            <ToggleGroupItem value="negative" className="px-3 text-xs">
-              Negative
-            </ToggleGroupItem>
-          </ToggleGroup>
+            <label htmlFor="target" className="text-muted-foreground text-xs">
+              Or type a time
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="target"
+                value={typed}
+                onChange={(event) => {
+                  setTyped(event.target.value);
+                  setTypedError(false);
+                }}
+                placeholder="3:30:00"
+                inputMode="numeric"
+                aria-invalid={typedError}
+                className="w-28"
+              />
+              <Button type="submit" variant="outline" size="sm">
+                Set
+              </Button>
+            </div>
+            {typedError && (
+              <span className="text-delta-bad text-xs">Use h:mm:ss, like 3:30:00.</span>
+            )}
+          </form>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-muted-foreground text-xs">Shape</span>
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={strategy}
+              aria-label="Pacing shape"
+              onValueChange={(next) => {
+                if (next === "even" || next === "negative") setStrategy(next);
+              }}
+            >
+              <ToggleGroupItem value="even" className="px-3 text-xs">
+                Even
+              </ToggleGroupItem>
+              <ToggleGroupItem value="negative" className="px-3 text-xs">
+                Negative
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
-      </section>
+      </SectionCard>
 
       {rows.length === 0 ? (
         <EmptyState message="There is not enough running on record to project a finish. Type a target time above." />
       ) : (
-        <section className="bg-card shadow-card flex flex-col gap-4 rounded-2xl border p-6">
+        <SectionCard
+          title="Kilometre by kilometre"
+          question="What should each split be, and where do the turns slow me?"
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <div className="flex flex-col">
               <span className="text-stat font-semibold tracking-tight">
@@ -205,7 +216,7 @@ export function RacePage() {
               ))}
             </tbody>
           </table>
-        </section>
+        </SectionCard>
       )}
     </div>
   );

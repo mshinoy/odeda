@@ -57,7 +57,7 @@ export function CompareCharts({ attempts }: { attempts: readonly ComparedAttempt
   if (series.length === 0) return <EmptyState message="Nothing to compare." />;
 
   return (
-    <section aria-label="Compared charts" className="flex flex-col gap-3">
+    <div role="group" aria-label="Compared charts" className="flex flex-col gap-3">
       {charts.map((chart) => (
         <figure key={chart.key} className="flex flex-col gap-1">
           <figcaption className="text-muted-foreground text-xs">{chart.label}</figcaption>
@@ -70,6 +70,6 @@ export function CompareCharts({ attempts }: { attempts: readonly ComparedAttempt
           />
         </figure>
       ))}
-    </section>
+    </div>
   );
 }
