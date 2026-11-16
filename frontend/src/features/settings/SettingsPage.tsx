@@ -1,3 +1,4 @@
+import { BasicsPanel, PasswordPanel } from "@/features/settings/BasicsPanel";
 import { AboutPanel } from "@/features/settings/AboutPanel";
 import { EditsPanel } from "@/features/settings/EditsPanel";
 import { FitbitPanel } from "@/features/settings/FitbitPanel";
@@ -11,6 +12,8 @@ export function SettingsPage() {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
       <div className="flex flex-col gap-6">
+        {/* First, because a new install has to get these right before anything is read. */}
+        <BasicsPanel />
         <GarminPanel />
         {/* The second source, beside the first: Garmin brings the training, Fitbit the scale. */}
         <FitbitPanel />
@@ -20,6 +23,7 @@ export function SettingsPage() {
       <div className="flex flex-col gap-6">
         <SyncPanel />
         <EditsPanel />
+        <PasswordPanel />
         <ThemeToggle />
         <AboutPanel />
       </div>

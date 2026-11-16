@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 1 / 3 |
+| 27 Ready to publish: the README and docs | AA: `open` | 2 / 3 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -280,7 +280,7 @@ ideas are in `FUTURE.md` section 15.
 |---|---|---|---|
 | T114 | Rewrite `README.md` as a short front page (what you get per page, the quickstart through Settings, how it works, honest limits) and move the detail to `docs/` (features, getting your data in, configuration, architecture, honest limits) with no content dropped | done (2026-11-16) | — |
 | T115 | Screenshots for the README: the owner captures Today, Train, an activity, Map and Health into `docs/img/` (from the real data, nothing personal in frame); the README has the slots ready | todo | T114 |
-| T116 | A faster first run (`FUTURE.md` section 15): the first-run card on Today and the basics (time zone, heart rate, password) in Settings instead of `.env` | needs decision: build before going public, as the future note suggests? | T114 |
+| T116 | A faster first run (`FUTURE.md` section 15, ideas 1 and 2): a Basics card in Settings for the time zone and the heart-rate limits (saved in the database, `.env` stays the default, a heart-rate change recomputes the stored load), a Password card (choose or change it, needs the current one), and a first-run checklist on Today while there are no activities | done (2026-11-16; on dev, prod not rebuilt) | T114 |
 
 ### Open decisions
 

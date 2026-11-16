@@ -202,6 +202,27 @@ def activity_trimp(activity: Mapping[str, object], zones: Mapping[int, float], s
     return trimp(float(dur) / 60.0, float(avg_hr), settings.hr_rest, settings.hr_max, settings.sex)
 
 
+def recompute_trimp(store) -> int:
+    """Recompute the stored TRIMP of every activity from its zone dwell times (or average
+    heart rate), after the heart-rate limits changed. TRIMP is written when an activity is
+    first read, so without this the new limits would only apply to future activities and
+    the load curve would mix two sets of numbers. No network and nothing re-parsed."""
+    zones: dict[str, dict[int, float]] = {}
+    for r in store.query("SELECT activity_id, zone, seconds FROM activity_hr_zones"):
+        zones.setdefault(r["activity_id"], {})[int(r["zone"])] = float(r["seconds"] or 0.0)
+    n = 0
+    for a in store.query(
+        "SELECT activity_id, avg_hr, moving_time_s, duration_s FROM activities"
+    ):
+        value = activity_trimp(dict(a), zones.get(a["activity_id"], {}), store.settings)
+        store.conn.execute(
+            "UPDATE activities SET trimp = ? WHERE activity_id = ?", (value, a["activity_id"])
+        )
+        n += 1
+    store.conn.commit()
+    return n
+
+
 def daily_loads(store) -> dict[str, float]:
     """Sum stored per-activity TRIMP by day.
 

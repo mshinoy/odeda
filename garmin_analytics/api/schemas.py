@@ -2595,6 +2595,56 @@ class OverridesSummary(_Model):
 
 
 # ---------------------------------------------------------------------------
+# Basics: time zone, heart rate, password, and the first-run checklist
+# ---------------------------------------------------------------------------
+
+
+class Basics(_Model):
+    """`GET /api/basics`: the settings a new person has to get right, with the value in
+    force and the default the environment gave."""
+
+    timezone: str
+    timezone_default: str
+    hr_rest: int
+    hr_max: int
+    hr_rest_default: int
+    hr_max_default: int
+    saved: bool
+    """True once anything was saved in Settings, as opposed to coming from `.env`."""
+
+
+class BasicsSaved(Basics):
+    recomputed: int
+    """Activities whose training load was recomputed, 0 when heart rate did not change."""
+
+
+class BasicsRequest(_Model):
+    timezone: str
+    hr_rest: int
+    hr_max: int
+
+
+class PasswordChangeRequest(_Model):
+    current: str = ""
+    """Empty is accepted only while no password is set."""
+    new: str
+
+
+class PasswordChanged(_Model):
+    status: str
+    auth_required: bool
+
+
+class SetupStatus(_Model):
+    """`GET /api/setup`: what is left to do on a new install, so Today can say so."""
+
+    activities: int
+    garmin_connected: bool
+    basics_saved: bool
+    password_set: bool
+
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 

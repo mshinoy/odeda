@@ -57,6 +57,9 @@ export const queryKeys = {
   /** Keyed on the ids in the order asked for: the colours follow that order. */
   compare: (ids: readonly string[]) => ["compare", ids.join(",")] as const,
   summary: ["summary"] as const,
+  basics: ["basics"] as const,
+  /** What is left to do on a new install; Today reads it while there is no data. */
+  setup: ["setup"] as const,
   load: ["load"] as const,
   performance: ["performance"] as const,
   /** Totals, periods, distributions, patterns, streaks and records in one payload. */

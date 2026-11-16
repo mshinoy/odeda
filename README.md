@@ -34,17 +34,19 @@ You need [Docker](https://docs.docker.com/get-docker/) and a Garmin Connect acco
 git clone https://github.com/mshinoy/garmin-analytics.git
 cd garmin-analytics
 cp .env.example .env
-$EDITOR .env                 # set APP_PASSWORD, and TZ to your time zone
+$EDITOR .env                 # optional: APP_PASSWORD and TZ. Settings can set both later
 docker compose up -d
 ```
 
-Open <http://127.0.0.1:8000>, sign in with the password you set, then open **Settings**
-(the icon in the corner) and:
+Open <http://127.0.0.1:8000>. A new install opens on a short checklist; every step is in
+**Settings** (the icon in the corner):
 
-1. **Sign in to Garmin.** Your password is used once to get a token and is never stored.
+1. **Check the basics:** your time zone and heart-rate limits, and a password if `.env` has
+   none. Every load number is worked out from the heart rates.
+2. **Sign in to Garmin.** Your password is used once to get a token and is never stored.
    If Garmin refuses the login there is a browser sign-in that always works, see
    [signing in to Garmin](docs/connecting-garmin.md#signing-in-to-garmin).
-2. **Start the sync.** It shows how many requests and how long it will take before you
+3. **Start the sync.** It shows how many requests and how long it will take before you
    commit. It pulls everything back to the start of your account, is safe to stop, and
    resumes where it stopped.
 
