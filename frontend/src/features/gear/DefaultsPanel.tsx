@@ -1,6 +1,7 @@
 import type { GearCollection } from "@/api/adapters";
 import { useActivityTypes } from "@/api/queries/useActivityTypes";
 import { useClearGearDefault, useSetGearDefault } from "@/api/queries/useGear";
+import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/NativeSelect";
 import { sortGear } from "@/features/gear/gearView";
@@ -20,9 +21,10 @@ export function DefaultsPanel({ collection }: { collection: GearCollection }) {
   const error = setDefault.error ?? clearDefault.error;
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-muted-foreground text-xs">Default gear</h2>
-
+    <SectionCard
+      title="Default gear"
+      question="Which shoes or bike does a new activity of each type get?"
+    >
       <div className="flex max-w-lg flex-col gap-2">
         {collection.defaults.map((rule) => (
           <div
@@ -56,7 +58,7 @@ export function DefaultsPanel({ collection }: { collection: GearCollection }) {
       />
 
       {error && <p className="text-delta-bad text-sm">{error.message}</p>}
-    </section>
+    </SectionCard>
   );
 }
 

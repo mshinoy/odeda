@@ -45,7 +45,7 @@ top answer, and fewer things on screen at once.
 
 ## Other tabs still on the old style (check after the three above)
 
-Plan and Settings are done (Phase 26). Race, Compare and Gear are still to do.
+Plan and Settings are done (Phase 26). Race, Compare and Gear are restyled on `restyle-race-compare-gear`, waiting for the owner's review.
 
 ## Working rules
 
@@ -56,4 +56,4 @@ Plan and Settings are done (Phase 26). Race, Compare and Gear are still to do.
 ## Open questions
 
 1. Trends is still long (Patterns and Running performance especially); decide with the owner what to fold away.
-2. Race, Compare, Gear: next.
+2. Race, Compare, Gear: restyled, not yet looked at in the browser.
