@@ -64,6 +64,7 @@ from ..ingest import plan_upload as plan_upload_mod
 from ..ingest import backfill as backfill_mod
 from ..ingest import weather as weather_mod
 from ..seed import synthetic
+from .. import basics as basics_mod
 from . import auth as auth_mod
 from . import gym as gym_mod
 from .cache import CacheWarmer, cached
@@ -102,6 +103,12 @@ from .schemas import (
     FieldsResponse,
     ActivityGearRemoved,
     AppConfig,
+    Basics,
+    BasicsRequest,
+    BasicsSaved,
+    PasswordChangeRequest,
+    PasswordChanged,
+    SetupStatus,
     GarminConnected,
     GarminDisconnected,
     GarminLoginRequest,
@@ -308,6 +315,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Reconcile APP_PASSWORD with the stored hash once, at startup.
     with store() as st:
+        basics_mod.apply_saved(st, settings)
         app.state.password_state = auth_mod.sync_password_from_env(st, settings.app_password)
         app.state.auth_required = auth_mod.auth_required(st)
 
@@ -1571,6 +1579,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/sync/stop", response_model=SyncStopResult)
     def api_sync_stop() -> dict[str, Any]:
         return {"stopping": job.stop()}
+
+    @app.get("/api/basics", response_model=Basics)
+    def api_basics() -> dict[str, Any]:
+        with store() as st:
+            return basics_mod.read(st, settings)
+
+    @app.put("/api/basics", response_model=BasicsSaved)
+    def api_basics_save(payload: BasicsRequest = Body(...)) -> dict[str, Any]:
+        with store() as st:
+            try:
+                return basics_mod.save(
+                    st, settings, payload.timezone, payload.hr_rest, payload.hr_max
+                )
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+
+    @app.post("/api/auth/password", response_model=PasswordChanged)
+    def api_password_change(
+        request: Request, response: Response, payload: PasswordChangeRequest = Body(...)
+    ) -> dict[str, Any]:
+        """Choose or change the password from Settings. Needs the current one."""
+        was_required = app.state.auth_required
+        token = request.cookies.get(auth_mod.COOKIE_NAME)
+        with store() as st:
+            try:
+                auth_mod.change_password(st, payload.current, payload.new, keep_token=token)
+            except PermissionError as exc:
+                time.sleep(1.0)  # the same one-second cost as a wrong login
+                raise HTTPException(403, str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            app.state.auth_required = auth_mod.auth_required(st)
+            if not was_required:
+                # The page was open without a gate; keep this browser signed in.
+                _set_cookie(response, auth_mod.create_session(st, settings.session_ttl_days, "web"))
+        return {"status": "ok", "auth_required": app.state.auth_required}
+
+    @app.get("/api/setup", response_model=SetupStatus)
+    def api_setup() -> dict[str, Any]:
+        with store() as st:
+            n = st.query("SELECT COUNT(*) AS n FROM activities")[0]["n"]
+            return {
+                "activities": int(n),
+                "garmin_connected": bool(auth_mod.garmin_status(settings).get("connected")),
+                "basics_saved": basics_mod.read(st, settings)["saved"],
+                "password_set": auth_mod.password_is_set(st),
+            }
 
     @app.get("/api/config", response_model=AppConfig)
     def api_config() -> dict[str, Any]:

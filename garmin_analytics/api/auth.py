@@ -44,6 +44,9 @@ SESSION_TTL_DAYS = 30
 _HASH_KEY = "auth.password_hash"
 _SALT_KEY = "auth.password_salt"
 _SOURCE_KEY = "auth.password_source"
+#: A hash (not the value) of the last `APP_PASSWORD` seen, so a password chosen in Settings
+#: survives a restart: the environment only rotates it when the environment itself changed.
+_ENV_SEEN_KEY = "auth.env_seen"
 
 #: In-flight Garmin MFA challenges: challenge_id -> (expires_at, client_state).
 #: In memory only, and short-lived by design — `client_state` is an auth context and
@@ -73,6 +76,10 @@ def set_password(store: Store, password: str, source: str = "env") -> None:
     store.set_setting(_SOURCE_KEY, source)
 
 
+#: Short passwords were allowed by the environment variable; one typed into a form gets a floor.
+MIN_PASSWORD_LENGTH = 8
+
+
 def password_is_set(store: Store) -> bool:
     return bool(store.get_setting(_HASH_KEY))
 
@@ -87,27 +94,58 @@ def verify_password(store: Store, password: str) -> bool:
     return hmac.compare_digest(candidate, stored)
 
 
+def _env_fingerprint(value: str) -> str:
+    return hashlib.sha256(("ga-env:" + value).encode("utf-8")).hexdigest()
+
+
 def sync_password_from_env(store: Store, env_value: str | None = None) -> str:
     """Reconcile `APP_PASSWORD` with what is stored. Called once at startup.
 
     Returns one of: `set` (first time), `rotated` (the env var changed), `unchanged`,
     or `absent` (no password configured — the app then runs unprotected and says so
     loudly, which is only reasonable on a laptop).
+
+    A password chosen in Settings is not undone by the environment still holding the
+    old one: the env value only wins when it differs from the one seen last time.
     """
     value = env_value if env_value is not None else os.environ.get("APP_PASSWORD", "")
     value = (value or "").strip()
     if not value:
         return "unchanged" if password_is_set(store) else "absent"
+    fingerprint = _env_fingerprint(value)
+    seen = store.get_setting(_ENV_SEEN_KEY)
     if not password_is_set(store):
         set_password(store, value)
+        store.set_setting(_ENV_SEEN_KEY, fingerprint)
         return "set"
     if verify_password(store, value):
+        store.set_setting(_ENV_SEEN_KEY, fingerprint)
+        return "unchanged"
+    if seen == fingerprint:
+        # The environment is what it was; the stored password was changed in Settings.
         return "unchanged"
     # The env var was changed: rotate, and drop every existing session so the old
     # password cannot keep a browser logged in.
     set_password(store, value)
+    store.set_setting(_ENV_SEEN_KEY, fingerprint)
     clear_sessions(store)
     return "rotated"
+
+
+def change_password(store: Store, current: str, new: str, keep_token: str | None = None) -> None:
+    """Set a new password from Settings. Needs the current one when there is one, and
+    signs out every other browser. With no password set it is how one is first chosen."""
+    if password_is_set(store) and not verify_password(store, current):
+        raise PermissionError("the current password is wrong")
+    new = (new or "").strip()
+    if len(new) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"the new password must be at least {MIN_PASSWORD_LENGTH} characters")
+    set_password(store, new, source="settings")
+    store.conn.execute(
+        "DELETE FROM sessions WHERE token_hash != ?",
+        (_hash_token(keep_token) if keep_token else "",),
+    )
+    store.conn.commit()
 
 
 def auth_required(store: Store) -> bool:

@@ -373,6 +373,8 @@ shows later (heart rate drives every load number, `TZ` drives "today"); an empty
 a Today page with nothing to say and no pointer to Settings; and the Google Health scale and the
 training calendar each need steps outside the app.
 
+**Built 2026-11-16 (T116):** ideas 1 and 2 below, with a password change in Settings. The rest stay ideas.
+
 **Ideas, smallest first.**
 
 1. **A first-run card on Today** that shows only while there is no activity data: connect Garmin,

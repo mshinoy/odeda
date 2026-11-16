@@ -87,6 +87,15 @@ class Settings:
     #: A build artifact, not source: absent in a fresh clone, and the API runs without it.
     ui_dir: Path = Path(__file__).resolve().parent / "ui"
 
+    def override_athlete(self, hr_rest: int, hr_max: int) -> None:
+        """Put the heart-rate limits saved in Settings in force.
+
+        The dataclass is frozen because one instance is shared by every request and
+        thread; replacing it would leave older references on the old numbers. This is
+        the single, named place that changes two fields on it."""
+        object.__setattr__(self, "hr_rest", int(hr_rest))
+        object.__setattr__(self, "hr_max", int(hr_max))
+
     @property
     def schema_path(self) -> Path:
         return Path(__file__).resolve().parent / "db" / "schema.sql"
@@ -95,6 +104,16 @@ class Settings:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.raw_archive_dir.mkdir(parents=True, exist_ok=True)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def env_athlete() -> tuple[int, int]:
+    """Resting and maximum heart rate as the environment gives them (or the built-in
+    defaults): what "back to the defaults" in Settings returns to, however the running
+    values were overridden since."""
+    return (
+        int(os.environ.get("GA_HR_REST", DEFAULT_HR_REST)),
+        int(os.environ.get("GA_HR_MAX", DEFAULT_HR_MAX)),
+    )
 
 
 def load_settings() -> Settings:
@@ -107,8 +126,8 @@ def load_settings() -> Settings:
         # garminconnect's own default; it writes garmin_tokens.json here, 0600
         # inside a 0700 directory.
         token_dir=_env_path("GA_TOKEN_DIR", Path.home() / ".garminconnect"),
-        hr_rest=int(os.environ.get("GA_HR_REST", DEFAULT_HR_REST)),
-        hr_max=int(os.environ.get("GA_HR_MAX", DEFAULT_HR_MAX)),
+        hr_rest=env_athlete()[0],
+        hr_max=env_athlete()[1],
         sex=os.environ.get("GA_SEX", DEFAULT_SEX).lower(),
         app_password=os.environ.get("APP_PASSWORD", "").strip(),
         cookie_secure=_env_bool("GA_COOKIE_SECURE", False),

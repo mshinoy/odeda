@@ -1,3 +1,4 @@
+import { useSetup } from "@/api/queries/useBasics";
 import { useDaily } from "@/api/queries/useHealth";
 import { useActivities } from "@/api/queries/useActivities";
 import { usePlan, usePlanWeek, useRace, useRaceForecast } from "@/api/queries/usePlan";
@@ -10,6 +11,8 @@ import {
 } from "@/api/queries/useStatus";
 import { EmptyState } from "@/components/EmptyState";
 import { weeklyKmSeries } from "@/features/plan/planView";
+import { FirstRunCard } from "@/features/today/FirstRunCard";
+import { showFirstRun } from "@/features/today/firstRun";
 import { NoPlanNotice } from "@/features/today/NoPlanNotice";
 import { SyncStrip } from "@/features/status/SyncStrip";
 import { RaceCard } from "@/features/today/RaceCard";
@@ -36,6 +39,7 @@ export function TodayPage() {
   const garmin = useGarminStatus();
   const sync = useSyncStatus();
   const startSync = useStartSync();
+  const setup = useSetup();
 
   const thisStart = plan.data?.this_week?.start ?? plan.data?.today ?? null;
   const thisWeek = usePlanWeek(thisStart);
@@ -62,6 +66,7 @@ export function TodayPage() {
 
   return (
     <div className="short:gap-3 flex flex-col gap-5">
+      {setup.data && showFirstRun(setup.data) && <FirstRunCard setup={setup.data} />}
       <div className="short:gap-3 grid gap-5 lg:min-h-[calc(100svh-13rem)] lg:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="short:gap-3 flex min-w-0 flex-col gap-5">
           <div className="short:gap-3 grid gap-5 lg:grid-cols-[1.35fr_1fr]">

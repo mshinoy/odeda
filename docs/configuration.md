@@ -4,6 +4,12 @@ Settings, commands, backups and the no-Docker route.
 
 ## Configuration
 
+**Three of these can be set in Settings instead:** the time zone, resting and maximum heart
+rate, and the password. A value saved there wins over `.env`, survives restarts, and "Back to
+the defaults" returns to what `.env` says. Changing heart rate recomputes the stored load for
+every activity, offline. Editing `APP_PASSWORD` in `.env` afterwards still rotates the password,
+because only a *changed* environment value overrides the one chosen in Settings.
+
 Backend settings are documented in [`.env.example`](../.env.example). The ones that matter:
 
 | Variable | Default | Notes |
