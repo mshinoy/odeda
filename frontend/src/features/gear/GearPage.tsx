@@ -3,6 +3,7 @@ import type { GearRecord } from "@/api/adapters";
 import { useGearCollection } from "@/api/queries/useGear";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
+import { SectionCard } from "@/components/SectionCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { BulkAssignDialog } from "@/features/gear/BulkAssignDialog";
@@ -36,54 +37,59 @@ export function GearPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-4">
-        {/* With no gear at all the empty state already asks for the first item;
+      <SectionCard
+        title="Gear"
+        question="How far has each pair of shoes or bike gone, and how close is it to retiring?"
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          {/* With no gear at all the empty state already asks for the first item;
             two "Add gear" buttons on one screen is one too many. */}
-        {gear.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-            Add gear
-          </Button>
-        )}
-        {retiredCount > 0 && (
-          <label className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Switch checked={showRetired} onCheckedChange={setShowRetired} />
-            Show retired ({retiredCount})
-          </label>
-        )}
-      </div>
-
-      {cards.length === 0 ? (
-        <EmptyState
-          message={
-            gear.length === 0
-              ? "No gear yet. Add a pair of shoes and its mileage starts counting."
-              : "Every item is retired."
-          }
-          action={
-            gear.length === 0 ? (
-              <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-                Add gear
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => setShowRetired(true)}>
-                Show retired
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((item) => (
-            <GearCard
-              key={item.id}
-              item={item}
-              isDefaultFor={defaultsByGear.get(item.id) ?? []}
-              onEdit={() => setEditing(item)}
-              onAssign={() => setAssigning(item)}
-            />
-          ))}
+          {gear.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+              Add gear
+            </Button>
+          )}
+          {retiredCount > 0 && (
+            <label className="text-muted-foreground flex items-center gap-2 text-sm">
+              <Switch checked={showRetired} onCheckedChange={setShowRetired} />
+              Show retired ({retiredCount})
+            </label>
+          )}
         </div>
-      )}
+
+        {cards.length === 0 ? (
+          <EmptyState
+            message={
+              gear.length === 0
+                ? "No gear yet. Add a pair of shoes and its mileage starts counting."
+                : "Every item is retired."
+            }
+            action={
+              gear.length === 0 ? (
+                <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+                  Add gear
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setShowRetired(true)}>
+                  Show retired
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map((item) => (
+              <GearCard
+                key={item.id}
+                item={item}
+                isDefaultFor={defaultsByGear.get(item.id) ?? []}
+                onEdit={() => setEditing(item)}
+                onAssign={() => setAssigning(item)}
+              />
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       {collection.data && <DefaultsPanel collection={collection.data} />}
 
