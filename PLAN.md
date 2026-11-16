@@ -56,22 +56,22 @@ steps under Versions in `CONTRIBUTING.md`, and each phase that ships adds a chan
 **One branch per task or phase**, named for the work, from `master`, merged and deleted
 when approved. Work one thing at a time: the box has two CPUs.
 
-## Where things stand (15 Nov 2026)
+## Where things stand (16 Nov 2026)
 
-On `master` and in the app:
-- **MVP** (`v0.1.0`, phases 0 to 15), plus the tidy-up (16) and the data defects (19, one step left: T87).
+On `master` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-16):
+- **MVP** (`v0.1.0`, phases 0 to 15), the tidy-up (16), and the data defects (19; T87 is left).
 - **Race prep** (20): the pacing plan, taper check and missed-long-run warning. The post-race page is not built.
-- **Weather and wind** (22): stored, shown on the activity page and map. The analytics are not built.
+- **Weather and wind** (22): stored, shown on the activity page and map. The analytics (T94) are not built.
 - **Plan rules** (23): Higdon's number is the day's target; a ride pays off part of a missed long run.
 - **Activity page** (18's T68, 25): run, cycle and muscles pages, laps, workout steps, blue-to-red routes.
 - **Flyover and video export** (24): a 3D flyover of an activity and an MP4 export of it.
+- **Page redesign** (18, partly): Map and Routes as one page, Health and Trends as cards, Settings as cards. Race, Compare and Gear are still on the old style, and the Map filters still use native selects and date pickers (T69).
+- **The Plan page** (26): it steers (verdict, this week, the road to race day), a session can be edited, and a plan can be uploaded.
 
-In progress, not on `master`: the Map, Routes, Health and Trends redesign on
-`redesign-map-health-trends` (see [`REDESIGN.md`](REDESIGN.md)). Map and Routes as one page, the
-Health cards and the Trends cards are built there and waiting for review.
-
-Not started: the nav (17), the rest of the redesign (18), platform (21), and the Plan page that steers and can change the plan (26). Direction beyond that
+Not started: the nav (17), the rest of the redesign (18), platform (21), the post-race page (T81). Open questions for the owner: D23, D25 and D32. Direction beyond that
 is in [`FUTURE.md`](FUTURE.md): publish as a self-hosted open-source project first (D29).
+
+Nothing is in progress on a branch. `master` is `v0.1.0` plus everything above; a `v0.2.0` has not been cut.
 
 ## The date that matters
 
@@ -98,19 +98,19 @@ nicer.
 
 | Phase | Checkpoint | Done |
 |---|---|---|
-| 16 Tidy and ship | P: `ready for review` | 3 / 3 |
-| 17 The nav and the pages it points to | Q: `open` | 0 / 4 |
-| 18 Page redesign | R: `open` | 0 / 6 |
-| 19 Data defects | S: `ready for review` | 5 / 6 (T88 dropped) |
+| 16 Tidy and ship | P: `approved` | 3 / 3 |
+| 17 The nav and the pages it points to | Q: `open` | 1 / 4 |
+| 18 Page redesign | R: `open` | 1 / 6 |
+| 19 Data defects | S: `approved` | 5 / 6 (T88 dropped) |
 | 20 Race prep | T: `open` | 3 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
-| 22 Weather and wind | V: `ready for review` | 5 / 6 |
-| 23 Plan rules | W: `ready for review` | 2 / 2 |
-| 24 Flyover and video export | X: `ready for review` | 3 / 3 |
-| 25 Activity page additions and dev setup | Y: `ready for review` | 4 / 4 |
-| 26 The Plan page: steer, and change the plan | Z: `ready for review` | 8 / 8 |
+| 22 Weather and wind | V: `approved` | 5 / 6 |
+| 23 Plan rules | W: `approved` | 2 / 2 |
+| 24 Flyover and video export | X: `approved` | 3 / 3 |
+| 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
+| 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
 
-### Phase 16 — Tidy and ship · Checkpoint P: `ready for review`
+### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
@@ -126,7 +126,7 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T64 | Train: the plan, training load, the race and the performance trends in one page | todo | — |
-| T65 | Places: the map and the routes in one page, routes as a side sheet on the map. The Map and Routes page is built (routes list on the right, the chosen route on the map, heat map when none is chosen); the Places nav entry is not | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | — |
+| T65 | Places: the map and the routes in one page, routes as a side sheet on the map. The Map and Routes page is built (routes list on the right, the chosen route on the map, heat map when none is chosen) | done (merged 2026-11-15; the Places nav entry is T67) | — |
 | T66 | Body: health, sleep and weight in one page | todo | — |
 | T67 | The nav, the routes and their redirects (`/status` stays working); Trends folds into Train and Body | todo | T64, T65, T66 |
 
@@ -135,20 +135,21 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 The brief is ease of retrieval: the answer first, the working one click away, and no wall
 of information. Today is the pattern: a few numbers, then what it means.
 
-The plan for Map, Routes, Health and Trends is [`REDESIGN.md`](REDESIGN.md). Those four are built
-on `redesign-map-health-trends` and waiting for review; the rows below say `in progress` until it
-merges, then `done`.
+The plan for Map, Routes, Health and Trends is [`REDESIGN.md`](REDESIGN.md). Those four were
+merged on 2026-11-15; Settings and the Plan page followed in Phase 26.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T68 | Activity page: answers first (plan, route, effort / volume), then the map beside the kilometres, one chart, the rest one click away. Run, cycle and strength sessions (each exercise against last time) | in review | — |
-| T69 | Map: filters as chips, no empty native date pickers, Routes as a real control | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | T65 |
+| T69 | Map: filters as chips, no empty native date pickers, Routes as a real control | in progress (the Map page is merged; its filters still use native selects and date pickers) | T65 |
 | T70 | Plan: the sticky weekday header covers the top of the week above it; read the week as a column like Today. Superseded by T105 and T107, which replace the grid | todo | — |
-| T71 | Health: one big number per metric with a sparkline, detail on click. Built as three cards (Recovery, Body, Activity level) with the last reading when today's has not synced | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | T66 |
+| T71 | Health: one big number per metric with a sparkline, detail on click. Built as three cards (Recovery, Body, Activity level) with the last reading when today's has not synced | done (merged 2026-11-15) | T66 |
 | T72 | One control style: the native selects and date inputs match the rest | todo | — |
-| T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today. Done so far on the redesign branch: Map, Health and Trends (five cards). Plan, Race, Compare, Gear and Settings still to check | in progress (`redesign-map-health-trends`, 2026-11-15, not merged) | — |
+| T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today. Done so far: Today, Activities, Map, Health, Trends (five cards), Plan and Settings. Race, Compare and Gear still to do | in progress | — |
 
-### Phase 19 — Data defects · Checkpoint S: `ready for review`
+### Phase 19 — Data defects · Checkpoint S: `approved`
+
+Approved 2026-11-16 for what is done. T87 stays open and is picked up on its own; T88 is dropped (D33).
 
 Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless number.
 
@@ -180,7 +181,9 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | T84 | A backup button in Settings: one file with the database and the raw archive | todo | — |
 | T85 | A weekly digest from the six-hourly sync: the week against the plan, in a few lines | todo | — |
 
-### Phase 22 — Weather and wind · Checkpoint V: `ready for review`
+### Phase 22 — Weather and wind · Checkpoint V: `approved`
+
+Approved 2026-11-16 for what is done. T94 stays open and waits for the owner.
 
 Source: **Open-Meteo** (D26), no key, hourly, free for personal use. Fetched once per
 activity, stored, never re-asked. Steps run in order, one branch (`weather`).
@@ -194,7 +197,7 @@ activity, stored, never re-asked. Steps run in order, one branch (`weather`).
 | T93 | On the map: a wind arrow and weather readout, and "Headwind" as a fifth colour-by with its own legend | done | T91, T92 |
 | T94 | Analytics: pace and heart rate against heat and dew point, then a weather-adjusted pace for comparing runs. Later; ask the owner first | todo | T90 |
 
-### Phase 23 — Plan rules · Checkpoint W: `ready for review`
+### Phase 23 — Plan rules · Checkpoint W: `approved`
 
 Merged 2026-11-14. Recorded here because the plan's numbers changed.
 
@@ -203,7 +206,7 @@ Merged 2026-11-14. Recorded here because the plan's numbers changed.
 | T95 | While a named plan (Higdon's) is on, its number is the day's target, over the club's and the owner's own; a `GA:` hint, an event stating its own distance, and a race still win (D27) | done | — |
 | T96 | A ride on a long-run day pays off part of a missed long run | done | T80 |
 
-### Phase 24 — Flyover and video export · Checkpoint X: `ready for review`
+### Phase 24 — Flyover and video export · Checkpoint X: `approved`
 
 Merged 2026-11-14 and 2026-11-15. Ideas not built are in `FUTURE.md`.
 
@@ -213,7 +216,7 @@ Merged 2026-11-14 and 2026-11-15. Ideas not built are in `FUTURE.md`.
 | T98 | Mapbox Standard as the base map, with its 3D buildings and a satellite choice (D28) | done | — |
 | T99 | Export the flyover as an MP4: length picker, 24 fps, several maps drawing frames at once, encoding while drawing, hardware encoding where available. About 38 s for a 60 s HD vertical video | done | T97, T98 |
 
-### Phase 25 — Activity page additions and dev setup · Checkpoint Y: `ready for review`
+### Phase 25 — Activity page additions and dev setup · Checkpoint Y: `approved`
 
 Merged 2026-11-12. Extends the activity page redesign (T68).
 
@@ -224,7 +227,7 @@ Merged 2026-11-12. Extends the activity page redesign (T68).
 | T102 | Routes are coloured blue to red, not shades of one blue | done | — |
 | T103 | Dev: Vite allows tailnet hosts, and api-dev's port is published for a built UI | done | — |
 
-### Phase 26 — The Plan page: steer, and change the plan · Checkpoint Z: `ready for review`
+### Phase 26 — The Plan page: steer, and change the plan · Checkpoint Z: `approved`
 
 The page's job is one question: **will this plan get me to the Doha Half on 15 Jan 2027 in
 shape, and what do I do this week to stay on it?** Today it is a 22-week grid that reports on
