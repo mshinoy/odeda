@@ -3,14 +3,13 @@ import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
 import { useAutoSync } from "@/api/queries/useStatus";
 import { cn } from "@/lib/utils";
 
-// Six since D11 added the plan: Today · Plan · Activities · Map · Health · Trends.
+// Five: Today · Train (plan, race, load, trends) · Activities · Map · Health.
 const navItems = [
   { to: "/status", label: "Today" },
-  { to: "/plan", label: "Plan" },
+  { to: "/train", label: "Train" },
   { to: "/activities", label: "Activities" },
   { to: "/map", label: "Map" },
   { to: "/health", label: "Health" },
-  { to: "/trends", label: "Trends" },
 ] as const;
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {

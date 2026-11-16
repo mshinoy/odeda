@@ -8,6 +8,9 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { MapPage } from "@/features/map/MapPage";
 import { PlanPage } from "@/features/plan/PlanPage";
 import { RoutesToMap } from "@/features/routes/RoutesToMap";
+import { Redirect } from "@/features/shell/Redirect";
+import { LoadTab } from "@/features/train/LoadTab";
+import { TrainLayout } from "@/features/train/TrainLayout";
 import { RoutePage } from "@/features/routes/RoutePage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { AppShell } from "@/features/shell/AppShell";
@@ -29,8 +32,21 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/status" replace /> },
           { path: "status", element: <TodayPage /> },
-          { path: "plan", element: <PlanPage /> },
-          { path: "race", element: <RacePage /> },
+          {
+            // Train: the plan, the race, the load and the trends, one tab each.
+            path: "train",
+            element: <TrainLayout />,
+            children: [
+              { index: true, element: <PlanPage /> },
+              { path: "race", element: <RacePage /> },
+              { path: "load", element: <LoadTab /> },
+              { path: "trends", element: <TrendsPage /> },
+            ],
+          },
+          // The old addresses keep working, with their query.
+          { path: "plan", element: <Redirect to="/train" /> },
+          { path: "race", element: <Redirect to="/train/race" /> },
+          { path: "trends", element: <Redirect to="/train/trends" /> },
           { path: "activities", element: <ActivitiesPage /> },
           { path: "activities/:id", element: <ActivityPage /> },
           { path: "map", element: <MapPage /> },
@@ -39,7 +55,6 @@ export const router = createBrowserRouter([
           { path: "routes", element: <RoutesToMap /> },
           { path: "routes/:id", element: <RoutePage /> },
           { path: "compare", element: <ComparePage /> },
-          { path: "trends", element: <TrendsPage /> },
           { path: "settings", element: <SettingsPage /> },
           { path: "gear", element: <GearPage /> },
           { path: "*", element: <NotFound /> },

@@ -28,7 +28,7 @@ export function WeekColumn({ plan, thisWeek, lastWeek }: WeekColumnProps) {
   return (
     <section className="bg-card shadow-card short:gap-0 short:p-3 flex flex-col gap-1 rounded-2xl border p-4">
       <div className="flex items-baseline justify-between gap-3 px-2">
-        <Link to="/plan" className="text-lg font-semibold underline-offset-4 hover:underline">
+        <Link to="/train" className="text-lg font-semibold underline-offset-4 hover:underline">
           This week
         </Link>
         {summary && (
