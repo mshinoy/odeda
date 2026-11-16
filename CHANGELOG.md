@@ -3,7 +3,7 @@
 Versions follow `MAJOR.MINOR.PATCH`. While the app is below 1.0, a new **minor** version
 is a release with new things in it, and a **patch** is a fix. The version lives in three
 places, kept equal: `pyproject.toml`, `garmin_analytics/__init__.py` (what Settings, then
-About, shows) and `frontend/package.json`. A release is a commit on `master` with that
+About, shows) and `frontend/package.json`. A release is a commit on `main` with that
 version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## 0.1.0: the MVP (2026-11-09)

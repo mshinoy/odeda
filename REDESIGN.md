@@ -49,7 +49,7 @@ Plan and Settings are done (Phase 26). Race, Compare and Gear are restyled (merg
 
 ## Working rules
 
-- One branch per task, from master; one question to the owner at a time.
+- One branch per task, from main; one question to the owner at a time.
 - Verify against the real data in Docker, not seeded data.
 - Order: Map + Routes, then Health, then Trends (not agreed yet).
 
