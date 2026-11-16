@@ -17,7 +17,7 @@ export function GearCard({ item, isDefaultFor, onEdit, onAssign }: GearCardProps
   const wear = wearOf(item);
 
   return (
-    <article className="bg-card shadow-card flex flex-col gap-4 rounded-2xl border p-7">
+    <article className="flex flex-col gap-3 rounded-xl border p-5">
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h3 className="font-medium">{item.name}</h3>
