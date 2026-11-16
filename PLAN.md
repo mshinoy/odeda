@@ -107,7 +107,7 @@ nicer.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 16 Tidy and ship | P: `approved` | 3 / 3 |
-| 17 The nav and the pages it points to | Q: `ready for review` | 4 / 4 |
+| 17 The nav and the pages it points to | Q: `ready for review` | 5 / 5 |
 | 18 Page redesign | R: `open` | 2 / 6 |
 | 19 Data defects | S: `approved` | 5 / 6 (T88 dropped) |
 | 20 Race prep | T: `open` | 3 / 4 |
@@ -137,6 +137,7 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 | T65 | Places: the map and the routes in one page, routes as a side sheet on the map. It keeps the name **Map** (D34). The Map and Routes page is built (routes list on the right, the chosen route on the map, heat map when none is chosen) | done (merged 2026-11-15; the Places nav entry is T67) | — |
 | T66 | Body: health, sleep and weight in one page. Decided 2026-11-16: it stays as **Health**. The page already holds Recovery (sleep, HRV, resting heart rate, Body Battery, readiness), Body (weight and body composition) and Activity level | done (nothing to build; D34) | — |
 | T67 | The nav, the routes and their redirects (`/status` stays working); Trends folds into Train. The nav is now Today, Train, Activities, Map, Health. `/plan`, `/race` and `/trends` redirect to `/train`, `/train/race` and `/train/trends`, keeping their query | done (2026-11-16) | T64, T65, T66 |
+| T112 | The Load tab on Train in the card style: Training load and Gym this week each a card with a question (they were bare panels moved from Today) | done (2026-11-16) | T64 |
 
 ### Phase 18 — Page redesign · Checkpoint R: `open`
 

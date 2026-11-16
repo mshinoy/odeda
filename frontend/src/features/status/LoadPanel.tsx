@@ -3,6 +3,7 @@ import type { TrainingLoad } from "@/api/queries/useStatus";
 import { EChart } from "@/charts/EChart";
 import { buildFitnessChartOption } from "@/charts/load/buildFitnessChartOption";
 import { buildWeeklyLoadOption } from "@/charts/load/buildWeeklyLoadOption";
+import { SectionCard } from "@/components/SectionCard";
 import { StatCard } from "@/components/StatCard";
 import { useTokens } from "@/design/theme";
 import { formatDecimal, formatSigned } from "@/lib/format";
@@ -21,7 +22,7 @@ export function LoadPanel({ load }: { load: TrainingLoad }) {
   const current = load.current;
 
   return (
-    <section className="flex flex-col gap-6">
+    <SectionCard title="Training load" question="How fit am I, how tired, and am I fresh or flat?">
       {current && (
         <div className="grid grid-cols-3 gap-6">
           <StatCard label="Fitness" value={formatDecimal(current.ctl)} />
@@ -39,6 +40,6 @@ export function LoadPanel({ load }: { load: TrainingLoad }) {
           <EChart option={weeklyOption} height={200} />
         </figure>
       </div>
-    </section>
+    </SectionCard>
   );
 }
