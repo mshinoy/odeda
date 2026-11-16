@@ -14,7 +14,7 @@ export function LoadTab() {
   if (summary.error) return <EmptyState message={summary.error.message} />;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-6">
       <LoadPanel load={load.data} />
       {summary.data.gym && <GymPanel gym={summary.data.gym} />}
     </div>
