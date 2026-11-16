@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "garmin-analytics"
-version = "0.1.0"
+version = "0.2.0"
 description = "Personal analytics over Garmin Connect data: training load, recovery trends, performance and race readiness."
 # 3.12 is garminconnect's floor; the image was already on 3.12.
 requires-python = ">=3.12"
