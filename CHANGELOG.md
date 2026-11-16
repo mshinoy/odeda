@@ -6,6 +6,25 @@ places, kept equal: `pyproject.toml`, `garmin_analytics/__init__.py` (what Setti
 About, shows) and `frontend/package.json`. A release is a commit on `main` with that
 version, tagged `vMAJOR.MINOR.PATCH`.
 
+## 0.2.0: the redesign and the Train page (2026-11-16)
+
+- **A new look everywhere:** every page is in the card style, with the question each card
+  answers as its title. Map, Routes, Health, Trends, Race, Compare, Gear and Settings were
+  restyled.
+- **Train:** Plan, Race, Load and Trends are tabs on one page. The nav is now Today, Train,
+  Activities, Map and Health.
+- **Plan that steers:** the day's target follows the plan in use, a session can be edited,
+  a plan can be uploaded, a ride on a long-run day pays off part of it, and Today says when
+  a long run was missed or cut short.
+- **Race:** a race-day pacing plan and a taper check on the race card.
+- **Activity pages:** answers first for runs, rides and gym, laps and workout steps against
+  the plan, weather and wind, routes coloured blue to red.
+- **3D flyover:** replay readout, Mapbox Standard base map and a fast MP4 export.
+- **Fixes:** no line across a recording gap, no average pace across sports, no change shown
+  against a near-empty year, no duplicate keys on Today.
+- **Project:** `PLAN.md` is the tracker and a commit hook keeps it current; the default
+  branch is `main`.
+
 ## 0.1.0: the MVP (2026-11-09)
 
 Everything built up to this point, recorded in [`PLAN-HISTORY.md`](PLAN-HISTORY.md).
