@@ -65,7 +65,7 @@ On `master` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-
 - **Plan rules** (23): Higdon's number is the day's target; a ride pays off part of a missed long run.
 - **Activity page** (18's T68, 25): run, cycle and muscles pages, laps, workout steps, blue-to-red routes.
 - **Flyover and video export** (24): a 3D flyover of an activity and an MP4 export of it.
-- **Page redesign** (18, partly): Map and Routes as one page, Health and Trends as cards, Settings as cards. Race, Compare and Gear are restyled on `restyle-race-compare-gear` and waiting for review, and the Map filters still use native selects and date pickers (T69).
+- **Page redesign** (18, partly): Map and Routes as one page, Health and Trends as cards, Settings as cards. Race, Compare and Gear are restyled too (T73), and the Map filters still use native selects and date pickers (T69).
 - **The Plan page** (26): it steers (verdict, this week, the road to race day), a session can be edited, and a plan can be uploaded.
 
 Not started: the nav (17), the rest of the redesign (18), platform (21), the post-race page (T81). Open questions for the owner: D23, D25 and D32. Direction beyond that
@@ -100,7 +100,7 @@ nicer.
 |---|---|---|
 | 16 Tidy and ship | P: `approved` | 3 / 3 |
 | 17 The nav and the pages it points to | Q: `open` | 1 / 4 |
-| 18 Page redesign | R: `open` | 1 / 6 |
+| 18 Page redesign | R: `open` | 2 / 6 |
 | 19 Data defects | S: `approved` | 5 / 6 (T88 dropped) |
 | 20 Race prep | T: `open` | 3 / 4 |
 | 21 Platform | U: `open` | 0 / 4 |
@@ -145,7 +145,7 @@ merged on 2026-11-15; Settings and the Plan page followed in Phase 26.
 | T70 | Plan: the sticky weekday header covers the top of the week above it; read the week as a column like Today. Superseded by T105 and T107, which replace the grid | todo | — |
 | T71 | Health: one big number per metric with a sparkline, detail on click. Built as three cards (Recovery, Body, Activity level) with the last reading when today's has not synced | done (merged 2026-11-15) | T66 |
 | T72 | One control style: the native selects and date inputs match the rest | todo | — |
-| T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today. Done so far: Today, Activities, Map, Health, Trends (five cards), Plan and Settings. Race, Compare and Gear restyled on `restyle-race-compare-gear` (2026-11-16), waiting for the owner to look at them | in review | — |
+| T73 | Card depth, the page and card contrast, and the text sizes on every page, not only Today. Done so far: Today, Activities, Map, Health, Trends (five cards), Plan and Settings. Race, Compare and Gear restyled and merged 2026-11-16 | done | — |
 
 ### Phase 19 — Data defects · Checkpoint S: `approved`
 
