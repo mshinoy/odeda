@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useRacePacing } from "@/api/queries/usePlan";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoPopover } from "@/components/InfoPopover";
@@ -57,9 +56,6 @@ export function RacePage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <Link to="/status" className="text-muted-foreground hover:text-foreground w-fit text-sm">
-          Back to Today
-        </Link>
         <h1 className="text-3xl font-semibold tracking-tight">Pacing plan</h1>
         <span className="text-muted-foreground text-sm">
           {plan.race.name} · {formatDate(plan.race.date)}

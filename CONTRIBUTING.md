@@ -17,6 +17,10 @@ from there. Releases are recorded in [`CHANGELOG.md`](CHANGELOG.md). Nothing is 
 a row in `PLAN.md`, and its status is updated in the same commit as the work. The full flow
 is under "How work moves" in `PLAN.md`.
 
+Whenever code changes, `PLAN.md` changes in the same commit. A git hook checks it: enable it once per
+clone with `git config core.hooksPath .githooks`. A commit that changes no behaviour can skip it
+with `SKIP_PLAN_CHECK=1`.
+
 ## Versions
 
 `MAJOR.MINOR.PATCH`, in [`CHANGELOG.md`](CHANGELOG.md). To release: bump the version in

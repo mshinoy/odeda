@@ -61,7 +61,7 @@ export function RaceCard({ race, forecast }: { race: SummaryRace; forecast?: Rac
           <ForecastWorking forecast={forecast} />
           {forecast.taper && <TaperCheck taper={forecast.taper} />}
           <Link
-            to="/race"
+            to="/train/race"
             className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
           >
             Pacing plan

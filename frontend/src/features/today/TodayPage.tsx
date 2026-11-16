@@ -1,4 +1,3 @@
-import { ChevronDown } from "lucide-react";
 import { useDaily } from "@/api/queries/useHealth";
 import { useActivities } from "@/api/queries/useActivities";
 import { usePlan, usePlanWeek, useRace, useRaceForecast } from "@/api/queries/usePlan";
@@ -10,11 +9,8 @@ import {
   useTrainingLoad,
 } from "@/api/queries/useStatus";
 import { EmptyState } from "@/components/EmptyState";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { weeklyKmSeries } from "@/features/plan/planView";
-import { GymPanel } from "@/features/status/GymPanel";
 import { NoPlanNotice } from "@/features/today/NoPlanNotice";
-import { LoadPanel } from "@/features/status/LoadPanel";
 import { SyncStrip } from "@/features/status/SyncStrip";
 import { RaceCard } from "@/features/today/RaceCard";
 import { StatTiles } from "@/features/today/StatTiles";
@@ -27,7 +23,7 @@ import { formatWeekday } from "@/lib/format";
 
 /**
  * Today: what to do, how ready you are, where the race is heading, and whether the
- * week is going to plan. Everything else the old Status page held is one toggle down.
+ * week is going to plan. The load and gym detail the old Status page held moved to Train.
  */
 export function TodayPage() {
   const summary = useSummary();
@@ -94,17 +90,6 @@ export function TodayPage() {
           plan.data && <NoPlanNotice />
         )}
       </div>
-
-      <Collapsible className="flex flex-col gap-6">
-        <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 self-start text-sm">
-          Training load and gym
-          <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="flex flex-col gap-12 pt-2">
-          <LoadPanel load={load.data} />
-          {summary.data.gym && <GymPanel gym={summary.data.gym} />}
-        </CollapsibleContent>
-      </Collapsible>
 
       {garmin.data && sync.data && (
         <SyncStrip

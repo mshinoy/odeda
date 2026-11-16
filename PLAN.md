@@ -38,6 +38,13 @@ Nothing is built without a row here. Every piece of work goes through the same f
    phases move to [`PLAN-HISTORY.md`](PLAN-HISTORY.md) when this file gets long. Work that is
    dropped or put off goes back to FUTURE.md (or Parked, below) with the reason.
 
+**The rule: whenever code is touched, `PLAN.md` is touched in the same commit.** The task's row
+changes status (`in progress`, then `done`), the phase count follows, and the snapshot at the top
+changes when something the owner would notice has changed. A commit with no row to update means
+there was no task: add the row first. A git hook enforces this (`.githooks/pre-commit`; enable it
+once per clone with `git config core.hooksPath .githooks`; `SKIP_PLAN_CHECK=1` for a commit that
+changes no behaviour). Pure documentation commits need nothing extra.
+
 If the owner asks for something directly, add its row first, in the same commit as the work.
 A task has one home: T81, T85 and T94 are tasks here, and FUTURE.md only points to them.
 Verify the snapshot at the top of this file whenever a phase changes.
@@ -66,9 +73,10 @@ On `master` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-
 - **Activity page** (18's T68, 25): run, cycle and muscles pages, laps, workout steps, blue-to-red routes.
 - **Flyover and video export** (24): a 3D flyover of an activity and an MP4 export of it.
 - **Page redesign** (18, partly): Map and Routes as one page, Health and Trends as cards, Settings as cards. Race, Compare and Gear are restyled too (T73), and the Map filters still use native selects and date pickers (T69).
+- **Train** (17): one nav entry, four tabs: Plan, Race, Load (moved from Today) and Trends. The nav is Today, Train, Activities, Map, Health (D34).
 - **The Plan page** (26): it steers (verdict, this week, the road to race day), a session can be edited, and a plan can be uploaded.
 
-Not started: the nav (17), the rest of the redesign (18), platform (21), the post-race page (T81). Open questions for the owner: D23, D25 and D32. Direction beyond that
+Not started: platform (21), the post-race page (T81). Open questions for the owner: D25 and D32. Direction beyond that
 is in [`FUTURE.md`](FUTURE.md): publish as a self-hosted open-source project first (D29).
 
 Nothing is in progress on a branch. `master` is `v0.1.0` plus everything above; a `v0.2.0` has not been cut.
@@ -99,7 +107,7 @@ nicer.
 | Phase | Checkpoint | Done |
 |---|---|---|
 | 16 Tidy and ship | P: `approved` | 3 / 3 |
-| 17 The nav and the pages it points to | Q: `open` | 1 / 4 |
+| 17 The nav and the pages it points to | Q: `ready for review` | 4 / 4 |
 | 18 Page redesign | R: `open` | 2 / 6 |
 | 19 Data defects | S: `approved` | 5 / 6 (T88 dropped) |
 | 20 Race prep | T: `open` | 3 / 4 |
@@ -118,17 +126,17 @@ nicer.
 | T62 | Rebuild the main container from `master` and verify it on the real data | done | — |
 | T63 | The plan strip logs "two children with the same key" (dates 2026-11-09, 2026-11-13): fix the key | done | — |
 
-### Phase 17 — The nav and the pages it points to · Checkpoint Q: `open`
+### Phase 17 — The nav and the pages it points to · Checkpoint Q: `ready for review`
 
 Today replaced Status. The nav is still Today, Plan, Activities, Map, Health, Trends. The
 design groups it as **Today, Train, Activities, Places, Body**, so there is less to scan.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
-| T64 | Train: the plan, training load, the race and the performance trends in one page | todo | — |
-| T65 | Places: the map and the routes in one page, routes as a side sheet on the map. The Map and Routes page is built (routes list on the right, the chosen route on the map, heat map when none is chosen) | done (merged 2026-11-15; the Places nav entry is T67) | — |
-| T66 | Body: health, sleep and weight in one page | todo | — |
-| T67 | The nav, the routes and their redirects (`/status` stays working); Trends folds into Train and Body | todo | T64, T65, T66 |
+| T64 | Train: the plan, training load, the race and the performance trends in one page. Built as one nav entry with four tabs at `/train`: Plan, Race, Load (training load and gym, moved from Today) and Trends (all five Trends cards) | done (2026-11-16) | — |
+| T65 | Places: the map and the routes in one page, routes as a side sheet on the map. It keeps the name **Map** (D34). The Map and Routes page is built (routes list on the right, the chosen route on the map, heat map when none is chosen) | done (merged 2026-11-15; the Places nav entry is T67) | — |
+| T66 | Body: health, sleep and weight in one page. Decided 2026-11-16: it stays as **Health**. The page already holds Recovery (sleep, HRV, resting heart rate, Body Battery, readiness), Body (weight and body composition) and Activity level | done (nothing to build; D34) | — |
+| T67 | The nav, the routes and their redirects (`/status` stays working); Trends folds into Train. The nav is now Today, Train, Activities, Map, Health. `/plan`, `/race` and `/trends` redirect to `/train`, `/train/race` and `/train/trends`, keeping their query | done (2026-11-16) | T64, T65, T66 |
 
 ### Phase 18 — Page redesign · Checkpoint R: `open`
 
@@ -263,7 +271,7 @@ change area (T108 to T110), then verification (T111). One branch per task, from 
 
 | ID | Question | Status |
 |---|---|---|
-| D23 | Does Trends fold into Train and Body, or stay its own page? | open |
+| D23 | Does Trends fold into Train and Body, or stay its own page? | answered 2026-11-16: it folds into Train as a tab; there is no Body page (D34) |
 | D24 | Is there a Doha half-marathon course GPX to build the pacing plan from? | answered: no official file; one was traced from the published course map (approximate, 30 to 80 m, 21.06 km) and is in `courses/`. Use the organiser's own if one is published |
 | D25 | Should the page changes reach the old pages at once (T73), or only as each page is redone? | open |
 | D30 | Which files can be uploaded as a plan? `.ics` and CSV (`date, title, distance_km`), built in T109. Why those two: whole plans are rarely exported as files by the platforms (TrainingPeaks, Final Surge and Runna have no plan-level ICS or CSV export that was found); coaches mostly deliver through the platform's own calendar, a PDF, or a Google Sheet, and a Sheet downloads as CSV. Higdon's plans are web tables with third-party scripts that make an ICS. PDF is common but not built: it needs reading tables out of a layout. A TrainingPeaks or other iCal feed address can already be subscribed in Settings | decided (recommended, owner not objected) |
@@ -287,6 +295,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D29 | **Publish as a self-hosted open-source project first.** Not a hosted service: that would hold other people's Garmin tokens and health data on an unofficial login. The official Garmin API is considered after about 500 stars. Detail and steps in `FUTURE.md`. | 2026-11-15 |
 | D31 | **A new plan takes over from a day the owner picks** (default next Monday). Earlier weeks keep the old plan's sessions and the judgement they already got; the old source is kept, switched off. | 2026-11-15 |
 | D33 | **A ride's totals use the recorded data as is.** A stretch estimated across a recording gap (T86) is drawn dashed and noted, and never counted in distance, heart rate, load or best efforts (T88 dropped). Whether to snap GPS to roads and estimate true numbers is an idea in `FUTURE.md`. | 2026-11-15 |
+| D34 | **The nav is Today, Train, Activities, Map, Health.** Train holds the plan, the race, the load and the trends as tabs (Trends folds in, D23). The page that was to be called Body stays **Health**, and the page that was to be called Places stays **Map**. Fewer renames, and each name says what is on the page. | 2026-11-16 |
 
 ### Parked (not planned; ask the owner before starting)
 
