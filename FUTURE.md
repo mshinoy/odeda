@@ -146,7 +146,7 @@ person's data with them, which is also the reason people want a tool like this.
 
 ### 5. GitHub publishing: the work to do
 
-None of this is built. Do it in this order; a new branch from master for each step.
+None of this is built. Do it in this order; a new branch from main for each step.
 
 1. **Scan the history for secrets.** `.env` and `.env.bak.*` were never tracked, but check
    every commit, not just the tree: `gitleaks detect` or `trufflehog git file://.`. Look for

@@ -30,7 +30,7 @@ Nothing is built without a row here. Every piece of work goes through the same f
    its detail is not copied. A piece too big for a table (a redesign, a launch) gets its own
    plan file, like [`REDESIGN.md`](REDESIGN.md), linked from the phase, with `- [ ]` tick boxes
    for its steps; this file still has one row per step, and the row's status is the truth.
-3. **Working → keep the row current.** One branch per task, from `master`. The status goes to
+3. **Working → keep the row current.** One branch per task, from `main`. The status goes to
    `in progress (<branch>, <date>)` when it starts, and to `done` in the same commit as the work.
    Update the phase count in the status table. A question for the owner is a row under Open
    decisions; a choice made is a row under Decided.
@@ -60,12 +60,12 @@ the app, and the order is the owner's to change.
 **Versions.** The MVP is `v0.1.0`. A release is cut whenever the owner says, using the
 steps under Versions in `CONTRIBUTING.md`, and each phase that ships adds a changelog entry.
 
-**One branch per task or phase**, named for the work, from `master`, merged and deleted
+**One branch per task or phase**, named for the work, from `main`, merged and deleted
 when approved. Work one thing at a time: the box has two CPUs.
 
 ## Where things stand (16 Nov 2026)
 
-On `master` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-16):
+On `main` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-16):
 - **MVP** (`v0.1.0`, phases 0 to 15), the tidy-up (16), and the data defects (19; T87 is left).
 - **Race prep** (20): the pacing plan, taper check and missed-long-run warning. The post-race page is not built.
 - **Weather and wind** (22): stored, shown on the activity page and map. The analytics (T94) are not built.
@@ -79,7 +79,7 @@ On `master` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-
 Not started: platform (21), the post-race page (T81). Open questions for the owner: D25 and D32. Direction beyond that
 is in [`FUTURE.md`](FUTURE.md): publish as a self-hosted open-source project first (D29).
 
-Nothing is in progress on a branch. `master` is `v0.1.0` plus everything above; a `v0.2.0` has not been cut.
+Nothing is in progress on a branch. `main` is `v0.1.0` plus everything above; a `v0.2.0` has not been cut.
 
 ## The date that matters
 
@@ -256,7 +256,7 @@ judged against what was asked at the time. So:
   over from a chosen day; earlier weeks keep the plan they were judged against.
 
 Order: T104 first (everything on the page reads it), then the page (T105 to T107), then the
-change area (T108 to T110), then verification (T111). One branch per task, from `master`.
+change area (T108 to T110), then verification (T111). One branch per task, from `main`.
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
@@ -298,6 +298,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D31 | **A new plan takes over from a day the owner picks** (default next Monday). Earlier weeks keep the old plan's sessions and the judgement they already got; the old source is kept, switched off. | 2026-11-15 |
 | D33 | **A ride's totals use the recorded data as is.** A stretch estimated across a recording gap (T86) is drawn dashed and noted, and never counted in distance, heart rate, load or best efforts (T88 dropped). Whether to snap GPS to roads and estimate true numbers is an idea in `FUTURE.md`. | 2026-11-15 |
 | D34 | **The nav is Today, Train, Activities, Map, Health.** Train holds the plan, the race, the load and the trends as tabs (Trends folds in, D23). The page that was to be called Body stays **Health**, and the page that was to be called Places stays **Map**. Fewer renames, and each name says what is on the page. | 2026-11-16 |
+| D35 | **The default branch is `main`, not `master`.** Renamed 2026-11-16 here, on origin and as GitHub's default, to match the owner's other projects. Older entries in this file and in `PLAN-HISTORY.md` keep saying `master` where they describe the past. | 2026-11-16 |
 
 ### Parked (not planned; ask the owner before starting)
 

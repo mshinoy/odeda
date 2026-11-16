@@ -25,7 +25,7 @@ with `SKIP_PLAN_CHECK=1`.
 
 `MAJOR.MINOR.PATCH`, in [`CHANGELOG.md`](CHANGELOG.md). To release: bump the version in
 `pyproject.toml`, `garmin_analytics/__init__.py` and `frontend/package.json`, add a
-changelog entry, merge to `master`, then tag the merge commit `vMAJOR.MINOR.PATCH` and
+changelog entry, merge to `main`, then tag the merge commit `vMAJOR.MINOR.PATCH` and
 push the tag.
 
 ## Ground rules
