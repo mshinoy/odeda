@@ -117,6 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
+| 27 Ready to publish: the README and docs | AA: `open` | 1 / 3 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -268,6 +269,18 @@ change area (T108 to T110), then verification (T111). One branch per task, from 
 | T109 | Upload a plan: an `.ics` file or a CSV (`date, title, distance`) becomes a new plan source. A preview shows what it will add and from which day before anything changes. `POST /api/plan/upload` | done | D30, D31 |
 | T110 | A **Change the plan** area on the Plan page: Upload, Edit a week, and which source is live. Settings keeps the calendar address and the plan start date | done | T108, T109 |
 | T111 | Verify on the real data (the plan, the race countdown, an uploaded test plan removed afterwards), tests for each rule, then rebuild prod | done (on prod 2026-11-15; an upload was previewed on the real data, not applied) | T104 to T110 |
+
+### Phase 27 — Ready to publish: the README and docs · Checkpoint AA: `open`
+
+The README was written for someone who already knew the project and was out of date (old nav, no
+Train page, no screenshots). It is now a short front page; the detail moved to `docs/`. First-run
+ideas are in `FUTURE.md` section 15.
+
+| ID | Task | Status | Depends on |
+|---|---|---|---|
+| T114 | Rewrite `README.md` as a short front page (what you get per page, the quickstart through Settings, how it works, honest limits) and move the detail to `docs/` (features, getting your data in, configuration, architecture, honest limits) with no content dropped | done (2026-11-16) | — |
+| T115 | Screenshots for the README: the owner captures Today, Train, an activity, Map and Health into `docs/img/` (from the real data, nothing personal in frame); the README has the slots ready | todo | T114 |
+| T116 | A faster first run (`FUTURE.md` section 15): the first-run card on Today and the basics (time zone, heart rate, password) in Settings instead of `.env` | needs decision: build before going public, as the future note suggests? | T114 |
 
 ### Open decisions
 

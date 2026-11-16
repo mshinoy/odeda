@@ -361,6 +361,37 @@ Provide a one-time migration note for existing installs (volume name, command na
 
 ---
 
+## 15. A faster first run for a new person
+
+*Raised 2026-11-16, while rewriting the README.*
+
+**Where a newcomer is today.** Clone, copy `.env.example`, edit it by hand (a password, `TZ`, resting
+and maximum heart rate), `docker compose up`, open the page. Connecting Garmin and starting the
+backfill is already done from Settings, with a size estimate first, so the CLI is no longer needed.
+What is left is friction: the `.env` edit is the first thing anyone meets and a wrong value only
+shows later (heart rate drives every load number, `TZ` drives "today"); an empty database opens on
+a Today page with nothing to say and no pointer to Settings; and the Google Health scale and the
+training calendar each need steps outside the app.
+
+**Ideas, smallest first.**
+
+1. **A first-run card on Today** that shows only while there is no activity data: connect Garmin,
+   or load demo data to look around, with the link to Settings. It disappears on its own.
+2. **Settings holds the basics:** time zone (default from the browser), resting and maximum heart
+   rate (defaults from the data once there is some), and the password, instead of `.env`. They would
+   be stored in the database and the environment value would stay as the starting default.
+3. **One command for the start:** a `setup` script that writes `.env` with a generated password
+   and the host's `TZ`, then runs `docker compose up -d` and prints the address.
+4. **Demo data from the UI:** a button in Settings that loads the synthetic data and one that wipes
+   it, so nobody needs to reset a volume by hand.
+5. **A checklist at the top of Settings:** each source with its state and the next step, so the
+   Google Health and calendar steps are explained where they are needed.
+
+**Trigger.** Do 1 and 2 before the repository goes public. Ideas 3 to 5 follow the first outside
+person's feedback.
+
+---
+
 ## Video export, ideas not built
 
 The export takes about 0:38 for a 60 s HD vertical video and is now limited by the encoder
