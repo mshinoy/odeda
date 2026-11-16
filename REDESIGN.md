@@ -45,7 +45,7 @@ top answer, and fewer things on screen at once.
 
 ## Other tabs still on the old style (check after the three above)
 
-Plan, Race, Compare, Gear, Settings: look at each once the three above are done.
+Plan and Settings are done (Phase 26). Race, Compare and Gear are still to do.
 
 ## Working rules
 
@@ -56,4 +56,4 @@ Plan, Race, Compare, Gear, Settings: look at each once the three above are done.
 ## Open questions
 
 1. Trends is still long (Patterns and Running performance especially); decide with the owner what to fold away.
-2. Plan, Race, Compare, Gear, Settings: next.
+2. Race, Compare, Gear: next.
