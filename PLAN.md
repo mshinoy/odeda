@@ -5,7 +5,7 @@ What is next, and what is left after the MVP.
 ## The MVP is what is built
 
 Everything done up to 2026-11-09 is the MVP: phases 0 to 15, all approved, recorded in
-[`PLAN-HISTORY.md`](PLAN-HISTORY.md). It is a self-hosted analytics app over one person's
+[`docs/history/PLAN-HISTORY.md`](docs/history/PLAN-HISTORY.md). It is a self-hosted analytics app over one person's
 Garmin history, and it already does this:
 
 - **Syncs itself** from Garmin, the Google Health scale and the training calendar, every six hours.
@@ -28,14 +28,14 @@ Nothing is built without a row here. Every piece of work goes through the same f
 2. **Decided → this file.** When the owner says "build this", it becomes a phase with task rows
    (ID, task, status, depends on) and a checkpoint. The idea leaves a pointer in FUTURE.md and
    its detail is not copied. A piece too big for a table (a redesign, a launch) gets its own
-   plan file, like [`REDESIGN.md`](REDESIGN.md), linked from the phase, with `- [ ]` tick boxes
+   plan file, like [`docs/history/REDESIGN.md`](docs/history/REDESIGN.md), linked from the phase, with `- [ ]` tick boxes
    for its steps; this file still has one row per step, and the row's status is the truth.
 3. **Working → keep the row current.** One branch per task, from `main`. The status goes to
    `in progress (<branch>, <date>)` when it starts, and to `done` in the same commit as the work.
    Update the phase count in the status table. A question for the owner is a row under Open
    decisions; a choice made is a row under Decided.
 4. **Shipped → the record.** A release adds a [`CHANGELOG.md`](CHANGELOG.md) entry. Finished
-   phases move to [`PLAN-HISTORY.md`](PLAN-HISTORY.md) when this file gets long. Work that is
+   phases move to [`docs/history/PLAN-HISTORY.md`](docs/history/PLAN-HISTORY.md) when this file gets long. Work that is
    dropped or put off goes back to FUTURE.md (or Parked, below) with the reason.
 
 **The rule: whenever code is touched, `PLAN.md` is touched in the same commit.** The task's row
@@ -94,7 +94,7 @@ nicer.
 1. **Phase 16**: tidy and ship what is built. *Done.*
 2. **Phase 19**: the data defects. Small, and each one makes a number wrong. *Five of six done (T88 dropped); T87 is left.*
 3. **Phase 20**: race prep. Has a deadline. *Three of four done.*
-4. **Phases 17 and 18**: the nav and the page redesign. Big, no deadline. *Under way: see REDESIGN.md.*
+4. **Phases 17 and 18**: the nav and the page redesign. Big, no deadline. *Under way: see docs/history/REDESIGN.md.*
 5. **Phase 21**: platform. *Not started.*
 
 ## Status
@@ -117,13 +117,13 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 2 / 3 |
+| 27 Ready to publish: the README and docs | AA: `open` | 3 / 4 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
 | ID | Task | Status | Depends on |
 |---|---|---|---|
-| T61 | Mark checkpoints L to O approved in `PLAN-HISTORY.md` (the owner reviewed them) | done | — |
+| T61 | Mark checkpoints L to O approved in `docs/history/PLAN-HISTORY.md` (the owner reviewed them) | done | — |
 | T62 | Rebuild the main container from `master` and verify it on the real data | done | — |
 | T63 | The plan strip logs "two children with the same key" (dates 2026-11-09, 2026-11-13): fix the key | done | — |
 
@@ -146,7 +146,7 @@ design groups it as **Today, Train, Activities, Places, Body**, so there is less
 The brief is ease of retrieval: the answer first, the working one click away, and no wall
 of information. Today is the pattern: a few numbers, then what it means.
 
-The plan for Map, Routes, Health and Trends is [`REDESIGN.md`](REDESIGN.md). Those four were
+The plan for Map, Routes, Health and Trends is [`docs/history/REDESIGN.md`](docs/history/REDESIGN.md). Those four were
 merged on 2026-11-15; Settings and the Plan page followed in Phase 26.
 
 | ID | Task | Status | Depends on |
@@ -281,6 +281,7 @@ ideas are in `FUTURE.md` section 15.
 | T114 | Rewrite `README.md` as a short front page (what you get per page, the quickstart through Settings, how it works, honest limits) and move the detail to `docs/` (features, getting your data in, configuration, architecture, honest limits) with no content dropped | done (2026-11-16) | — |
 | T115 | Screenshots for the README: the owner captures Today, Train, an activity, Map and Health into `docs/img/` (from the real data, nothing personal in frame); the README has the slots ready | todo | T114 |
 | T116 | A faster first run (`FUTURE.md` section 15, ideas 1 and 2): a Basics card in Settings for the time zone and the heart-rate limits (saved in the database, `.env` stays the default, a heart-rate change recomputes the stored load), a Password card (choose or change it, needs the current one), and a first-run checklist on Today while there are no activities | done (2026-11-16; on dev, prod not rebuilt) | T114 |
+| T117 | Tidy the repo root (`FUTURE.md` publishing step 3): the history documents (`PLAN-HISTORY`, `DECISIONS`, `REVIEW-2`, `SPEC`, `REDESIGN`) move to `docs/history/`, the Google Health setup guide to `docs/google-health-setup.md`; every link and mention updated, no content changed. The root keeps the README, `PLAN.md`, `FUTURE.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and the licence | done (2026-11-17) | T114 |
 
 ### Open decisions
 
@@ -294,7 +295,7 @@ ideas are in `FUTURE.md` section 15.
 
 ### Decided
 
-Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
+Numbering continues from `docs/history/PLAN-HISTORY.md`, which ends at D16.
 
 | ID | Decision | Date |
 |---|---|---|
@@ -311,7 +312,7 @@ Numbering continues from `PLAN-HISTORY.md`, which ends at D16.
 | D31 | **A new plan takes over from a day the owner picks** (default next Monday). Earlier weeks keep the old plan's sessions and the judgement they already got; the old source is kept, switched off. | 2026-11-15 |
 | D33 | **A ride's totals use the recorded data as is.** A stretch estimated across a recording gap (T86) is drawn dashed and noted, and never counted in distance, heart rate, load or best efforts (T88 dropped). Whether to snap GPS to roads and estimate true numbers is an idea in `FUTURE.md`. | 2026-11-15 |
 | D34 | **The nav is Today, Train, Activities, Map, Health.** Train holds the plan, the race, the load and the trends as tabs (Trends folds in, D23). The page that was to be called Body stays **Health**, and the page that was to be called Places stays **Map**. Fewer renames, and each name says what is on the page. | 2026-11-16 |
-| D35 | **The default branch is `main`, not `master`.** Renamed 2026-11-16 here, on origin and as GitHub's default, to match the owner's other projects. Older entries in this file and in `PLAN-HISTORY.md` keep saying `master` where they describe the past. | 2026-11-16 |
+| D35 | **The default branch is `main`, not `master`.** Renamed 2026-11-16 here, on origin and as GitHub's default, to match the owner's other projects. Older entries in this file and in `docs/history/PLAN-HISTORY.md` keep saying `master` where they describe the past. | 2026-11-16 |
 
 ### Parked (not planned; ask the owner before starting)
 

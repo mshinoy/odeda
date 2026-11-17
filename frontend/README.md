@@ -10,8 +10,8 @@ non-null `!`) · Vite · Tailwind v4 · shadcn/ui · TanStack Query for server s
 Zustand for UI state · ECharts · MapLibre / Mapbox with deck.gl.
 
 The design rules, the task history and every decision behind what is here are in
-[`../PLAN-HISTORY.md`](../PLAN-HISTORY.md) and [`../DECISIONS.md`](../DECISIONS.md). Read the Rules
-section of `PLAN-HISTORY.md` before changing anything: it is the brief, not a summary of it.
+[`../PLAN-HISTORY.md`](../docs/history/PLAN-HISTORY.md) and [`../DECISIONS.md`](../docs/history/DECISIONS.md). Read the Rules
+section of `docs/history/PLAN-HISTORY.md` before changing anything: it is the brief, not a summary of it.
 
 ## Running it
 

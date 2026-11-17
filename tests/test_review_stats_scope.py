@@ -1,6 +1,6 @@
 """Exclude-from-stats and the type override must reach every aggregate.
 
-Found by the adversarial review pass of 2026-09-22 (DECISIONS.md D43; the review
+Found by the adversarial review pass of 2026-09-22 (docs/history/DECISIONS.md D43; the review
 itself is in git history: `git show 0a9d297:REVIEW.md`). Every test here failed
 against the code as first written.
 """

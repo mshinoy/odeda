@@ -22,7 +22,7 @@ from . import normalize as norm
 
 log = logging.getLogger("garmin_analytics.fit")
 
-RESAMPLE_INTERVAL_S = 10  # see DECISIONS.md D14
+RESAMPLE_INTERVAL_S = 10  # see docs/history/DECISIONS.md D14
 
 # FIT `sport` enum -> our coarse activity types.
 SPORT_MAP = {
