@@ -295,7 +295,7 @@ ideas are in `FUTURE.md` section 15.
 | D24 | Is there a Doha half-marathon course GPX to build the pacing plan from? | answered: no official file; one was traced from the published course map (approximate, 30 to 80 m, 21.06 km) and is in `courses/`. Use the organiser's own if one is published |
 | D25 | Should the page changes reach the old pages at once (T73), or only as each page is redone? | answered 2026-11-17: at once. Race, Compare and Gear were restyled in T73 and every page is in the card style, so nothing is left to decide |
 | D30 | Which files can be uploaded as a plan? `.ics` and CSV (`date, title, distance_km`), built in T109. Why those two: whole plans are rarely exported as files by the platforms (TrainingPeaks, Final Surge and Runna have no plan-level ICS or CSV export that was found); coaches mostly deliver through the platform's own calendar, a PDF, or a Google Sheet, and a Sheet downloads as CSV. Higdon's plans are web tables with third-party scripts that make an ICS. PDF is common but not built: it needs reading tables out of a layout. A TrainingPeaks or other iCal feed address can already be subscribed in Settings | decided (recommended, owner not objected) |
-| D32 | Edits stay in the app and are not written back to the Google calendar (the feed is read-only, and writing would need a Google login). Recommended: yes | answered 2026-11-17: yes, edits stay in the app |
+| D32 | Edits stay in the app and are not written back to the Google calendar (the feed is read-only, and writing would need a Google login). Recommended: yes | answered 2026-11-17: yes, edits stay in the app for now; writing back to a calendar is a later idea (`FUTURE.md` section 21) |
 
 ### Decided
 
