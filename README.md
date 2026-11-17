@@ -1,18 +1,25 @@
 # Odeda
 
-**Your Garmin history, on your own machine, with the questions answered first.**
+**Garmin shows you what happened. Odeda tells you whether you are on track.**
+
+Self-hosted analytics for athletes who follow a training plan. It reads the plan you already
+have (the calendar from your club or your coach), judges every session against it, and says
+plainly where you stand for your race: on plan, behind, and what the finish looks like. It does
+not write plans or coach you. It reads your numbers and tells you what they say.
 
 *Odeda* is Malayalam for "run, da!", the friendly shove you give someone after they have
-looked at their numbers: you are not doing enough, keep going. The app is the numbers, plain
-and honest; the name is the shove.
+looked at their numbers: you are not doing enough, keep going. The numbers are plain and
+honest; the name is the shove. It works for riders and swimmers too.
 
-Self-hosted analytics over **your own** Garmin Connect account. It turns years of
-activities into the things Garmin's app does not show you: the route you have run 163
-times and where on it you speed up, a training plan judged session by session, a race
-countdown with a finish range, and every edit you make surviving every sync.
+**What makes it different**
 
-One deployment is one person's data. There is no account system, no shared database, and
-nobody else's Garmin password anywhere.
+* **It knows your plan.** Sessions judged week by week, today's target steered by the plan, a
+  race countdown with a finish range, a taper check and a pacing plan.
+* **It knows your routes.** The loops you repeat are found and timed, and a speed profile along
+  each shows where you gain and lose, whichever day you went.
+* **It is yours.** It runs on your own machine over your own Garmin Connect history, and your
+  corrections survive every sync. One deployment is one person's data: no account system, no
+  shared database, and nobody else's Garmin password anywhere.
 
 <!-- Screenshot slot: docs/img/today.png. The Today page, the first thing you see. -->
 <!-- ![Today](docs/img/today.png) -->
