@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 4 / 5 |
+| 27 Ready to publish: the README and docs | AA: `open` | 5 / 6 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -283,6 +283,7 @@ ideas are in `FUTURE.md` section 15.
 | T116 | A faster first run (`FUTURE.md` section 15, ideas 1 and 2): a Basics card in Settings for the time zone and the heart-rate limits (saved in the database, `.env` stays the default, a heart-rate change recomputes the stored load), a Password card (choose or change it, needs the current one), and a first-run checklist on Today while there are no activities | done (2026-11-16; on dev, prod not rebuilt) | T114 |
 | T117 | Tidy the repo root (`FUTURE.md` publishing step 3): the history documents (`PLAN-HISTORY`, `DECISIONS`, `REVIEW-2`, `SPEC`, `REDESIGN`) move to `docs/history/`, the Google Health setup guide to `docs/google-health-setup.md`; every link and mention updated, no content changed. The root keeps the README, `PLAN.md`, `FUTURE.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and the licence | done (2026-11-17) | T114 |
 | T118 | Scrub personal detail from the tree (`FUTURE.md` publishing step 2): the real Garmin activity IDs (12, replaced by fake ones in the same order) and the neighbourhood and venue names tied to the owner\'s own routes, in the history documents and in test fixtures. Left in place on purpose: the club and race names in the calendar fixtures, the synthetic seed landmarks, and the default heart rates. The real GPS coordinates in seven test files are not done | done (2026-11-17) | T117 |
+| T119 | A bug-report issue template (`FUTURE.md` publishing step 9): asks for what happened, the output of `doctor`, and how Garmin was signed in to. Blank issues stay on, so questions and ideas still work. CI (step 8) is deferred until the repository is public and takes pull requests | done (2026-11-17) | T118 |
 
 ### Open decisions
 
