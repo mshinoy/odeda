@@ -302,8 +302,6 @@ for one view; the same idea for a plain image or page covers the rest.
 
 ### 11. More sources: Strava and others
 
-*Compared with a popular self-hosted project on 2026-11-17: it syncs Strava as well as Garmin Connect, so this is the main source gap.*
-
 **Why.** Many runners are not on Garmin only, and Strava is where activities are shared. The
 Fitbit work shows the data layer can take a second source (`fitbit.py`, `fitbit_sync.py`,
 `body_composition`).
@@ -319,12 +317,6 @@ GPX/FIT upload. The same activity from two sources must merge, not double.
 ### 12. After 500 stars: the official Garmin API
 
 *Not before. A milestone, not a date.*
-
-*Checked 2026-11-17: the best-known self-hosted Garmin project (about 2 400 stars, 52
-contributors, 30 releases in ten months) still syncs through the unofficial `python-garminconnect`
-library according to its docs. They do not say whether they ever applied for the official API. So
-stars alone may not be the unlock assumed here, and the official route may suit a hosted service
-more than a self-hosted app. Treat 500 stars as a reason to ask, not a promise of an answer.*
 
 **Why wait.** Garmin's Connect Developer Program (the Health and Activity APIs) is free but
 gated: you apply and they review the product and use case, and they have favoured businesses
@@ -404,12 +396,12 @@ person's feedback.
 
 ## 16. Miles as well as kilometres
 
-*Raised 2026-11-17, from comparing with a popular self-hosted project (which has an imperial and metric switch). Checked
+*Raised 2026-11-17. Checked
 against the code the same day: the app is kilometres only, there is no unit setting.*
 
 **Why.** Most Garmin owners in the US and the UK think in miles, and "min/mile" and feet of climb are
 what they would look for in the first minute. A stranger who sees kilometres only may close the tab.
-Of everything on that comparison, this is the one most likely to cost real adoption.
+Of the gaps known today, this is the one most likely to cost real adoption.
 
 **What it would take.**
 1. **A units setting** (metric or imperial) beside the Basics card in Settings, stored like the other
@@ -432,7 +424,7 @@ It is a moderate change, and it should be planned as one task per layer, not one
 
 ## 17. Gear components
 
-*Raised 2026-11-17, from a comparable project's "gear component tracking".*
+*Raised 2026-11-17.*
 
 **Why.** Shoes retire on distance, which the Gear page already does. A bike has parts that wear out
 on their own schedules: the chain, the tyres, the brake pads. "Chain at 2 800 km, replace at 3 000"
@@ -449,7 +441,7 @@ warning reuses the shoes' warning state.
 
 ## 18. Other languages
 
-*Raised 2026-11-17, from a comparable project's multi-language support.*
+*Raised 2026-11-17.*
 
 **Why.** Reach, once the project has users outside English-speaking countries. Not before: text is
 written inline in the components, there is no translation layer, and adding one touches everything.
@@ -464,57 +456,13 @@ card asks as part of the catalogue. Dates and numbers already follow the browser
 
 ## 19. Deliberately not built
 
-*Recorded 2026-11-17 so the question is not reopened each time a similar project is compared.*
+*Recorded 2026-11-17 so the question is not reopened.*
 
 Multiple users, followers and activity feeds, privacy levels, sign-up with email verification,
 password reset by email, single sign-on (OIDC and SAML), and one-time-code logins. All of it serves
 a service with many people on one server. This app is one person's data in one container with one
 password, and that is why it starts in a minute; each of these would cost that. If a household
 wants two people, they run two containers.
-
----
-
-## 20. What made a comparable project popular, and what we take from it
-
-*Read from the project's docs site and GitHub on 2026-11-17. Its numbers: created October 2023, about 2 400
-stars, 154 forks, 52 contributors, 30 releases in ten months, a monthly release target, a blog.*
-
-**What worked for them.**
-- **A one-sentence pitch** everyone already understands: "similar to Strava but focused on privacy".
-- **Breadth:** Garmin and Strava sync, a feed, goals, gear, a mobile app, about eleven languages,
-  several users on one server.
-- **Visible momentum:** frequent tagged releases, a blog announcing each, Discord, Mastodon,
-  Bluesky and a newsletter, translations contributed through a translation site.
-- **A live demo** that resets daily, so a stranger sees it working before installing anything.
-- **Docs that are easy to navigate** (search, sections, a real troubleshooting page that explains
-  where to look in the logs), and a sharing page that says plainly "private by default".
-
-**Where they are weak, which is our opening.**
-- **Setup is heavy:** a domain name, ports 80 and 443, a reverse proxy, Postgres, four generated
-  secrets and an `admin/admin` first login. Ours is one container and one password, and the
-  password, time zone and heart rate can be set in the app. Say so in the README.
-- **Garmin credentials** reach their server unencrypted unless HTTPS is set up, which the docs
-  only "highly recommend". Ours are used once for a token and never stored.
-- **Docs are dense and English only,** with few screenshots.
-
-**What we take.**
-1. **A sharper pitch.** Theirs is "Strava, but yours". Ours should be as short and as concrete:
-   Garmin shows what happened; this says whether you are on plan for your race, and where on your
-   own routes you gain and lose. (Positioning notes were discussed 2026-11-17: serve runners
-   following a training plan toward a race, which nobody on the comparison does.)
-2. **Something to try before installing.** A hosted demo on synthetic data is the best answer and
-   needs a small always-on server; until then, good screenshots and a short screen recording (T115).
-3. **Visible cadence.** Keep tagging releases with a changelog entry, and say in the README that
-   the project is active. A short "what is new" block under the title costs nothing.
-4. **Somewhere to talk.** GitHub Discussions (a switch in the repository settings) is the cheap
-   version of their Discord, and keeps questions out of the bug tracker.
-5. **A troubleshooting page** for the failures that will actually happen: Garmin refusing the
-   login, an empty database, a wrong time zone, a port already in use. The `doctor` command is the
-   core of it. There is a start in `docs/connecting-garmin.md`.
-
-**What we do not copy:** the breadth. That project is a product for groups; this is a sharp tool for
-one runner (see 19). Competing on features with a project that has 52 contributors is the wrong
-fight.
 
 ---
 
