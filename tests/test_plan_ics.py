@@ -12,7 +12,7 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics.ingest import plan_ics
+from odeda.ingest import plan_ics
 
 URL = "https://calendar.google.com/calendar/ical/abc%40group.calendar.google.com/private-s3cr3t/basic.ics"
 TODAY = date(2026, 11, 1)

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from garmin_analytics.api.server import create_app
-from garmin_analytics.ingest import auto_sync as A
-from garmin_analytics.ingest import connect as connect_mod
-from garmin_analytics.ingest import details as details_mod
-from garmin_analytics.ingest import laps as L
+from odeda.api.server import create_app
+from odeda.ingest import auto_sync as A
+from odeda.ingest import connect as connect_mod
+from odeda.ingest import details as details_mod
+from odeda.ingest import laps as L
 
 AID = "run-1"
 
@@ -194,7 +194,7 @@ class TestAutoSync:
         settings.token_dir.mkdir(parents=True, exist_ok=True)
         connect_mod.token_file(settings.token_dir).write_text("{}")
         monkeypatch.setattr(connect_mod, "sync", lambda st, s, **kw: _activity(st))
-        monkeypatch.setattr("garmin_analytics.analytics.performance.rebuild_best_efforts",
+        monkeypatch.setattr("odeda.analytics.performance.rebuild_best_efforts",
                             lambda st: 0)
 
         def fetch(path):
@@ -209,7 +209,7 @@ class TestAutoSync:
         settings.token_dir.mkdir(parents=True, exist_ok=True)
         connect_mod.token_file(settings.token_dir).write_text("{}")
         monkeypatch.setattr(connect_mod, "sync", lambda st, s, **kw: _activity(st))
-        monkeypatch.setattr("garmin_analytics.analytics.performance.rebuild_best_efforts",
+        monkeypatch.setattr("odeda.analytics.performance.rebuild_best_efforts",
                             lambda st: 0)
 
         def fetch(path):

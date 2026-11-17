@@ -12,8 +12,8 @@ services:
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
         VITE_MAP_STYLE_LIGHT: ${VITE_MAP_STYLE_LIGHT:-}
         VITE_MAP_STYLE_DARK: ${VITE_MAP_STYLE_DARK:-}
-    image: garmin-analytics:latest
-    container_name: garmin-analytics
+    image: odeda:latest
+    container_name: odeda
     restart: unless-stopped
 
     # Bound to localhost by default. Change to "8000:8000" only once APP_PASSWORD
@@ -64,7 +64,7 @@ services:
   #   docker compose --profile dev stop api-dev ui-dev
   #
   # ui-dev is Vite on this checkout's frontend/ (reloads on every edit); its /api
-  # goes to api-dev, the API from this checkout's garmin_analytics/ (restarts on
+  # goes to api-dev, the API from this checkout's odeda/ (restarts on
   # every edit), which serves a COPY of the real database taken when it starts.
   # -------------------------------------------------------------------------
 
@@ -73,8 +73,8 @@ services:
   # requirements.txt needs `docker compose build app` first.
   api-dev:
     profiles: [dev]
-    image: garmin-analytics:latest
-    container_name: garmin-analytics-api-dev
+    image: odeda:latest
+    container_name: odeda-api-dev
     env_file:
       - .env
     environment:
@@ -87,7 +87,7 @@ services:
       GA_DB: /data/garmin.db
       GA_RAW_DIR: /data/raw_archive
       GA_TOKEN_DIR: /data/tokens
-    # The built UI in garmin_analytics/ui is served here too: what the tailnet's :8444
+    # The built UI in odeda/ui is served here too: what the tailnet's :8444
     # points at (one bundle, fast over a tailnet; Vite's unbundled dev page is not).
     # Rebuild it with `npm run build` in frontend/ after UI changes.
     ports:
@@ -108,9 +108,9 @@ services:
         n = dst.execute('SELECT count(*) FROM activities').fetchone()[0]
         print(f'api-dev: fresh copy of the real database, {n} activities')
         "
-        exec garmin-analytics serve --host 0.0.0.0 --port 8000 --reload
+        exec odeda serve --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./garmin_analytics:/src/garmin_analytics:ro
+      - ./odeda:/src/odeda:ro
       # The real data. Not mounted :ro because SQLite reads a WAL database through its
       # shared-memory file, which a read-only mount can't hold; the copy above opens it
       # with mode=ro, and nothing else in this service touches /live.
@@ -122,7 +122,7 @@ services:
   ui-dev:
     profiles: [dev]
     image: node:24-bookworm-slim
-    container_name: garmin-analytics-ui-dev
+    container_name: odeda-ui-dev
     working_dir: /app/frontend
     # npm ci only when the lockfile is newer than the installed modules.
     command:
@@ -147,6 +147,8 @@ services:
 
 volumes:
   garmin-data:
+    # The name the project had before it was called Odeda. Kept on purpose: a volume is
+    # found by name, so renaming it would start from an empty one and look like lost data.
     name: garmin-analytics-data
   ui-dev-node-modules:
   api-dev-data:

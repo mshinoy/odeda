@@ -50,7 +50,7 @@ json() {
 
 trap 'rm -f "$COOKIE_JAR"' EXIT
 
-printf 'Garmin Analytics — container verification\n'
+printf 'Odeda — container verification\n'
 printf 'date: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 printf 'host: %s\n' "$(uname -srm)"
 printf 'docker: %s\n' "$(docker --version)"
@@ -76,7 +76,7 @@ else
   bad "build failed"
 fi
 printf '  build took %ss\n' "$(( $(date +%s) - BUILD_START ))"
-printf '  image size: %s\n' "$(docker images garmin-analytics:latest --format '{{.Size}}')"
+printf '  image size: %s\n' "$(docker images odeda:latest --format '{{.Size}}')"
 
 # ---------------------------------------------------------------------------
 hr "3. Start from cold"
@@ -99,7 +99,7 @@ docker compose logs 2>&1 | grep -E 'Seeding|days=|SYNTHETIC|Dashboard|Uvicorn ru
 
 # Docker's own healthcheck, not ours.
 for _ in $(seq 1 30); do
-  HEALTH=$(docker inspect --format '{{.State.Health.Status}}' garmin-analytics 2>/dev/null)
+  HEALTH=$(docker inspect --format '{{.State.Health.Status}}' odeda 2>/dev/null)
   [ "$HEALTH" = "healthy" ] && break
   sleep 2
 done
@@ -109,14 +109,14 @@ printf '  uid: %s\n' "$(docker compose exec -T app id 2>/dev/null | tr -d '\r')"
 
 # ---------------------------------------------------------------------------
 hr "4. No secrets in the image"
-if docker run --rm --entrypoint sh garmin-analytics:latest -c \
+if docker run --rm --entrypoint sh odeda:latest -c \
    'ls -A /data 2>/dev/null; find / -name "oauth*token*.json" -o -name ".env" 2>/dev/null | head' \
    | grep -q .; then
   bad "image layer contains data or credentials"
 else
   ok "no token cache, .env or database baked into the image"
 fi
-LAYER_ENV=$(docker history --no-trunc garmin-analytics:latest 2>/dev/null \
+LAYER_ENV=$(docker history --no-trunc odeda:latest 2>/dev/null \
   | grep -ci 'APP_PASSWORD=[^ ]' || true)
 check "no password in image history" "0" "$LAYER_ENV"
 
@@ -233,7 +233,7 @@ printf '  before re-sync: %s\n' "$BEFORE"
 printf '  gear before   : %s\n' "$GEAR_BEFORE"
 
 printf '  running a re-ingest that rewrites every activities row ...\n'
-docker compose exec -T app garmin-analytics renormalize 2>&1 | tail -3 | sed 's/^/    /'
+docker compose exec -T app odeda renormalize 2>&1 | tail -3 | sed 's/^/    /'
 
 AFTER=$(json "/api/activities/$ACT" | python3 -c '
 import sys, json

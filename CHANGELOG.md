@@ -6,6 +6,21 @@ places, kept equal: `pyproject.toml`, `garmin_analytics/__init__.py` (what Setti
 About, shows) and `frontend/package.json`. A release is a commit on `main` with that
 version, tagged `vMAJOR.MINOR.PATCH`.
 
+## Unreleased: the project is now called Odeda
+
+*Odeda* is Malayalam for "run, da!". The name no longer leads with Garmin's trademark.
+
+- **Renamed:** the Python package is `odeda`, the command is `odeda` (it was `garmin-analytics`),
+  and the Docker image and containers are `odeda`, `odeda-api-dev` and `odeda-ui-dev`. The UI
+  title, the API title and the licence holder say Odeda.
+- **Existing installs:** rebuild with `docker compose up -d --build`, then use `odeda` in place of
+  `garmin-analytics` in commands (`docker compose exec app odeda doctor`). Nothing else has to change.
+- **Kept on purpose:** the data volume is still `garmin-analytics-data` (renaming it would start
+  from an empty one), the settings still start with `GA_`, the session cookie is still
+  `ga_session`, and the Garmin token folder is still `~/.garminconnect`. Outside Docker, an
+  existing `~/.local/share/garmin-analytics` folder is used until a new `odeda` one exists.
+- **Older entries** below and `docs/history/` keep the old name; they describe what it was called then.
+
 ## 0.2.0: the redesign and the Train page (2026-11-16)
 
 - **A new look everywhere:** every page is in the card style, with the question each card

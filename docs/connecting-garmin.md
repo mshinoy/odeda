@@ -40,12 +40,12 @@ Settings shows how the last run went. `GA_AUTO_SYNC_HOURS` changes the interval,
 `0` turns it off.
 
 Raw payloads are archived **verbatim** before anything is normalised, so improving a
-parser never means re-fetching. `garmin-analytics renormalize` rebuilds every table
+parser never means re-fetching. `odeda renormalize` rebuilds every table
 from the archive with no network access at all.
 
 ## Signing in to Garmin
 
-`garmin-analytics login` (or `POST /api/garmin/login`) takes your email and password,
+`odeda login` (or `POST /api/garmin/login`) takes your email and password,
 handles MFA, and writes a token cache to `garmin_tokens.json` in the token directory
 (`/data/tokens` in the container), mode 0600. The password is used for the token
 exchange and discarded. The refresh token is long-lived, so this is a rare chore.
@@ -58,10 +58,10 @@ is Garmin refusing the *address*, not the password — from one datacenter host 
 challenge. The 429 lifts on its own. Meanwhile, use the **browser sign-in**, which
 depends on no scripted login:
 
-1. `garmin-analytics login --signin-url` prints a Garmin sign-in URL. Open it in any
+1. `odeda login --signin-url` prints a Garmin sign-in URL. Open it in any
    browser and sign in, including MFA. The page goes blank and the address bar ends
    with `?ticket=ST-…`.
-2. `garmin-analytics login --ticket` and paste that URL. Tickets are single-use and
+2. `odeda login --ticket` and paste that URL. Tickets are single-use and
    expire in minutes; if one is rejected, sign in again for a fresh one.
 
 Over HTTP: `GET /api/garmin/signin-url`, then `POST /api/garmin/ticket` with
@@ -70,7 +70,7 @@ Over HTTP: `GET /api/garmin/signin-url`, then `POST /api/garmin/ticket` with
 token cache from the old `garth` client is a different format and will not work.
 
 Needing no login at all: request Garmin's official data export in your account
-settings and `garmin-analytics import-zip` it. That gets history, not ongoing sync.
+settings and `odeda import-zip` it. That gets history, not ongoing sync.
 
 
 ## A scale that writes to Fitbit
@@ -81,8 +81,8 @@ one that knows what you weigh. Its data now reaches you through the
 Fitbit Web API. Create a **Web application** OAuth client in Google Cloud, enable the
 Google Health API on it, put the client ID and secret in the environment as
 `GOOGLE_HEALTH_CLIENT_ID` and `GOOGLE_HEALTH_CLIENT_SECRET`, and connect it from
-Settings or with `garmin-analytics fitbit connect`. See
+Settings or with `odeda fitbit connect`. See
 [docs/google-health-setup.md](google-health-setup.md) for the console steps, including the test-user
 allowlist that consent fails without. There is also an offline route that needs no app
-at all: `garmin-analytics import-fitbit <takeout.zip>` reads a Fitbit export from Google
+at all: `odeda import-fitbit <takeout.zip>` reads a Fitbit export from Google
 Takeout. Either way the weigh-ins land in `body_composition` and turn into the

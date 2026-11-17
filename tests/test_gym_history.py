@@ -8,11 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 import fixtures as F
-from garmin_analytics.api.gym import exercise_history
-from garmin_analytics.api.server import create_app
-from garmin_analytics.db.store import Store
-from garmin_analytics.edits import exercises as relabels_mod
-from garmin_analytics.ingest import normalize as N
+from odeda.api.gym import exercise_history
+from odeda.api.server import create_app
+from odeda.db.store import Store
+from odeda.edits import exercises as relabels_mod
+from odeda.ingest import normalize as N
 
 
 def session(activity_id: int, day: str, exercises: list[dict[str, Any]]) -> dict[str, Any]:

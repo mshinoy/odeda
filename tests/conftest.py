@@ -2,7 +2,7 @@
 
 Every test gets its own database in a temp directory. Nothing here ever touches the
 real data directory or the Garmin token cache — the environment is redirected before
-`garmin_analytics.config` is read.
+`odeda.config` is read.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ os.environ["GA_CACHE_WARM"] = "0"
 
 @pytest.fixture
 def settings(tmp_path, monkeypatch):
-    from garmin_analytics.config import load_settings
+    from odeda.config import load_settings
 
     monkeypatch.setenv("GA_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("GA_DB", str(tmp_path / "data" / "test.db"))
@@ -44,7 +44,7 @@ def fake_ui(tmp_path):
     ui = tmp_path / "ui"
     (ui / "assets").mkdir(parents=True)
     (ui / "index.html").write_text(
-        '<!doctype html><html><head><title>Garmin Analytics</title></head>'
+        '<!doctype html><html><head><title>Odeda</title></head>'
         '<body><div id="root" data-spa-index></div></body></html>'
     )
     (ui / "assets" / "index-abc123.js").write_text("console.log('spa');")
@@ -54,7 +54,7 @@ def fake_ui(tmp_path):
 
 @pytest.fixture
 def store(settings):
-    from garmin_analytics.db.store import Store
+    from odeda.db.store import Store
 
     st = Store.open(settings)
     yield st
@@ -68,9 +68,9 @@ def seeded_db(tmp_path_factory):
     Three months rather than eighteen: the analytics under test do not care how long
     the series is, and a session-scoped 3-month seed keeps the suite under a second.
     """
-    from garmin_analytics.config import load_settings
-    from garmin_analytics.db.store import Store
-    from garmin_analytics.seed.synthetic import seed_database
+    from odeda.config import load_settings
+    from odeda.db.store import Store
+    from odeda.seed.synthetic import seed_database
 
     tmp = tmp_path_factory.mktemp("seeded")
     import os
@@ -95,7 +95,7 @@ def seeded_db(tmp_path_factory):
 
 @pytest.fixture
 def seeded_store(seeded_db):
-    from garmin_analytics.db.store import Store
+    from odeda.db.store import Store
 
     st = Store.open(seeded_db)
     yield st

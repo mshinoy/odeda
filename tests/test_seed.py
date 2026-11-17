@@ -11,8 +11,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from garmin_analytics.analytics import load as L
-from garmin_analytics.seed import synthetic as S
+from odeda.analytics import load as L
+from odeda.seed import synthetic as S
 
 
 class TestSeedMechanics:
@@ -26,7 +26,7 @@ class TestSeedMechanics:
 
     def test_is_deterministic(self, tmp_path, settings):
         """Same seed, same output — the verification transcript has to reproduce."""
-        from garmin_analytics.db.store import Store
+        from odeda.db.store import Store
 
         digests = []
         for name in ("a.db", "b.db"):
@@ -75,8 +75,8 @@ class TestSeedMechanics:
 def three_months(tmp_path_factory):
     import os
 
-    from garmin_analytics.config import load_settings
-    from garmin_analytics.db.store import Store
+    from odeda.config import load_settings
+    from odeda.db.store import Store
 
     tmp = tmp_path_factory.mktemp("seedcheck")
     old = os.environ.get("GA_DB"), os.environ.get("GA_DATA_DIR")
@@ -168,7 +168,7 @@ class TestPhysiologicalPlausibility:
             assert r["sd"] == pytest.approx(r["distance_m"], rel=0.001)
 
     def test_weekly_volume_is_a_realistic_range(self, three_months):
-        from garmin_analytics.analytics import reports as Rep
+        from odeda.analytics import reports as Rep
 
         weeks = [w["run_km"] for w in Rep.weekly_report(three_months, limit=99)[1:-1]]
         assert weeks
@@ -207,7 +207,7 @@ class TestPhysiologicalPlausibility:
         assert max(values) > mean + 4, "illness should be visible in resting HR"
 
     def test_aerobic_decoupling_improves(self, three_months):
-        from garmin_analytics.analytics import performance as P
+        from odeda.analytics import performance as P
 
         dec = [d["decoupling_pct"] for d in P.decoupling_history(three_months)
                if d["decoupling_pct"] is not None]

@@ -20,7 +20,7 @@ body:
     id: doctor
     attributes:
       label: Output of doctor
-      description: "Run `docker compose exec app garmin-analytics doctor` (or `garmin-analytics doctor` without Docker)."
+      description: "Run `docker compose exec app odeda doctor` (or `odeda doctor` without Docker)."
       render: text
     validations:
       required: true

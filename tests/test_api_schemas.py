@@ -16,14 +16,14 @@ import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
-from garmin_analytics.analytics import performance as perf
-from garmin_analytics.analytics import routes as routes_mod
-from garmin_analytics.api import schemas
-from garmin_analytics.api.server import _splits, create_app
-from garmin_analytics.db import fields as fields_mod
-from garmin_analytics.db.store import Store
-from garmin_analytics.edits import gear as gear_mod
-from garmin_analytics.edits import overrides as ov_mod
+from odeda.analytics import performance as perf
+from odeda.analytics import routes as routes_mod
+from odeda.api import schemas
+from odeda.api.server import _splits, create_app
+from odeda.db import fields as fields_mod
+from odeda.db.store import Store
+from odeda.edits import gear as gear_mod
+from odeda.edits import overrides as ov_mod
 
 #: Keys removed from each payload deliberately. Anything else going missing is a bug.
 DROPPED_DETAIL_KEYS = {"samples"}

@@ -159,7 +159,7 @@ None of this is built. Do it in this order; a new branch from main for each step
 3. **Tidy the repo root.** Move `docs/history/PLAN-HISTORY.md` (214 KB), `docs/history/DECISIONS.md`, `docs/history/REVIEW-2.md`,
    `docs/google-health-setup.md`, `docs/history/SPEC.md` into `docs/`. Keep README, LICENSE, CONTRIBUTING,
    CHANGELOG, FUTURE and PLAN at the root. Fix the links in README.
-4. **Licence.** MIT is in place ("Garmin Analytics contributors"). Confirm it is what we want;
+4. **Licence.** MIT is in place ("Odeda contributors"). Confirm it is what we want;
    AGPL is the alternative if we want a hosted fork to share its changes. Check that every
    dependency licence is compatible.
 5. **Disclaimer.** A short block at the top of the README: unofficial, not affiliated with or
@@ -195,7 +195,7 @@ None of this is built. Do it in this order; a new branch from main for each step
 setup and the part most likely to fail. Garmin's own "Export Your Data" needs no password and
 no unofficial API.
 
-**What exists.** `garmin-analytics import-zip <file>` reads the export ZIP by the shape of its
+**What exists.** `odeda import-zip <file>` reads the export ZIP by the shape of its
 JSON (`ingest/export_zip.py`), and `import-fit` reads individual FIT files
 (`ingest/fitfile.py`). So the core is there; what is missing is making it the front door.
 
@@ -330,7 +330,7 @@ service we are deliberately not building yet, and it means:
 - Accounts and per-user storage; the single-tenant design has to change.
 - Consent, export and delete-my-data flows, and privacy law (GDPR and others).
 - A reachable server, cost, monitoring, backups and support.
-- Garmin's branding rules; "Garmin Analytics" may not be an allowed name (see 13).
+- Garmin's branding rules; "Odeda" may not be an allowed name (see 13).
 
 **Steps when the time comes.** Re-read the program's terms, write the application with usage
 numbers and a privacy statement, get an evaluation key, build the multi-user version beside the
@@ -340,9 +340,11 @@ self-hosted one (the self-hosted one stays free and open), then apply for produc
 
 ### 13. Rename
 
-*Later, and trivial to do.* The name leads with Garmin's trademark. Pick a name that does not,
+*Done 2026-11-17: the project is now called **Odeda** (Malayalam, "run, da!"). Kept on purpose: the Docker volume name `garmin-analytics-data`, the `GA_` settings prefix, the `ga_session` cookie and the `~/.garminconnect` token folder, so existing installs keep working. A tidier volume name can come with a one-time copy later.*
+
+*Original note.* The name leads with Garmin's trademark. Pick a name that does not,
 before the project has a following, and ideally before the first public release.
-What changes: the repo and package name (`garmin_analytics`, the `garmin-analytics` command,
+What changes: the repo and package name (`odeda`, the `odeda` command,
 Docker volume `garmin-analytics-data`, image name), README, docs, licence holder line, UI title.
 Provide a one-time migration note for existing installs (volume name, command name). Keep
 "works with Garmin" wording in the description; that is allowed even when the name is not.

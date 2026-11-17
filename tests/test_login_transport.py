@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from garmin_analytics.ingest import connect
+from odeda.ingest import connect
 
 
 @pytest.fixture(autouse=True)

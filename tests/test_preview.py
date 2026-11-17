@@ -8,9 +8,9 @@ import math
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.api import preview as preview_mod
-from garmin_analytics.api.preview import MAX_POINTS, encode_polyline, simplify
-from garmin_analytics.api.server import create_app
+from odeda.api import preview as preview_mod
+from odeda.api.preview import MAX_POINTS, encode_polyline, simplify
+from odeda.api.server import create_app
 
 
 def decode_polyline(encoded: str) -> list[tuple[float, float]]:

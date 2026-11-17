@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics.ingest import plan_ics, plan_upload
+from odeda.ingest import plan_ics, plan_upload
 
 from tests.test_plan_api import FakeTransport, client, planned  # noqa: F401
 

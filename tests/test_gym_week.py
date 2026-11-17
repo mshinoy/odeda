@@ -23,11 +23,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 import fixtures as F
-from garmin_analytics.api import gym as gym_mod
-from garmin_analytics.api.gym import gym_this_week
-from garmin_analytics.api.server import create_app
-from garmin_analytics.db.store import Store
-from garmin_analytics.edits import overrides as ov_mod
+from odeda.api import gym as gym_mod
+from odeda.api.gym import gym_this_week
+from odeda.api.server import create_app
+from odeda.db.store import Store
+from odeda.edits import overrides as ov_mod
 from test_gym import _ingest
 
 TODAY = date(2026, 9, 23)

@@ -16,7 +16,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from garmin_analytics.analytics import body as B
+from odeda.analytics import body as B
 
 
 def daily(start: str, values: list[float | None]) -> tuple[list[str], list[float | None]]:
@@ -387,9 +387,9 @@ class TestTheWholeReport:
 def seeded_store(tmp_path_factory):
     import os
 
-    from garmin_analytics.config import load_settings
-    from garmin_analytics.db.store import Store
-    from garmin_analytics.seed import synthetic
+    from odeda.config import load_settings
+    from odeda.db.store import Store
+    from odeda.seed import synthetic
 
     tmp = tmp_path_factory.mktemp("bodyseed")
     old = os.environ.get("GA_DB"), os.environ.get("GA_DATA_DIR")

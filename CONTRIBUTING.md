@@ -24,7 +24,7 @@ with `SKIP_PLAN_CHECK=1`.
 ## Versions
 
 `MAJOR.MINOR.PATCH`, in [`CHANGELOG.md`](CHANGELOG.md). To release: bump the version in
-`pyproject.toml`, `garmin_analytics/__init__.py` and `frontend/package.json`, add a
+`pyproject.toml`, `odeda/__init__.py` and `frontend/package.json`, add a
 changelog entry, merge to `main`, then tag the merge commit `vMAJOR.MINOR.PATCH` and
 push the tag.
 
@@ -51,8 +51,8 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 
-garmin-analytics seed --reset       # ~3 years of synthetic data, no account needed
-garmin-analytics serve --port 8000  # the port the frontend dev proxy expects
+odeda seed --reset       # ~3 years of synthetic data, no account needed
+odeda serve --port 8000  # the port the frontend dev proxy expects
 
 cd frontend
 npm ci
@@ -62,7 +62,7 @@ npm run dev                         # http://localhost:5173, /api proxied to the
 The Vite dev server proxies `/api` to `VITE_API_URL` (default `http://127.0.0.1:8000`),
 so the browser sees one origin and the `ga_session` cookie works without CORS. Copy
 `frontend/.env.example` to `frontend/.env` to change it or to set the map variables.
-`npm run build` writes the production bundle to `garmin_analytics/ui/`, which `serve`
+`npm run build` writes the production bundle to `odeda/ui/`, which `serve`
 then serves; it is gitignored.
 
 You do not need a Garmin account to develop against this. The seeder produces
@@ -80,7 +80,7 @@ docker compose --profile dev restart api-dev                  # a fresh copy of 
 docker compose --profile dev stop api-dev ui-dev
 ```
 
-`ui-dev` is Vite on `frontend/`; `api-dev` is `serve --reload` on `garmin_analytics/`,
+`ui-dev` is Vite on `frontend/`; `api-dev` is `serve --reload` on `odeda/`,
 serving a copy of the real database taken when it starts, so edits made while testing
 never reach your data. See the comments in `docker-compose.yml`.
 
@@ -100,7 +100,7 @@ npm run build             # what the Docker image runs
 Run all four before sending a frontend change. There is no browser-level test of the UI
 yet; if you say a view works, say that you looked at it.
 
-If you change an API response model in `garmin_analytics/api/schemas.py`, regenerate the
+If you change an API response model in `odeda/api/schemas.py`, regenerate the
 TypeScript types and commit the result:
 
 ```bash
@@ -108,7 +108,7 @@ cd frontend && npm run gen:api       # rewrites src/api/schema.ts
 ```
 
 No server needed: the document is built from this checkout's code
-(`python -m garmin_analytics.api.openapi`). It used to be fetched from a backend on port
+(`python -m odeda.api.openapi`). It used to be fetched from a backend on port
 8000, which on a machine running the container read the **deployed** build instead and
 deleted the types for everything the branch had just added. To inspect what a running
 server really serves, set `GA_OPENAPI_URL`; it warns that it did.
@@ -119,8 +119,8 @@ derivation in a comment, not against whatever the code currently returns.
 
 ## Adding an editable field
 
-Two lines: an entry in `FIELDS` in `garmin_analytics/db/fields.py`, and the matching
-attribute on `ActivityRow` in `garmin_analytics/api/schemas.py`:
+Two lines: an entry in `FIELDS` in `odeda/db/fields.py`, and the matching
+attribute on `ActivityRow` in `odeda/api/schemas.py`:
 
 ```python
 EditableField(
@@ -165,7 +165,7 @@ Garmin's API is unofficial and moves without notice. If ingestion breaks, the us
 report includes the output of:
 
 ```bash
-garmin-analytics doctor
+odeda doctor
 ```
 
 which reports versions, paths and endpoint health — and no credentials.

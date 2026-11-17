@@ -9,9 +9,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.api import auth
-from garmin_analytics.api.server import create_app
-from garmin_analytics.ingest import connect
+from odeda.api import auth
+from odeda.api.server import create_app
+from odeda.ingest import connect
 
 
 class TestPassword:
@@ -30,7 +30,7 @@ class TestPassword:
         assert auth.verify_password(store, "") is False
 
     def test_the_salt_makes_two_identical_passwords_hash_differently(self, store, settings):
-        from garmin_analytics.db.store import Store
+        from odeda.db.store import Store
 
         auth.set_password(store, "same")
         first = store.get_setting("auth.password_hash")
@@ -118,7 +118,7 @@ class TestGate:
         yield client
         # The seeded database is session-scoped; undo the password so other tests
         # that use it are not suddenly gated.
-        from garmin_analytics.db.store import Store
+        from odeda.db.store import Store
 
         with Store.open(seeded_db) as st:
             st.conn.execute("DELETE FROM app_settings WHERE key LIKE 'auth.%'")
@@ -211,7 +211,7 @@ class TestGarminConnection:
         """A replayed challenge id must not resume someone else's login."""
         auth._MFA_CHALLENGES["cid"] = (auth.time.monotonic() + 600, {"state": 1})
         monkeypatch.setattr(
-            "garmin_analytics.ingest.connect.finish_login",
+            "odeda.ingest.connect.finish_login",
             lambda state, code, token_dir: "Test Athlete",
         )
         assert auth.garmin_mfa(settings, "cid", "123456")["status"] == "ok"

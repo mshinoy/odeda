@@ -38,7 +38,7 @@ from urllib.parse import parse_qsl, quote
 
 from . import normalize as norm
 
-log = logging.getLogger("garmin_analytics.connect")
+log = logging.getLogger("odeda.connect")
 
 REQUEST_DELAY_S = 0.6      # be a good citizen; Garmin rate-limits aggressively
 MAX_RETRIES = 3
@@ -416,7 +416,7 @@ def resume(token_dir: Path) -> str:
     """Restore a saved session. Returns the Connect display name (the API's user key)."""
     if not token_dir_is_populated(token_dir):
         raise NotAuthenticated(
-            f"No Garmin token cache in {token_dir}. Run `garmin-analytics login` first."
+            f"No Garmin token cache in {token_dir}. Run `odeda login` first."
         )
     client = _new_client()
     try:
@@ -424,7 +424,7 @@ def resume(token_dir: Path) -> str:
     except Exception as exc:
         raise NotAuthenticated(
             f"The saved Garmin session in {token_dir} is no longer good ({exc}). "
-            "Run `garmin-analytics login` again."
+            "Run `odeda login` again."
         ) from exc
     # A refreshed token is worth keeping: the library rotates it on resume.
     try:

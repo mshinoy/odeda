@@ -7,7 +7,7 @@ deliberately include the awkward cases: missing keys, nested DTOs, alternative s
 and unit quirks (grams for weight, centimetres and milliseconds in the export).
 
 If the real API turns out to differ, that is a fixture bug, and fixing it is a one-file
-change plus a `garmin-analytics renormalize` — no re-fetching.
+change plus a `odeda renormalize` — no re-fetching.
 """
 
 from __future__ import annotations

@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import add_calendar_race
-from garmin_analytics.analytics import pacing as P
-from garmin_analytics.api.server import create_app
+from odeda.analytics import pacing as P
+from odeda.api.server import create_app
 
 DISTANCE = 21097.5
 TARGET = 12600.0  # 3:30:00

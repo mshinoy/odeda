@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from garmin_analytics.api import cache as cache_mod
+from odeda.api import cache as cache_mod
 
 
 @pytest.fixture(autouse=True)
@@ -48,7 +48,7 @@ class TestDataVersion:
     def test_opening_and_closing_a_connection_does_not(self, settings):
         # The server's normal day: no connection held open, each request opens one,
         # and the last close makes SQLite delete the WAL, the next open recreate it.
-        from garmin_analytics.db.store import Store
+        from odeda.db.store import Store
 
         with Store.open(settings) as st:
             _write(st)

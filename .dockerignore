@@ -43,7 +43,7 @@ frontend/dist/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
-garmin_analytics/ui/
+odeda/ui/
 
 # Not needed at runtime
 tests/

@@ -8,11 +8,11 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics import basics
-from garmin_analytics.api import auth
-from garmin_analytics.api.server import create_app
-from garmin_analytics.config import load_settings
-from garmin_analytics.db.store import Store
+from odeda import basics
+from odeda.api import auth
+from odeda.api.server import create_app
+from odeda.config import load_settings
+from odeda.db.store import Store
 
 
 @pytest.fixture(autouse=True)
@@ -77,7 +77,7 @@ class TestSave:
 
     def test_changing_heart_rate_recomputes_stored_load(self, settings, store):
         _walk(store)  # 30 min at 150 bpm, no zone data, so the average-HR formula applies
-        from garmin_analytics.analytics import load as load_mod
+        from odeda.analytics import load as load_mod
 
         load_mod.recompute_trimp(store)  # what ingest would have stored with 50 / 190
         # Banister, male, k = 1.92: minutes * hrr * 0.64 * exp(k * hrr).

@@ -32,7 +32,7 @@ from zoneinfo import ZoneInfo
 from .. import config
 from . import ics, plan_ics
 
-log = logging.getLogger("garmin_analytics.plan_upload")
+log = logging.getLogger("odeda.plan_upload")
 
 #: A plan is a few hundred short lines. Anything near this is not a plan, and refusing it
 #: here keeps a mistaken upload from becoming a memory problem.

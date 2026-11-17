@@ -9,8 +9,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.analytics import trends as trends_mod
-from garmin_analytics.api.server import create_app
+from odeda.analytics import trends as trends_mod
+from odeda.api.server import create_app
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def racing_client(settings, fake_ui, seeded_db):
     from dataclasses import replace
 
     from conftest import add_calendar_race
-    from garmin_analytics.db.store import Store
+    from odeda.db.store import Store
 
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(seeded_db.db_path, settings.db_path)
@@ -43,7 +43,7 @@ def racing_client(settings, fake_ui, seeded_db):
 def empty_client(settings, fake_ui):
     from dataclasses import replace
 
-    from garmin_analytics.db.store import Store
+    from odeda.db.store import Store
 
     Store.open(settings).close()      # create the schema, leave it empty
     return TestClient(create_app(replace(settings, ui_dir=fake_ui)))

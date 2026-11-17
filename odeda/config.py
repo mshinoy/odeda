@@ -45,6 +45,15 @@ def _xdg_data_home() -> Path:
     return _env_path("XDG_DATA_HOME", Path.home() / ".local" / "share")
 
 
+def _default_data_dir() -> Path:
+    """`~/.local/share/odeda`, unless a run before the rename left data in the old
+    `garmin-analytics` folder and nothing is in the new one yet: then keep using it, so an
+    existing non-Docker install does not appear to lose its history."""
+    new = _xdg_data_home() / "odeda"
+    old = _xdg_data_home() / "garmin-analytics"
+    return old if old.exists() and not new.exists() else new
+
+
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.environ.get(name)
     if raw is None:
@@ -117,7 +126,7 @@ def env_athlete() -> tuple[int, int]:
 
 
 def load_settings() -> Settings:
-    data_dir = _env_path("GA_DATA_DIR", _xdg_data_home() / "garmin-analytics")
+    data_dir = _env_path("GA_DATA_DIR", _default_data_dir())
     db_path = _env_path("GA_DB", data_dir / "garmin.db")
     return Settings(
         data_dir=data_dir,

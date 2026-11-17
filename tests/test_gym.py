@@ -13,10 +13,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import fixtures as F
-from garmin_analytics.api.gym import exercises_from_payload
-from garmin_analytics.api.server import create_app
-from garmin_analytics.db.store import Store
-from garmin_analytics.ingest import normalize as N
+from odeda.api.gym import exercises_from_payload
+from odeda.api.server import create_app
+from odeda.db.store import Store
+from odeda.ingest import normalize as N
 
 GYM_ID = str(F.STRENGTH_ACTIVITY["activityId"])
 RUN_ID = str(F.ACTIVITY["activityId"])

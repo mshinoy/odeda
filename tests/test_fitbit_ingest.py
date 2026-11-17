@@ -25,9 +25,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from garmin_analytics.ingest import fitbit as F
-from garmin_analytics.ingest import fitbit_sync as FS
-from garmin_analytics.ingest import normalize as norm
+from odeda.ingest import fitbit as F
+from odeda.ingest import fitbit_sync as FS
+from odeda.ingest import normalize as norm
 from test_fitbit_auth import CREDS, FakeTransport, response
 
 
@@ -358,7 +358,7 @@ class TestStatus:
 
 class TestTheCommand:
     def test_the_four_actions_parse(self):
-        from garmin_analytics import cli
+        from odeda import cli
 
         parser = cli.build_parser()
         for action in ("connect", "sync", "status", "disconnect"):
@@ -366,7 +366,7 @@ class TestTheCommand:
             assert args.action == action and callable(args.func)
 
     def test_an_unknown_action_is_refused_rather_than_guessed(self):
-        from garmin_analytics import cli
+        from odeda import cli
 
         with pytest.raises(SystemExit):
             cli.build_parser().parse_args(["fitbit", "backfill-everything"])
@@ -375,13 +375,13 @@ class TestTheCommand:
         """The same rule the Garmin commands follow: the client secret is read from the
         environment at the point of use and is not a flag anyone can leave in a shell
         history or a process list."""
-        from garmin_analytics import cli
+        from odeda import cli
 
         options = cli.build_parser().parse_args(["fitbit", "connect"]).__dict__
         assert "client_secret" not in options and "secret" not in options
 
     def test_a_missing_credential_is_one_line_not_a_traceback(self, capsys, monkeypatch, tmp_path):
-        from garmin_analytics import cli
+        from odeda import cli
 
         for _n in ("GOOGLE_HEALTH_CLIENT_ID", "GOOGLE_HEALTH_CLIENT_SECRET",
                    "FITBIT_CLIENT_ID", "FITBIT_CLIENT_SECRET"):
@@ -401,12 +401,12 @@ class TestTheApi:
     def app_client(self, settings, tmp_path, monkeypatch):
         from fastapi.testclient import TestClient
 
-        from garmin_analytics.api import auth as auth_mod
-        from garmin_analytics.api.server import create_app
+        from odeda.api import auth as auth_mod
+        from odeda.api.server import create_app
 
         monkeypatch.setenv("GA_TOKEN_DIR", str(tmp_path / "tokens"))
         auth_mod._FITBIT_PENDING.clear()
-        from garmin_analytics.config import load_settings
+        from odeda.config import load_settings
 
         with TestClient(create_app(load_settings())) as client:
             yield client

@@ -1,7 +1,7 @@
 # The frontend
 
 A React SPA over the app's own JSON API. `npm run build` writes it to
-`../garmin_analytics/ui/`, which `garmin-analytics serve` serves; the Docker image
+`../odeda/ui/`, which `odeda serve` serves; the Docker image
 builds it in a Node stage and ships it inside the wheel. Nothing is fetched at runtime
 except the basemap.
 
@@ -28,7 +28,7 @@ Three ways to get a backend to point at:
 
 ```bash
 # 1. Synthetic data, no account needed. Fine for tests, not for judging a view.
-garmin-analytics seed --reset && garmin-analytics serve --port 8000
+odeda seed --reset && odeda serve --port 8000
 
 # 2. A copy of the real database, taken from the running container.
 ../scripts/dev-real-data.sh 8818
@@ -41,8 +41,8 @@ docker compose --profile dev up -d --no-deps api-dev ui-dev   # :5173
 The production build, as the container serves it:
 
 ```bash
-npm run build          # writes ../garmin_analytics/ui/
-garmin-analytics serve --port 8000
+npm run build          # writes ../odeda/ui/
+odeda serve --port 8000
 ```
 
 ## Before you push
@@ -84,7 +84,7 @@ Four rules hold this together, and breaking any of them is how the code stops be
 easy to change:
 
 - **Never hand-write an API type.** Add a Pydantic model in
-  `garmin_analytics/api/schemas.py`, run `npm run gen:api`, and commit the regenerated
+  `odeda/api/schemas.py`, run `npm run gen:api`, and commit the regenerated
   `src/api/schema.ts`. It builds the schema from this checkout's code and needs no
   server; pointing it at one is `GA_OPENAPI_URL`, and reads whatever that process runs.
 - **Backend shapes become app shapes in one place**, `src/api/adapters.ts`. A view

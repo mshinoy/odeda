@@ -27,7 +27,7 @@ import stat
 
 import pytest
 
-from garmin_analytics.ingest import fitbit as F
+from odeda.ingest import fitbit as F
 
 
 # ---------------------------------------------------------------------------

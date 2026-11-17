@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.analytics import performance as P
+from odeda.analytics import performance as P
 
 
 class TestRiegel:

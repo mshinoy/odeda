@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from garmin_analytics import cli, diagnostics
-from garmin_analytics.ingest import connect
+from odeda import cli, diagnostics
+from odeda.ingest import connect
 
 
 class TestParser:
@@ -39,7 +39,7 @@ class TestParser:
         args = cli.build_parser().parse_args(["seed"])
         # `--months` defaults to None so the single source of truth stays
         # `synthetic.DEFAULT_MONTHS` rather than being duplicated in the parser.
-        from garmin_analytics.seed.synthetic import DEFAULT_MONTHS
+        from odeda.seed.synthetic import DEFAULT_MONTHS
 
         assert args.months is None and args.reset is False
         assert DEFAULT_MONTHS >= 36, "the seed must cover 3+ years for routes and YoY"

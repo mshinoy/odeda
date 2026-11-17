@@ -6,8 +6,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.analytics import gaps as G
-from garmin_analytics.api.server import create_app
+from odeda.analytics import gaps as G
+from odeda.api.server import create_app
 
 A = (25.3173, 51.4965)
 B = (25.2837, 51.5590)

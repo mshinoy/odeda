@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from garmin_analytics.analytics import load as L
+from odeda.analytics import load as L
 
 
 class TestTrimp:

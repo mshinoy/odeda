@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.api.server import _splits
+from odeda.api.server import _splits
 
 
 def stream(points):

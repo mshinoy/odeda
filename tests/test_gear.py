@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.edits import gear as G
-from garmin_analytics.edits import overrides as ov
+from odeda.edits import gear as G
+from odeda.edits import overrides as ov
 
 
 def _act(store, activity_id, day, activity_type="running", distance_m=10_000.0,

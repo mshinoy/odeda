@@ -9,7 +9,7 @@
 
 staged=$(git diff --cached --name-only)
 
-code=$(printf '%s\n' "$staged" | grep -E '^(frontend/src/|frontend/public/|garmin_analytics/|tests/|scripts/|docker/|Dockerfile|docker-compose\.yml|pyproject\.toml|requirements\.txt|frontend/package(-lock)?\.json)' || true)
+code=$(printf '%s\n' "$staged" | grep -E '^(frontend/src/|frontend/public/|odeda/|tests/|scripts/|docker/|Dockerfile|docker-compose\.yml|pyproject\.toml|requirements\.txt|frontend/package(-lock)?\.json)' || true)
 [ -z "$code" ] && exit 0
 
 if printf '%s\n' "$staged" | grep -qx 'PLAN.md'; then

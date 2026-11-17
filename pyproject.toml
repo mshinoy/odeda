@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "garmin-analytics"
+name = "odeda"
 version = "0.2.0"
 description = "Personal analytics over Garmin Connect data: training load, recovery trends, performance and race readiness."
 # 3.12 is garminconnect's floor; the image was already on 3.12.
@@ -18,15 +18,15 @@ dependencies = [
 ]
 
 [project.scripts]
-garmin-analytics = "garmin_analytics.cli:main"
+odeda = "odeda.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["garmin_analytics*"]
+include = ["odeda*"]
 
 [tool.setuptools.package-data]
 # ui/ is the React build (`npm run build` in frontend/), gitignored; a wheel built
 # without it still installs and serves the API, and says how to build the UI.
-garmin_analytics = ["db/*.sql", "ui/*", "ui/**/*"]
+odeda = ["db/*.sql", "ui/*", "ui/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -8,10 +8,10 @@ the race in your training calendar (`2027-01-15.gpx`). The data directory is `/d
 container, so for the Docker install:
 
 ```bash
-docker cp courses/doha-half-marathon-2027-approx.gpx garmin-analytics:/data/courses/2027-01-15.gpx
+docker cp courses/doha-half-marathon-2027-approx.gpx odeda:/data/courses/2027-01-15.gpx
 ```
 
-(Make the folder first with `docker exec garmin-analytics mkdir -p /data/courses`.)
+(Make the folder first with `docker exec odeda mkdir -p /data/courses`.)
 
 A course belongs to a race and not to the app, so nothing here is read until it is in the
 data directory.

@@ -3,7 +3,7 @@
 How the pieces fit.
 
 ```
-garmin_analytics/          Python package (FastAPI, stdlib sqlite3, no ORM)
+odeda/          Python package (FastAPI, stdlib sqlite3, no ORM)
   ingest/                  Garmin Connect client, backfill, export-ZIP and FIT parsers
   analytics/               load, trends, performance, readiness, routes, aggregates
   edits/                   overrides and gear
@@ -21,7 +21,7 @@ maps, over MapLibre (or Mapbox with a token). Its API types are generated from
 needs a running backend. Numbers become strings only in `frontend/src/lib/format.ts`;
 the API returns values in the units they are stored in.
 
-In production FastAPI serves the build from `garmin_analytics/ui/`: `/assets/*` as
+In production FastAPI serves the build from `odeda/ui/`: `/assets/*` as
 static files, and any other non-`/api` GET as `index.html` so client-side routes such
 as `/login` work. One origin, so the `ga_session` cookie just works and there is no
 CORS.
@@ -47,7 +47,7 @@ sync_status            resumable backfill progress, and the last automatic run
 sessions, app_settings session cookies (hashed) and the app password hash (PBKDF2)
 ```
 
-Full DDL: [`garmin_analytics/db/schema.sql`](../garmin_analytics/db/schema.sql).
+Full DDL: [`odeda/db/schema.sql`](../odeda/db/schema.sql).
 
 
 ## Security notes

@@ -26,7 +26,7 @@ data/
 raw_archive/
 
 # The React build, written by `npm run build` in frontend/ (served by FastAPI)
-garmin_analytics/ui/
+odeda/ui/
 
 # scripts/verify.sh transcript
 verification.out

@@ -11,7 +11,7 @@ from dataclasses import replace
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.api.server import create_app
+from odeda.api.server import create_app
 
 
 @pytest.fixture
@@ -84,7 +84,7 @@ class TestBuiltUi:
 
     def test_api_routes_and_docs_still_win(self, ui_client):
         assert ui_client.get("/api/health").json()["status"] == "ok"
-        assert ui_client.get("/openapi.json").json()["info"]["title"] == "Garmin Analytics"
+        assert ui_client.get("/openapi.json").json()["info"]["title"] == "Odeda"
         assert "swagger" in ui_client.get("/docs").text.lower()
 
     def test_the_fallback_is_not_in_the_openapi_spec(self, ui_client):
@@ -142,7 +142,7 @@ class TestUnbuiltUi:
 class TestGatedUi:
     @pytest.fixture
     def gated(self, settings, fake_ui):
-        from garmin_analytics.db.store import Store
+        from odeda.db.store import Store
 
         Store.open(settings).close()
         app = create_app(replace(settings, app_password="gate-password-ui", ui_dir=fake_ui))

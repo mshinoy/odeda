@@ -16,21 +16,21 @@ from typing import Any, get_args
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics import __version__, config
-from garmin_analytics.analytics import aggregate as agg_mod
-from garmin_analytics.analytics import load as load_mod
-from garmin_analytics.analytics import performance as perf
-from garmin_analytics.analytics import readiness as ready_mod
-from garmin_analytics.analytics import reports as reports_mod
-from garmin_analytics.analytics import trends as trends_mod
-from garmin_analytics.api import auth as auth_mod
-from garmin_analytics.api import schemas
-from garmin_analytics.api import cache as cache_mod
-from garmin_analytics.api.server import create_app
-from garmin_analytics.db.store import Store
-from garmin_analytics.ingest import backfill as backfill_mod
-from garmin_analytics.ingest import connect as connect_mod
-from garmin_analytics.seed import synthetic
+from odeda import __version__, config
+from odeda.analytics import aggregate as agg_mod
+from odeda.analytics import load as load_mod
+from odeda.analytics import performance as perf
+from odeda.analytics import readiness as ready_mod
+from odeda.analytics import reports as reports_mod
+from odeda.analytics import trends as trends_mod
+from odeda.api import auth as auth_mod
+from odeda.api import schemas
+from odeda.api import cache as cache_mod
+from odeda.api.server import create_app
+from odeda.db.store import Store
+from odeda.ingest import backfill as backfill_mod
+from odeda.ingest import connect as connect_mod
+from odeda.seed import synthetic
 from test_api_schemas import _as_json, _strict_equal
 
 #: Preformatted strings dropped from a race projection, and the raw key added so the

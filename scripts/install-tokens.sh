@@ -17,7 +17,7 @@
 set -e
 
 SRC="${1:-/tmp/garmin-tokens}"
-CONTAINER="${GA_CONTAINER:-garmin-analytics}"
+CONTAINER="${GA_CONTAINER:-odeda}"
 TOKEN_FILE=garmin_tokens.json
 
 if [ ! -f "$SRC/$TOKEN_FILE" ]; then
@@ -47,11 +47,11 @@ echo
 # doctor reports presence and file mode only — it never reads a token and never calls
 # Garmin. So this confirms the cache landed, not that Garmin accepts it.
 echo "Token cache as the app sees it:"
-docker exec "$CONTAINER" garmin-analytics doctor 2>&1 | grep -i "garmin auth" || true
+docker exec "$CONTAINER" odeda doctor 2>&1 | grep -i "garmin auth" || true
 
 echo
 echo "That checks the files exist, not that they work. The first real API call is:"
-echo "    docker compose exec app garmin-analytics backfill --detail-limit 50"
+echo "    docker compose exec app odeda backfill --detail-limit 50"
 echo
 echo "Then delete your local copy — those files are credentials:"
 echo "    rm -rf $SRC"

@@ -33,7 +33,7 @@ from zoneinfo import ZoneInfo
 from .. import config
 from . import ics
 
-log = logging.getLogger("garmin_analytics.plan_ics")
+log = logging.getLogger("odeda.plan_ics")
 
 #: How far past race day to keep expanding. A taper week plus the race itself, so the
 #: plan page has somewhere to end rather than stopping mid-week.
@@ -47,7 +47,7 @@ HORIZON_DAYS = 400
 #: in the UI as "you have no plan" rather than "the link is dead".
 CALENDAR_CONTENT_TYPES = ("text/calendar", "application/octet-stream", "text/plain")
 
-USER_AGENT = "garmin-analytics/1.0 (+https://github.com/ ; personal use)"
+USER_AGENT = "odeda/1.0 (+https://github.com/ ; personal use)"
 
 
 class PlanFeedError(RuntimeError):

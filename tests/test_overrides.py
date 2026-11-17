@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.db import fields as fields_mod
-from garmin_analytics.edits import overrides as ov
+from odeda.db import fields as fields_mod
+from odeda.edits import overrides as ov
 
 
 def _activity(store, activity_id="a1", **over):
@@ -72,7 +72,7 @@ class TestRegistry:
 
     def test_activity_type_choices_match_what_ingestion_produces(self):
         """A dropdown offering values the data never contains is worse than useless."""
-        from garmin_analytics.ingest.normalize import TYPE_MAP
+        from odeda.ingest.normalize import TYPE_MAP
 
         produced = set(TYPE_MAP.values())
         offered = set(fields_mod.ACTIVITY_TYPES)
@@ -95,7 +95,7 @@ class TestView:
 
     def test_view_is_rebuilt_when_the_registry_changes(self, store):
         """The fingerprint in PRAGMA user_version is what makes this automatic."""
-        from garmin_analytics.db.store import migrate, schema_fingerprint
+        from odeda.db.store import migrate, schema_fingerprint
 
         assert store.conn.execute("PRAGMA user_version").fetchone()[0] == schema_fingerprint()
         store.conn.execute("PRAGMA user_version = 1")
@@ -105,7 +105,7 @@ class TestView:
 
     def test_migrate_is_a_no_op_when_current(self, store):
         """Opened per request: re-running the DDL every time is both slow and racy."""
-        from garmin_analytics.db.store import migrate
+        from odeda.db.store import migrate
 
         before = store.conn.execute(
             "SELECT COUNT(*) FROM sqlite_master"
@@ -225,8 +225,8 @@ class TestSurvivesSync:
         This is the same write path a sync takes. If an edit can be clobbered, it
         gets clobbered here.
         """
-        from garmin_analytics.edits import gear as gear_mod
-        from garmin_analytics.ingest import connect as connect_mod
+        from odeda.edits import gear as gear_mod
+        from odeda.ingest import connect as connect_mod
 
         st = seeded_store
         aid = st.query(

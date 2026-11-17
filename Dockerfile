@@ -9,8 +9,8 @@
 # ---------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS ui
 
-# Mirrors the repo layout: vite.config.ts writes to ../garmin_analytics/ui, so from
-# /build/frontend the bundle lands in /build/garmin_analytics/ui.
+# Mirrors the repo layout: vite.config.ts writes to ../odeda/ui, so from
+# /build/frontend the bundle lands in /build/odeda/ui.
 WORKDIR /build/frontend
 
 # Lockfile first, so a source change does not invalidate the npm ci layer.
@@ -46,10 +46,10 @@ COPY requirements.txt ./
 RUN pip wheel --wheel-dir /wheels -r requirements.txt
 
 COPY pyproject.toml README.md ./
-COPY garmin_analytics ./garmin_analytics
+COPY odeda ./odeda
 # The built SPA goes inside the package, where package-data puts it into the wheel.
-COPY --from=ui /build/garmin_analytics/ui ./garmin_analytics/ui
-RUN test -f garmin_analytics/ui/index.html \
+COPY --from=ui /build/odeda/ui ./odeda/ui
+RUN test -f odeda/ui/index.html \
  && pip wheel --wheel-dir /wheels --no-deps .
 
 # ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin garmin
 
 COPY --from=builder /wheels /wheels
-RUN pip install --no-index --find-links=/wheels garmin-analytics \
+RUN pip install --no-index --find-links=/wheels odeda \
  && rm -rf /wheels
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

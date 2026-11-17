@@ -10,7 +10,7 @@ wrong place entirely.
 Building the app in-process removes the question. There is no port, no server to
 forget to restart, and no way for the document to describe code that is not this one.
 
-    python -m garmin_analytics.api.openapi > openapi.json
+    python -m odeda.api.openapi > openapi.json
 """
 
 from __future__ import annotations

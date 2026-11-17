@@ -12,7 +12,7 @@ import math
 
 import pytest
 
-from garmin_analytics.analytics import routes as R
+from odeda.analytics import routes as R
 
 # One degree of latitude is ~111 320 m. Small helper so the fixtures below can be
 # written in metres and read as geometry rather than as coordinates.
@@ -375,7 +375,7 @@ class TestPayloads:
         assert len(heat["points"][0]) == 3
 
     def test_heatmap_respects_exclude_from_stats(self, store):
-        from garmin_analytics.edits import overrides as ov
+        from odeda.edits import overrides as ov
 
         _store_track(store, "a", _line(25.0, 51.0, 60))
         before = R.heatmap(store, precision=4)["cells"]
@@ -395,7 +395,7 @@ class TestPayloads:
         assert stats["best_time_s"] < stats["worst_time_s"]
 
     def test_excluded_attempts_do_not_set_the_record(self, store):
-        from garmin_analytics.edits import overrides as ov
+        from odeda.edits import overrides as ov
 
         _store_track(store, "normal", _line(25.0, 51.0, 200, jitter_m=3, seed=1),
                      day="2026-01-01", speed=3.0)
@@ -730,7 +730,7 @@ class TestTheListCarriesTheShape:
     def test_it_is_simplified_rather_than_every_point(self, clustered, store):
         """A 240px thumbnail cannot show a full track, and the whole list is one
         response: 53 untrimmed routes would be the largest payload the app sends."""
-        from garmin_analytics.api.preview import MAX_POINTS
+        from odeda.api.preview import MAX_POINTS
 
         row = R.list_routes(store)[0]
         assert len(_decode_polyline(row["polyline"])) <= MAX_POINTS

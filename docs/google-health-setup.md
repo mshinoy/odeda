@@ -93,13 +93,13 @@ in that URL is single-use and expires in ten minutes, so do it promptly.
 From a terminal instead:
 
 ```bash
-docker compose exec -it app garmin-analytics fitbit connect
+docker compose exec -it app odeda fitbit connect
 ```
 
 ### 4. First backfill
 
 ```bash
-docker compose exec app garmin-analytics fitbit sync
+docker compose exec app odeda fitbit sync
 ```
 
 Two cursor-paged fetches — one for `weight`, one for `body-fat` — filtered from 2009 to
@@ -127,7 +127,7 @@ It needs no OAuth client, no scope, no test-user allowlist and no rate limit:
    **Fitbit** → export. Takes hours to days.
 2. Put the ZIP where the container can read it, e.g. into the `garmin-data` volume at
    `/data`.
-3. `docker compose exec app garmin-analytics import-fitbit /data/takeout-fitbit.zip`, or
+3. `docker compose exec app odeda import-fitbit /data/takeout-fitbit.zip`, or
    paste the path into "Import a Fitbit export instead" in Settings.
 
 It is also the **fastest** way to load a decade of history. If you have years of Aria
@@ -208,8 +208,8 @@ instead is run speed and bodyweight both indexed to the start of the window. W/k
 ## If something breaks
 
 ```bash
-docker compose exec app garmin-analytics fitbit status   # no network call
-docker compose exec app garmin-analytics doctor
+docker compose exec app odeda fitbit status   # no network call
+docker compose exec app odeda doctor
 ```
 
 Neither prints a credential. Nothing in this branch writes a client ID, a client secret,
