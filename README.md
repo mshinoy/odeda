@@ -7,9 +7,12 @@ have (the calendar from your club or your coach), judges every session against i
 plainly where you stand for your race: on plan, behind, and what the finish looks like. It does
 not write plans or coach you. It reads your numbers and tells you what they say.
 
-*Odeda* is Malayalam for "run, da!", the friendly shove you give someone after they have
-looked at their numbers: you are not doing enough, keep going. The numbers are plain and
-honest; the name is the shove. It works for riders and swimmers too.
+> **Odeda** (ഓടെടാ, say "OH-deh-dah") is Malayalam for **"run, da!"**
+>
+> *Oodu* is run, and *da* is the little word a Malayali drops on a friend: hey you, mate.
+> Put together it is what you say to someone who has just looked at their numbers and is
+> not doing enough: go on, keep going. The numbers here are plain and honest; the name is
+> the shove. It works for riders and swimmers too.
 
 **What makes it different**
 
