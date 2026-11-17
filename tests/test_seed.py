@@ -242,3 +242,60 @@ class TestPhysiologicalPlausibility:
             nominal = {"parkrun 5 k": 5000.0, "10 k race": 10000.0,
                        "Half marathon": 21097.5}[row["activity_name"]]
             assert row["distance_m"] >= nominal
+
+
+class TestGymAndRecentRides:
+    """Strength sessions carry exercises, and the last weeks have outdoor rides on a route,
+    so a fresh demo shows both without a real account."""
+
+    def test_a_strength_payload_is_the_shape_garmin_sends(self):
+        p = S.gym_payload("seed-000123", date(2026, 11, 12))
+        entries = p["summarizedExerciseSets"]
+        assert [e["category"] for e in entries] in (
+            ["SQUAT", "DEADLIFT", "LUNGE", "CALF_RAISE", "CRUNCH"],
+            ["BENCH_PRESS", "ROW", "SHOULDER_PRESS", "PULL_UP", "CURL"],
+        )
+        # Totals are sums of the entries, not separate guesses.
+        assert p["totalSets"] == sum(e["sets"] for e in entries) == p["activeSets"]
+        assert p["totalReps"] == sum(e["reps"] for e in entries)
+        for e in entries:
+            # Garmin counts weight in grams; volume is weight times reps.
+            assert e["volume"] == pytest.approx(e["maxWeight"] * e["reps"])
+            assert e["maxWeight"] % 2500 == 0  # 2.5 kg plates
+
+    def test_it_is_deterministic_and_does_not_touch_the_main_random_stream(self):
+        a = S.gym_payload("seed-000123", date(2026, 11, 12))
+        assert a == S.gym_payload("seed-000123", date(2026, 11, 12))
+        assert a != S.gym_payload("seed-000124", date(2026, 11, 12))
+
+    def test_the_days_alternate_between_legs_and_upper_body(self):
+        first = S.gym_payload("a", date(2026, 11, 10))["summarizedExerciseSets"][0]["category"]
+        later = S.gym_payload("a", date(2026, 11, 17))["summarizedExerciseSets"][0]["category"]
+        assert {first, later} == {"SQUAT", "BENCH_PRESS"}
+
+    def test_seeded_strength_sessions_show_exercises_through_the_api_layer(self, store):
+        from odeda.api import gym
+
+        S.seed_database(store, end=date(2026, 9, 22), months=6, reset=True)
+        ids = [r["activity_id"] for r in store.query(
+            "SELECT activity_id FROM activities WHERE activity_type='strength_training'")]
+        assert ids, "six months of seed should hold at least one strength session"
+        for aid in ids:
+            body = gym.activity_exercises(store, aid)
+            assert len(body["exercises"]) == 5 and body["total_sets"] >= 10
+
+    def test_the_recent_forced_sunday_is_an_outdoor_ride_and_none_are_indoor(self, store):
+        end = date(2026, 11, 17)
+        S.seed_database(store, end=end, months=3, reset=True)
+        # One week before the end's week: 8 Nov, a Sunday outside any illness or travel block.
+        # (25 Oct, three weeks back, sits in a travel block in this seed, so it holds nothing.)
+        ride = store.query(
+            "SELECT activity_type, distance_m FROM activities WHERE day = '2026-11-08' "
+            "AND activity_type IN ('cycling','indoor_cycling')")
+        assert len(ride) == 1
+        # Outdoors, and 90 minutes at the seed's pace is a proper ride, not a spin.
+        assert ride[0]["activity_type"] == "cycling" and ride[0]["distance_m"] > 25_000
+        recent = store.query(
+            "SELECT day, activity_type FROM activities WHERE day >= ? "
+            "AND activity_type = 'indoor_cycling'", ((end - timedelta(days=35)).isoformat(),))
+        assert [r for r in recent if date.fromisoformat(r["day"]).weekday() == 6] == []
