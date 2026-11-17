@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 6 / 7 |
+| 27 Ready to publish: the README and docs | AA: `open` | 7 / 8 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -285,6 +285,7 @@ ideas are in `FUTURE.md` section 15.
 | T118 | Scrub personal detail from the tree (`FUTURE.md` publishing step 2): the real Garmin activity IDs (12, replaced by fake ones in the same order) and the neighbourhood and venue names tied to the owner\'s own routes, in the history documents and in test fixtures. Left in place on purpose: the club and race names in the calendar fixtures, the synthetic seed landmarks, and the default heart rates. The real GPS coordinates in seven test files are not done | done (2026-11-17) | T117 |
 | T119 | A bug-report issue template (`FUTURE.md` publishing step 9): asks for what happened, the output of `doctor`, and how Garmin was signed in to. Blank issues stay on, so questions and ideas still work. CI (step 8) is deferred until the repository is public and takes pull requests | done (2026-11-17) | T118 |
 | T120 | Rename the project to **Odeda** (Malayalam, \"run, da!\"; `FUTURE.md` section 13): the Python package (`garmin_analytics` to `odeda`), the command (`odeda`), the image and container names, the UI title, the licence holder, the README and docs. **Kept on purpose** so installs keep working: the Docker volume name `garmin-analytics-data`, the `GA_` settings prefix, the `ga_session` cookie, the `~/.garminconnect` folder, and the old `~/.local/share/garmin-analytics` folder when it already holds data. History documents and old changelog entries keep the old name. The GitHub repository is renamed to `odeda` too | done (2026-11-17; on dev and prod, repository renamed) | T119 |
+| T121 | Sharpen the README opening around the settled positioning: analytics for athletes who follow a plan, judged against the plan they already have; not a coach. Adds what the name means and three differences (the plan, the routes, owning the data) | done (2026-11-17) | T120 |
 
 ### Open decisions
 
