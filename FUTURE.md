@@ -302,7 +302,7 @@ for one view; the same idea for a plain image or page covers the rest.
 
 ### 11. More sources: Strava and others
 
-*Compared with Endurain on 2026-11-17: it syncs Strava as well as Garmin Connect, so this is the main source gap.*
+*Compared with a popular self-hosted project on 2026-11-17: it syncs Strava as well as Garmin Connect, so this is the main source gap.*
 
 **Why.** Many runners are not on Garmin only, and Strava is where activities are shared. The
 Fitbit work shows the data layer can take a second source (`fitbit.py`, `fitbit_sync.py`,
@@ -320,8 +320,8 @@ GPX/FIT upload. The same activity from two sources must merge, not double.
 
 *Not before. A milestone, not a date.*
 
-*Checked 2026-11-17: Endurain, the best-known self-hosted Garmin project (about 2 400 stars, 52
-contributors, 30 releases in ten months), still syncs through the unofficial `python-garminconnect`
+*Checked 2026-11-17: the best-known self-hosted Garmin project (about 2 400 stars, 52
+contributors, 30 releases in ten months) still syncs through the unofficial `python-garminconnect`
 library according to its docs. They do not say whether they ever applied for the official API. So
 stars alone may not be the unlock assumed here, and the official route may suit a hosted service
 more than a self-hosted app. Treat 500 stars as a reason to ask, not a promise of an answer.*
@@ -404,7 +404,7 @@ person's feedback.
 
 ## 16. Miles as well as kilometres
 
-*Raised 2026-11-17, from comparing with Endurain (which has an imperial and metric switch). Checked
+*Raised 2026-11-17, from comparing with a popular self-hosted project (which has an imperial and metric switch). Checked
 against the code the same day: the app is kilometres only, there is no unit setting.*
 
 **Why.** Most Garmin owners in the US and the UK think in miles, and "min/mile" and feet of climb are
@@ -432,7 +432,7 @@ It is a moderate change, and it should be planned as one task per layer, not one
 
 ## 17. Gear components
 
-*Raised 2026-11-17, from Endurain's "gear component tracking".*
+*Raised 2026-11-17, from a comparable project's "gear component tracking".*
 
 **Why.** Shoes retire on distance, which the Gear page already does. A bike has parts that wear out
 on their own schedules: the chain, the tyres, the brake pads. "Chain at 2 800 km, replace at 3 000"
@@ -449,7 +449,7 @@ warning reuses the shoes' warning state.
 
 ## 18. Other languages
 
-*Raised 2026-11-17, from Endurain's multi-language support.*
+*Raised 2026-11-17, from a comparable project's multi-language support.*
 
 **Why.** Reach, once the project has users outside English-speaking countries. Not before: text is
 written inline in the components, there is no translation layer, and adding one touches everything.
@@ -474,9 +474,9 @@ wants two people, they run two containers.
 
 ---
 
-## 20. What made Endurain popular, and what we take from it
+## 20. What made a comparable project popular, and what we take from it
 
-*Read from its docs site and GitHub on 2026-11-17. Their numbers: created October 2023, about 2 400
+*Read from the project's docs site and GitHub on 2026-11-17. Its numbers: created October 2023, about 2 400
 stars, 154 forks, 52 contributors, 30 releases in ten months, a monthly release target, a blog.*
 
 **What worked for them.**
@@ -512,7 +512,7 @@ stars, 154 forks, 52 contributors, 30 releases in ten months, a monthly release 
    login, an empty database, a wrong time zone, a port already in use. The `doctor` command is the
    core of it. There is a start in `docs/connecting-garmin.md`.
 
-**What we do not copy:** the breadth. Endurain is a product for groups; this is a sharp tool for
+**What we do not copy:** the breadth. That project is a product for groups; this is a sharp tool for
 one runner (see 19). Competing on features with a project that has 52 contributors is the wrong
 fight.
 
