@@ -302,6 +302,8 @@ for one view; the same idea for a plain image or page covers the rest.
 
 ### 11. More sources: Strava and others
 
+*Compared with Endurain on 2026-11-17: it syncs Strava as well as Garmin Connect, so this is the main source gap.*
+
 **Why.** Many runners are not on Garmin only, and Strava is where activities are shared. The
 Fitbit work shows the data layer can take a second source (`fitbit.py`, `fitbit_sync.py`,
 `body_composition`).
@@ -391,6 +393,78 @@ training calendar each need steps outside the app.
 
 **Trigger.** Do 1 and 2 before the repository goes public. Ideas 3 to 5 follow the first outside
 person's feedback.
+
+---
+
+## 16. Miles as well as kilometres
+
+*Raised 2026-11-17, from comparing with Endurain (which has an imperial and metric switch). Checked
+against the code the same day: the app is kilometres only, there is no unit setting.*
+
+**Why.** Most Garmin owners in the US and the UK think in miles, and "min/mile" and feet of climb are
+what they would look for in the first minute. A stranger who sees kilometres only may close the tab.
+Of everything on that comparison, this is the one most likely to cost real adoption.
+
+**What it would take.**
+1. **A units setting** (metric or imperial) beside the Basics card in Settings, stored like the other
+   basics. Storage stays in metres and seconds; only the display changes.
+2. **The display layer.** `frontend/src/lib/format.ts` is the one place numbers become strings
+   (`formatDistance`, `formatPace`, `formatSpeed`, `formatElevation`, and `formatTemperature` for
+   Fahrenheit), but about 67 frontend files use distance or pace formatting, and some pass literals
+   such as `"km"` or `km/h`. Chart axes and tooltips are the part most likely to be missed.
+3. **The backend's own wording.** Some text is built on the server (plan targets, pacing and
+   forecast lines, the "weekly km" series). Those either take the unit as a parameter or are
+   returned as numbers for the page to word.
+4. **Training calendars written in miles.** The calendar parser reads "target 18 km" today. A plan
+   written in miles needs "7 mi" understood, or the numbers the plan steers by would be wrong.
+5. **Tests.** A pace of 5:00 per km is 8:03 per mile; assert against values worked out by hand.
+
+**Build when:** before the public launch if the first audience is outside the owner's own region.
+It is a moderate change, and it should be planned as one task per layer, not one big one.
+
+---
+
+## 17. Gear components
+
+*Raised 2026-11-17, from Endurain's "gear component tracking".*
+
+**Why.** Shoes retire on distance, which the Gear page already does. A bike has parts that wear out
+on their own schedules: the chain, the tyres, the brake pads. "Chain at 2 800 km, replace at 3 000"
+is the same idea one level down and is cheap on top of what exists.
+
+**Shape.** A component belongs to one gear item, with a name, a fitted date, a distance already
+done and a replace-at distance. Its mileage is the gear's mileage since it was fitted, so replacing
+a chain is "retire this one, add a new one" and the old one keeps its history. The retirement
+warning reuses the shoes' warning state.
+
+**Build when:** someone asks, or when the Gear page is next opened for another reason. Small.
+
+---
+
+## 18. Other languages
+
+*Raised 2026-11-17, from Endurain's multi-language support.*
+
+**Why.** Reach, once the project has users outside English-speaking countries. Not before: text is
+written inline in the components, there is no translation layer, and adding one touches everything.
+
+**Shape.** Move the visible strings behind a message catalogue, English first, with the question each
+card asks as part of the catalogue. Dates and numbers already follow the browser locale where
+`format.ts` is used.
+
+**Build when:** a contributor offers a second language, or a clear group of users asks. Not planned.
+
+---
+
+## 19. Deliberately not built
+
+*Recorded 2026-11-17 so the question is not reopened each time a similar project is compared.*
+
+Multiple users, followers and activity feeds, privacy levels, sign-up with email verification,
+password reset by email, single sign-on (OIDC and SAML), and one-time-code logins. All of it serves
+a service with many people on one server. This app is one person's data in one container with one
+password, and that is why it starts in a minute; each of these would cost that. If a household
+wants two people, they run two containers.
 
 ---
 
