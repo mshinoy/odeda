@@ -3,7 +3,7 @@
 //
 //   node scripts/measure.mjs <baseUrl> <path> [--hover=<css selector>] [--wait=9000]
 //                            [--frames=60] [--width=1280] [--height=1300]
-//   e.g. node scripts/measure.mjs http://localhost:5173 /activities/21048126834 \
+//   e.g. node scripts/measure.mjs http://localhost:5173 /activities/90000000004 \
 //          --hover='canvas'
 //
 // --hover moves the pointer back and forth across the element and reports the frame

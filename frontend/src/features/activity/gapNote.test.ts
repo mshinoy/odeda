@@ -12,7 +12,7 @@ const withEstimate: ActivityGap = {
     ],
     lengthM: 8883,
     avgSpeedMps: 5.2,
-    source: { activityId: "24831215575", day: "2026-10-24", name: "Doha Cycling" },
+    source: { activityId: "90000000012", day: "2026-10-24", name: "Doha Cycling" },
   },
 };
 

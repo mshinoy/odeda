@@ -9,7 +9,7 @@ import {
 
 describe("compareHref and parseCompareIds", () => {
   it("round-trips a selection in the order it was picked", () => {
-    const ids = ["24473027876", "24458669412"];
+    const ids = ["90000000011", "90000000010"];
     expect(parseCompareIds(new URL(`http://x${compareHref(ids)}`).searchParams.get("ids"))).toEqual(
       ids,
     );

@@ -526,7 +526,7 @@ off; the tests do.
 ### D52 — routes are ground, not distance; loops are timed by the lap (2026-10-08)
 Routes were matched on total distance (within 25%) and a symmetric path overlap, with
 the first run's whole track as the shape. The owner runs short loops several times a
-session (Bin Omran, ~1.6 km, 2–5 times), so the same loop became six routes, one per
+session (a ~1.6 km loop, 2–5 times), so the same loop became six routes, one per
 lap count, and the times on them compared sessions of different lengths.
 
 Now a run matches a route when both of these are at least 75%: the share of the

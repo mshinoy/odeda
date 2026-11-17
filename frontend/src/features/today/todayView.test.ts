@@ -113,7 +113,7 @@ describe("headline", () => {
     optional: false,
   } as const;
   const done = { ...todo, verdict: "done" } as const;
-  const next = { weekday: "Tue", title: "Katara Hills run" };
+  const next = { weekday: "Tue", title: "Hills run" };
 
   it("leads with the session still to do", () => {
     expect(headline([done, todo], next)).toEqual({ label: "Today", title: "Easy run 5.6 km" });
@@ -124,7 +124,7 @@ describe("headline", () => {
   it("calls a day with nothing a rest day and points at the next session", () => {
     expect(headline([], next)).toEqual({
       label: "Rest day · next, Tue",
-      title: "Katara Hills run",
+      title: "Hills run",
     });
     expect(headline([], null).title).toBe("Rest day");
   });

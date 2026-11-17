@@ -13,7 +13,7 @@ function best(overrides: Partial<PersonalBest> = {}): PersonalBest {
     label: "10 k",
     seconds: 4918.5,
     day: "2025-03-17",
-    activity_id: "18560798416",
+    activity_id: "90000000003",
     ...overrides,
   };
 }
@@ -25,7 +25,7 @@ describe("toPersonalBestRows", () => {
     expect(row?.time).toBe("1:21:59");
     expect(row?.pace).toBe("8:12 /km");
     expect(row?.when).toBe("Mar 17, 2025");
-    expect(row?.href).toBe("/activities/18560798416");
+    expect(row?.href).toBe("/activities/90000000003");
   });
 
   it("paces a non-round distance by its real length", () => {
@@ -39,10 +39,10 @@ describe("toPersonalBestRows", () => {
   });
 
   it("puts the last 90 days beside the all-time best, matched by distance", () => {
-    const recent = best({ seconds: 5400, day: "2026-09-06", activity_id: "24264030099" });
+    const recent = best({ seconds: 5400, day: "2026-09-06", activity_id: "90000000005" });
     const [row] = toPersonalBestRows([best()], [recent], TODAY);
     expect(row?.recent).toBe("1:30:00 · Sep 6");
-    expect(row?.recentHref).toBe("/activities/24264030099");
+    expect(row?.recentHref).toBe("/activities/90000000005");
   });
 
   it("leaves the 90-day pair empty for a distance not covered since", () => {
