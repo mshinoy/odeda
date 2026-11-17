@@ -320,6 +320,12 @@ GPX/FIT upload. The same activity from two sources must merge, not double.
 
 *Not before. A milestone, not a date.*
 
+*Checked 2026-11-17: Endurain, the best-known self-hosted Garmin project (about 2 400 stars, 52
+contributors, 30 releases in ten months), still syncs through the unofficial `python-garminconnect`
+library according to its docs. They do not say whether they ever applied for the official API. So
+stars alone may not be the unlock assumed here, and the official route may suit a hosted service
+more than a self-hosted app. Treat 500 stars as a reason to ask, not a promise of an answer.*
+
 **Why wait.** Garmin's Connect Developer Program (the Health and Activity APIs) is free but
 gated: you apply and they review the product and use case, and they have favoured businesses
 over hobby projects. A project with 500 stars and real users is a far better application than
@@ -465,6 +471,50 @@ password reset by email, single sign-on (OIDC and SAML), and one-time-code login
 a service with many people on one server. This app is one person's data in one container with one
 password, and that is why it starts in a minute; each of these would cost that. If a household
 wants two people, they run two containers.
+
+---
+
+## 20. What made Endurain popular, and what we take from it
+
+*Read from its docs site and GitHub on 2026-11-17. Their numbers: created October 2023, about 2 400
+stars, 154 forks, 52 contributors, 30 releases in ten months, a monthly release target, a blog.*
+
+**What worked for them.**
+- **A one-sentence pitch** everyone already understands: "similar to Strava but focused on privacy".
+- **Breadth:** Garmin and Strava sync, a feed, goals, gear, a mobile app, about eleven languages,
+  several users on one server.
+- **Visible momentum:** frequent tagged releases, a blog announcing each, Discord, Mastodon,
+  Bluesky and a newsletter, translations contributed through a translation site.
+- **A live demo** that resets daily, so a stranger sees it working before installing anything.
+- **Docs that are easy to navigate** (search, sections, a real troubleshooting page that explains
+  where to look in the logs), and a sharing page that says plainly "private by default".
+
+**Where they are weak, which is our opening.**
+- **Setup is heavy:** a domain name, ports 80 and 443, a reverse proxy, Postgres, four generated
+  secrets and an `admin/admin` first login. Ours is one container and one password, and the
+  password, time zone and heart rate can be set in the app. Say so in the README.
+- **Garmin credentials** reach their server unencrypted unless HTTPS is set up, which the docs
+  only "highly recommend". Ours are used once for a token and never stored.
+- **Docs are dense and English only,** with few screenshots.
+
+**What we take.**
+1. **A sharper pitch.** Theirs is "Strava, but yours". Ours should be as short and as concrete:
+   Garmin shows what happened; this says whether you are on plan for your race, and where on your
+   own routes you gain and lose. (Positioning notes were discussed 2026-11-17: serve runners
+   following a training plan toward a race, which nobody on the comparison does.)
+2. **Something to try before installing.** A hosted demo on synthetic data is the best answer and
+   needs a small always-on server; until then, good screenshots and a short screen recording (T115).
+3. **Visible cadence.** Keep tagging releases with a changelog entry, and say in the README that
+   the project is active. A short "what is new" block under the title costs nothing.
+4. **Somewhere to talk.** GitHub Discussions (a switch in the repository settings) is the cheap
+   version of their Discord, and keeps questions out of the bug tracker.
+5. **A troubleshooting page** for the failures that will actually happen: Garmin refusing the
+   login, an empty database, a wrong time zone, a port already in use. The `doctor` command is the
+   core of it. There is a start in `docs/connecting-garmin.md`.
+
+**What we do not copy:** the breadth. Endurain is a product for groups; this is a sharp tool for
+one runner (see 19). Competing on features with a project that has 52 contributors is the wrong
+fight.
 
 ---
 
