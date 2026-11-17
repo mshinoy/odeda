@@ -82,7 +82,7 @@ Fitbit Web API. Create a **Web application** OAuth client in Google Cloud, enabl
 Google Health API on it, put the client ID and secret in the environment as
 `GOOGLE_HEALTH_CLIENT_ID` and `GOOGLE_HEALTH_CLIENT_SECRET`, and connect it from
 Settings or with `garmin-analytics fitbit connect`. See
-[HANDOVER-FITBIT.md](../HANDOVER-FITBIT.md) for the console steps, including the test-user
+[docs/google-health-setup.md](google-health-setup.md) for the console steps, including the test-user
 allowlist that consent fails without. There is also an offline route that needs no app
 at all: `garmin-analytics import-fitbit <takeout.zip>` reads a Fitbit export from Google
 Takeout. Either way the weigh-ins land in `body_composition` and turn into the

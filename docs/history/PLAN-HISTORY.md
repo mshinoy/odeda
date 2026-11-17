@@ -1,7 +1,7 @@
 # Build plan: the MVP, as built
 
 > **Closed on 2026-11-09.** Everything in this file is the MVP: phases 0 to 15, all approved.
-> What comes next is tracked in [`PLAN.md`](PLAN.md). This file stays as the record, and
+> What comes next is tracked in [`PLAN.md`](../../PLAN.md). This file stays as the record, and
 > its **Rules** and **How to work on a task** sections still apply to new work.
 
 Started as the frontend rebuild (Phases 0–4) and kept going: Phase 5 added a second data
@@ -656,7 +656,7 @@ Fitbit, so `body_composition` had a schema, a join into `v_daily`, and zero rows
 | `56b7d27` | Trends: bodyweight against the training that moved it |
 | `3aeef52` | Settings: connect the scale, or import it from a ZIP |
 
-**Read `HANDOVER-FITBIT.md` first.** It is the five minutes of clicking at
+**Read `docs/google-health-setup.md` first.** It is the five minutes of clicking at
 dev.fitbit.com, two lines in `.env`, and one command — plus the honest list of what has
 never met Fitbit's servers.
 
@@ -1897,7 +1897,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     injected transport over payloads written from Fitbit's own documentation: the
     exchange, the rotation, the surprise 401, the 429, and both error envelopes. What
     is proven is that given those payloads this code is right; what is unproven is that
-    Fitbit sends them. See `HANDOVER-FITBIT.md`.
+    Fitbit sends them. See `docs/google-health-setup.md`.
   - **The refresh path is not an annual event here.** A PKCE access token lasts eight
     hours and Fitbit rejects any other `expires_in`, so almost every sync refreshes. And
     Fitbit *rotates* the refresh token — the old one dies the moment a new one is

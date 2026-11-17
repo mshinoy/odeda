@@ -101,6 +101,8 @@ The full list: [honest limits](docs/honest-limits.md).
 | [Configuration](docs/configuration.md) | Settings, the command line, backups, running without Docker |
 | [Architecture](docs/architecture.md) | The pieces, the data model, security notes |
 | [Honest limits](docs/honest-limits.md) | What it cannot do and what can go wrong |
+| [Google Health setup](docs/google-health-setup.md) | Connecting a Fitbit-linked scale step by step |
+| [History](docs/history/) | How it was planned and built, and every decision on the way |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, tests, how work is planned |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 

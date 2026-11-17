@@ -38,7 +38,7 @@ from . import geo
 DEFAULT_MONTHS = 40
 
 SEED = 20260922
-SAMPLE_INTERVAL_S = 10  # see DECISIONS.md D14
+SAMPLE_INTERVAL_S = 10  # see docs/history/DECISIONS.md D14
 SEED_MARKER_ENDPOINT = "seed:synthetic"
 
 # Share of sessions that happen indoors and therefore produce **no GPS at all**.

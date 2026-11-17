@@ -18,7 +18,7 @@ answers anything script-shaped with 429/503, which is what got garth deprecated
 profile went stale and the 503 came back. `garminconnect` carries a cascading chain of
 five login strategies (iOS mobile over curl_cffi, mobile over requests, the sign-in
 widget, and two portal flows) and falls through to the next one on a rate-limit or a bot
-challenge, so a single edge change no longer takes the login down. See DECISIONS.md D3.
+challenge, so a single edge change no longer takes the login down. See docs/history/DECISIONS.md D3.
 
 Credentials are never stored by this module. The library writes a token cache to the
 token directory; this module chmods it to 0700/0600 and never logs its contents.

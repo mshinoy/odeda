@@ -154,10 +154,10 @@ None of this is built. Do it in this order; a new branch from main for each step
    coordinates, email addresses. If anything real turns up, rewrite the history or start the
    public repo from a clean squash, and rotate the secret regardless.
 2. **Scrub personal data from the tree.** Real routes, coordinates, race names or dates in
-   fixtures, docs, `PLAN-HISTORY.md`, `DECISIONS.md`, `HANDOVER-FITBIT.md`, `REVIEW-2.md`.
+   fixtures, docs, `docs/history/PLAN-HISTORY.md`, `docs/history/DECISIONS.md`, `docs/google-health-setup.md`, `docs/history/REVIEW-2.md`.
    Test fixtures must be synthetic (`seed` already makes synthetic data).
-3. **Tidy the repo root.** Move `PLAN-HISTORY.md` (214 KB), `DECISIONS.md`, `REVIEW-2.md`,
-   `HANDOVER-FITBIT.md`, `SPEC.md` into `docs/`. Keep README, LICENSE, CONTRIBUTING,
+3. **Tidy the repo root.** Move `docs/history/PLAN-HISTORY.md` (214 KB), `docs/history/DECISIONS.md`, `docs/history/REVIEW-2.md`,
+   `docs/google-health-setup.md`, `docs/history/SPEC.md` into `docs/`. Keep README, LICENSE, CONTRIBUTING,
    CHANGELOG, FUTURE and PLAN at the root. Fix the links in README.
 4. **Licence.** MIT is in place ("Garmin Analytics contributors"). Confirm it is what we want;
    AGPL is the alternative if we want a hosted fork to share its changes. Check that every

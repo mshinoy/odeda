@@ -459,7 +459,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # -- Fitbit connection (the scale) ---------------------------------------
     #
     # Google Health is the second data source and the only one that knows what the
-    # owner weighs. See HANDOVER-FITBIT.md for what is proven and what is not.
+    # owner weighs. See docs/google-health-setup.md for what is proven and what is not.
 
     @app.get("/api/fitbit/status", response_model=FitbitStatus)
     def fitbit_status() -> dict[str, Any]:

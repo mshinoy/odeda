@@ -27,7 +27,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## 0.1.0: the MVP (2026-11-09)
 
-Everything built up to this point, recorded in [`PLAN-HISTORY.md`](PLAN-HISTORY.md).
+Everything built up to this point, recorded in [`docs/history/PLAN-HISTORY.md`](docs/history/PLAN-HISTORY.md).
 
 - **Sync:** Garmin Connect, the Google Health scale (or a Fitbit export) and a training
   calendar, every six hours, resumable and raw-first. Your edits survive every sync.
