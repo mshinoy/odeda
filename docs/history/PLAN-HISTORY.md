@@ -207,8 +207,8 @@ and the map library only starts downloading once the heatmap has arrived.
 
 70 routes for 265 GPS activities (2026-10-08): two laps of a loop can never join one,
 because routes are matched on total distance within 25%, and a route's shape is
-whichever run created it. The owner's loops (Bin Omran, ~1.6 km; another at
-25.345, 51.522, ~1.4 km) are run 2–9 times a session; the QSC out-and-backs turn at
+whichever run created it. The owner's loops (one of ~1.6 km; another of
+~1.4 km) are run 2–9 times a session; the out-and-backs turn at
 different points.
 
 | ID | Task | Status | Depends on | Commit |
@@ -382,11 +382,11 @@ built and checked on.
 
 - `/status` — readiness, load, the race, and the two gym cards at the bottom.
 - `/activities` — sort a column, change the dates, search, then press Back.
-- `/activities/24458669412` — a run (Sep 22). Splits, HR zones and best efforts are
+- `/activities/90000000010` — a run (Sep 22). Splits, HR zones and best efforts are
   collapsed under the charts. "Edit" opens the dialog; change the title, save, and it
   changes in the list too; the pencil mark and "↺" revert it.
-- `/activities/24473027876` — a ride (Sep 23). Its charts and stat card now read km/h.
-- `/activities/24358923702` — a gym session (Sep 14): the body diagram, and the
+- `/activities/90000000011` — a ride (Sep 23). Its charts and stat card now read km/h.
+- `/activities/90000000008` — a gym session (Sep 14): the body diagram, and the
   "Unlabelled" row that can be relabelled from its own select.
 
 Screenshots of all of these, light and dark, are in `~/garmin-review/A/`.
@@ -428,15 +428,15 @@ races plus compare.
   attempts: the map is coloured by where you are consistently fast or slow on it
   (hover a stretch), and every attempt is under it with its gap behind your best.
   "Rename", "Merge" and "Split" are on that page.
-- `/activities/24458669412` — a run (Sep 22). New: a play button under the map. The
+- `/activities/90000000010` — a run (Sep 22). New: a play button under the map. The
   trail, the clock and both charts' crosshairs move together. The route name in the
   header now opens `/routes/53`.
 - `/activities` — rows have a tick box. Tick 2–5 and press Compare. "Races" filters
   to races and clears the dates when you switch it on.
-- `/activities/13984719031` — the Ooredoo Marathon 10K, the one activity Garmin
+- `/activities/90000000002` — the Ooredoo Marathon 10K, the one activity Garmin
   tagged as a race. "Race" is now a toggle in the Edit dialog, so you can mark the
   rest; mark a second 10 km and a "Compare races" button appears on this page.
-- `/compare?ids=24375228851,24288179680,24275617434,24264030099` — four attempts at
+- `/compare?ids=90000000009,90000000007,90000000006,90000000005` — four attempts at
   the 5.0 km loop overlaid, with pace and HR on a shared distance axis.
 
 Screenshots of all of these, light and dark, are in `~/garmin-review/B/`.
@@ -496,8 +496,8 @@ Every remaining endpoint on these two views is now typed: `/api/trends`, `/api/d
   8:25 → 8:54 /km. This is the view worth judging the page on.
 - `/trends?start=2027-01-01` — a filter that matches nothing, which offers to clear
   itself.
-- `/activities/24473027876` — the Sep 23 ride, which is the "Fastest average pace"
-  record; `/activities/24458669412` is the Sep 22 run.
+- `/activities/90000000011` — the Sep 23 ride, which is the "Fastest average pace"
+  record; `/activities/90000000010` is the Sep 22 run.
 
 Screenshots of all of these, light and dark, are in `~/garmin-review/C/`.
 
@@ -662,7 +662,7 @@ never met Fitbit's servers.
 
 **Read this one first: your calendar is not a training calendar.** The first sync of
 your real feed read **435 sessions from 42 events, every one of them parsed** — and then
-reported 285 weeks going back to **August 2021**, because `Katara Hills - Run - DBRC` has
+reported 285 weeks going back to **August 2021**, because `Hills - Run - Club` has
 repeated weekly in that calendar for five years and recurrence expansion was only capped
 at the *end*. Adherence and the race targets were being computed over four years that
 were never part of this plan. Settings → Training plan now has **Plan starts**: set it to
@@ -771,7 +771,7 @@ deliberate — see below.
 
 **Read this one first: your calendar is not a training calendar.** The first sync of
 your real feed read **435 sessions from 42 events, every one of them parsed** — and then
-reported 285 weeks going back to **August 2021**, because `Katara Hills - Run - DBRC` has
+reported 285 weeks going back to **August 2021**, because `Hills - Run - Club` has
 repeated weekly in that calendar for five years and recurrence expansion was only capped
 at the *end*. Adherence and the race targets were being computed over four years that
 were never part of this plan. Settings → Training plan now has **Plan starts**: set it to
@@ -1201,7 +1201,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   crowd the page.
 
 ### T18 — Stream charts: sport-aware pace axis
-- **Found in:** T01, on the 2026-09-23 Al Daayen ride (24473027876).
+- **Found in:** T01, on the 2026-09-23 ride (90000000011).
 - **Problem:** the stream "Pace" chart plots s/km for every sport, so a ride's axis
   reads "–, 5:00, 10:00" (the top tick is 0 s/km) while its header, splits and legend say km/h.
 - **Build:**
@@ -1458,7 +1458,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
 - **Old reference:** `renderPerformance`.
 - **Notes:**
   - **Your 1 k and 1 mile records are one treadmill run and should probably not count.**
-    Both come from 2023-02-02 (`/activities/10430340737`), 1.7 km indoors, and read
+    Both come from 2023-02-02 (`/activities/90000000001`), 1.7 km indoors, and read
     4:34/km and 4:43/km. Your fastest kilometre outdoors is 5:55, and your 5 k best is
     7:15/km — a 1 k at 4:34 projects a 5 k around 26 minutes, not 36:16. Treadmill
     distance is the watch's own estimate, not GPS, and you have only five treadmill
@@ -1575,7 +1575,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - An extreme carries `key` and `raw`, not a rendered `display`; `key` is a typed
     literal of six, so the formatter switches on it (metres, seconds, metres of climb,
     m/s, bpm, TRIMP). "Fastest average pace" reads in its own sport's unit, so an
-    unfiltered wall shows `19.3 km/h · Al Daayen Cycling`.
+    unfiltered wall shows `19.3 km/h · Local Cycling`.
   - **"Every Trends block" stops at the performance block, and it says so.**
     `/api/performance` takes no parameters, and giving it any means teaching
     `analytics/performance` to filter, which is not a view's decision. With a filter on,
@@ -1747,7 +1747,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     | Hovering a plain heading — the harness's own floor | 16.8 |
     | A chart on `/health`, no map on the page | 81.5 |
     | A chart on `/trends`, no map on the page | 85.2 |
-    | A chart on `/activities/21048126834`, which has a map | 377.1 |
+    | A chart on `/activities/90000000004`, which has a map | 377.1 |
 
     Subtract the floor and a chart costs ~65 ms. The same chart on a page with a map
     costs ~360 ms, because the crosshair moves the map's cursor dot and every move
@@ -1757,7 +1757,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     write that names the same sample.
   - **No chart is big enough to need downsampling, so the LTTB contingency does not
     fire.** The largest activity in the database has **1,993 samples** (`Cardio`,
-    2025-02-15) and the largest GPS one **1,605 points** (`21048126834`, the 16.9 km
+    2025-02-15) and the largest GPS one **1,605 points** (`90000000004`, the 16.9 km
     long run). `/api/activities/{id}/streams` on the biggest is 110 kB in 30 ms.
   - **T06's note is wrong by a factor of ten.** It says that long run is "~16,900
     points"; it is 1,605. The figure looks like its 16.9 km read as metres. The
@@ -2355,18 +2355,18 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     `garmin-analytics cluster --fresh`) rebuilds every route nobody has edited
 - **Notes:**
   - **On the real history (fresh rebuild):** 70 routes → 52 (25 loops, 19 out and
-    backs, 8 one way). Bin Omran: 79 runs, a 1.64 km lap, 186 laps, fastest 11:05.
-    The loop at 25.345, 51.522: 43 runs, 1.43 km, 173 laps, fastest 10:02. Lusail
-    circuit (cycling): 3 rides, 5.43 km, 12 laps, fastest 12:40 (25.7 km/h).
+    backs, 8 one way). Loop A: 79 runs, a 1.64 km lap, 186 laps, fastest 11:05.
+    The second loop: 43 runs, 1.43 km, 173 laps, fastest 10:02. Circuit
+    (cycling): 3 rides, 5.43 km, 12 laps, fastest 12:40 (25.7 km/h).
   - **The live database is not regrouped yet.** After deploying, run
     `garmin-analytics cluster --fresh` once (the owner's call: it rewrites the routes
     table). No route had been edited by hand, so nothing the owner decided is lost.
   - A fresh rebuild takes ~15 s on this box; a sync with one new run ~0.2 s. The route
     list (1.1 s) and pages (≤0.3 s) are cached until the data changes.
-  - The owner's "5.1 km Lusail loop" is the cycling circuit; the Lusail Marina runs are
+  - The owner's "5.1 km circuit loop" is the cycling circuit; the marina runs are
     an out-and-back, 4 runs of 5.0–6.1 km.
   - Some laps are missed: a run that pauses at the line, or whose GPS drifts more than
-    50 m off it, loses that lap (Bin Omran: 77 of 79 runs have one timed).
+    50 m off it, loses that lap (Loop A: 77 of 79 runs have one timed).
 
 ### T46 — Laps: from where the run began, and only whole ones
 - **Goal:** every lap run round a loop is timed, and none that cut the loop short.
@@ -2379,7 +2379,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - **Why laps were lost:** runs often start a few dozen metres from the route's
     start line (one at 52 m, outside the 50 m gate), or partway round, so the first
     lap was never closed. 481 of at least 576 laps were timed.
-  - **After:** 497 timed, with the outliers gone. Bin Omran 186 → 198 laps; its record
+  - **After:** 497 timed, with the outliers gone. Loop A 186 → 198 laps; its record
     moves from 11:05 to 11:06, the 11:05 having been a short lap.
   - 95% of laps are within ±4% of the route's lap; the tail beyond 94–108% was corners
     cut and detours. Segments still use the route's start line, so they stay aligned.
@@ -2393,8 +2393,8 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - [x] the opening view and every refit cover the busiest ~55 km square by GPS points
     and the squares round it (`heatmapFocusBounds`), not every cell
 - **Notes:**
-  - The unfiltered real history spanned Qatar to south India and Saudi Arabia, so the
-    map opened on half of Asia. It now opens on Doha, Lusail and Al Wakra.
+  - The unfiltered real history spanned several countries, so the
+    map opened on half of Asia. It now opens on Doha and its suburbs.
   - A filter to one trip makes that trip the busiest square, so it opens there. The
     heat elsewhere is still drawn: zooming out shows it.
 
@@ -2411,8 +2411,8 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
 - **Notes:**
   - **Today's regroup undone on the live database** from the 11:31 dev snapshot's
     memberships (the last copy from before the regroup): 51 of 52 routes got their
-    old numbers back; Bin Omran is #31 again, the 1.4 km loop #28, the QSC loop #4.
-    Numbers of routes merged into another (Bin Omran's old #40, #69, ...) are gone;
+    old numbers back; Loop A is #31 again, the 1.4 km loop #28, the track loop #4.
+    Numbers of routes merged into another (Loop A's old #40, #69, ...) are gone;
     their pages say so.
 
 ### T40 — Status: this week against the plan
@@ -2661,7 +2661,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     text named no sport. The asymmetry matters: a note that names no sport —
     `MON (today): 7.2 km easy.` never says "run" — does **not** get to claim an event
     that does. Reading "no sport stated" as "any sport" was the bug.
-  - **One `||` segment can hold two sentences about different days.** `WED Lusail ride
+  - **One `||` segment can hold two sentences about different days.** `WED Circuit ride
     + SAT Olympic ride = Higdon cross-training. SUN = rest.` gave Wednesday and
     Saturday a rest day. Segments are split on a full stop followed by whitespace —
     and deliberately *not* on semicolons, because `Higdon says 7.2 km; club does
@@ -2805,7 +2805,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - [x] a start day after the race, or an unparseable one, is refused
 - **Notes:**
   - **Found on the owner's real calendar.** Their feed is a general calendar, not a
-    training-only one: `Katara Hills - Run - DBRC` is a weekly club run with 285
+    training-only one: `Hills - Run - Club` is a weekly club run with 285
     instances going back to 2021-08-10. `window()` caps only the *end* of recurrence
     expansion, so `/api/plan` returned 285 weeks from 2021-W32 and a `mean_weekly_km`
     of 10.3 averaged over five years — four of them single-session weeks that were
@@ -2923,8 +2923,8 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     the current week instead of throwing the earlier ones away, and T49's start day is
     now the honest control for where a block begins.
   - **The weekday label moved into a sticky header** rather than being repeated in all
-    147 cells. That bought the line back that titles needed: `Katara Hills - ...` and
-    `Lusail Track - ...` truncated to the same ellipsis, and which one a Tuesday asks
+    147 cells. That bought the line back that titles needed: `Hills - ...` and
+    `Track - ...` truncated to the same ellipsis, and which one a Tuesday asks
     for is the whole point of the cell. The header sits at `top-14`, under the shell's
     own sticky header, not over it.
   - **Checked on the owner's real calendar**, 130 sessions over 21 weeks: two sessions
@@ -2968,7 +2968,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     import sits inside `list_routes` with a note saying why.
   - **It answered the question it was built for.** The owner could not check T47's
     restored numbering because `1.6 km loop #31` names nothing. With the map, #31 is
-    plainly **Fereej Bin Omran** and #27 is in Katara — the numbers are right.
+    plainly **loop A** and #27 is in a park — the numbers are right.
   - **53 routes, 41.9 KB for the whole list**, each shape about 80 bytes simplified to
     `MAX_POINTS`. The table is gone; every figure it carried (attempts, distance, best,
     median, shape, type, last) is on the card.
@@ -3038,7 +3038,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
   - The control hides itself when there is only one kind, and an unrecognised
     `?kind=` reads as all rather than stranding the page empty.
   - **On the owner's routes:** All 53 · Run 31 · Ride 5 · Walk 16 · Other 1. The five
-    rides were the point — among them #67, the Lusail International Circuit. Light and
+    rides were the point — among them #67, a motor-racing circuit. Light and
     dark in `~/garmin-review/K/`; 810 frontend tests, build clean, no backend change.
 
 ### T56 — Merge offers the routes most like this one, with their maps
@@ -3067,7 +3067,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     75% is already one route, so a real duplicate is rare by construction. Ranking on
     overlap alone would leave thirty ties, so distance between centroids breaks them:
     a route 190 m away is a candidate worth looking at, one 2 km away is not.
-  - On the owner's #31 (Bin Omran): **#42 at 15.7% shared and 190 m away**, then a
+  - On the owner's #31 (Loop A): **#42 at 15.7% shared and 190 m away**, then a
     cliff to 0% and 1.5 km. That is the pair worth a look, and it is top of the list.
   - **The scores and the pictures come from different places, joined in the view.**
     The server has the geometry and returns `{route_id, similarity, metres_away}`; the
@@ -3111,7 +3111,7 @@ several `PUT`/`DELETE` edit routes. A task that first needs one of those types i
     somewhere to store it and a control to set it; the nearest race self-heals the day
     after one is run, and a race nobody wants to aim at simply is not titled `RACE`.
     Pinning can follow if the automatic answer is ever wrong.
-  - **Race day holds two race-kinded sessions.** The club's own `Long Run - DBRC` sits
+  - **Race day holds two race-kinded sessions.** The club's own `Long Run - Club` sits
     beside `RACE: Ooredoo Doha Half Marathon`, because both carry the word. Taking the
     earliest by time picked the 05:00 club run and reported the half as an unnamed,
     distanceless session. Within the first day it prefers the one titled `RACE`, then

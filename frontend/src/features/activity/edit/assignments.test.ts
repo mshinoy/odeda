@@ -79,8 +79,8 @@ describe("gearKindLabel", () => {
 
 describe("routeOptions", () => {
   const corniche = route(1, "Corniche out and back");
-  const alDaayen = route(2, "Al Daayen loop", "cycling", 32000);
-  const routes = [corniche, alDaayen];
+  const localLoop = route(2, "Local loop", "cycling", 32000);
+  const routes = [corniche, localLoop];
 
   it("offers the routes of the activity's own sport", () => {
     expect(routeOptions(routes, "running", null)).toEqual([corniche]);

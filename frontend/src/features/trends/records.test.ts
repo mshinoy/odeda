@@ -29,8 +29,8 @@ function extreme(key: Extreme["key"], raw: number, activityType = "running"): Ex
     label: "Label",
     raw,
     day: "2026-09-23",
-    activity_id: "24473027876",
-    activity_name: "Al Daayen Cycling",
+    activity_id: "90000000011",
+    activity_name: "Local Cycling",
     activity_type: activityType,
   };
 }
@@ -90,9 +90,9 @@ describe("formatExtreme", () => {
 describe("toExtremeRows", () => {
   it("links each record to the session that set it", () => {
     const [row] = toExtremeRows([extreme("longest_distance", 27_696.449)], today);
-    expect(row?.href).toBe("/activities/24473027876");
+    expect(row?.href).toBe("/activities/90000000011");
     expect(row?.when).toBe("Sep 23");
-    expect(row?.activityName).toBe("Al Daayen Cycling");
+    expect(row?.activityName).toBe("Local Cycling");
   });
 
   it("has something to show for a session Garmin never named", () => {

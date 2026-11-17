@@ -28,7 +28,7 @@ def _edit(client, **values):
 
 
 def test_one_field_back_to_garmin_and_the_rest_kept(client):
-    _edit(client, activity_name="Katara loop", rpe=7)
+    _edit(client, activity_name="Park loop", rpe=7)
     body = client.delete(f"/api/activities/{RUN_ID}/overrides/activity_name").json()
     assert body["reverted"] is True
     assert body["activity"]["activity_name"] == GARMIN_NAME
@@ -46,7 +46,7 @@ def test_an_unknown_field_is_a_400(client):
 
 
 def test_every_field_back_to_garmin(client):
-    _edit(client, activity_name="Katara loop", rpe=7, excluded_from_stats=True)
+    _edit(client, activity_name="Park loop", rpe=7, excluded_from_stats=True)
     body = client.delete(f"/api/activities/{RUN_ID}/overrides").json()
     assert body["reverted"] == 3
     row = body["activity"]
