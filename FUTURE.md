@@ -466,6 +466,56 @@ wants two people, they run two containers.
 
 ---
 
+## 20. A live demo, and the demo mode it needs
+
+*Raised 2026-11-17.*
+
+**Why.** People decide in a minute, and they would rather click through a working app than read
+about one. The seeded synthetic data (`GA_SEED_DEMO=1`: about three years, repeated GPS routes, a
+training plan) already exists and looks real. Screenshots (T115) are the minimum; a live demo is the
+version that convinces.
+
+**Why it is not just "run the app on a server".** Today anyone who reaches the page can change the
+password, connect their own Garmin account, upload a plan, edit or exclude activities, merge routes,
+start a sync, or save new basics. A public instance needs a **demo mode** first.
+
+**Demo mode (an environment setting, for example `GA_DEMO=1`).**
+- **Read-only.** Every request that changes data is refused with a plain message ("this is a
+  read-only demo"). The list to block: the password, Garmin, Fitbit and plan-source endpoints; plan
+  upload and edit; activity edits, exclusions and reverts; gear writes and bulk reassign; route
+  rename, merge, split and recluster; sync start; saving the basics. The reading endpoints stay.
+- **Nothing to connect.** The Garmin, Google Health, plan-address and password cards are hidden or
+  shown as examples, not as forms.
+- **A banner on every page:** "Demo with synthetic data. Run your own in one minute", linking to
+  the quickstart in the README.
+- **Resets itself.** Even with writes blocked, the database is rebuilt from the seed on a schedule,
+  so a bug can never leave something lasting.
+- **Only ever the seed.** The demo has its own data directory and never mounts a real database. The
+  `doctor` command and `/api/health` already say the data is synthetic.
+- **Cheap to abuse-proof:** a request rate limit, and the heavy work (the 3D flyover export runs in
+  the browser) left to the visitor's own machine.
+
+**Where to host it.**
+1. **A small cloud server** (about five dollars a month), one container behind HTTPS. The preferred
+   option: isolated from any real data and from the owner's home network.
+2. **Not the owner's own machine.** It is a two-CPU box that already exposes one public port, and a
+   public demo would add load and attack surface beside the real database.
+3. **A static copy on GitHub Pages:** the real interface over recorded API answers. Free and very
+   safe, but only the pages and filters that were recorded work, so it feels thin, and it is more
+   build work than demo mode.
+4. **A screen recording or GIFs in the README**, as the fallback and for places that cannot embed
+   a live page.
+
+**Steps.** (1) The setting and the write block, with a test that lists every route and fails when a
+new write route is added without a decision. (2) The banner and the hidden cards. (3) The scheduled
+reset. (4) A small image or compose file for the demo. (5) Choose a host and a domain, and link it
+from the top of the README.
+
+**Build when:** before the public launch, after the README screenshots. Step 1 is useful on its own
+even without a hosted demo, because it is also how someone could safely show the app to a friend.
+
+---
+
 ## Video export, ideas not built
 
 The export takes about 0:38 for a 60 s HD vertical video and is now limited by the encoder
