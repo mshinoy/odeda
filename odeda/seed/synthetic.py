@@ -275,7 +275,11 @@ def build_plan(start: date, end: date, rng: random.Random) -> list[DayPlan]:
             elif wd == 5:    # Saturday — long run
                 sessions.append({"kind": "long", "km": round(wk_km * 0.30, 2), "sport": "running"})
             else:            # Sunday — easy, or a bike
-                if rng.random() < 0.45:
+                # The Sundays one and three weeks before the end are always a ride, so a
+                # fresh demo has a couple of recent rides whatever the draws said. The
+                # draw is still made, so everything before those days is unchanged.
+                force_ride = (end - cur).days // 7 in (1, 3)
+                if rng.random() < 0.45 or force_ride:
                     # Mostly a club-length spin, occasionally a proper long ride —
                     # which is what puts activities on the longer cycling routes.
                     minutes = rng.choices(
@@ -530,6 +534,62 @@ def synth_ride(
         "zone_seconds": zone_seconds,
         "track": list(traced),
         "samples": list(zip(elapsed, dist, hrs, speeds, cadences, alts, traced)),
+    }
+
+
+#: Two strength days a runner might alternate: legs and core, then upper body. The names
+#: are Garmin's own exercise categories, which the app turns into muscles, so a seeded
+#: session lights up the body diagram the way a real one does. Each entry is
+#: (category, sub-category, sets, reps per set, working weight in kg).
+GYM_DAYS = (
+    (
+        ("SQUAT", "BARBELL_BACK_SQUAT", 4, 8, 80),
+        ("DEADLIFT", "ROMANIAN_DEADLIFT", 3, 8, 70),
+        ("LUNGE", "DUMBBELL_LUNGE", 3, 10, 20),
+        ("CALF_RAISE", "STANDING_CALF_RAISE", 3, 15, 40),
+        ("CRUNCH", "CABLE_CRUNCH", 3, 15, 30),
+    ),
+    (
+        ("BENCH_PRESS", "BARBELL_BENCH_PRESS", 4, 8, 60),
+        ("ROW", "BARBELL_ROW", 4, 8, 55),
+        ("SHOULDER_PRESS", "DUMBBELL_SHOULDER_PRESS", 3, 10, 18),
+        ("PULL_UP", "LAT_PULLDOWN", 3, 10, 50),
+        ("CURL", "DUMBBELL_BICEPS_CURL", 3, 12, 12),
+    ),
+)
+
+
+def gym_payload(activity_id: str, day: date) -> dict:
+    """The exercise part of a strength session's raw payload, as Garmin sends it.
+
+    It has its own random source, seeded from the activity id, so it never consumes the
+    main stream: adding it changed nothing else in the seeded history. Weights creep up
+    over the years and land on 2.5 kg plates.
+    """
+    rng = random.Random(f"gym-{activity_id}")
+    plan = GYM_DAYS[(day.toordinal() // 7 + day.weekday()) % 2]
+    weeks = max(0, (day - date(2023, 1, 1)).days // 7)
+    factor = 0.8 + min(weeks, 170) * 0.0017
+    entries = []
+    for category, sub, sets, reps, kg in plan:
+        sets = max(2, sets + rng.choice((-1, 0, 0, 1)))
+        weight_kg = round(kg * factor / 2.5) * 2.5
+        total_reps = sets * reps - rng.randint(0, 2)
+        entries.append({
+            "category": category,
+            "subCategory": sub,
+            "sets": sets,
+            "reps": total_reps,
+            "maxWeight": weight_kg * 1000.0,
+            "volume": weight_kg * 1000.0 * total_reps,
+            "duration": sets * rng.randint(70, 110) * 1000,
+        })
+    total_sets = sum(e["sets"] for e in entries)
+    return {
+        "summarizedExerciseSets": entries,
+        "totalSets": total_sets,
+        "activeSets": total_sets,
+        "totalReps": sum(e["reps"] for e in entries),
     }
 
 
@@ -815,12 +875,17 @@ def seed_database(
                         detail["_sport"] = "treadmill_running"
                     ran_today = True
                 elif sport == "cycling":
-                    if rng.random() < INDOOR_BIKE_RATE:
+                    # The last five weeks' Sunday rides are outdoors and long enough to
+                    # follow a known route, so a fresh demo shows current rides on the
+                    # map. The random draws are the same as before; only the outcome
+                    # of the last few weeks changes.
+                    recent_sunday = plan.day.weekday() == 6 and (end - plan.day).days <= 35
+                    if rng.random() < INDOOR_BIKE_RATE and not recent_sunday:
                         detail = synth_other(rng, "indoor_cycling", session["minutes"],
                                              state.hr_rest)
                         detail["_sport"] = "indoor_cycling"
                     else:
-                        minutes = session["minutes"]
+                        minutes = 90 if recent_sunday else session["minutes"]
                         route = geo.pick("cycling", minutes * 60.0 * 7.5)
                         detail = synth_ride(rng, minutes, state.hr_rest, route=route)
                 else:
@@ -857,6 +922,8 @@ def seed_database(
                     "avgPower": detail.get("avg_power_w"),
                     "_synthetic": True,
                 }
+                if sport == "strength_training":
+                    payload.update(gym_payload(aid, plan.day))
                 raw_id = store.store_raw("seed", "activities", aid, payload)
                 counts["raw"] += 1
 

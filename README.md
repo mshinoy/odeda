@@ -23,8 +23,9 @@ not write plans or coach you. It reads your numbers and tells you what they say.
   corrections survive every sync. One deployment is one person's data: no account system, no
   shared database, and nobody else's Garmin password anywhere.
 
-<!-- Screenshot slot: docs/img/today.png. The Today page, the first thing you see. -->
-<!-- ![Today](docs/img/today.png) -->
+![Today: the day's session, the race countdown with a finish range, and the week against the plan](docs/img/today.png)
+
+*Demo data: the screenshots here come from the synthetic demo instance, not a real account.*
 
 ## What you get
 
@@ -38,6 +39,26 @@ not write plans or coach you. It reads your numbers and tells you what they say.
 | **Gear** | When do these shoes retire? Mileage per pair or bike, with bulk reassign. It sits behind the corner icon, beside Settings. |
 
 More detail on each: [what it does](docs/features.md).
+
+## A look around
+
+**Train**: the plan judged week by week, with the one session that matters this week.
+
+![Train: on track, adherence, and the week's sessions](docs/img/train.png)
+
+**Map**: a route coloured by how fast each stretch goes, wherever you ran it.
+
+![Map: the Aspire Park loop coloured by pace, with the list of routes](docs/img/map.png)
+
+**An activity**: answers first, then the map, the kilometres and the charts.
+
+![A long run: against the plan, on this route, and the effort](docs/img/activity.png)
+
+**Gym** and **Health**:
+
+![A gym session: exercises, sets and the muscles trained](docs/img/gym.png)
+
+![Health: recovery, readiness and sleep against your own baseline](docs/img/health.png)
 
 ## Quickstart
 

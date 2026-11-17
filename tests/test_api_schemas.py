@@ -81,18 +81,25 @@ def _as_json(value: Any) -> Any:
     return json.loads(json.dumps(value))
 
 
-def _with_gym_totals(row: dict[str, Any] | None) -> dict[str, Any]:
-    """A view row as the API returns it. The seeded payloads carry no exercise data,
-    so the totals are null here; tests/test_gym.py covers the filled-in case. `race`
-    resolves to 0 for the same reason: no seeded payload carries an eventType."""
+def _with_gym_totals(row: dict[str, Any] | None, st: Store) -> dict[str, Any]:
+    """A view row as the API returns it. The gym totals come from the activity's raw
+    payload, which only strength sessions carry (the seeder gives them exercises);
+    everything else is null. `race` resolves to 0: no seeded payload carries an
+    eventType. tests/test_gym.py covers the totals in detail."""
     assert row is not None
     resolved = {k: int(bool(row[k])) for k in RESOLVED_ROW_KEYS}
-    return {**row, **resolved, **{k: None for k in ADDED_ROW_KEYS}}
+    payload = {}
+    if row.get("raw_id") is not None:
+        found = st.query("SELECT payload FROM raw_documents WHERE id = ?", (row["raw_id"],))
+        payload = json.loads(found[0]["payload"]) if found and found[0]["payload"] else {}
+    totals = {"total_sets": payload.get("totalSets"), "total_reps": payload.get("totalReps")}
+    assert set(totals) == set(ADDED_ROW_KEYS)
+    return {**row, **resolved, **totals}
 
 
 def _old_detail(st: Store, activity_id: str) -> dict[str, Any]:
     """The pre-typing `GET /api/activities/{id}` body (samples=true), verbatim."""
-    act = _with_gym_totals(ov_mod.effective(st, activity_id))
+    act = _with_gym_totals(ov_mod.effective(st, activity_id), st)
     zones = st.query(
         "SELECT zone, seconds FROM activity_hr_zones WHERE activity_id = ? ORDER BY zone",
         (activity_id,),
@@ -222,7 +229,7 @@ class TestPayloadsUnchangedExceptDrops:
         )
         assert body["total"] == len(view)
         rows = [{k: v for k, v in r.items() if k not in LIST_ONLY_ROW_KEYS} for r in body["rows"]]
-        _strict_equal(rows, _as_json([_with_gym_totals(r) for r in view]))
+        _strict_equal(rows, _as_json([_with_gym_totals(r, rw_store) for r in view]))
         edited = next(r for r in body["rows"] if r["activity_id"] == sample_ids["gps_run"])
         assert edited["override_count"] == 5 and edited["rpe"] == 7 and edited["private"] == 1
         assert edited["gear_ids"] and edited["route_id"] is not None
@@ -279,7 +286,7 @@ class TestEditAndFields:
         assert res.status_code == 200, res.text
         body = res.json()
         _strict_equal(body["activity"],
-                      _as_json(_with_gym_totals(ov_mod.effective(rw_store, aid))))
+                      _as_json(_with_gym_totals(ov_mod.effective(rw_store, aid), rw_store)))
         _strict_equal(body["overrides"], _as_json(ov_mod.list_overrides(rw_store, aid)))
         by_field = {a["field"]: a for a in body["applied"]}
         assert by_field["private"]["value"] == 1            # bools are stored as 0/1
