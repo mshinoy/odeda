@@ -518,6 +518,30 @@ even without a hosted demo, because it is also how someone could safely show the
 
 ---
 
+## 21. Writing edits back to a calendar
+
+*Raised 2026-11-17, while answering D32. Decided for now: edits stay in the app.*
+
+**Why it might matter later.** A session edited in the app (a day moved, a distance changed) is
+shown over the calendar's version, but the calendar itself still says the old thing. Anyone who
+also reads that calendar on a phone or shares it with a coach sees two different plans.
+
+**Why it is not built.** The calendar feed is read-only, so writing back needs a sign-in to the
+calendar provider (Google needs OAuth and an app registration), a way to match an edited session
+to the right calendar event, and care that a sync never overwrites what was just written. It also
+adds a second credential to a project whose pitch is that it holds almost none.
+
+**What it would take, if it comes back.**
+1. One provider first (Google Calendar), with the narrowest permission that can edit events.
+2. A per-edit choice, so nothing reaches the calendar unless asked.
+3. Calendar-neutral wording and a second route for other calendars (an iCal file export, or
+   CalDAV), so the feature is not tied to one company.
+4. Tests for the two-way case: an edit made in both places, and a deleted event.
+
+**Build when:** someone who shares their calendar with a coach asks for it. Not before.
+
+---
+
 ## Video export, ideas not built
 
 The export takes about 0:38 for a 60 s HD vertical video and is now limited by the encoder
