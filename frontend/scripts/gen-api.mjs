@@ -27,7 +27,7 @@ function interpreter() {
 
 function fromCheckout() {
   const python = interpreter();
-  const result = spawnSync(python, ["-m", "garmin_analytics.api.openapi"], {
+  const result = spawnSync(python, ["-m", "odeda.api.openapi"], {
     cwd: fileURLToPath(repoRoot),
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -37,14 +37,14 @@ function fromCheckout() {
   }
   if (result.status !== 0) {
     throw new Error(
-      `${python} -m garmin_analytics.api.openapi exited ${result.status}\n${result.stderr}`,
+      `${python} -m odeda.api.openapi exited ${result.status}\n${result.stderr}`,
     );
   }
   // A fixed label, not the interpreter path: the header is committed, and an absolute
   // path would rewrite the first line on every machine that regenerated it.
   return {
     schema: JSON.parse(result.stdout),
-    from: "this checkout (python -m garmin_analytics.api.openapi)",
+    from: "this checkout (python -m odeda.api.openapi)",
   };
 }
 

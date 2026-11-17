@@ -6,9 +6,9 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics import config
-from garmin_analytics.analytics import load as L
-from garmin_analytics.analytics import readiness as R
+from odeda import config
+from odeda.analytics import load as L
+from odeda.analytics import readiness as R
 
 
 class TestComponents:
@@ -210,7 +210,7 @@ class TestRaceProjection:
         assert out["from_distance_m"] == 10000.0
 
     def test_projection_matches_riegel_from_that_effort(self):
-        from garmin_analytics.analytics import performance as P
+        from odeda.analytics import performance as P
 
         out = R.project_race_time(self.BESTS, HALF_M)
         assert out["projected_seconds"] == pytest.approx(

@@ -293,7 +293,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             auto.stop()
 
     app = FastAPI(
-        title="Garmin Analytics",
+        title="Odeda",
         version=__version__,
         description="Self-hosted analytics over your own Garmin Connect history.",
         # operationId = handler name (unique within create_app), so generated client
@@ -1546,7 +1546,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Kick off a full backfill in the background. Safe to call after a crash."""
         if not auth_mod.garmin_status(settings)["connected"]:
             raise HTTPException(
-                409, "no Garmin account connected; run `garmin-analytics login` first"
+                409, "no Garmin account connected; run `odeda login` first"
             )
         if job.running:
             raise HTTPException(409, "a sync is already running")

@@ -39,23 +39,23 @@ settings in the root `.env`, where `docker-compose.yml` forwards them as build a
 ## CLI
 
 ```
-garmin-analytics login          authenticate with Garmin Connect (once)
-garmin-analytics login --signin-url / --ticket    browser sign-in, when Garmin refuses the above
-garmin-analytics backfill       pull EVERYTHING back to the start of the account
-garmin-analytics backfill --estimate    size the job before starting it
-garmin-analytics sync           incremental pull (--full to re-walk the window)
-garmin-analytics renormalize    re-parse the raw archive, no network
-garmin-analytics laps           the watch's laps and the workout plans they followed (--reparse: no network)
-garmin-analytics cluster        (re)group GPS activities into routes
-garmin-analytics import-zip     load Garmin's official data-export ZIP
-garmin-analytics import-fit     load .fit files
-garmin-analytics seed --reset   synthetic data for demos and tests
-garmin-analytics serve          run the API and the built UI
-garmin-analytics doctor         environment and data status (no credentials printed)
-garmin-analytics report         today's readiness, load and race outlook
+odeda login          authenticate with Garmin Connect (once)
+odeda login --signin-url / --ticket    browser sign-in, when Garmin refuses the above
+odeda backfill       pull EVERYTHING back to the start of the account
+odeda backfill --estimate    size the job before starting it
+odeda sync           incremental pull (--full to re-walk the window)
+odeda renormalize    re-parse the raw archive, no network
+odeda laps           the watch's laps and the workout plans they followed (--reparse: no network)
+odeda cluster        (re)group GPS activities into routes
+odeda import-zip     load Garmin's official data-export ZIP
+odeda import-fit     load .fit files
+odeda seed --reset   synthetic data for demos and tests
+odeda serve          run the API and the built UI
+odeda doctor         environment and data status (no credentials printed)
+odeda report         today's readiness, load and race outlook
 ```
 
-Inside Docker: `docker compose exec app garmin-analytics doctor`.
+Inside Docker: `docker compose exec app odeda doctor`.
 
 To back up everything — database, raw archive and token cache:
 
@@ -71,13 +71,13 @@ docker run --rm -v garmin-analytics-data:/data -v "$PWD":/backup alpine \
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt && pip install -e .
 
-garmin-analytics seed --reset      # ~3 years of synthetic data, no account needed
-garmin-analytics serve             # API on http://127.0.0.1:8808
+odeda seed --reset      # ~3 years of synthetic data, no account needed
+odeda serve             # API on http://127.0.0.1:8808
 ```
 
-`serve` also serves the built UI from `garmin_analytics/ui/`. That directory is a
+`serve` also serves the built UI from `odeda/ui/`. That directory is a
 build artifact, not source: build it with `cd frontend && npm ci && npm run build`.
 Without it, every non-API page answers 503 with that hint, and the API works as
 normal. For frontend development see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-For a real account: `garmin-analytics login`, then `garmin-analytics backfill`.
+For a real account: `odeda login`, then `odeda backfill`.

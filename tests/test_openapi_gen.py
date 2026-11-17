@@ -12,7 +12,7 @@ import json
 import subprocess
 import sys
 
-from garmin_analytics.api import openapi as openapi_mod
+from odeda.api import openapi as openapi_mod
 
 
 class TestItDescribesThisCheckout:
@@ -27,7 +27,7 @@ class TestItDescribesThisCheckout:
         assert "sessions_prescribed" in week
 
     def test_every_api_route_registered_is_described(self):
-        from garmin_analytics.api.openapi import build
+        from odeda.api.openapi import build
 
         spec = build()
         described = set(spec["paths"])
@@ -50,7 +50,7 @@ class TestItIsSafeToRun:
         because they import this module instead of shelling out."""
         import os
 
-        from garmin_analytics.config import load_settings
+        from odeda.config import load_settings
 
         before = {k: os.environ.get(k) for k in ("GA_DATA_DIR", "GA_DB", "GA_RAW_DIR")}
         openapi_mod.build()
@@ -60,7 +60,7 @@ class TestItIsSafeToRun:
     def test_it_runs_as_a_module_and_prints_json(self):
         """How `gen-api.mjs` actually calls it."""
         result = subprocess.run(
-            [sys.executable, "-m", "garmin_analytics.api.openapi"],
+            [sys.executable, "-m", "odeda.api.openapi"],
             capture_output=True,
             text=True,
             timeout=180,
@@ -73,7 +73,7 @@ class TestItIsSafeToRun:
     def test_nothing_but_json_goes_to_stdout(self):
         """It is piped into a types generator; a stray print would corrupt it."""
         result = subprocess.run(
-            [sys.executable, "-m", "garmin_analytics.api.openapi"],
+            [sys.executable, "-m", "odeda.api.openapi"],
             capture_output=True,
             text=True,
             timeout=180,

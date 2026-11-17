@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from garmin_analytics.analytics import plan as plan_mod
-from garmin_analytics.analytics import steer
+from odeda.analytics import plan as plan_mod
+from odeda.analytics import steer
 
 TODAY = date(2026, 11, 15)  # a Sunday; the week is Mon 9 Nov to Sun 15 Nov
 

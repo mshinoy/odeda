@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Garmin Analytics contributors
+Copyright (c) 2026 Odeda contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,5 +24,5 @@ SOFTWARE.
 
 Vendored third-party components, under their own licences:
 
-  * uPlot 1.6.32 — MIT — garmin_analytics/web/vendor/uPlot.LICENSE
-  * Leaflet 1.9.4 — BSD-2-Clause — garmin_analytics/web/vendor/leaflet.LICENSE
+  * uPlot 1.6.32 — MIT — odeda/web/vendor/uPlot.LICENSE
+  * Leaflet 1.9.4 — BSD-2-Clause — odeda/web/vendor/leaflet.LICENSE

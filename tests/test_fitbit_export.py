@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from garmin_analytics.ingest import fitbit_export as FE
+from odeda.ingest import fitbit_export as FE
 
 
 def build_zip(tmp_path: Path, members: dict[str, object], name: str = "takeout.zip") -> Path:
@@ -215,7 +215,7 @@ class TestImporting:
     def test_the_export_does_not_move_the_live_syncs_resume_cursor(self, tmp_path, store):
         """A ZIP's coverage is not a day the sync has reached. Writing one into
         `fitbit_body` would send the next sync back to the start of the account."""
-        from garmin_analytics.ingest import fitbit_sync as FS
+        from odeda.ingest import fitbit_sync as FS
 
         store.set_watermark(FS.ENDPOINT, "2026-06-30", "ok", None)
         path = build_zip(tmp_path, {"Fitbit/weight.json": weight_json(metric_record("03/01/19", 76.4))})
@@ -265,7 +265,7 @@ class TestImporting:
             FE.import_fitbit_export(store, tmp_path / "nothing.zip")
 
     def test_the_command_parses(self):
-        from garmin_analytics import cli
+        from odeda import cli
 
         args = cli.build_parser().parse_args(["import-fitbit", "takeout.zip"])
         assert args.path == "takeout.zip" and callable(args.func)

@@ -14,9 +14,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { "@": path.resolve(import.meta.dirname, "src") },
     },
-    // The build is served by FastAPI from the Python package (garmin_analytics/ui/).
+    // The build is served by FastAPI from the Python package (odeda/ui/).
     build: {
-      outDir: path.resolve(import.meta.dirname, "../garmin_analytics/ui"),
+      outDir: path.resolve(import.meta.dirname, "../odeda/ui"),
       emptyOutDir: true,
     },
     server: {

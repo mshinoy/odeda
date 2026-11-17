@@ -17,8 +17,8 @@ from __future__ import annotations
 import sys
 from datetime import date, timedelta
 
-from garmin_analytics.db.store import Store
-from garmin_analytics.ingest import plan_ics
+from odeda.db.store import Store
+from odeda.ingest import plan_ics
 
 RACE_DAY = date(2027, 1, 15)
 
@@ -57,7 +57,7 @@ def feed(today: date | None = None) -> str:
     today = today or date.today()
     weeks = block(today)
     first_monday = RACE_DAY - timedelta(days=4 + 7 * (len(weeks) - 1))
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//garmin-analytics stand-in//EN"]
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//odeda stand-in//EN"]
     for index, prescribed in enumerate(weeks):
         monday = first_monday + timedelta(days=7 * index)
         for offset, km in zip((0, 1, 2, 4), prescribed):

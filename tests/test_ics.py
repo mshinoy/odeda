@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from garmin_analytics.ingest import ics
+from odeda.ingest import ics
 
 QATAR = ZoneInfo("Asia/Qatar")
 LONDON = ZoneInfo("Europe/London")

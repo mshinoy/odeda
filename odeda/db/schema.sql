@@ -1,4 +1,4 @@
--- Garmin Analytics schema.
+-- Odeda schema.
 --
 -- Conventions:
 --   * `day` columns are ISO dates (YYYY-MM-DD) in the athlete's local time.

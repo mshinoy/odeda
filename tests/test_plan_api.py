@@ -13,8 +13,8 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.api.server import create_app
-from garmin_analytics.ingest import plan_ics
+from odeda.api.server import create_app
+from odeda.ingest import plan_ics
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from garmin_analytics.db import store as S
+from odeda.db import store as S
 
 
 class TestMigrations:

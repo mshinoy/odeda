@@ -7,9 +7,9 @@ from datetime import date
 import pytest
 
 from conftest import add_calendar_race
-from garmin_analytics.analytics import forecast as F
-from garmin_analytics.analytics import load as load_mod
-from garmin_analytics.analytics import plan as plan_mod
+from odeda.analytics import forecast as F
+from odeda.analytics import load as load_mod
+from odeda.analytics import plan as plan_mod
 
 TODAY = date(2026, 12, 1)
 RACE = date(2027, 1, 15)

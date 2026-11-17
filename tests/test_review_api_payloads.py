@@ -16,7 +16,7 @@ import pytest
 def client(settings):
     from fastapi.testclient import TestClient
 
-    from garmin_analytics.api.server import create_app
+    from odeda.api.server import create_app
 
     return TestClient(create_app(settings))
 

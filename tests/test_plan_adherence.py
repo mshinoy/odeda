@@ -11,8 +11,8 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics.analytics import plan as A
-from garmin_analytics.plan import parse as P
+from odeda.analytics import plan as A
+from odeda.plan import parse as P
 
 TODAY = date(2027, 1, 20)
 

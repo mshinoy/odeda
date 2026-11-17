@@ -7,8 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import fixtures as F
-from garmin_analytics.api.server import create_app
-from garmin_analytics.db.store import Store
+from odeda.api.server import create_app
+from odeda.db.store import Store
 from test_gym import _ingest
 
 RUN_ID = str(F.ACTIVITY["activityId"])

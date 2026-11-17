@@ -22,7 +22,7 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics.seed import synthetic as S
+from odeda.seed import synthetic as S
 
 
 def rolling_mean(values: list[float], window: int) -> list[float]:
@@ -83,8 +83,8 @@ def eighteen_months(tmp_path_factory):
     """A block long enough for the weight to actually go somewhere."""
     import os
 
-    from garmin_analytics.config import load_settings
-    from garmin_analytics.db.store import Store
+    from odeda.config import load_settings
+    from odeda.db.store import Store
 
     tmp = tmp_path_factory.mktemp("seedbody")
     old = os.environ.get("GA_DB"), os.environ.get("GA_DATA_DIR")

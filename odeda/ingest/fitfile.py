@@ -20,7 +20,7 @@ from typing import Any, Iterable, Mapping
 
 from . import normalize as norm
 
-log = logging.getLogger("garmin_analytics.fit")
+log = logging.getLogger("odeda.fit")
 
 RESAMPLE_INTERVAL_S = 10  # see docs/history/DECISIONS.md D14
 

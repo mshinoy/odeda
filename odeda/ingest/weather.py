@@ -45,7 +45,7 @@ PAUSE_S = 0.5
 ATTEMPTS = 3
 #: Failures in a row that mean the service is down, not that one answer was bad.
 GIVE_UP_AFTER = 5
-USER_AGENT = "garmin-analytics (personal, self-hosted)"
+USER_AGENT = "odeda (personal, self-hosted)"
 
 
 class WeatherError(Exception):

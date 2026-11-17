@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.analytics import trends as T
+from odeda.analytics import trends as T
 
 
 class TestStatistics:

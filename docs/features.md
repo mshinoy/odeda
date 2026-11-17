@@ -48,7 +48,7 @@ weekly running volume and your shoes' mileage. Retyping a walk as a run moves it
 between the per-sport totals everywhere for the same reason — everything reads the
 same edit-resolved view.
 
-Adding another editable field is an entry in [a registry](../garmin_analytics/db/fields.py)
+Adding another editable field is an entry in [a registry](../odeda/db/fields.py)
 plus the matching attribute on the API's response model; the view DDL, validation and
 the `/api/fields` description an editor is built from are generated from the registry.
 See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-editable-field).

@@ -14,8 +14,8 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.api.server import create_app
-from garmin_analytics.ingest import plan_ics
+from odeda.api.server import create_app
+from odeda.ingest import plan_ics
 
 URL = "https://calendar.google.com/calendar/ical/x%40group.calendar.google.com/private-s3cr3t/basic.ics"
 
@@ -147,7 +147,7 @@ class TestTheMigration:
         """The version bump is what makes this reach an existing database: the schema
         fingerprint is keyed on SCHEMA_VERSION and the field registry, and a new plan
         column touches neither."""
-        from garmin_analytics.db import store as store_mod
+        from odeda.db import store as store_mod
 
         plan_ics.set_source(store, URL, "Training")
         store.conn.execute("ALTER TABLE plan_sources DROP COLUMN start_day")

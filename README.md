@@ -1,6 +1,10 @@
-# Garmin Analytics
+# Odeda
 
 **Your Garmin history, on your own machine, with the questions answered first.**
+
+*Odeda* is Malayalam for "run, da!", the friendly shove you give someone after they have
+looked at their numbers: you are not doing enough, keep going. The app is the numbers, plain
+and honest; the name is the shove.
 
 Self-hosted analytics over **your own** Garmin Connect account. It turns years of
 activities into the things Garmin's app does not show you: the route you have run 163
@@ -31,8 +35,8 @@ More detail on each: [what it does](docs/features.md).
 You need [Docker](https://docs.docker.com/get-docker/) and a Garmin Connect account.
 
 ```bash
-git clone https://github.com/mshinoy/garmin-analytics.git
-cd garmin-analytics
+git clone https://github.com/mshinoy/odeda.git
+cd odeda
 cp .env.example .env
 $EDITOR .env                 # optional: APP_PASSWORD and TZ. Settings can set both later
 docker compose up -d
@@ -66,7 +70,7 @@ other ways in (Garmin's data export, `.fit` files, a Fitbit-connected scale):
 ## How it works
 
 * **Raw first.** Everything fetched is archived verbatim before it is read, so a better
-  parser never means fetching again. `garmin-analytics renormalize` rebuilds every table
+  parser never means fetching again. `odeda renormalize` rebuilds every table
   from the archive with no network.
 * **Your edits win.** Garmin's values and yours live in separate tables, and nothing in
   the sync touches yours. Every edit can be reverted to what Garmin said.
@@ -112,7 +116,7 @@ FastAPI's interactive docs are at `/docs` on a running instance, behind the same
 
 Small and single-tenant on purpose: the fastest change to merge is one that fits that
 shape. Start with [CONTRIBUTING.md](CONTRIBUTING.md). If ingestion breaks, the useful
-report includes the output of `garmin-analytics doctor`, which holds no credentials.
+report includes the output of `odeda doctor`, which holds no credentials.
 
 ## Licence
 

@@ -80,7 +80,7 @@ def check_database(settings: Settings) -> list[dict[str, Any]]:
             _check(
                 "database",
                 "warn",
-                f"{path} does not exist yet — run `garmin-analytics seed` or `sync`",
+                f"{path} does not exist yet — run `odeda seed` or `sync`",
             )
         ]
     size_mb = path.stat().st_size / 1e6
@@ -155,7 +155,7 @@ def check_tokens(settings: Settings) -> dict[str, Any]:
         return _check(
             "garmin auth",
             "warn",
-            f"no token cache at {d} — run `garmin-analytics login` "
+            f"no token cache at {d} — run `odeda login` "
             "(synthetic data works without it)",
             authenticated=False,
         )

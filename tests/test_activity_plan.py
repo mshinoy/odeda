@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import add_calendar_race
-from garmin_analytics.analytics import plan as plan_mod
-from garmin_analytics.api.server import create_app
+from odeda.analytics import plan as plan_mod
+from odeda.api.server import create_app
 
 TODAY = date(2026, 12, 1)
 

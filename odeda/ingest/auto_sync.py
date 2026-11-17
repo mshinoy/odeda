@@ -38,7 +38,7 @@ from . import connect as connect_mod
 from . import details as details_mod
 from . import laps as laps_mod
 
-log = logging.getLogger("garmin_analytics.auto_sync")
+log = logging.getLogger("odeda.auto_sync")
 
 #: The `sync_status` row this writes. Its own row, so an automatic run never overwrites
 #: the backfill's progress that the Sync panel reads.

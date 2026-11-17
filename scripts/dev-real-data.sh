@@ -8,7 +8,7 @@
 # 1. Snapshots /data/garmin.db out of the running compose container with SQLite's online
 #    backup (safe while the app runs; the live file is only read).
 # 2. Removes the app password from the COPY only, so a headless browser needs no login.
-# 3. Runs `garmin-analytics serve` on the copy in the foreground (Ctrl+C to stop).
+# 3. Runs `odeda serve` on the copy in the foreground (Ctrl+C to stop).
 #
 # The copy lives in ~/.cache/garmin-dev/ and is overwritten on every run. It holds your
 # real data: never commit it or copy it anywhere else.
@@ -17,7 +17,7 @@ set -euo pipefail
 PORT="${1:-8818}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEV_DIR="${HOME}/.cache/garmin-dev"
-CONTAINER="garmin-analytics"
+CONTAINER="odeda"
 
 mkdir -p "$DEV_DIR/raw" "$DEV_DIR/tokens"
 chmod 700 "$DEV_DIR"
@@ -58,4 +58,4 @@ set +a
 echo "Serving the copy on http://127.0.0.1:${PORT} (Ctrl+C to stop)"
 export GA_DATA_DIR="$DEV_DIR" GA_DB="$DEV_DIR/garmin.db" GA_RAW_DIR="$DEV_DIR/raw" GA_TOKEN_DIR="$DEV_DIR/tokens"
 export APP_PASSWORD=""
-exec "$ROOT/.venv/bin/garmin-analytics" serve --port "$PORT"
+exec "$ROOT/.venv/bin/odeda" serve --port "$PORT"

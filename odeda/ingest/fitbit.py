@@ -45,7 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 
-log = logging.getLogger("garmin_analytics.fitbit")
+log = logging.getLogger("odeda.fitbit")
 
 #: Google's OAuth 2.0 endpoints. The Fitbit ones (`www.fitbit.com/oauth2/authorize`,
 #: `api.fitbit.com/oauth2/token`) belong to the retiring service and will not accept a
@@ -794,7 +794,7 @@ class FitbitClient:
         if tokens is None:
             raise NotConnected(
                 f"No Fitbit token cache in {token_dir}. Connect the account in Settings, "
-                "or run `garmin-analytics fitbit connect`."
+                "or run `odeda fitbit connect`."
             )
         return cls(creds or Credentials.from_env(), tokens, Path(token_dir), transport, clock)
 

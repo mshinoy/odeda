@@ -27,7 +27,7 @@ from typing import Any, Sequence
 from . import __version__
 from .config import load_settings
 
-log = logging.getLogger("garmin_analytics")
+log = logging.getLogger("odeda")
 
 GREEN, YELLOW, RED, DIM, BOLD, RESET = (
     "\033[32m", "\033[33m", "\033[31m", "\033[2m", "\033[1m", "\033[0m"
@@ -72,7 +72,7 @@ def cmd_login(args: argparse.Namespace) -> int:
             print(str(exc), file=sys.stderr)
             return 1
         print(f"Logged in as {user}. Token cache written to {settings.token_dir} (mode 0600).")
-        print("Next: garmin-analytics backfill --detail-limit 50")
+        print("Next: odeda backfill --detail-limit 50")
         return 0
 
     email = args.email or input("Garmin Connect email: ").strip()
@@ -89,7 +89,7 @@ def cmd_login(args: argparse.Namespace) -> int:
         del password  # not a security guarantee, just not leaving it lying around
     user = connect.resume(settings.token_dir)
     print(f"Logged in as {user}. Token cache written to {settings.token_dir} (mode 0600).")
-    print("Next: garmin-analytics sync --days 540")
+    print("Next: odeda sync --days 540")
     return 0
 
 
@@ -514,10 +514,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
         # give it data. Create the schema and serve empty.
         _store().close()
         print(f"No database yet — created an empty one at {settings.db_path}.")
-        print("Connect a Garmin account with `garmin-analytics login`, then run a backfill.")
+        print("Connect a Garmin account with `odeda login`, then run a backfill.")
     print(f"Dashboard: http://{args.host}:{args.port}/   (db: {settings.db_path})")
     uvicorn.run(
-        "garmin_analytics.api.server:create_app",
+        "odeda.api.server:create_app",
         factory=True,
         host=args.host,
         port=args.port,
@@ -536,7 +536,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         return 0 if result["overall"] != "fail" else 1
 
     colour = sys.stdout.isatty()
-    print(_colour(f"garmin-analytics {result['version']} — doctor", BOLD, colour))
+    print(_colour(f"odeda {result['version']} — doctor", BOLD, colour))
     for c in result["checks"]:
         mark = {"ok": "ok  ", "warn": "warn", "fail": "FAIL"}[c["status"]]
         print(f"  [{_colour(mark, STATUS_COLOUR[c['status']], colour)}] "
@@ -571,8 +571,8 @@ def cmd_report(args: argparse.Namespace) -> int:
         # reads like a bug; say what is actually true and what to do about it.
         print(_colour("\nNo data yet.", BOLD, colour))
         print("    Connect your Garmin account and run a sync:")
-        print("      garmin-analytics login   # then: garmin-analytics backfill")
-        print("    Or explore the app first:  garmin-analytics seed")
+        print("      odeda login   # then: odeda backfill")
+        print("    Or explore the app first:  odeda seed")
         return 0
 
     print(_colour(f"\n{rd['day']}  readiness {rd['score']} ({rd['band']})", BOLD, colour))
@@ -617,10 +617,10 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="garmin-analytics",
+        prog="odeda",
         description="Personal analytics over Garmin Connect data.",
     )
-    p.add_argument("--version", action="version", version=f"garmin-analytics {__version__}")
+    p.add_argument("--version", action="version", version=f"odeda {__version__}")
     p.add_argument("--verbose", "-v", action="store_true", help="debug logging")
     sub = p.add_subparsers(dest="command", required=True)
 

@@ -93,7 +93,7 @@ close_block
 say '## 2. Seed 40 months of synthetic data into an empty database'
 say ''
 open_block
-run "$PY" -m garmin_analytics.cli seed --months 40 --end 2026-09-22 --reset
+run "$PY" -m odeda.cli seed --months 40 --end 2026-09-22 --reset
 close_block
 
 say '### Row counts after seeding'
@@ -101,8 +101,8 @@ say ''
 open_block
 say "\$ sqlite row counts"
 ( cd "$ROOT" && "$PY" -c "
-from garmin_analytics.db.store import Store
-from garmin_analytics.config import load_settings
+from odeda.db.store import Store
+from odeda.config import load_settings
 st = Store.open(load_settings())
 for table, n in st.table_counts().items():
     print(f'{table:<22} {n:>8,}')
@@ -117,25 +117,25 @@ close_block
 say '## 3. doctor'
 say ''
 open_block
-run "$PY" -m garmin_analytics.cli doctor
+run "$PY" -m odeda.cli doctor
 close_block
 
 # ---------------------------------------------------------------------------
 say '## 4. report (terminal view, no browser)'
 say ''
 open_block
-run "$PY" -m garmin_analytics.cli report
+run "$PY" -m odeda.cli report
 close_block
 
 # ---------------------------------------------------------------------------
 say '## 5. Server start'
 say ''
 open_block
-say "\$ garmin-analytics serve --port $PORT"
+say "\$ odeda serve --port $PORT"
 # Keep the PID: killing by pattern would also match this script's own command line.
 # Background python directly (not `cd && python`) so $! is the server, not a wrapper.
 cd "$ROOT"
-"$PY" -m garmin_analytics.cli serve --port "$PORT" > /tmp/ga-verify-serve.log 2>&1 &
+"$PY" -m odeda.cli serve --port "$PORT" > /tmp/ga-verify-serve.log 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 60); do
   sleep 0.5
@@ -188,21 +188,21 @@ close_block
 say '### The web UI (the React build, served by FastAPI)'
 say ''
 open_block
-if [ -f "$ROOT/garmin_analytics/ui/index.html" ]; then
+if [ -f "$ROOT/odeda/ui/index.html" ]; then
   # A client-side route the server has never heard of must still get the SPA's
   # index.html, and the bundle that index names must be served from /assets/.
-  ASSET="$(grep -o '/assets/[^"]*\.js' "$ROOT/garmin_analytics/ui/index.html" | head -1)"
+  ASSET="$(grep -o '/assets/[^"]*\.js' "$ROOT/odeda/ui/index.html" | head -1)"
   for p in / /activities "/activities/$AID" "$ASSET" /api/does-not-exist; do
     say "\$ curl -sI $BASE$p"
     curl -s -o /dev/null -w 'HTTP %{http_code}  %{size_download} bytes  %{content_type}\n' "$BASE$p" >> "$OUT"
   done
-  if curl -s "$BASE/activities/$AID" | cmp -s - "$ROOT/garmin_analytics/ui/index.html"; then
+  if curl -s "$BASE/activities/$AID" | cmp -s - "$ROOT/odeda/ui/index.html"; then
     say "/activities/$AID serves the built index.html: yes"
   else
     say "/activities/$AID serves the built index.html: NO"
   fi
 else
-  say 'garmin_analytics/ui/ is not built (npm run build in frontend/), so / answers 503:'
+  say 'odeda/ui/ is not built (npm run build in frontend/), so / answers 503:'
   say "\$ curl -s $BASE/"
   curl -s -w '\nHTTP %{http_code}\n' "$BASE/" >> "$OUT"
 fi
@@ -224,9 +224,9 @@ open_block
 say '$ row counts before / after a second seed --reset over the identical range'
 ( cd "$ROOT" && "$PY" -c "
 from datetime import date
-from garmin_analytics.db.store import Store
-from garmin_analytics.config import load_settings
-from garmin_analytics.seed.synthetic import seed_database
+from odeda.db.store import Store
+from odeda.config import load_settings
+from odeda.seed.synthetic import seed_database
 st = Store.open(load_settings())
 before = st.table_counts()
 seed_database(st, end=date(2026, 9, 22), months=40, reset=True)
@@ -259,10 +259,10 @@ say ''
 say '## What this transcript does **not** prove'
 say ''
 say '- **No Garmin account was contacted by this run.** It uses a scratch database and'
-say '  no token cache; `garmin-analytics login` and the live half of `sync` appear here'
+say '  no token cache; `odeda login` and the live half of `sync` appear here'
 say '  only through the test suite, which drives the sync loop with an injected fetcher'
 say '  against handcrafted payloads (`tests/fixtures.py`).'
-say '- **The data above is synthetic.** It comes from `garmin_analytics/seed/synthetic.py`'
+say '- **The data above is synthetic.** It comes from `odeda/seed/synthetic.py`'
 say '  and is physiologically plausible by construction, not real training.'
 say '- **The web UI is served, not rendered.** Section 6 proves FastAPI hands out the'
 say '  React build; nothing here drives it in a browser.'

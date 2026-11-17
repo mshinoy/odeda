@@ -37,9 +37,9 @@ fi
 if [ "${GA_SEED_DEMO:-0}" = "1" ] && [ ! -f "$DB_PATH" ]; then
   echo "GA_SEED_DEMO=1 and no database yet — generating synthetic demo data."
   echo "This is NOT your training. Connect a Garmin account with"
-  echo "  docker compose exec app garmin-analytics login"
+  echo "  docker compose exec app odeda login"
   echo "then run a backfill to replace it."
-  garmin-analytics seed --reset --months "${GA_SEED_MONTHS:-40}" || {
+  odeda seed --reset --months "${GA_SEED_MONTHS:-40}" || {
     echo "demo seeding failed; starting empty" >&2
     rm -f "$DB_PATH"
   }
@@ -48,16 +48,16 @@ fi
 case "$1" in
   serve)
     shift
-    exec garmin-analytics serve \
+    exec odeda serve \
       --host "${GA_HOST:-0.0.0.0}" \
       --port "${GA_PORT:-8000}" "$@"
     ;;
   "")
-    exec garmin-analytics serve --host "${GA_HOST:-0.0.0.0}" --port "${GA_PORT:-8000}"
+    exec odeda serve --host "${GA_HOST:-0.0.0.0}" --port "${GA_PORT:-8000}"
     ;;
   *)
     # Anything else is passed straight to the CLI: `docker compose run --rm app doctor`,
     # `... app backfill`, `... app seed --reset`, and so on.
-    exec garmin-analytics "$@"
+    exec odeda "$@"
     ;;
 esac

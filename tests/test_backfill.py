@@ -12,9 +12,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from garmin_analytics.ingest import backfill as B
-from garmin_analytics.ingest import connect
-from garmin_analytics.ingest import details as D
+from odeda.ingest import backfill as B
+from odeda.ingest import connect
+from odeda.ingest import details as D
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +53,7 @@ class FakeGarmin:
         if "/details" in path:
             activity_id = path.split("/activity/")[1].split("/")[0]
             if activity_id in self.fail_on:
-                from garmin_analytics.ingest.connect import ConnectError
+                from odeda.ingest.connect import ConnectError
 
                 raise ConnectError("boom")
             if not self.details_enabled:
@@ -308,7 +308,7 @@ class TestStatusAndEstimate:
         account is now known to start there rather than at the ten-year fallback —
         so the two effects are checked against the arithmetic, not against each other.
         """
-        from garmin_analytics.ingest import connect as connect_mod
+        from odeda.ingest import connect as connect_mod
 
         for i in range(20):
             store.upsert("activities", ["activity_id"], {

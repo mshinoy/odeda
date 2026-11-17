@@ -38,7 +38,7 @@ from typing import Any, Iterator, Mapping
 
 from . import normalize as norm
 
-log = logging.getLogger("garmin_analytics.fitbit_export")
+log = logging.getLogger("odeda.fitbit_export")
 
 SOURCE = "fitbit_export"
 

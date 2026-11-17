@@ -19,8 +19,8 @@ import pytest
 
 import fitgen
 import fixtures as F
-from garmin_analytics.ingest import connect, export_zip, fitfile
-from garmin_analytics.ingest import normalize as N
+from odeda.ingest import connect, export_zip, fitfile
+from odeda.ingest import normalize as N
 
 
 class TestPick:
@@ -414,7 +414,7 @@ class TestSyncActivities:
         assert store.scalar("SELECT COUNT(*) FROM activity_hr_zones") == 5
 
     def test_trimp_uses_the_zones_when_they_exist(self, store):
-        from garmin_analytics.analytics import load as L
+        from odeda.analytics import load as L
 
         fetcher = fake_fetcher({"activities/search": [F.ACTIVITY], "hrTimeInZones": F.HR_ZONES})
         connect.sync_activities(store, dt.date(2026, 9, 1), dt.date(2026, 9, 30), fetcher=fetcher)
@@ -424,7 +424,7 @@ class TestSyncActivities:
         assert store.query("SELECT trimp FROM activities")[0]["trimp"] == pytest.approx(expected)
 
     def test_trimp_falls_back_to_average_hr_without_zones(self, store):
-        from garmin_analytics.analytics import load as L
+        from odeda.analytics import load as L
 
         fetcher = fake_fetcher({"activities/search": [F.ACTIVITY]})
         connect.sync_activities(store, dt.date(2026, 9, 1), dt.date(2026, 9, 30), fetcher=fetcher)
@@ -583,7 +583,7 @@ class TestFitParsing:
         assert sum(zones.values()) == pytest.approx(2400.0)
 
     def test_decoupling_of_a_parsed_fit_matches_the_pure_function(self, fit_path):
-        from garmin_analytics.analytics import performance as P
+        from odeda.analytics import performance as P
 
         parsed = fitfile.read_fit(fit_path)
         recs = parsed["records"]

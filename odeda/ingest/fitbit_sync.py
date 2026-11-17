@@ -29,7 +29,7 @@ from typing import Any, Callable
 from . import fitbit as fitbit_mod
 from . import normalize as norm
 
-log = logging.getLogger("garmin_analytics.fitbit_sync")
+log = logging.getLogger("odeda.fitbit_sync")
 
 #: The watermark and `raw_documents.endpoint` name. One string, used in both places, so
 #: the Settings sync panel and the archive agree about what this data is called.

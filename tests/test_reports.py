@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics.analytics import reports as Rep
+from odeda.analytics import reports as Rep
 
 
 class TestIsoWeek:

@@ -11,10 +11,10 @@ from datetime import date
 
 import pytest
 
-from garmin_analytics.analytics import aggregate as agg
-from garmin_analytics.analytics import performance as perf
-from garmin_analytics.analytics import readiness as rdy
-from garmin_analytics.edits import overrides as ov
+from odeda.analytics import aggregate as agg
+from odeda.analytics import performance as perf
+from odeda.analytics import readiness as rdy
+from odeda.edits import overrides as ov
 
 
 def _add(store, activity_id: str, **kw):

@@ -10,14 +10,14 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from garmin_analytics.analytics import performance as perf_mod
-from garmin_analytics.analytics import routes as routes_mod
-from garmin_analytics.api.server import create_app
-from garmin_analytics.ingest import auto_sync as A
-from garmin_analytics.ingest import connect as connect_mod
-from garmin_analytics.ingest import details as details_mod
-from garmin_analytics.ingest import fitbit as fitbit_mod
-from garmin_analytics.ingest import fitbit_sync as fitbit_sync_mod
+from odeda.analytics import performance as perf_mod
+from odeda.analytics import routes as routes_mod
+from odeda.api.server import create_app
+from odeda.ingest import auto_sync as A
+from odeda.ingest import connect as connect_mod
+from odeda.ingest import details as details_mod
+from odeda.ingest import fitbit as fitbit_mod
+from odeda.ingest import fitbit_sync as fitbit_sync_mod
 
 HOUR = 3600.0
 
@@ -416,7 +416,7 @@ class TestPlanSource:
         assert out["state"] == "skipped"
 
     def test_an_unchanged_feed_is_a_good_run_that_wrote_nothing(self, store, settings, monkeypatch):
-        from garmin_analytics.ingest import plan_ics
+        from odeda.ingest import plan_ics
 
         monkeypatch.setattr(plan_ics, "sync_plan",
                             lambda st, *a, **k: {"status": "unchanged"})
@@ -425,7 +425,7 @@ class TestPlanSource:
         assert "unchanged" in out["message"]
 
     def test_a_dead_address_is_an_error_the_owner_can_act_on(self, store, settings, monkeypatch):
-        from garmin_analytics.ingest import plan_ics
+        from odeda.ingest import plan_ics
 
         def boom(st, *a, **k):
             raise plan_ics.PlanFeedError("the private address was reset")

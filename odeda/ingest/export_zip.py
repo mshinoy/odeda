@@ -27,7 +27,7 @@ from typing import Any, Callable, Iterator, Mapping
 
 from . import normalize as norm
 
-log = logging.getLogger("garmin_analytics.export_zip")
+log = logging.getLogger("odeda.export_zip")
 
 # Shape detectors: (name, predicate on a sample record, normaliser, table)
 Shape = tuple[str, Callable[[Mapping[str, Any]], bool], Callable[..., Any], str]

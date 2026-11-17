@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.analytics import readiness as ready_mod
-from garmin_analytics.db.store import Store
+from odeda.analytics import readiness as ready_mod
+from odeda.db.store import Store
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ class TestReadinessShapeContract:
 
 class TestCliOnAFreshInstall:
     def test_report_exits_clean_with_no_data(self, settings, capsys):
-        from garmin_analytics.cli import main
+        from odeda.cli import main
 
         Store.open(settings).close()              # schema only
         assert main(["report"]) == 0
@@ -64,21 +64,21 @@ class TestCliOnAFreshInstall:
         """A hint that names a non-existent flag is worse than no hint."""
         import re
 
-        from garmin_analytics.cli import build_parser
+        from odeda.cli import build_parser
 
         Store.open(settings).close()
-        main_mod = __import__("garmin_analytics.cli", fromlist=["main"])
+        main_mod = __import__("odeda.cli", fromlist=["main"])
         assert main_mod.main(["report"]) == 0
         out = capsys.readouterr().out
 
-        suggested = re.findall(r"garmin-analytics ([a-z-]+)", out)
+        suggested = re.findall(r"odeda ([a-z-]+)", out)
         assert suggested
         known = set(build_parser()._subparsers._group_actions[0].choices)
         for command in suggested:
             assert command in known, f"report suggests `{command}`, which does not exist"
 
     def test_report_json_exits_clean_with_no_data(self, settings, capsys):
-        from garmin_analytics.cli import main
+        from odeda.cli import main
 
         import json
 
@@ -88,7 +88,7 @@ class TestCliOnAFreshInstall:
         assert body["readiness"]["score"] is None
 
     def test_doctor_runs_before_any_sync(self, settings):
-        from garmin_analytics.cli import main
+        from odeda.cli import main
 
         Store.open(settings).close()
         assert main(["doctor"]) in (0, 1)          # may warn, must not raise
@@ -97,14 +97,14 @@ class TestCliOnAFreshInstall:
 class TestServeWithNoDatabaseFile:
     """`GA_SEED_DEMO=0` on a clean volume means serve starts before any database exists.
 
-    It used to exit 1 with "Run `garmin-analytics seed` or `sync` first", which in Docker
+    It used to exit 1 with "Run `odeda seed` or `sync` first", which in Docker
     is a crash loop: the container restarts forever and never gets as far as
-    `garmin-analytics login` and a backfill, the only way to give it data. Serving
+    `odeda login` and a backfill, the only way to give it data. Serving
     empty is the only behaviour that lets a real install bootstrap.
     """
 
     def test_serve_creates_the_schema_instead_of_exiting(self, settings, monkeypatch, capsys):
-        from garmin_analytics import cli
+        from odeda import cli
 
         started: dict[str, object] = {}
         monkeypatch.setattr(
@@ -121,7 +121,7 @@ class TestServeWithNoDatabaseFile:
     def test_the_database_serve_creates_is_migrated_not_just_touched(
         self, settings, monkeypatch
     ):
-        from garmin_analytics import cli
+        from odeda import cli
 
         monkeypatch.setattr("uvicorn.run", lambda app, **kw: None)
         cli.main(["serve"])

@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from garmin_analytics.ingest import weather as w
+from odeda.ingest import weather as w
 
 NOW = datetime(2026, 11, 12, 12, 0, tzinfo=timezone.utc)
 
@@ -208,8 +208,8 @@ class TestApi:
     def client(self, settings):
         from fastapi.testclient import TestClient
 
-        from garmin_analytics.api.server import create_app
-        from garmin_analytics.db.store import Store
+        from odeda.api.server import create_app
+        from odeda.db.store import Store
 
         with Store.open(settings) as st:
             _activity(st, "a1")

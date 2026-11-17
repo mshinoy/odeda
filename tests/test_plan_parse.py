@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from garmin_analytics.plan import parse as P
+from odeda.plan import parse as P
 
 # --- Real text ------------------------------------------------------------------------
 
