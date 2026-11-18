@@ -1,25 +1,18 @@
-"""Synthetic route geometry for the seeder.
+"""Route geometry for the seeder: real tracks, so the demo map looks like a real person's.
 
-Every coordinate in this file is **generated from a formula**, not recorded. The
-anchors are public landmarks in Doha so the demo map looks like somewhere rather
-than the middle of the Atlantic; the paths themselves are parametric squiggles and
-correspond to no real person's movements.
-
-Why this exists: route clustering, segment analysis and the map are the headline
-feature, and none of them can be demonstrated — or tested — against data where every
-run is a fresh random walk. So the seeder picks from a fixed set of routes, and a
-route is the *same shape every time it is run*, down to where the hills are. That is
-what makes "you always slow down at 4.2 km" a real, checkable signal rather than noise.
-
-Two pairs of routes (Corniche/West Bay at ~8.5 km, Corniche-short/Aspire at ~5 km)
-deliberately share a distance while sitting in different parts of the city: if the
-clusterer ever merges those, it is broken.
+The shapes are recorded tracks (see `real_routes.json`), laid under synthetic runs.
+Only the movement along them is invented: pace, heart rate and the day each run
+happened. Every run on a route follows the same line and the same hills, which is
+what makes "you always slow down at 4.2 km" a real, checkable signal rather than
+noise, and what route clustering needs in order to be demonstrated at all.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import random
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Sequence
 
@@ -108,93 +101,55 @@ class Route:
 # The route book
 # ---------------------------------------------------------------------------
 
-CORNICHE = (25.2990, 51.5380)
-ASPIRE = (25.2620, 51.4430)
-EDUCATION_CITY = (25.3140, 51.4370)
-THE_PEARL = (25.3690, 51.5490)
-AL_BIDDA = (25.2900, 51.5230)
-LUSAIL = (25.4300, 51.4900)
+#: Real tracks, recorded by the project owner and exported from the route table of a
+#: live install, kept in `real_routes.json`. Any track passing within 2 km of the
+#: owner's home was dropped before export. Each entry is `[lat, lon, altitude_m]`.
+_REAL_FILE = Path(__file__).with_name("real_routes.json")
 
-TEMPLATES: tuple[RouteTemplate, ...] = (
-    RouteTemplate(
-        key="aspire_short", name="Aspire Park short loop", sport="running",
-        anchor=ASPIRE, nominal_m=3400, lobes=3, phase=0.4,
-        hills=(Hill(at=0.55, height_m=6.0),),
-    ),
-    RouteTemplate(
-        key="corniche_5k", name="Corniche 5k out-and-back", sport="running",
-        anchor=CORNICHE, nominal_m=5000, shape="out_back", lobes=2,
-        hills=(Hill(at=0.5, height_m=9.0, width=0.10),),
-    ),
-    RouteTemplate(
-        key="aspire_loop", name="Aspire Park loop", sport="running",
-        anchor=ASPIRE, nominal_m=5200, lobes=4, phase=1.1,
-        hills=(Hill(at=0.3, height_m=7.0), Hill(at=0.78, height_m=5.0)),
-    ),
-    RouteTemplate(
-        key="albidda_loop", name="Al Bidda Park loop", sport="running",
-        anchor=AL_BIDDA, nominal_m=6400, lobes=3, phase=2.0,
-        # Al Bidda genuinely has a rise; this is the route that teaches the
-        # segment profile what a hill looks like.
-        hills=(Hill(at=0.35, height_m=22.0, width=0.08), Hill(at=0.72, height_m=11.0)),
-    ),
-    RouteTemplate(
-        key="edu_city_perimeter", name="Education City perimeter", sport="running",
-        anchor=EDUCATION_CITY, nominal_m=7200, lobes=5, phase=0.7,
-        hills=(Hill(at=0.45, height_m=12.0),),
-    ),
-    RouteTemplate(
-        key="corniche_loop", name="Corniche loop", sport="running",
-        anchor=CORNICHE, nominal_m=8400, lobes=3, phase=1.7,
-        hills=(Hill(at=0.25, height_m=14.0, width=0.07), Hill(at=0.85, height_m=8.0)),
-    ),
-    RouteTemplate(
-        key="west_bay_circuit", name="West Bay circuit", sport="running",
-        anchor=(25.3210, 51.5310), nominal_m=8600, lobes=4, phase=0.2,
-        hills=(Hill(at=0.6, height_m=16.0),),
-    ),
-    RouteTemplate(
-        key="pearl_loop", name="The Pearl loop", sport="running",
-        anchor=THE_PEARL, nominal_m=10500, lobes=4, phase=2.6,
-        hills=(Hill(at=0.4, height_m=10.0), Hill(at=0.9, height_m=13.0)),
-    ),
-    RouteTemplate(
-        key="corniche_long", name="Corniche long out-and-back", sport="running",
-        anchor=CORNICHE, nominal_m=12600, shape="out_back", lobes=3, phase=0.9,
-        hills=(Hill(at=0.5, height_m=18.0, width=0.09),),
-    ),
-    RouteTemplate(
-        key="edu_city_long", name="Education City long loop", sport="running",
-        anchor=EDUCATION_CITY, nominal_m=14800, lobes=5, phase=1.4,
-        hills=(Hill(at=0.3, height_m=15.0), Hill(at=0.65, height_m=20.0, width=0.07)),
-    ),
-    RouteTemplate(
-        key="lusail_long", name="Lusail long run", sport="running",
-        anchor=LUSAIL, nominal_m=18000, lobes=4, phase=3.0,
-        hills=(Hill(at=0.55, height_m=24.0, width=0.08),),
-    ),
-    RouteTemplate(
-        key="half_route", name="Doha half marathon route", sport="running",
-        anchor=CORNICHE, nominal_m=21100, shape="out_back", lobes=4, phase=2.2,
-        hills=(Hill(at=0.5, height_m=26.0, width=0.10),),
-    ),
-    # --- cycling ---------------------------------------------------------
-    RouteTemplate(
-        key="dukhan_ride", name="Dukhan Road ride", sport="cycling",
-        anchor=(25.2500, 51.3200), nominal_m=40000, shape="out_back", lobes=2,
-        hills=(Hill(at=0.5, height_m=60.0, width=0.12),), tolerance=0.30,
-    ),
-    RouteTemplate(
-        key="al_khor_ride", name="Al Khor ride", sport="cycling",
-        anchor=(25.5500, 51.4700), nominal_m=62000, lobes=3, phase=1.0,
-        hills=(Hill(at=0.35, height_m=45.0), Hill(at=0.75, height_m=38.0)), tolerance=0.30,
-    ),
-    RouteTemplate(
-        key="sealine_ride", name="Sealine ride", sport="cycling",
-        anchor=(25.0200, 51.5200), nominal_m=85000, shape="out_back", lobes=3, phase=0.5,
-        hills=(Hill(at=0.5, height_m=80.0, width=0.14),), tolerance=0.30,
-    ),
-)
+#: id in the exported file -> (key, name, tolerance). Names are places, not people.
+_REAL_NAMES: dict[int, tuple[str, str]] = {
+    24: ("lusail_promenade_long", "Lusail promenade long run"),
+    51: ("lusail_promenade", "Lusail promenade out and back"),
+    53: ("west_bay_lagoon_loop", "Lagoon loop"),
+    54: ("west_bay_lagoon_short", "Lagoon short loop"),
+    57: ("corniche_long", "Corniche long out and back"),
+    68: ("corniche_11k", "Corniche 11k out and back"),
+    32: ("west_bay_loop", "West Bay loop"),
+    65: ("lusail_ride", "Lusail ride"),
+    67: ("al_khor_loop", "Al Khor loop"),
+    70: ("doha_east_ride", "Doha east ride"),
+    124: ("aamal_ride", "Aamal ride"),
+    129: ("corniche_ride", "Corniche ride"),
+}
+
+
+def _length_m(points: Sequence[Sequence[float]]) -> float:
+    lat0 = points[0][0]
+    m_lon = M_PER_DEG_LAT * math.cos(math.radians(lat0))
+    return sum(
+        math.hypot((b[1] - a[1]) * m_lon, (b[0] - a[0]) * M_PER_DEG_LAT)
+        for a, b in zip(points, points[1:])
+    )
+
+
+def _load_real() -> tuple[tuple[RouteTemplate, ...], dict[str, list]]:
+    templates: list[RouteTemplate] = []
+    points: dict[str, list] = {}
+    for item in json.loads(_REAL_FILE.read_text()):
+        key, name = _REAL_NAMES[item["id"]]
+        pts = item["points"]
+        templates.append(
+            RouteTemplate(
+                key=key, name=name, sport=item["sport"],
+                anchor=(pts[0][0], pts[0][1]), nominal_m=_length_m(pts),
+                tolerance=0.30 if item["sport"] == "cycling" else 0.25,
+            )
+        )
+        points[key] = pts
+    return tuple(templates), points
+
+
+TEMPLATES, _REAL_POINTS = _load_real()
 
 TEMPLATES_BY_KEY = {t.key: t for t in TEMPLATES}
 
@@ -242,36 +197,16 @@ def build(template: RouteTemplate | str) -> Route:
     if t.key in _CACHE:
         return _CACHE[t.key]
 
-    raw = _raw_shape(t)
-
-    # Scale the unit shape so the polyline is exactly `nominal_m` long.
-    unit_len = sum(
-        math.dist(raw[i - 1], raw[i]) for i in range(1, len(raw))
-    )
-    scale = t.nominal_m / unit_len
-
-    lat0, lon0 = t.anchor
-    m_per_deg_lon = M_PER_DEG_LAT * math.cos(math.radians(lat0))
-
-    lats, lons = [], []
-    for x, y in raw:
-        lats.append(lat0 + (y * scale) / M_PER_DEG_LAT)
-        lons.append(lon0 + (x * scale) / m_per_deg_lon)
-
+    pts = _REAL_POINTS[t.key]
+    lats = [p[0] for p in pts]
+    lons = [p[1] for p in pts]
+    alts = [p[2] for p in pts]
+    m_per_deg_lon = M_PER_DEG_LAT * math.cos(math.radians(lats[0]))
     cum = [0.0]
     for i in range(1, len(lats)):
         dx = (lons[i] - lons[i - 1]) * m_per_deg_lon
         dy = (lats[i] - lats[i - 1]) * M_PER_DEG_LAT
         cum.append(cum[-1] + math.hypot(dx, dy))
-
-    total = cum[-1]
-    alts = []
-    for d in cum:
-        frac = d / total if total else 0.0
-        alt = t.base_alt_m
-        for h in t.hills:
-            alt += h.height_m * math.exp(-(((frac - h.at) / h.width) ** 2))
-        alts.append(round(alt, 2))
 
     route = Route(template=t, lats=lats, lons=lons, alts=alts, cum=cum)
     _CACHE[t.key] = route

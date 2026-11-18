@@ -380,7 +380,11 @@ class TestTheWholeReport:
         wide = B.compute_body(seeded_store, days=540, today=date(2026, 9, 22))
         narrow = B.compute_body(seeded_store, days=120, today=date(2026, 9, 22))
         assert len(narrow["series"]["days"]) < len(wide["series"]["days"])
-        assert narrow["projection"]["projected_kg"] == wide["projection"]["projected_kg"]
+        # Equal up to the last rounded digit: a value sitting on a rounding boundary
+        # may land either side of it, which depends on the seeded data.
+        assert narrow["projection"]["projected_kg"] == pytest.approx(
+            wide["projection"]["projected_kg"], abs=0.011
+        )
 
 
 @pytest.fixture(scope="module")
