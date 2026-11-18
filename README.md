@@ -48,7 +48,7 @@ More detail on each: [what it does](docs/features.md).
 
 **Map**: a route coloured by how fast each stretch goes, wherever you ran it.
 
-![Map: the Aspire Park loop coloured by pace, with the list of routes](docs/img/map.png)
+![Map: the Lusail promenade long run coloured by pace, with the list of routes](docs/img/map.png)
 
 **An activity**: answers first, then the map, the kilometres and the charts.
 
