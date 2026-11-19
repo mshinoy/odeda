@@ -1,11 +1,9 @@
-# Runs the checks on every pull request and on every push to main.
+# Runs the checks on every pull request (and every new push to its branch).
 # Nothing here deploys anything or needs a secret.
 name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 # A newer push to the same branch makes the older run pointless.
 concurrency:
