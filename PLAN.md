@@ -79,7 +79,7 @@ On `main` and in the app (checkpoints P, S, V, W, X, Y and Z approved 2026-11-16
 Not started: platform (21), the post-race page (T81). Open questions for the owner: D25 and D32. Direction beyond that
 is in [`FUTURE.md`](FUTURE.md): publish as a self-hosted open-source project first (D29).
 
-Nothing is in progress on a branch. `main` is `v0.2.0` (cut 16 Nov 2026).
+Nothing is in progress on a branch. `main` is `v0.3.0` once the release pull request is merged (cut 19 Nov 2026); the last tag is `v0.2.0` (16 Nov 2026).
 
 ## The date that matters
 
