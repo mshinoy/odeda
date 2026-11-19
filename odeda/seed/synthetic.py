@@ -480,13 +480,19 @@ def synth_ride(
 
     duration = minutes * 60.0
     distance = route.total_m * rng.uniform(0.995, 1.005)
-    base_speed = distance / duration
     step = 20.0
 
     elapsed, dist, hrs, cadences, alts = [0.0], [0.0], [], [], []
     t, d = 0.0, 0.0
     hr_prev = hr_rest + 30.0
     hrr = rng.uniform(0.60, 0.74)
+    # How hard the day felt: some rides are quicker than the plan, some slower. From its
+    # own random source, seeded by this ride's heart-rate draw (unique per ride), so the
+    # main stream is untouched and the rest of the history is unchanged. Without it
+    # every ride on a route takes exactly the planned time, and "faster than last time"
+    # has nothing to say.
+    pace = random.Random(hrr).uniform(0.93, 1.07)
+    base_speed = distance / (duration * pace)
     while d < distance and t < duration * 1.6:
         gradient = route.gradient_at(route.total_m * min(d / distance, 1.0))
         speed = base_speed * max(0.45, min(1.45, 1.0 - 0.055 * gradient)) * rng.gauss(1.0, 0.03)
