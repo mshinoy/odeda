@@ -1,0 +1,46 @@
+# A public, read-only demo of Odeda behind Cloudflare. See README.md in this folder.
+#
+#   cd deploy/demo && cp .env.example .env   # fill it in; .env is not committed
+#   docker compose up -d
+#
+# Two containers: the demo itself (synthetic data, `GA_DEMO=1`, read-only) and a small
+# nginx in front of it that speaks HTTPS to Cloudflare. The demo has its own volume and
+# no connection to any real data.
+services:
+  demo:
+    image: odeda:demo
+    container_name: odeda-demo
+    command: ["serve"]
+    restart: unless-stopped
+    environment:
+      GA_DEMO: "1"
+      GA_SEED_DEMO: "1"
+      TZ: Asia/Qatar
+      GA_DATA_DIR: /data
+      GA_DB: /data/garmin.db
+      GA_RAW_DIR: /data/raw_archive
+      GA_TOKEN_DIR: /data/tokens
+      GA_HOST: 0.0.0.0
+      GA_PORT: "8000"
+    volumes:
+      - odeda-demo-data:/data
+    ports:
+      # Localhost only, for looking at it from the machine or through a private proxy.
+      - "127.0.0.1:8002:8000"
+
+  edge:
+    image: nginx:1.27-alpine
+    container_name: odeda-edge
+    restart: unless-stopped
+    depends_on: [demo]
+    ports:
+      # Cloudflare connects here. Bound to one address (EDGE_BIND_IP) rather than every
+      # interface, so it does not collide with a private proxy using the same port.
+      - "${EDGE_BIND_IP:?set EDGE_BIND_IP in .env}:${EDGE_PORT:-443}:8443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${EDGE_CERT_DIR:?set EDGE_CERT_DIR in .env}:/etc/nginx/certs:ro
+
+volumes:
+  odeda-demo-data:
+    external: true
