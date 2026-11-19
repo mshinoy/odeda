@@ -112,11 +112,18 @@
   }
   html {
     /* The whole interface is in rem, so the root scales text, spacing and cards together.
-       Gently: 15px on a 13-inch window, 16px at 1440 wide, and no more than 17px however
-       large the display. A bigger screen gets more margin, not bigger cards. */
-    font-size: clamp(15px, calc(16px + (100vw - 1440px) * 0.002), 17px);
+       14.4px (the browser at 90%) up to 1440 wide, where a 13-inch laptop sits, easing to
+       about 17px on a large display, and never above. A bigger screen gets more margin, not
+       bigger cards. Phones and small tablets keep 15px, set below. */
+    font-size: clamp(14.4px, calc(14.4px + (100vw - 1440px) * 0.00533), 17px);
     @apply font-sans;
     /* Digits line up everywhere: stat cards, tables, axis ticks, tooltips. */
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (max-width: 1023px) {
+  html {
+    font-size: 15px;
   }
 }
