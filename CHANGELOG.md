@@ -8,6 +8,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- **Hosting the demo:** `deploy/demo/` has what runs the public demo at odeda.run behind Cloudflare.
 - **Demo mode:** `GA_DEMO=1` makes an instance read-only for a public demo. Every change is refused with a
   clear message, there is no sign-in, and a banner says the data is synthetic.
 
