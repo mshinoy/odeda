@@ -2,13 +2,22 @@
 
 Versions follow `MAJOR.MINOR.PATCH`. While the app is below 1.0, a new **minor** version
 is a release with new things in it, and a **patch** is a fix. The version lives in three
-places, kept equal: `pyproject.toml`, `garmin_analytics/__init__.py` (what Settings, then
+places, kept equal: `pyproject.toml`, `odeda/__init__.py` (what Settings, then
 About, shows) and `frontend/package.json`. A release is a commit on `main` with that
 version, tagged `vMAJOR.MINOR.PATCH`.
 
-## Unreleased: the project is now called Odeda
+## 0.3.0: Odeda, and a first run that is easier (2026-11-19)
 
 *Odeda* is Malayalam for "run, da!". The name no longer leads with Garmin's trademark.
+
+- **First run:** Settings has a Basics card (time zone, resting and maximum heart rate) and a
+  Password card, and Today shows a short first-run checklist. Changing heart rate recomputes
+  the stored training load. A password chosen in Settings survives a restart.
+- **README and docs:** a short front page with a screenshot gallery, the detail moved to `docs/`,
+  a bug-report issue template, and a public `ROADMAP.md`.
+- **Demo data:** the seeder now gives strength sessions real exercises, sets and weights, and
+  lays its synthetic runs and rides onto recorded Doha routes. `scripts/demo-plan.py` loads a
+  matching half-marathon plan.
 
 - **Renamed:** the Python package is `odeda`, the command is `odeda` (it was `garmin-analytics`),
   and the Docker image and containers are `odeda`, `odeda-api-dev` and `odeda-ui-dev`. The UI
