@@ -1,3 +1,4 @@
+import { useConfig } from "@/api/queries/useSettings";
 import type { GarminStatus, SyncStatus } from "@/api/queries/useStatus";
 import { lastSyncedAt } from "@/api/queries/useStatus";
 import type { components } from "@/api/schema";
@@ -25,8 +26,22 @@ export function SyncStrip({
   syncStarting,
   syncError,
 }: SyncStripProps) {
+  const { data: config } = useConfig();
   const running = sync.state === "running";
   const failed = sync.state === "error";
+
+  // A read-only demo is not connected to anything and cannot sync, so say what the data
+  // covers and nothing else, rather than a red "not connected" and a button that fails.
+  if (config?.demo) {
+    return (
+      <footer className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-sm">
+        <span>Synthetic demo data</span>
+        <span>
+          {formatDate(dayRange.from)} → {formatDate(dayRange.to)}
+        </span>
+      </footer>
+    );
+  }
 
   return (
     <footer className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-sm">

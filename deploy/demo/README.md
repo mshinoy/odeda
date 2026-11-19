@@ -10,7 +10,10 @@ visitor -> Cloudflare (odeda.run) -> this machine, IPv6, port 443 (nginx) -> ode
 1. **Image.** Build it from the repository root: `docker build -t odeda:demo .`
 2. **Volume.** `docker volume create odeda-demo-data`, then seed it once:
    `docker run --rm -e TZ=Asia/Qatar -e GA_DATA_DIR=/data -e GA_DB=/data/garmin.db -e GA_RAW_DIR=/data/raw_archive -e GA_TOKEN_DIR=/data/tokens -v odeda-demo-data:/data odeda:demo seed`.
-   Load a plan with `python3 scripts/demo-plan.py apply` (against the running demo).
+   Load a plan with `python3 scripts/demo-plan.py apply`. A demo refuses every change, so load it
+   while demo mode is off: run a one-off copy on the same volume without `GA_DEMO`
+   (`docker run --rm -p 127.0.0.1:8003:8000 ... odeda:demo serve`), then
+   `ODEDA_URL=http://127.0.0.1:8003 python3 scripts/demo-plan.py apply`, then stop it.
 3. **Certificate.** In Cloudflare, SSL/TLS → Origin Server → Create certificate for the domain.
    Save the two files as `cert.pem` and `key.pem` in a folder outside the repository.
 4. **Settings.** `cp .env.example .env` and fill in the machine's public IPv6 address (in square
