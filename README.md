@@ -138,6 +138,7 @@ The full list: [honest limits](docs/honest-limits.md).
 | [Google Health setup](docs/google-health-setup.md) | Connecting a Fitbit-linked scale step by step |
 | [History](docs/history/) | How it was planned and built, and every decision on the way |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, tests, how work is planned |
+| [ROADMAP.md](ROADMAP.md) | Where it is heading |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 
 FastAPI's interactive docs are at `/docs` on a running instance, behind the same sign-in.
