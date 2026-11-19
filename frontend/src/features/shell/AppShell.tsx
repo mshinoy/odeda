@@ -1,5 +1,6 @@
 import { Footprints, Settings } from "lucide-react";
 import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
+import { useConfig } from "@/api/queries/useSettings";
 import { useAutoSync } from "@/api/queries/useStatus";
 import { cn } from "@/lib/utils";
 
@@ -19,12 +20,35 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   );
 }
 
+/** Shown on a read-only demo instance, above every page, so nobody takes the data for real. */
+export function DemoBanner() {
+  const { data } = useConfig();
+  if (!data?.demo) return null;
+  return (
+    <div
+      role="note"
+      className="bg-muted text-muted-foreground border-b px-8 py-1.5 text-center text-xs"
+    >
+      Demo with synthetic data. It is read-only, so nothing you click here changes anything.{" "}
+      <a
+        href="https://github.com/mshinoy/odeda"
+        className="text-foreground underline underline-offset-2"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Get Odeda
+      </a>
+    </div>
+  );
+}
+
 export function AppShell() {
   // Here rather than on Settings: a run that lands while any page is open refreshes it.
   useAutoSync();
 
   return (
     <div className="min-h-svh">
+      <DemoBanner />
       <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1480px] items-center gap-6 px-8">
           <nav className="flex items-center gap-1">

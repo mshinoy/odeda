@@ -17,6 +17,7 @@ Backend settings are documented in [`.env.example`](../.env.example). The ones t
 | `APP_PASSWORD` | *(empty)* | **Set this.** Empty means no authentication at all. |
 | `GA_COOKIE_SECURE` | `0` | Set to `1` when behind HTTPS. |
 | `GA_SEED_DEMO` | `0` | `1` generates synthetic data on first start. |
+| `GA_DEMO` | `0` | `1` makes the instance a read-only demo: every change is refused, there is no sign-in, and a banner says the data is synthetic. Use it with `GA_SEED_DEMO=1` for a public demo. |
 | `GA_HR_REST` / `GA_HR_MAX` | 52 / 187 | Used by TRIMP and zone maths. |
 | `GA_RIDE_TO_RUN` | `0.6` | Share of a ride's heart-rate load that counts toward a missed long run, as running; `0` counts rides for nothing. |
 | `GA_AUTO_SYNC_HOURS` | `6` | Hours between automatic syncs; `0` turns them off. |
