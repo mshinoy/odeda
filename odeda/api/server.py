@@ -267,6 +267,10 @@ def warm_caches(settings: Settings) -> None:
     heatmap_cached(settings)
 
 
+#: POST routes that only read, and so stay open on a read-only demo.
+DEMO_ALLOWED_WRITES = frozenset({"/api/plan/upload/preview"})
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     settings.ensure_dirs()
@@ -318,6 +322,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         basics_mod.apply_saved(st, settings)
         app.state.password_state = auth_mod.sync_password_from_env(st, settings.app_password)
         app.state.auth_required = auth_mod.auth_required(st)
+    if settings.demo:
+        # A demo holds nothing private, so it has no sign-in, whatever the database
+        # or the environment says.
+        app.state.auth_required = False
+
+    # -- read-only demo ------------------------------------------------------
+
+    @app.middleware("http")
+    async def refuse_writes_in_demo(request: Request, call_next):
+        """On a demo instance no request may change anything.
+
+        Checked by method, not by route, so a route added later is covered without
+        anyone remembering to list it. The one POST that only reads, the plan upload
+        preview, is allowed so the demo can show what an upload would do."""
+        if (
+            settings.demo
+            and request.url.path.startswith("/api/")
+            and request.method not in ("GET", "HEAD", "OPTIONS")
+            and request.url.path not in DEMO_ALLOWED_WRITES
+        ):
+            return JSONResponse(
+                {"detail": "This is a read-only demo. Install Odeda to change anything."},
+                status_code=403,
+            )
+        return await call_next(request)
 
     # -- auth gate -----------------------------------------------------------
 
@@ -1641,6 +1670,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # No targets block: they belong to the plan, not to the deployment, and
             # are on /api/plan and /api/race (D12).
             "auth_required": app.state.auth_required,
+            "demo": settings.demo,
             "version": __version__,
         }
 

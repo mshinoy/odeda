@@ -92,6 +92,9 @@ class Settings:
     #: How much of a ride's heart-rate load counts toward a missed long run, as running
     #: (`forecast.RIDE_TO_RUN`). 0 counts a ride for nothing; 1 counts it in full.
     ride_to_run: float = 0.6
+    #: A read-only demo (`GA_DEMO=1`): every change is refused, there is no sign-in, and
+    #: the UI says so. For a public instance holding only synthetic data.
+    demo: bool = False
     #: Where the React SPA's production build lands (`npm run build` in frontend/).
     #: A build artifact, not source: absent in a fresh clone, and the API runs without it.
     ui_dir: Path = Path(__file__).resolve().parent / "ui"
@@ -140,6 +143,7 @@ def load_settings() -> Settings:
         sex=os.environ.get("GA_SEX", DEFAULT_SEX).lower(),
         app_password=os.environ.get("APP_PASSWORD", "").strip(),
         cookie_secure=_env_bool("GA_COOKIE_SECURE", False),
+        demo=_env_bool("GA_DEMO", False),
         session_ttl_days=int(os.environ.get("GA_SESSION_DAYS", 30)),
         auto_sync_hours=float(os.environ.get("GA_AUTO_SYNC_HOURS", 6)),
         cache_warm=os.environ.get("GA_CACHE_WARM", "1") != "0",

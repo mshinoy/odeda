@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 11 / 12 |
+| 27 Ready to publish: the README and docs | AA: `open` | 12 / 13 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -289,6 +289,7 @@ ideas are in `FUTURE.md` section 15.
 | T122 | A realistic demo instance for screenshots and a later hosted demo: the seeder gives every strength session real exercises, sets, reps and weights (its own random source, so the rest of the history is unchanged) and makes the Sundays one and three weeks before the end outdoor rides on a known route; `scripts/demo-plan.py` loads a neutral half-marathon plan (Doha, 15 Jan 2027) through the ordinary plan upload. The instance runs as the container `odeda-demo` on `127.0.0.1:8002` with its own volume `odeda-demo-data`, backed up in `~/garmin-work/backups/demo/` | done (2026-11-17) | T120 |
 | T123 | The demo uses real tracks instead of generated squiggles: `odeda/seed/real_routes.json` holds twelve recorded routes (runs along the Lusail promenade, the Corniche and West Bay; rides to Lusail and Aamal), exported from a live install with anything within 2 km of the owner's home dropped. The seeder lays its synthetic runs onto them. Demo instance reseeded and the README screenshots retaken | done (2026-11-18) | T122 |
 | T124 | CI on GitHub: `.github/workflows/ci.yml` runs the backend tests, the frontend type check, lint, tests and build, a Docker build and a gitleaks scan on every pull request. Free once the repository is public; nothing to deploy and no secrets | done (2026-11-19) | T123 |
+| T125 | Demo mode: `GA_DEMO=1` makes an instance read-only. A middleware refuses every non-read request under `/api/` with a 403 and a plain reason (by method, so routes added later are covered; the plan-upload preview, which only reads, stays open). No sign-in, `demo` on `/api/config`, and a banner on every page. The step before hosting a public demo | done (2026-11-19) | T124 |
 
 ### Open decisions
 

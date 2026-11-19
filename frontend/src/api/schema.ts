@@ -2318,6 +2318,12 @@ export interface components {
             athlete: components["schemas"]["ConfigAthlete"];
             /** Auth Required */
             auth_required: boolean;
+            /**
+             * Demo
+             * @description True on a read-only demo instance (`GA_DEMO=1`): the data is synthetic and every
+             *     change is refused with a 403.
+             */
+            demo: boolean;
             /** Version */
             version: string;
         };

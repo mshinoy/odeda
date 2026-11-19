@@ -6,6 +6,11 @@ places, kept equal: `pyproject.toml`, `odeda/__init__.py` (what Settings, then
 About, shows) and `frontend/package.json`. A release is a commit on `main` with that
 version, tagged `vMAJOR.MINOR.PATCH`.
 
+## Unreleased
+
+- **Demo mode:** `GA_DEMO=1` makes an instance read-only for a public demo. Every change is refused with a
+  clear message, there is no sign-in, and a banner says the data is synthetic.
+
 ## 0.3.0: Odeda, and a first run that is easier (2026-11-19)
 
 *Odeda* is Malayalam for "run, da!". The name no longer leads with Garmin's trademark.
