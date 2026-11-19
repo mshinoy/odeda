@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 12 / 13 |
+| 27 Ready to publish: the README and docs | AA: `open` | 13 / 14 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -290,6 +290,7 @@ ideas are in `FUTURE.md` section 15.
 | T123 | The demo uses real tracks instead of generated squiggles: `odeda/seed/real_routes.json` holds twelve recorded routes (runs along the Lusail promenade, the Corniche and West Bay; rides to Lusail and Aamal), exported from a live install with anything within 2 km of the owner's home dropped. The seeder lays its synthetic runs onto them. Demo instance reseeded and the README screenshots retaken | done (2026-11-18) | T122 |
 | T124 | CI on GitHub: `.github/workflows/ci.yml` runs the backend tests, the frontend type check, lint, tests and build, a Docker build and a gitleaks scan on every pull request. Free once the repository is public; nothing to deploy and no secrets | done (2026-11-19) | T123 |
 | T125 | Demo mode: `GA_DEMO=1` makes an instance read-only. A middleware refuses every non-read request under `/api/` with a 403 and a plain reason (by method, so routes added later are covered; the plan-upload preview, which only reads, stays open). No sign-in, `demo` on `/api/config`, and a banner on every page. The step before hosting a public demo | done (2026-11-19) | T124 |
+| T126 | The demo is hosted at odeda.run: `deploy/demo/` has a compose file (the read-only demo and an nginx edge), the edge config (a refuse-by-default host check, a per-visitor rate limit, a 64 KB body cap) and notes. Cloudflare in front: a proxied AAAA record to the machine's IPv6 address (the free plan always uses port 443 and the IPv4 one belongs to another site), Full (strict) with an origin certificate made from a locally generated key | done (2026-11-19) | T125 |
 
 ### Open decisions
 
