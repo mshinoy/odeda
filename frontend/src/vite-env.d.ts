@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly VITE_MAPBOX_TOKEN?: string;
+  readonly VITE_MAPBOX_PROXY?: string;
   readonly VITE_MAP_STYLE_LIGHT?: string;
   readonly VITE_MAP_STYLE_DARK?: string;
 }

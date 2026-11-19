@@ -8,6 +8,9 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- **Mapbox on the public demo, without the token on the page:** `VITE_MAPBOX_PROXY` makes the map library
+  ask this site for map data and a server in front (`deploy/demo`) adds the token, allows only map
+  requests and limits how fast they can be made.
 - **Hosting the demo:** `deploy/demo/` has what runs the public demo at odeda.run behind Cloudflare.
 - **Demo mode:** `GA_DEMO=1` makes an instance read-only for a public demo. Every change is refused with a
   clear message, there is no sign-in, and a banner says the data is synthetic.

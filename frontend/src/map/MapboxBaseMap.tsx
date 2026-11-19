@@ -11,7 +11,8 @@ import {
   useMap,
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { mapEnv } from "@/map/basemap";
+import { mapboxLibraryToken, mapEnv } from "@/map/basemap";
+import { transformThroughProxy } from "@/map/mapboxProxy";
 import { probeOf, type MapProbe } from "@/map/probe";
 import { useCameraDriver } from "@/map/useCameraDriver";
 import {
@@ -39,7 +40,10 @@ export function MapboxBaseMap({
   const overlay = useRef<MapboxOverlay | null>(null);
   return (
     <MapboxMap
-      mapboxAccessToken={mapEnv.mapboxToken}
+      mapboxAccessToken={mapboxLibraryToken(mapEnv)}
+      {...(mapEnv.mapboxProxy !== ""
+        ? { transformRequest: transformThroughProxy(mapEnv.mapboxProxy) }
+        : {})}
       mapStyle={mapStyle}
       initialViewState={{ bounds: initialBounds, fitBoundsOptions: { padding: FIT_PADDING_PX } }}
       style={{ width: "100%", height: "100%" }}
@@ -146,7 +150,8 @@ function ProbeReporter({
     onMap({
       ...base,
       // A reason forces deck.gl to draw now, with the view the map has just been given.
-      drawOverlay: () => (overlayRef.current as unknown as OverlayDeck | null)?._deck?.redraw("export"),
+      drawOverlay: () =>
+        (overlayRef.current as unknown as OverlayDeck | null)?._deck?.redraw("export"),
     });
     return () => onMap(null);
   }, [map, onMap, overlayRef]);

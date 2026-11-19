@@ -24,9 +24,10 @@ COPY frontend/ ./
 # passes an unset variable as an empty string, so empty ones are unset rather than
 # handed to Vite, where "" would override the frontend's own default styles.
 ARG VITE_MAPBOX_TOKEN=
+ARG VITE_MAPBOX_PROXY=
 ARG VITE_MAP_STYLE_LIGHT
 ARG VITE_MAP_STYLE_DARK
-RUN for v in VITE_MAPBOX_TOKEN VITE_MAP_STYLE_LIGHT VITE_MAP_STYLE_DARK; do \
+RUN for v in VITE_MAPBOX_TOKEN VITE_MAPBOX_PROXY VITE_MAP_STYLE_LIGHT VITE_MAP_STYLE_DARK; do \
       eval "[ -n \"\${$v:-}\" ]" || unset "$v"; \
     done \
  && npm run build
