@@ -8,7 +8,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-- **More room at the sides on laptop screens:** the page padding is now fluid, 24 to 48 px, instead of a fixed 32 px. Wide screens are unchanged.
+- **Laptop screens look like the browser at 90%:** the interface is a tenth smaller up to 1440 px wide, so a 13-inch screen has room at the sides, and the page padding is fluid (24 to 48 px) instead of a fixed 32 px. Large displays are unchanged.
 
 - **Mapbox on the public demo, without the token on the page:** `VITE_MAPBOX_PROXY` makes the map library
   ask this site for map data and a server in front (`deploy/demo`) adds the token, allows only map
