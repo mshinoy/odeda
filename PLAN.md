@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 10 / 11 |
+| 27 Ready to publish: the README and docs | AA: `open` | 11 / 12 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -288,6 +288,7 @@ ideas are in `FUTURE.md` section 15.
 | T121 | Sharpen the README opening around the settled positioning: analytics for athletes who follow a plan, judged against the plan they already have; not a coach. Adds what the name means (with the Malayalam spelling and a pronunciation) and three differences (the plan, the routes, owning the data) | done (2026-11-17) | T120 |
 | T122 | A realistic demo instance for screenshots and a later hosted demo: the seeder gives every strength session real exercises, sets, reps and weights (its own random source, so the rest of the history is unchanged) and makes the Sundays one and three weeks before the end outdoor rides on a known route; `scripts/demo-plan.py` loads a neutral half-marathon plan (Doha, 15 Jan 2027) through the ordinary plan upload. The instance runs as the container `odeda-demo` on `127.0.0.1:8002` with its own volume `odeda-demo-data`, backed up in `~/garmin-work/backups/demo/` | done (2026-11-17) | T120 |
 | T123 | The demo uses real tracks instead of generated squiggles: `odeda/seed/real_routes.json` holds twelve recorded routes (runs along the Lusail promenade, the Corniche and West Bay; rides to Lusail and Aamal), exported from a live install with anything within 2 km of the owner's home dropped. The seeder lays its synthetic runs onto them. Demo instance reseeded and the README screenshots retaken | done (2026-11-18) | T122 |
+| T124 | CI on GitHub: `.github/workflows/ci.yml` runs the backend tests, the frontend type check, lint, tests and build, a Docker build and a gitleaks scan on every pull request and push to `main`. Free once the repository is public; nothing to deploy and no secrets | done (2026-11-19) | T123 |
 
 ### Open decisions
 
