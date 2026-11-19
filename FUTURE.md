@@ -542,6 +542,32 @@ adds a second credential to a project whose pitch is that it holds almost none.
 
 ---
 
+## 22. Google Maps as a basemap choice
+
+*Raised 2026-11-19, while putting the demo on Mapbox.*
+
+**Why.** Today the basemap is CARTO / OpenStreetMap by default and Mapbox with a token
+(`providerFor(env)` in `frontend/src/map/`). Some people already have a Google Maps key, and
+Google's photorealistic 3D tiles would suit the flyover better than any flat style. A third choice
+costs little if it sits behind the same provider seam.
+
+**Shape.**
+- A `google` provider next to `maplibre` and `mapbox`, chosen by a build-time key like the Mapbox
+  token (`VITE_GOOGLE_MAPS_KEY`). 2D roadmap and satellite tiles from the Map Tiles API; the 3D flyover
+  from the photorealistic tiles through deck.gl's `Tile3DLayer`.
+- Static images for the activity cards from the Static Maps API, as Mapbox's are today.
+- Attribution and the logo kept on screen, and no tiles stored or cached beyond what Google allows;
+  their terms are stricter than Mapbox's here, so read them before building.
+- The key restricted by referrer in the owner's Google Cloud project, and a budget alert set. Like the
+  Mapbox token, it ends up in the page code.
+
+**Open question.** Cost. Google bills per tile or session after a free allowance, so a public demo on
+it is worth pricing first. The demo stays on Mapbox until then.
+
+**Build when:** someone asks for it, or the photorealistic flyover is wanted. Not before.
+
+---
+
 ## Video export, ideas not built
 
 The export takes about 0:38 for a 60 s HD vertical video and is now limited by the encoder

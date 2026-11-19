@@ -7,7 +7,16 @@ only synthetic data, behind Cloudflare. Nothing here is needed to use Odeda your
 visitor -> Cloudflare (odeda.run) -> this machine, IPv6, port 443 (nginx) -> odeda-demo
 ```
 
-1. **Image.** Build it from the repository root: `docker build -t odeda:demo .`
+1. **Image.** `docker compose up -d --build` builds it from this checkout (pull `main` first).
+   **The maps need a Mapbox token.** Put it in `.env` as `MAPBOX_TOKEN`. The page never holds
+   it: it asks the edge for map data under `/mapbox/`, and the edge adds the token on the
+   server, allows only map requests (no geocoding or directions, no other accounts' styles)
+   and limits how fast any one visitor, and all visitors together, can load maps and static
+   images. Make a token just for the demo, with only the public scopes, restricted to
+   `https://odeda.run/*`, and set a usage alert in your Mapbox account. The limits slow abuse
+   down; they cannot cap a monthly bill. Without a token the basemap is blank; to use the free
+   CARTO maps instead, build with `VITE_MAPBOX_PROXY=` set to nothing. Google Maps is a possible
+   later addition (`FUTURE.md`).
 2. **Volume.** `docker volume create odeda-demo-data`, then seed it once:
    `docker run --rm -e TZ=Asia/Qatar -e GA_DATA_DIR=/data -e GA_DB=/data/garmin.db -e GA_RAW_DIR=/data/raw_archive -e GA_TOKEN_DIR=/data/tokens -v odeda-demo-data:/data odeda:demo seed`.
    Load a plan with `python3 scripts/demo-plan.py apply`. A demo refuses every change, so load it

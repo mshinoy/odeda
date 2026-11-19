@@ -8,6 +8,15 @@
 # no connection to any real data.
 services:
   demo:
+    # Built from this checkout (`docker compose up -d --build`), so build from an up-to-date
+    # `main`.
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        # Mapbox through the edge below: the page asks this site, and the edge adds the
+        # token. The token is not baked into the page.
+        VITE_MAPBOX_PROXY: ${VITE_MAPBOX_PROXY:-/mapbox}
     image: odeda:demo
     container_name: odeda-demo
     command: ["serve"]
@@ -37,8 +46,13 @@ services:
       # Cloudflare connects here. Bound to one address (EDGE_BIND_IP) rather than every
       # interface, so it does not collide with a private proxy using the same port.
       - "${EDGE_BIND_IP:?set EDGE_BIND_IP in .env}:${EDGE_PORT:-443}:8443"
+    environment:
+      # Added to Mapbox requests here, on the server. Empty: map requests fail and the
+      # page shows no basemap, so rebuild without VITE_MAPBOX_PROXY to fall back to free maps.
+      MAPBOX_TOKEN: ${MAPBOX_TOKEN:-}
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # nginx fills in ${MAPBOX_TOKEN} from the template when it starts.
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ${EDGE_CERT_DIR:?set EDGE_CERT_DIR in .env}:/etc/nginx/certs:ro
 
 volumes:

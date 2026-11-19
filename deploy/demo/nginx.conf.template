@@ -1,0 +1,97 @@
+# nginx config template: the container's startup fills in ${MAPBOX_TOKEN} and nothing else.
+# Limits are per visitor: Cloudflare puts the real address in CF-Connecting-IP.
+limit_req_zone $http_cf_connecting_ip zone=demo:10m rate=10r/s;
+
+# ---- Mapbox, kept off the page --------------------------------------------------------
+# The page asks this server for map data and the token is added here, so it is never in the
+# page code. Only map requests pass, and they are limited on three levels. What costs credits
+# is a map starting (the style and the map session) and a static image; tiles are cheap.
+# The path as the visitor sent it (not decoded), which is also what is forwarded, so what is
+# checked is what is sent. Dots and encoded slashes are refused outright.
+map $request_uri $mb_rawpath { default ""; ~^/mapbox/(?:api|tiles)/(?<mb_p>[^?]*) $mb_p; }
+map $request_uri $mb_host    { default ""; ~^/mapbox/(?<mb_h>api|tiles)/        $mb_h; }
+
+map $mb_rawpath $mb_ok {
+    default 0;
+    ~(\.\.|%2[eEfF])                     0;
+    ~^styles/v1/mapbox/                  1;
+    ~^v4/                                1;
+    ~^fonts/v1/mapbox/                   1;
+    ~^raster/v1/                         1;
+    ~^rasterarrays/                      1;
+    ~^3dtiles/                           1;
+    ~^models/v1/                         1;
+    ~^map-sessions/                      1;
+}
+map $mb_rawpath $mb_costly {
+    default 0;
+    ~^styles/v1/[^/]+/[^/]+$             1;   # the style itself: once per map
+    ~^styles/v1/.+/static/               1;   # a static image: one request each
+    ~^map-sessions/                      1;
+}
+map $mb_costly $mb_costly_ip     { 1 $http_cf_connecting_ip; default ""; }
+map $mb_costly $mb_costly_global { 1 "all";                  default ""; }
+
+limit_req_zone $http_cf_connecting_ip zone=mb_all:10m    rate=40r/s;
+limit_req_zone $mb_costly_ip          zone=mb_costly:10m rate=2r/s;
+limit_req_zone $mb_costly_global      zone=mb_total:1m   rate=5r/s;
+limit_req_status 429;
+
+# Anything that is not addressed to the demo's own name gets nothing.
+server {
+    listen 8443 ssl default_server;
+    ssl_certificate     /etc/nginx/certs/cert.pem;
+    ssl_certificate_key /etc/nginx/certs/key.pem;
+    return 444;
+}
+
+server {
+    listen 8443 ssl;
+    server_name odeda.run www.odeda.run;
+
+    ssl_certificate     /etc/nginx/certs/cert.pem;
+    ssl_certificate_key /etc/nginx/certs/key.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    client_max_body_size 64k;   # a read-only demo never needs an upload
+
+
+    # --- Mapbox -----------------------------------------------------------------------
+    resolver 1.1.1.1 valid=300s ipv6=off;
+
+    # Telemetry the page would send to Mapbox: swallowed here.
+    location = /mapbox/events { return 204; }
+
+    location ~ ^/mapbox/(api|tiles)/ {
+        limit_except GET POST { deny all; }
+        if ($mb_ok = 0) { return 403; }
+        limit_req zone=mb_all    burst=120 nodelay;
+        limit_req zone=mb_costly burst=40  nodelay;
+        limit_req zone=mb_total  burst=80  nodelay;
+
+        set $mb_upstream api.mapbox.com;
+        if ($mb_host = tiles) { set $mb_upstream a.tiles.mapbox.com; }
+        set $mb_args "access_token=${MAPBOX_TOKEN}";
+        if ($args != "") { set $mb_args "$args&access_token=${MAPBOX_TOKEN}"; }
+
+        proxy_pass https://$mb_upstream/$mb_rawpath?$mb_args;
+        proxy_ssl_server_name on;
+        proxy_set_header Host $mb_upstream;
+        # The token is restricted to the demo's own address, so say where the request is from.
+        proxy_set_header Referer "https://odeda.run/";
+        proxy_set_header Cookie "";
+        proxy_set_header X-Forwarded-For "";
+        proxy_read_timeout 30s;
+    }
+
+    location /mapbox/ { return 404; }
+
+    location / {
+        limit_req zone=demo burst=40 nodelay;
+        proxy_pass http://demo:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 60s;
+    }
+}

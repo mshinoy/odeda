@@ -40,11 +40,9 @@ export function staticMapUrl(request: StaticMapRequest, env: MapEnv = mapEnv): s
     .filter((piece) => piece !== "")
     .map((piece) => `path-3+${color}-0.95(${encodeURIComponent(piece)})`)
     .join(",");
-  const query = new URLSearchParams({
-    padding: "20",
-    logo: "false",
-    attribution: "false",
-    access_token: env.mapboxToken,
-  });
-  return `${STATIC_API}/${style}/static/${path}/auto/${width}x${height}@2x?${query.toString()}`;
+  const query = new URLSearchParams({ padding: "20", logo: "false", attribution: "false" });
+  // Behind a proxy the server adds the token; otherwise it is on the address.
+  const base = env.mapboxProxy !== "" ? `${env.mapboxProxy}/api/styles/v1` : STATIC_API;
+  if (env.mapboxProxy === "") query.set("access_token", env.mapboxToken);
+  return `${base}/${style}/static/${path}/auto/${width}x${height}@2x?${query.toString()}`;
 }

@@ -10,6 +10,7 @@ services:
       # ones fall back to the frontend's defaults.
       args:
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+        VITE_MAPBOX_PROXY: ${VITE_MAPBOX_PROXY:-}
         VITE_MAP_STYLE_LIGHT: ${VITE_MAP_STYLE_LIGHT:-}
         VITE_MAP_STYLE_DARK: ${VITE_MAP_STYLE_DARK:-}
     image: odeda:latest

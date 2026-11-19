@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 14 / 15 |
+| 27 Ready to publish: the README and docs | AA: `open` | 15 / 16 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -292,6 +292,7 @@ ideas are in `FUTURE.md` section 15.
 | T125 | Demo mode: `GA_DEMO=1` makes an instance read-only. A middleware refuses every non-read request under `/api/` with a 403 and a plain reason (by method, so routes added later are covered; the plan-upload preview, which only reads, stays open). No sign-in, `demo` on `/api/config`, and a banner on every page. The step before hosting a public demo | done (2026-11-19) | T124 |
 | T126 | The demo is hosted at odeda.run: `deploy/demo/` has a compose file (the read-only demo and an nginx edge), the edge config (a refuse-by-default host check, a per-visitor rate limit, a 64 KB body cap) and notes. Cloudflare in front: a proxied AAAA record to the machine's IPv6 address (the free plan always uses port 443 and the IPv4 one belongs to another site), Full (strict) with an origin certificate made from a locally generated key | done (2026-11-19) | T125 |
 | T127 | Demo polish: on a demo the footer says "Synthetic demo data" and the date range instead of a red "Garmin not connected" and a Sync button that fails; Settings leaves out the cards that cannot work (Garmin, Fitbit, sync, password) and says why; each seeded ride has its own pace (from a separate random source, so the rest of the history is unchanged), so "faster than last time" has something to say. The demo reseeded and the README screenshots retaken | done (2026-11-19) | T126 |
+| T128 | The demo shows Mapbox maps without the token in the page: `VITE_MAPBOX_PROXY` sends every map request to this site, and the demo's nginx edge adds the token on the server, allows only map paths (checked on the path as sent, dots and encoded slashes refused), and limits per visitor and overall what costs credits (a map starting, a static image). Needs a Mapbox token to deploy; Google Maps is added to `FUTURE.md` (section 22). README screenshots retaken from the live demo | done (2026-11-19) | T127 |
 
 ### Open decisions
 

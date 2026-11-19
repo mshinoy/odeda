@@ -7,26 +7,41 @@ export type MapProvider = "mapbox" | "maplibre";
 /** The map settings from the environment, with unset values as "". */
 export interface MapEnv {
   mapboxToken: string;
+  /**
+   * A path on this site (for example `/mapbox`) that forwards Mapbox requests and adds the
+   * token on the server, so the token is never in the page. Set for a public demo; see
+   * `deploy/demo`. Empty means the browser talks to Mapbox directly with `mapboxToken`.
+   */
+  mapboxProxy: string;
   styleLight: string;
   styleDark: string;
 }
 
 type MapEnvSource = Pick<
   ImportMetaEnv,
-  "VITE_MAPBOX_TOKEN" | "VITE_MAP_STYLE_LIGHT" | "VITE_MAP_STYLE_DARK"
+  "VITE_MAPBOX_TOKEN" | "VITE_MAPBOX_PROXY" | "VITE_MAP_STYLE_LIGHT" | "VITE_MAP_STYLE_DARK"
 >;
 
 export function readMapEnv(source: MapEnvSource = import.meta.env): MapEnv {
   return {
     mapboxToken: (source.VITE_MAPBOX_TOKEN ?? "").trim(),
+    mapboxProxy: (source.VITE_MAPBOX_PROXY ?? "").trim().replace(/\/+$/, ""),
     styleLight: (source.VITE_MAP_STYLE_LIGHT ?? "").trim(),
     styleDark: (source.VITE_MAP_STYLE_DARK ?? "").trim(),
   };
 }
 
-/** Mapbox when a token is configured, otherwise MapLibre with free styles. */
+/** Mapbox when a token or a proxy is configured, otherwise MapLibre with free styles. */
 export function providerFor(env: MapEnv): MapProvider {
-  return env.mapboxToken !== "" ? "mapbox" : "maplibre";
+  return env.mapboxToken !== "" || env.mapboxProxy !== "" ? "mapbox" : "maplibre";
+}
+
+/**
+ * The token handed to the Mapbox library. Behind a proxy it is a placeholder: the library
+ * insists on one, and the proxy replaces it with the real one on the server.
+ */
+export function mapboxLibraryToken(env: MapEnv): string {
+  return env.mapboxProxy !== "" ? "pk.proxied" : env.mapboxToken;
 }
 
 export const mapEnv: MapEnv = readMapEnv();
