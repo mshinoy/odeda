@@ -2,6 +2,8 @@
 
 **Garmin shows you what happened. Odeda tells you whether you are on track.**
 
+**[Try the live demo at odeda.run](https://odeda.run)**: three years of synthetic training in Doha, read-only, nothing to install.
+
 Self-hosted analytics for athletes who follow a training plan. It reads the plan you already
 have (the calendar from your club or your coach), judges every session against it, and says
 plainly where you stand for your race: on plan, behind, and what the finish looks like. It does
@@ -86,7 +88,7 @@ Open <http://127.0.0.1:8000>. A new install opens on a short checklist; every st
 
 After that the app syncs itself every six hours.
 
-**Just looking around first?** Set `GA_SEED_DEMO=1` in `.env` before the first start for
+**Just looking around first?** Open the [live demo](https://odeda.run), or run your own copy: set `GA_SEED_DEMO=1` in `.env` before the first start for
 three years of synthetic data. Wipe it before connecting a real account, or the two sit
 side by side:
 `docker compose down && docker volume rm garmin-analytics-data`, set `GA_SEED_DEMO=0`,
