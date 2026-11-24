@@ -22,7 +22,13 @@ import { TodayCard } from "@/features/today/TodayCard";
 import { TodayPageSkeleton } from "@/features/today/TodayPageSkeleton";
 import { ProgressCard } from "@/features/today/ProgressCard";
 import { WeekColumn } from "@/features/today/WeekColumn";
-import { headline, previousWeekStart, sleepNights, weekDays } from "@/features/today/todayView";
+import {
+  headline,
+  planCallLine,
+  previousWeekStart,
+  sleepNights,
+  weekDays,
+} from "@/features/today/todayView";
 import { formatWeekday } from "@/lib/format";
 
 /**
@@ -57,6 +63,8 @@ export function TodayPage() {
           (d) => d.isToday,
         )?.sessions ?? [])
       : [];
+  const todayPlanned = (thisWeek.data?.sessions ?? []).filter((s) => s.day === today);
+  const planCall = planCallLine(plan.data?.active_plan, todayPlanned);
   const next = plan.data?.next_session ?? null;
   const lines = headline(
     todaySessions,
@@ -78,6 +86,7 @@ export function TodayPage() {
               readiness={summary.data.readiness}
               nights={sleepNights(daily.data?.rows ?? [])}
               longRun={forecast.data?.long_run ?? null}
+              planCall={planCall}
             />
             {raceSummary && <RaceCard race={raceSummary} forecast={forecast.data} />}
           </div>
