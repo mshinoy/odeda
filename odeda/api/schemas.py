@@ -2827,6 +2827,17 @@ class PlanDecision(_Model):
     linked_at: str | None
 
 
+class ActivePlan(_Model):
+    """The plan driving the numbers. A published plan the week notes name (`named`, with
+    its week) takes precedence; otherwise it is the calendar itself (`calendar`)."""
+
+    kind: Literal["named", "calendar"]
+    name: str
+    """`Higdon Novice 1`, or the calendar's own label."""
+    week: int | None = None
+    weeks: int | None = None
+
+
 class Plan(_Model):
     """`GET /api/plan`. With no calendar subscribed this is a 200 with
     `subscribed: false`, never a 404."""
@@ -2834,6 +2845,7 @@ class Plan(_Model):
     subscribed: bool
     source: PlanSource | None
     today: str
+    active_plan: ActivePlan | None = None
     weeks: list[PlanWeek]
     adherence_4wk: float | None
     this_week: PlanWeek | None

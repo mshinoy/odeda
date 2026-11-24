@@ -10,6 +10,7 @@ import {
   sleepBarHeights,
   sleepNights,
   weeksAround,
+  planCallLine,
   weekDays,
 } from "@/features/today/todayView";
 import type { DaySession, DayView } from "@/features/today/todayView";
@@ -72,6 +73,11 @@ describe("weekDays", () => {
     expect(days[4]?.sessions[0]?.outcome).toBe("");
   });
 
+  it("shows what a session still to come asks for, and nothing once it has an outcome", () => {
+    expect(days[4]?.sessions[0]?.target).toBe("4.8 km");
+    expect(days[1]?.sessions[0]?.target).toBe("");
+  });
+
   it("tints by the worst thing that happened, and not at all for a day to come", () => {
     expect(days.map((d) => d.tone)).toEqual([
       "critical",
@@ -110,6 +116,7 @@ describe("headline", () => {
     verdict: "upcoming",
     kind: "run",
     outcome: "",
+    target: "",
     optional: false,
   } as const;
   const done = { ...todo, verdict: "done" } as const;
@@ -232,5 +239,29 @@ describe("daySummary", () => {
         ]),
       ),
     ).toBe("Missed +1");
+  });
+});
+
+describe("planCallLine", () => {
+  const named = { kind: "named", name: "Higdon Novice 1" } as const;
+  const run = (o: Parameters<typeof session>[0]) => session({ sport: "running", ...o });
+
+  it("says what the published plan asks for today, with the kind of run", () => {
+    const easy = run({ day: "2026-11-24", planned_min_m: 6400, kind: "easy", verdict: "upcoming" });
+    const long = run({ day: "2026-11-27", planned_min_m: 9700, kind: "long", verdict: "upcoming" });
+    expect(planCallLine(named, [easy])).toBe("Higdon Novice 1 asks for 6.4 km, easy run");
+    expect(planCallLine(named, [long])).toBe("Higdon Novice 1 asks for 9.7 km, long run");
+  });
+
+  it("goes to the past tense once the session has an outcome", () => {
+    const done = run({ day: "2026-11-24", planned_min_m: 6400, verdict: "done" });
+    expect(planCallLine(named, [done])).toBe("Higdon Novice 1 asked for 6.4 km, easy run");
+  });
+
+  it("is silent for a calendar, a rest day, and a ride", () => {
+    const r = run({ day: "2026-11-24", planned_min_m: 6400, verdict: "upcoming" });
+    expect(planCallLine({ kind: "calendar", name: "Training" }, [r])).toBeNull();
+    expect(planCallLine(named, [])).toBeNull();
+    expect(planCallLine(named, [session({ sport: "cycling", planned_min_m: 40000 })])).toBeNull();
   });
 });

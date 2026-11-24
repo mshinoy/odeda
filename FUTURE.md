@@ -29,12 +29,14 @@ the plan's peak, so the next block would be judged against a build that is over.
    totals, adherence, peak, load target and the forecast count only that block. The next
    race starts a fresh block automatically. Replaces `plan_sources.start_day` as the normal
    case (keep it as an override).
-2. **Any named plan, not only Higdon.** The parser's cues are `HIGDON SAYS/PRESCRIBES/ASKS`
+2. **Any named plan, not only Higdon.** *Built 2026-11-24 (T130): the plan's name is read from the
+   week note's header and its `says/prescribes/asks` is the quoted voice; a `GA: plan=…` hint is not.*
+   Before that the parser's cues were `HIGDON SAYS/PRESCRIBES/ASKS`
    and `PLAN ASKS` (`plan/parse.py`, `_PLAN_FIGURE`). Generalise to `<plan name> says/
    prescribes/asks`, and take the plan name and week from the week note's header
    (`HIGDON NOVICE 1 - WEEK 3 of 12`). A `GA: plan=…` hint is the exact form.
-3. **A label.** "Higdon Novice 1 · week 3 of 12 · Doha Half in 63 days" on Today and the
-   activity page. Cosmetic, but it says which plan is driving the number.
+3. **A label.** *Built 2026-11-24 (T130) on Today and Train: name, week and a progress bar.
+   Not yet on the activity page.* It says which plan is driving the number.
 
 **Rules already decided and built** (2026-11-14, D27 and T95 in `PLAN.md`): while a named plan
 is on, its number is the target for every day (Mon, Tue, Fri alike), over the club's and the

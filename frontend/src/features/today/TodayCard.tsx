@@ -15,10 +15,19 @@ interface TodayCardProps {
   nights: readonly SleepNight[];
   /** The last long run, when it was missed or cut short. */
   longRun?: LongRun | null;
+  /** What the published plan calls for today, when one is on. */
+  planCall?: string | null;
 }
 
 /** The page's answer: what to do today, how ready you are, and how you slept. */
-export function TodayCard({ day, headline, readiness, nights, longRun = null }: TodayCardProps) {
+export function TodayCard({
+  day,
+  headline,
+  readiness,
+  nights,
+  longRun = null,
+  planCall = null,
+}: TodayCardProps) {
   const band = readiness.band ? bandDisplay[readiness.band] : null;
   const last = nights.at(-1);
   const heights = sleepBarHeights(nights);
@@ -31,6 +40,7 @@ export function TodayCard({ day, headline, readiness, nights, longRun = null }: 
       <div className="flex flex-col gap-2">
         <span className="text-muted-foreground text-xs">{headline.label}</span>
         <h1 className="text-3xl leading-tight font-semibold tracking-tight">{headline.title}</h1>
+        {planCall && <p className="text-sm font-medium">{planCall}</p>}
         {readiness.recommendation && (
           <p className="text-ink-secondary max-w-md text-base">{readiness.recommendation}</p>
         )}

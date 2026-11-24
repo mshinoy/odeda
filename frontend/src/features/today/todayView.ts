@@ -20,6 +20,8 @@ export interface DaySession {
   verdict: PlanVerdict;
   /** "Done · 5.6 km", "Short · 1.5 of 8 km", "Missed"; empty for a session still to come. */
   outcome: string;
+  /** What a session still to come asks for, "6.4 km"; empty once it has an outcome. */
+  target: string;
   optional: boolean;
 }
 
@@ -95,6 +97,10 @@ export function weekDays(
         kind: (s.sport ? KIND_BY_PLAN_SPORT[s.sport] : undefined) ?? "other",
         verdict: s.verdict,
         outcome: s.ignored ? "Ignored" : outcomeLine(s),
+        target:
+          !s.ignored && s.verdict === "upcoming" && s.planned_min_m !== null
+            ? formatDistance(s.planned_min_m)
+            : "",
         optional: s.optional,
       })),
     };
@@ -104,6 +110,32 @@ export function weekDays(
 /** The Monday of the week before the one starting `start`. */
 export function previousWeekStart(start: string): string {
   return addDays(start, -7);
+}
+
+const RUN_WORD: Readonly<Record<string, string>> = { long: "long run", easy: "easy run" };
+
+/**
+ * What the published plan calls for today, next to the club's session name: "Higdon
+ * Novice 1 asks for 6.4 km, easy run". Only a named plan has a voice of its own; a bare
+ * calendar already is the session name. Past tense once the session has an outcome, and
+ * running only, since the plan's distances are running distances.
+ */
+export function planCallLine(
+  plan: { kind: "named" | "calendar"; name: string } | null | undefined,
+  today: readonly PlanSession[],
+): string | null {
+  if (!plan || plan.kind !== "named") return null;
+  const runs = today.filter(
+    (s) => s.sport === "running" && !s.optional && !s.ignored && s.planned_min_m !== null,
+  );
+  if (runs.length === 0) return null;
+  const parts = runs.map((s) => {
+    const km = formatDistance(s.planned_min_m ?? 0);
+    const word = (s.kind ? RUN_WORD[s.kind] : undefined) ?? "run";
+    return `${km}, ${word}`;
+  });
+  const asked = runs.every((s) => s.verdict !== "upcoming") ? "asked" : "asks";
+  return `${plan.name} ${asked} for ${parts.join(" and ")}`;
 }
 
 export interface Headline {

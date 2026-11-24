@@ -1627,6 +1627,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActivePlan
+         * @description The plan driving the numbers. A published plan the week notes name (`named`, with
+         *     its week) takes precedence; otherwise it is the calendar itself (`calendar`).
+         */
+        ActivePlan: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "named" | "calendar";
+            /**
+             * Name
+             * @description `Higdon Novice 1`, or the calendar's own label.
+             */
+            name: string;
+            /** Week */
+            week?: number | null;
+            /** Weeks */
+            weeks?: number | null;
+        };
         /** ActivityDetail */
         ActivityDetail: {
             activity: components["schemas"]["ActivityRow"];
@@ -4695,6 +4716,7 @@ export interface components {
             source: components["schemas"]["PlanSource"] | null;
             /** Today */
             today: string;
+            active_plan?: components["schemas"]["ActivePlan"] | null;
             /** Weeks */
             weeks: components["schemas"]["PlanWeek"][];
             /** Adherence 4Wk */

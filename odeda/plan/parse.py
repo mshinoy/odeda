@@ -24,6 +24,8 @@ routine containing `1x4-6`, `2x10-12` and `8-10 per leg`; a bare-number reader f
 
 from __future__ import annotations
 
+import contextvars
+import functools
 import re
 from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
@@ -66,24 +68,46 @@ HALF_MARATHON_M = 21097.5
 #: `target 18 km (Higdon prescribes 11.3)` resolves to 18 and never to 11.3.
 _TARGET_CUES = ("TARGET", "CLUB DOES", "CLUB RUNS", "BUILD TOWARD", "BUILD TO")
 
-#: Phrases that introduce a number quoted for reference only. Everything from the cue to
-#: the next clause boundary is removed before any distance is looked for.
-_REFERENCE_CUES = ("HIGDON SAYS", "HIGDON PRESCRIBES", "HIGDON ASKS", "PLAN ASKS")
+#: Who can be quoted for reference: the plan's own name (taken from the week note's header,
+#: so `HIGDON` for Higdon Novice 1, or `RUNNA` for a Runna block) and the generic `PLAN`.
+#: Higdon stays the default so a note without a header still reads as it always did.
+_DEFAULT_VOICES = ("HIGDON",)
+_voices: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar(
+    "plan_voices", default=_DEFAULT_VOICES
+)
+_VERBS = r"(?:SAYS|PRESCRIBES|ASKS)"
+
+
+@functools.lru_cache(maxsize=64)
+def _voice_patterns(voices: tuple[str, ...]) -> tuple[re.Pattern[str], re.Pattern[str], re.Pattern[str]]:
+    names = "|".join(re.escape(v) for v in voices)
+    return (
+        # A parenthetical that *quotes* someone else's prescription, as opposed to one of
+        # the owner's own annotations. `(recovery)` and `(easy week)` are his;
+        # `(Higdon prescribes 10K race ...)` is not, and reading a kind out of it turned a
+        # recovery long run into a race.
+        re.compile(rf"\([^)]*(?:{names}|PLAN\s+ASKS)[^)]*\)", re.IGNORECASE),
+        # Everything from the cue to the next clause boundary.
+        re.compile(rf"(?:(?:{names})\s+{_VERBS}|PLAN\s+ASKS)\b[^;.|]*", re.IGNORECASE),
+        # The number anchored to the cue. With no unit it is kilometres.
+        re.compile(
+            rf"(?:(?:{names})\s+{_VERBS}|PLAN\s+ASKS)\s+"
+            r"(?:(?P<half>HALF\s+MARATHON)|(?P<n>\d+(?:\.\d+)?)\s*(?P<unit>km|k)?(?![A-Za-z0-9]))",
+            re.IGNORECASE,
+        ),
+    )
+
+
+def voices_from_header(header: Mapping[str, object] | None) -> tuple[str, ...]:
+    """The names a week note may quote: the plan's first word (`HIGDON`) and its full name."""
+    if not header:
+        return _DEFAULT_VOICES
+    name = str(header["name"]).upper()
+    words = name.split()
+    return tuple(dict.fromkeys([w for w in (words[0], name) if w]))
+
 
 _PAREN = re.compile(r"\([^)]*\)")
-#: A parenthetical that *quotes* someone else's prescription, as opposed to one of the
-#: owner's own annotations. `(recovery)` and `(easy week)` are his; `(Higdon prescribes
-#: 10K race …)` is not, and reading a kind out of it turned a recovery long run into a
-#: race.
-_REFERENCE_PAREN = re.compile(
-    r"\([^)]*(?:%s)[^)]*\)" % "|".join(c.replace(" ", r"\s+") for c in
-                                       ("HIGDON", "PLAN ASKS")),
-    re.IGNORECASE,
-)
-_REFERENCE_CLAUSE = re.compile(
-    r"(?:%s)\b[^;.|]*" % "|".join(c.replace(" ", r"\s+") for c in _REFERENCE_CUES),
-    re.IGNORECASE,
-)
 
 #: `18 km`, `14-15 km`, `8–10 km` (en dash), `6.4km`, `5 k`, `10K`. The unit is required.
 _DISTANCE = re.compile(
@@ -179,7 +203,8 @@ def strip_reference(text: str) -> str:
     every parenthetical lost the first; stripping none of them let `(Higdon prescribes
     10K race)` turn 25 December's recovery long run into a race.
     """
-    return _REFERENCE_CLAUSE.sub(" ", _REFERENCE_PAREN.sub(" ", text))
+    paren, clause, _ = _voice_patterns(_voices.get())
+    return clause.sub(" ", paren.sub(" ", text))
 
 
 def strip_for_distance(text: str) -> str:
@@ -220,20 +245,9 @@ def _first_distance(text: str) -> tuple[float | None, float | None]:
     return lo, hi
 
 
-#: `Higdon says 4.8 km`, `Higdon prescribes 6.4 - lower than you run`, `Higdon prescribes
-#: 5K race`, `Higdon prescribes HALF MARATHON`. The number is anchored to the cue, so a bare
-#: one is safe to read here (the explicit-unit rule guards against numbers found loose in
-#: prose, like a gym routine's `2x10-12`); with no unit it is kilometres.
-_PLAN_FIGURE = re.compile(
-    r"(?:HIGDON\s+(?:SAYS|PRESCRIBES|ASKS)|PLAN\s+ASKS)\s+"
-    r"(?:(?P<half>HALF\s+MARATHON)|(?P<n>\d+(?:\.\d+)?)\s*(?P<unit>km|k)?(?![A-Za-z0-9]))",
-    re.IGNORECASE,
-)
-
-
 def find_plan_distance(text: str) -> float | None:
     """The distance the named plan asks for in this text, in metres, or None."""
-    match = _PLAN_FIGURE.search(text or "")
+    match = _voice_patterns(_voices.get())[2].search(text or "")
     if not match:
         return None
     if match.group("half"):
@@ -318,6 +332,14 @@ def parse_week_note(description: str) -> dict[int, Prescription]:
     if not description or "||" not in description:
         return out
 
+    token = _voices.set(voices_from_header(plan_header(description)))
+    try:
+        return _parse_week_segments(description, out)
+    finally:
+        _voices.reset(token)
+
+
+def _parse_week_segments(description: str, out: dict[int, Prescription]) -> dict[int, Prescription]:
     for segment in description.split("||"):
         for clause in _sentences(segment):
             days = _days_named(clause)
@@ -485,6 +507,27 @@ def _usable(pres: Prescription) -> bool:
     `rest` and a gym session are complete without one, and so is a club run whose
     distance lives on Monday's event."""
     return pres.sport is not None
+
+
+#: The week note's first segment: `HIGDON NOVICE 1 - WEEK 5 of 12`. The name is whatever
+#: precedes the dash, so any named plan that writes its header this way is read.
+_PLAN_HEADER = re.compile(
+    r"^\s*(?P<name>[A-Za-z][^|]*?)\s*[-\u2013\u2014]\s*WEEK\s+(?P<week>\d+)\s+OF\s+(?P<weeks>\d+)\b",
+    re.IGNORECASE,
+)
+
+
+def plan_header(description: str) -> dict[str, object] | None:
+    """The named plan and week a Monday note opens with, or None when it has no header."""
+    if not description or "||" not in description:
+        return None
+    match = _PLAN_HEADER.match(description)
+    if not match:
+        return None
+    week, weeks = int(match["week"]), int(match["weeks"])
+    if not 1 <= week <= weeks <= 60:
+        return None
+    return {"name": match["name"].strip().title(), "week": week, "weeks": weeks}
 
 
 def week_notes_by_week(sessions: Iterable[Mapping[str, object]]) -> dict[str, dict[int, Prescription]]:
