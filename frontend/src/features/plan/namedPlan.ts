@@ -13,15 +13,5 @@ export function activePlanLine(plan: ActivePlan): string {
 
 /** What the plan's name means for the numbers on the page. */
 export function activePlanNote(plan: ActivePlan): string {
-  return plan.kind === "named"
-    ? "its distances are your targets"
-    : "your calendar, no published plan on top";
-}
-
-/** How far through a published plan, 0 to 1; null for a calendar, which has no end. */
-export function activePlanProgress(plan: ActivePlan): number | null {
-  if (plan.kind !== "named" || plan.week == null || plan.weeks == null || plan.weeks <= 0) {
-    return null;
-  }
-  return Math.min(1, Math.max(0, plan.week / plan.weeks));
+  return plan.kind === "named" ? "sets your targets" : "your calendar";
 }

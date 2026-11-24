@@ -8,7 +8,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-- **The plan driving your numbers is named on screen:** Today and Train show the published plan the week notes name ("Higdon Novice 1 · week 5 of 12" with a progress bar), which takes precedence, or otherwise the calendar's own name. Any plan name works in the week note, not only Higdon's. Each session still to come in the week list shows its distance, and the Today card says what the published plan asks for that day ("Higdon Novice 1 asks for 6.4 km, easy run").
+- **The plan driving your numbers is named on screen:** Today and Train show the published plan the week notes name ("Higdon Novice 1 · week 5 of 12"), which takes precedence, or otherwise the calendar's own name. Any plan name works in the week note, not only Higdon's. Each session still to come in the week list shows its distance, and the Today card says what the published plan asks for that day ("Higdon Novice 1 asks for 6.4 km, easy run").
 - **Laptop screens look like the browser at 90%:** the interface is a tenth smaller up to 1440 px wide, so a 13-inch screen has room at the sides, and the page padding is fluid (24 to 48 px) instead of a fixed 32 px. Large displays are unchanged.
 
 - **Mapbox on the public demo, without the token on the page:** `VITE_MAPBOX_PROXY` makes the map library
