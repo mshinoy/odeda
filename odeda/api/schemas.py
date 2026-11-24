@@ -2827,13 +2827,15 @@ class PlanDecision(_Model):
     linked_at: str | None
 
 
-class NamedPlan(_Model):
-    """The published plan the week notes say is driving the day's numbers."""
+class ActivePlan(_Model):
+    """The plan driving the numbers. A published plan the week notes name (`named`, with
+    its week) takes precedence; otherwise it is the calendar itself (`calendar`)."""
 
+    kind: Literal["named", "calendar"]
     name: str
-    """`Higdon Novice 1`."""
-    week: int
-    weeks: int
+    """`Higdon Novice 1`, or the calendar's own label."""
+    week: int | None = None
+    weeks: int | None = None
 
 
 class Plan(_Model):
@@ -2843,7 +2845,7 @@ class Plan(_Model):
     subscribed: bool
     source: PlanSource | None
     today: str
-    named_plan: NamedPlan | None = None
+    active_plan: ActivePlan | None = None
     weeks: list[PlanWeek]
     adherence_4wk: float | None
     this_week: PlanWeek | None

@@ -601,6 +601,20 @@ def named_plan(store, today: date) -> dict[str, Any] | None:
     return {"name": header["name"], "week": week, "weeks": header["weeks"]}
 
 
+def active_plan(store, today: date, source: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """The plan the page should name: a published plan the week notes say is on, which
+    takes precedence, and otherwise the calendar itself. None with nothing subscribed."""
+    named = named_plan(store, today)
+    if named is not None:
+        return {"kind": "named", **named}
+    if source is None:
+        return None
+    label = str(source["label"] or "").strip()
+    if not label:
+        label = "Uploaded plan" if source["kind"] == "upload" else "Calendar"
+    return {"kind": "calendar", "name": label, "week": None, "weeks": None}
+
+
 def compute_plan(store, today: date | None = None) -> dict[str, Any]:
     """Everything `/api/plan` needs. No calendar subscribed is an empty plan, not an
     error: the endpoint answers 200 with `subscribed: false` and the UI says what to do."""
@@ -632,7 +646,7 @@ def compute_plan(store, today: date | None = None) -> dict[str, Any]:
             "start_day": source["start_day"],
         },
         "today": today.isoformat(),
-        "named_plan": named_plan(store, today),
+        "active_plan": active_plan(store, today, source),
         "weeks": weeks,
         "adherence_4wk": rolling_adherence(weeks),
         "this_week": next(

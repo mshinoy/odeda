@@ -33,7 +33,7 @@ export function SteerCard({ steer, plan }: { steer: PlanSteer; plan: Plan }) {
 
   return (
     <section className="bg-card shadow-card flex flex-col gap-6 rounded-2xl border p-7">
-      {plan.named_plan && <NamedPlanBadge plan={plan.named_plan} plain />}
+      {plan.active_plan && <NamedPlanBadge plan={plan.active_plan} plain />}
       <div className="flex flex-col gap-2">
         {race && <span className="text-muted-foreground text-sm">{race}</span>}
         <h1 className="flex items-center gap-3 text-3xl leading-tight font-semibold tracking-tight">

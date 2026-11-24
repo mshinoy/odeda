@@ -62,3 +62,41 @@ class TestNamedPlan:
 
     def test_with_no_calendar_there_is_none(self, store):
         assert plan_mod.named_plan(store, date(2026, 10, 5)) is None
+
+
+class TestActivePlan:
+    @pytest.fixture
+    def synced(self, store):
+        plan_ics.set_source(store, URL, "Training")
+        plan_ics.sync_plan(store, Transport(), today=date(2026, 10, 5))
+        return store
+
+    def test_a_named_plan_takes_precedence(self, synced):
+        source = plan_ics.get_source(synced)
+        got = plan_mod.active_plan(synced, date(2026, 9, 30), source)
+        assert got == {"kind": "named", "name": "Higdon Novice 1", "week": 7, "weeks": 12}
+
+    def test_otherwise_the_calendar_is_shown(self, synced):
+        source = plan_ics.get_source(synced)
+        got = plan_mod.active_plan(synced, date(2026, 11, 20), source)
+        assert got == {"kind": "calendar", "name": "Training", "week": None, "weeks": None}
+
+    def test_nothing_subscribed_names_nothing(self, store):
+        assert plan_mod.active_plan(store, date(2026, 10, 5), None) is None
+
+
+class TestAnyPlanName:
+    NOTE = (
+        "RUNNA HALF - WEEK 3 of 10 || TUE - club: Runna says 6.4 km; club does 8-10 km. "
+        "|| FRI - long run: Runna prescribes 9.7 km."
+    )
+
+    def test_the_plans_own_name_is_the_voice_whose_number_is_quoted(self):
+        notes = P.parse_week_note(self.NOTE)
+        assert notes[1].plan_m == 6400.0 and notes[1].min_m == 8000.0
+        assert notes[4].plan_m == 9700.0
+
+    def test_higdon_still_reads_as_before(self):
+        notes = P.parse_week_note("HIGDON NOVICE 1 - WEEK 5 of 12 || FRI - long run: target 17 km (Higdon prescribes 9.7).")
+        assert notes[4].min_m == 17000.0
+        assert notes[4].plan_m == 9700.0
