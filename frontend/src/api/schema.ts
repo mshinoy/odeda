@@ -4413,6 +4413,21 @@ export interface components {
             trimp_delta_pct: number | null;
         };
         /**
+         * NamedPlan
+         * @description The published plan the week notes say is driving the day's numbers.
+         */
+        NamedPlan: {
+            /**
+             * Name
+             * @description `Higdon Novice 1`.
+             */
+            name: string;
+            /** Week */
+            week: number;
+            /** Weeks */
+            weeks: number;
+        };
+        /**
          * Override
          * @description One user edit on an activity, with the Garmin value it is masking.
          */
@@ -4695,6 +4710,7 @@ export interface components {
             source: components["schemas"]["PlanSource"] | null;
             /** Today */
             today: string;
+            named_plan?: components["schemas"]["NamedPlan"] | null;
             /** Weeks */
             weeks: components["schemas"]["PlanWeek"][];
             /** Adherence 4Wk */

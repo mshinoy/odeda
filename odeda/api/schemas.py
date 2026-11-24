@@ -2827,6 +2827,15 @@ class PlanDecision(_Model):
     linked_at: str | None
 
 
+class NamedPlan(_Model):
+    """The published plan the week notes say is driving the day's numbers."""
+
+    name: str
+    """`Higdon Novice 1`."""
+    week: int
+    weeks: int
+
+
 class Plan(_Model):
     """`GET /api/plan`. With no calendar subscribed this is a 200 with
     `subscribed: false`, never a 404."""
@@ -2834,6 +2843,7 @@ class Plan(_Model):
     subscribed: bool
     source: PlanSource | None
     today: str
+    named_plan: NamedPlan | None = None
     weeks: list[PlanWeek]
     adherence_4wk: float | None
     this_week: PlanWeek | None

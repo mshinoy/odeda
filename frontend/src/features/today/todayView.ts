@@ -20,6 +20,8 @@ export interface DaySession {
   verdict: PlanVerdict;
   /** "Done · 5.6 km", "Short · 1.5 of 8 km", "Missed"; empty for a session still to come. */
   outcome: string;
+  /** What a session still to come asks for, "6.4 km"; empty once it has an outcome. */
+  target: string;
   optional: boolean;
 }
 
@@ -95,6 +97,10 @@ export function weekDays(
         kind: (s.sport ? KIND_BY_PLAN_SPORT[s.sport] : undefined) ?? "other",
         verdict: s.verdict,
         outcome: s.ignored ? "Ignored" : outcomeLine(s),
+        target:
+          !s.ignored && s.verdict === "upcoming" && s.planned_min_m !== null
+            ? formatDistance(s.planned_min_m)
+            : "",
         optional: s.optional,
       })),
     };

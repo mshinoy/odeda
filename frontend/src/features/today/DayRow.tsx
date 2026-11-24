@@ -51,14 +51,14 @@ export function DayRow({ day }: { day: DayView }) {
                   {s.title}
                 </span>
               </span>
-              {s.outcome && (
+              {(s.outcome || s.target) && (
                 <span
                   className={cn(
                     "shrink-0 text-xs",
-                    day.tone ? TONE_TEXT[day.tone] : "text-muted-foreground",
+                    day.tone && s.outcome ? TONE_TEXT[day.tone] : "text-muted-foreground",
                   )}
                 >
-                  {s.outcome}
+                  {s.outcome || s.target}
                 </span>
               )}
             </div>

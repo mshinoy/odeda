@@ -573,6 +573,34 @@ def _as_dict(item: Judged) -> dict[str, Any]:
     }
 
 
+def named_plan(store, today: date) -> dict[str, Any] | None:
+    """The named plan (Higdon Novice 1, week 5 of 12) the week notes say is driving the
+    numbers: the header of the newest week note at or before this week. None when no
+    note carries one."""
+    rows = store.query(
+        "SELECT day, description FROM plan_sessions "
+        "WHERE withdrawn_at IS NULL AND description LIKE '%||%' ORDER BY day"
+    )
+    this_week = week_of(today.isoformat())
+    best: tuple[str, dict[str, Any]] | None = None
+    for row in rows:
+        header = P.plan_header(str(row["description"] or ""))
+        if header is None:
+            continue
+        key = week_of(str(row["day"]))
+        if key <= this_week and (best is None or key >= best[0]):
+            best = (key, header)
+    if best is None:
+        return None
+    key, header = best
+    # A note from an earlier week still names the plan, but the week count moves on.
+    behind = (date.fromisoformat(_monday(this_week)) - date.fromisoformat(_monday(key))).days // 7
+    week = int(header["week"]) + behind
+    if week > int(header["weeks"]):
+        return None
+    return {"name": header["name"], "week": week, "weeks": header["weeks"]}
+
+
 def compute_plan(store, today: date | None = None) -> dict[str, Any]:
     """Everything `/api/plan` needs. No calendar subscribed is an empty plan, not an
     error: the endpoint answers 200 with `subscribed: false` and the UI says what to do."""
@@ -604,6 +632,7 @@ def compute_plan(store, today: date | None = None) -> dict[str, Any]:
             "start_day": source["start_day"],
         },
         "today": today.isoformat(),
+        "named_plan": named_plan(store, today),
         "weeks": weeks,
         "adherence_4wk": rolling_adherence(weeks),
         "this_week": next(

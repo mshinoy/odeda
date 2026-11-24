@@ -72,6 +72,11 @@ describe("weekDays", () => {
     expect(days[4]?.sessions[0]?.outcome).toBe("");
   });
 
+  it("shows what a session still to come asks for, and nothing once it has an outcome", () => {
+    expect(days[4]?.sessions[0]?.target).toBe("4.8 km");
+    expect(days[1]?.sessions[0]?.target).toBe("");
+  });
+
   it("tints by the worst thing that happened, and not at all for a day to come", () => {
     expect(days.map((d) => d.tone)).toEqual([
       "critical",
@@ -110,6 +115,7 @@ describe("headline", () => {
     verdict: "upcoming",
     kind: "run",
     outcome: "",
+    target: "",
     optional: false,
   } as const;
   const done = { ...todo, verdict: "done" } as const;

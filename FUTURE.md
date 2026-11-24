@@ -33,8 +33,8 @@ the plan's peak, so the next block would be judged against a build that is over.
    and `PLAN ASKS` (`plan/parse.py`, `_PLAN_FIGURE`). Generalise to `<plan name> says/
    prescribes/asks`, and take the plan name and week from the week note's header
    (`HIGDON NOVICE 1 - WEEK 3 of 12`). A `GA: plan=…` hint is the exact form.
-3. **A label.** "Higdon Novice 1 · week 3 of 12 · Doha Half in 63 days" on Today and the
-   activity page. Cosmetic, but it says which plan is driving the number.
+3. **A label.** *Built 2026-11-24 (T130) on Today and Train: name, week and a progress bar.
+   Not yet on the activity page.* It says which plan is driving the number.
 
 **Rules already decided and built** (2026-11-14, D27 and T95 in `PLAN.md`): while a named plan
 is on, its number is the target for every day (Mon, Tue, Fri alike), over the club's and the

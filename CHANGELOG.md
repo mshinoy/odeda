@@ -8,6 +8,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- **The plan driving your numbers is named on screen:** Today and Train show "Higdon Novice 1 · week 5 of 12" with a progress bar, taken from the week note's header, and each session still to come in the week list shows its distance.
 - **Laptop screens look like the browser at 90%:** the interface is a tenth smaller up to 1440 px wide, so a 13-inch screen has room at the sides, and the page padding is fluid (24 to 48 px) instead of a fixed 32 px. Large displays are unchanged.
 
 - **Mapbox on the public demo, without the token on the page:** `VITE_MAPBOX_PROXY` makes the map library

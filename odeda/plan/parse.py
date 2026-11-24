@@ -487,6 +487,27 @@ def _usable(pres: Prescription) -> bool:
     return pres.sport is not None
 
 
+#: The week note's first segment: `HIGDON NOVICE 1 - WEEK 5 of 12`. The name is whatever
+#: precedes the dash, so any named plan that writes its header this way is read.
+_PLAN_HEADER = re.compile(
+    r"^\s*(?P<name>[A-Za-z][^|]*?)\s*[-\u2013\u2014]\s*WEEK\s+(?P<week>\d+)\s+OF\s+(?P<weeks>\d+)\b",
+    re.IGNORECASE,
+)
+
+
+def plan_header(description: str) -> dict[str, object] | None:
+    """The named plan and week a Monday note opens with, or None when it has no header."""
+    if not description or "||" not in description:
+        return None
+    match = _PLAN_HEADER.match(description)
+    if not match:
+        return None
+    week, weeks = int(match["week"]), int(match["weeks"])
+    if not 1 <= week <= weeks <= 60:
+        return None
+    return {"name": match["name"].strip().title(), "week": week, "weeks": weeks}
+
+
 def week_notes_by_week(sessions: Iterable[Mapping[str, object]]) -> dict[str, dict[int, Prescription]]:
     """Index every week note by the ISO year-week it governs.
 

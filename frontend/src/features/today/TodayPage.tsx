@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { weeklyKmSeries } from "@/features/plan/planView";
 import { FirstRunCard } from "@/features/today/FirstRunCard";
 import { showFirstRun } from "@/features/today/firstRun";
+import { NamedPlanBadge } from "@/features/plan/NamedPlanBadge";
 import { NoPlanNotice } from "@/features/today/NoPlanNotice";
 import { SyncStrip } from "@/features/status/SyncStrip";
 import { RaceCard } from "@/features/today/RaceCard";
@@ -67,6 +68,7 @@ export function TodayPage() {
   return (
     <div className="short:gap-3 flex flex-col gap-5">
       {setup.data && showFirstRun(setup.data) && <FirstRunCard setup={setup.data} />}
+      {plan.data?.named_plan && <NamedPlanBadge plan={plan.data.named_plan} />}
       <div className="short:gap-3 grid gap-5 lg:min-h-[calc(100svh-13rem)] lg:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="short:gap-3 flex min-w-0 flex-col gap-5">
           <div className="short:gap-3 grid gap-5 lg:grid-cols-[1.35fr_1fr]">
