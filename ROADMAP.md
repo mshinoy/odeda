@@ -29,10 +29,18 @@ It does not write plans or coach.
   about it.
 - **Training insights.** A few plain sentences instead of charts to read: load jumped
   this week, the long run is far longer than the last, you are due an easy day.
+- **Bring your own plan, any sport.** Higdon's running plans work today. Next: rides, swims
+  and triathlon blocks judged by time, zone or load, not only distance; more ways to bring a
+  plan in (templates, TrainingPeaks and Intervals.icu exports); a run plan and a ride plan
+  tracked side by side.
 - **Weather.** Weather is already stored per run and shown on the map as headwind. Next
   comes what it did to your pace.
 
 ## Comes to you
+
+- **Ask your data.** A chat inside Odeda that answers questions about your own training
+  ("why am I slower, is it effort or weight?") from the same numbers the pages show. It works
+  with the model you choose: a hosted one with your own key, or one running on your machine.
 
 - **Summaries.** A short weekly or monthly note: the week against the plan, load and
   recovery in a few lines.

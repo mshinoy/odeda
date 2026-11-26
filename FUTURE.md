@@ -570,6 +570,61 @@ it is worth pricing first. The demo stays on Mapbox until then.
 
 ---
 
+## 23. Ask your data: an assistant inside Odeda
+
+**Why.** The questions the owner keeps asking in a chat today are the ones the app should
+answer: how are my runs trending, why am I slower, is it effort or weight? A chat window in
+Odeda that reads the same numbers the pages show would answer them without copying anything out.
+
+**Shape.**
+* **Any model.** One small interface with two adapters: the OpenAI-style chat API, which
+  OpenAI, OpenRouter, Ollama, LM Studio, llama.cpp and vLLM all speak (so a model on the
+  owner's own machine works), and Anthropic's own. Settings holds the provider, the address, the
+  model and a key; nothing is built around one vendor.
+* **Read-only tools, not raw SQL.** The model calls a short list of functions over the existing
+  analytics (trends, weight against load, a run's splits, plan adherence, weather, sleep). It
+  never edits, syncs or deletes, and it sees only what the owner's pages already compute.
+* **The code does the arithmetic.** Models are poor at sums and decent at telling. Every number
+  comes from a tool result, and the answer says which tool, so it can be checked.
+* **Privacy, said plainly.** With a hosted model the questions and the numbers they touch leave
+  the machine; with a local one nothing does. Settings says which is in use. Keys are never
+  logged or sent to the page.
+* **The public demo** gets no assistant, or a rate-limited one, because someone else pays for it.
+
+**Honest limit.** A small local model will be weaker at picking the right tool and at
+explaining a cause. "Why am I slower" is a hypothesis from the data, never a diagnosis.
+
+**Build when.** After the plan and weight views settle, because the assistant is only as good as
+the functions it can call. First step: the tool list and an eval of ten real questions against
+two providers.
+
+## 24. Bring your own training plan, any sport
+
+**Where it stands.** A plan can already come in as a calendar subscription or an uploaded
+`.ics` or CSV from a chosen day, and a published running plan named in a week note (Higdon
+Novice 1) takes precedence and is shown on Today and Train (T130). What is thin is everything
+that is not a distance run: judging is led by distance today.
+
+**What it would take.**
+* **Sessions measured in more than kilometres.** Time, heart-rate zone, power or load for a
+  ride, a swim in metres, a brick as two parts, so a cycling or Ironman block is judged the way
+  a running one is.
+* **More ways in.** A plan template for the common published plans (Higdon, Pfitzinger,
+  a couch-to-5K), a TrainingPeaks or Intervals.icu export, a structured workout file, and a
+  plan typed or pasted as a table.
+* **More than one plan at once.** A run plan and a ride plan side by side, each judged on its
+  own sport, with the week showing both.
+* **Plan names and day names carried through**, so "Base run" or "Brick" shows as the plan calls
+  it, not only the kilometres.
+
+**Honest limit.** Odeda reads and judges a plan; it does not write or coach one, and that stays.
+
+**Build when.** When the owner starts a ride or triathlon block, or a second person brings a plan
+the parser cannot read. First step: a cycling plan from a real source, to see what the parser
+misses.
+
+---
+
 ## Video export, ideas not built
 
 The export takes about 0:38 for a 60 s HD vertical video and is now limited by the encoder
