@@ -2524,6 +2524,12 @@ class AutoSyncSource(_Model):
     state: Literal["done", "skipped", "error"]
     """`skipped` when the source is not connected."""
     message: str
+    failures: int = 0
+    """How many runs in a row this source has failed; 0 when it is fine."""
+    failing_since: str | None = None
+    """When the first of those failed runs finished."""
+    needs_signin: bool = False
+    """The saved Garmin session no longer works, and only signing in again fixes it."""
 
 
 class AutoSyncStatus(_Model):

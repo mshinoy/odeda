@@ -2408,6 +2408,23 @@ export interface components {
             state: "done" | "skipped" | "error";
             /** Message */
             message: string;
+            /**
+             * Failures
+             * @description How many runs in a row this source has failed; 0 when it is fine.
+             * @default 0
+             */
+            failures: number;
+            /**
+             * Failing Since
+             * @description When the first of those failed runs finished.
+             */
+            failing_since?: string | null;
+            /**
+             * Needs Signin
+             * @description The saved Garmin session no longer works, and only signing in again fixes it.
+             * @default false
+             */
+            needs_signin: boolean;
         };
         /**
          * AutoSyncStatus
