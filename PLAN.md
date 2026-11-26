@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 17 / 18 |
+| 27 Ready to publish: the README and docs | AA: `open` | 18 / 19 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -295,6 +295,7 @@ ideas are in `FUTURE.md` section 15.
 | T128 | The demo shows Mapbox maps without the token in the page: `VITE_MAPBOX_PROXY` sends every map request to this site, and the demo's nginx edge adds the token on the server, allows only map paths (checked on the path as sent, dots and encoded slashes refused), and limits per visitor and overall what costs credits (a map starting, a static image). Needs a Mapbox token to deploy; Google Maps is added to `FUTURE.md` (section 22). README screenshots retaken from the live demo | done (2026-11-19) | T127 |
 | T129 | Laptop screens look like the browser at 90%: the root size is 14.4 px up to 1440 wide (easing to 17 px on large displays, 15 px on phones) and the page padding grows from 32 px to a fluid 24–48 px (`clamp(1.5rem, 4vw, 3rem)`) in the header and the page body; the 1480 px cap is unchanged, so 27-inch screens look the same | done (2026-11-19) | T128 |
 | T130 | Today and Train name the plan driving the numbers, whatever it is: a published plan the week notes name ("Higdon Novice 1 · week 5 of 12",) takes precedence, and with none the calendar's own name is shown. `GET /api/plan` gains `active_plan`; the plan's own name, read from the note's header, is now the voice whose number is quoted (`<name> says/prescribes/asks`), not only Higdon; each upcoming session in the week list shows its distance, and the Today card adds what the plan asks for that day (distance and easy or long run) | done (2026-11-24) | T129 |
+| T131 | Weeks in the aggregate view (weekly totals and the biggest-week record) are real ISO weeks, Monday to Sunday: SQLite's `%W` made a week 0 of the days before a year's first Monday and cut the week of New Year in two (Dec 28 to Jan 3 read as two light weeks) | done (2026-11-26) | T130 |
 
 ### Open decisions
 

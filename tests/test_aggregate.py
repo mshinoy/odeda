@@ -137,6 +137,26 @@ class TestPeriods:
         rows = A.by_period(store, "month")
         assert [r["period"] for r in rows] == ["2026-01", "2026-02"]
 
+    def test_a_week_is_monday_to_sunday_even_across_new_year(self, store):
+        # 2026-12-28 (Mon) to 2027-01-03 (Sun) is one ISO week, W53 of 2026.
+        for i, day in enumerate(["2026-12-28", "2026-12-31", "2027-01-01", "2027-01-03",
+                                 "2027-01-04", "2026-01-01", "2024-12-30"]):
+            _act(store, f"w{i}", day)
+        rows = {r["period"]: r["activities"] for r in A.by_period(store, "week")}
+        assert rows == {
+            "2026-W53": 4,
+            "2027-W01": 1,
+            "2026-W01": 1,
+            "2025-W01": 1,  # Mon 2024-12-30 opens ISO week 1 of 2025
+        }
+
+    def test_the_biggest_week_is_not_cut_in_two_at_new_year(self, store):
+        _act(store, "a", "2026-12-30", distance_m=12_000.0)
+        _act(store, "b", "2027-01-02", distance_m=12_000.0)
+        _act(store, "c", "2027-01-05", distance_m=20_000.0)
+        week = A.streaks(store)["biggest_week"]
+        assert week["week"] == "2026-W53" and week["distance_km"] == 24.0
+
     def test_unknown_period_is_rejected(self, store):
         with pytest.raises(ValueError):
             A.by_period(store, "fortnight")
