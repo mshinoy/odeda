@@ -30,6 +30,14 @@ RECORD_DISTANCES = (1000.0, 5000.0, 10000.0, 15000.0, 21097.5, 42195.0)
 PACE_BUCKET_S = 15.0
 PACE_MIN_S, PACE_MAX_S = 150.0, 900.0     # 2:30/km to 15:00/km
 
+#: SQL for an activity's ISO week (`2026-W53`), taken from the Thursday of its Monday-to-
+#: Sunday week. SQLite's own `%W` numbers a Jan 1 before the year's first Monday as week 0,
+#: which cuts the week of New Year in two.
+ISO_WEEK_SQL = (
+    "printf('%s-W%02d', strftime('%Y', date(v.day, '-3 days', 'weekday 4')), "
+    "(strftime('%j', date(v.day, '-3 days', 'weekday 4')) - 1) / 7 + 1)"
+)
+
 DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 MONTH_NAMES = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -159,7 +167,7 @@ def by_period(store: Store, period: str = "year", **f: Any) -> list[dict[str, An
     expr = {
         "year": "substr(v.day, 1, 4)",
         "month": "substr(v.day, 1, 7)",
-        "week": "strftime('%Y-W%W', v.day)",
+        "week": ISO_WEEK_SQL,
     }.get(period)
     if expr is None:
         raise ValueError("period must be one of: year, month, week")
@@ -417,7 +425,7 @@ def streaks(store: Store, **f: Any) -> dict[str, Any]:
     current_streak = current if (today - days[-1]).days <= 1 else 0
 
     weeks = store.query(
-        "SELECT strftime('%Y-W%W', v.day) AS week, COUNT(*) AS n, "
+        f"SELECT {ISO_WEEK_SQL} AS week, COUNT(*) AS n, "
         "COALESCE(SUM(v.distance_m), 0) AS distance_m, "
         "COALESCE(SUM(v.moving_time_s), 0) AS moving_time_s "
         f"FROM v_activities_included v WHERE {clause} "
