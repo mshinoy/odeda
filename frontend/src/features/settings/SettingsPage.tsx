@@ -1,6 +1,7 @@
 import { useConfig } from "@/api/queries/useSettings";
 import { BasicsPanel, PasswordPanel } from "@/features/settings/BasicsPanel";
 import { AboutPanel } from "@/features/settings/AboutPanel";
+import { BackupPanel } from "@/features/settings/BackupPanel";
 import { EditsPanel } from "@/features/settings/EditsPanel";
 import { FitbitPanel } from "@/features/settings/FitbitPanel";
 import { GarminPanel } from "@/features/settings/GarminPanel";
@@ -26,6 +27,7 @@ export function SettingsPage() {
       <div className="flex flex-col gap-6">
         <SyncPanel />
         <EditsPanel />
+        <BackupPanel />
         <PasswordPanel />
         <ThemeToggle />
         <AboutPanel />

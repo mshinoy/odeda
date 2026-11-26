@@ -16,13 +16,16 @@ up everywhere at once.
 from __future__ import annotations
 
 import json
+import os
 import statistics
+import tempfile
 import threading
 import time
 import urllib.parse
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Callable, Literal
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
@@ -35,10 +38,12 @@ from fastapi.responses import (
     RedirectResponse,
 )
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .. import __version__, config
+from .. import backup as backup_mod
 from ..analytics import aggregate as agg_mod
 from ..analytics import body as body_mod
 from ..analytics import forecast as forecast_mod
@@ -1604,6 +1609,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Whether the app syncs on its own, how often, and how the last run went."""
         with store() as st:
             return auto_mod.status(st, auto)
+
+    @app.get("/api/backup")
+    def api_backup() -> FileResponse:
+        """One zip with the database (and so the raw archive) and the course files.
+
+        Sign-in tokens are left out on purpose; see `odeda/backup.py`. A demo has nothing
+        of its own to keep, and the file is large, so it is refused there."""
+        if settings.demo:
+            raise HTTPException(403, "A demo has nothing to back up.")
+        fd, name = tempfile.mkstemp(prefix="odeda-backup-", suffix=".zip")
+        os.close(fd)
+        tmp = Path(name)
+        try:
+            backup_mod.make_backup(settings, tmp)
+        except Exception as exc:
+            tmp.unlink(missing_ok=True)
+            raise HTTPException(500, f"Could not make the backup: {exc}") from exc
+        return FileResponse(
+            tmp,
+            media_type="application/zip",
+            filename=backup_mod.backup_filename(),
+            # Already compressed; this keeps the gzip middleware from doing it twice.
+            headers={"Content-Encoding": "identity"},
+            background=BackgroundTask(tmp.unlink, missing_ok=True),
+        )
 
     @app.post("/api/sync/stop", response_model=SyncStopResult)
     def api_sync_stop() -> dict[str, Any]:

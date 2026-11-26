@@ -1,4 +1,4 @@
-"""Command line: login | sync | fitbit | plan | import-zip | import-fit | seed | serve | doctor | report.
+"""Command line: login | sync | fitbit | plan | import-zip | import-fit | seed | serve | backup | doctor | report.
 
 Credential handling rule, enforced here: the password is read with `getpass` from a tty
 and passed straight to the Garmin client. It is never an argument, never an environment variable
@@ -527,6 +527,28 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backup(args: argparse.Namespace) -> int:
+    from .backup import backup_filename, make_backup
+
+    settings = load_settings()
+    dest = Path(args.path) if args.path else Path(backup_filename())
+    if dest.is_dir():
+        dest = dest / backup_filename()
+    try:
+        manifest = make_backup(settings, dest)
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if args.json:
+        _emit({"path": str(dest), **manifest}, True)
+    else:
+        print(
+            f"Wrote {dest} ({dest.stat().st_size / 1e6:.0f} MB). "
+            "Sign-in tokens are not in it; sign in to Garmin again after restoring."
+        )
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     from .diagnostics import run_doctor
 
@@ -724,6 +746,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--reload", action="store_true")
     sp.add_argument("--log-level", default="info")
 
+    sp = add("backup", cmd_backup, "write one zip with the database and course files")
+    sp.add_argument("path", nargs="?", help="file or folder to write to (default: here)")
     add("doctor", cmd_doctor, "report environment and data status")
     add("report", cmd_report, "print today's readiness, load and race outlook")
     return p
