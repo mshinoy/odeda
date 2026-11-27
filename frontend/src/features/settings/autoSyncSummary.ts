@@ -42,3 +42,41 @@ export function autoSyncProblems(status: AutoSyncStatus): { source: string; mess
       : [];
   });
 }
+
+/** Runs in a row a source must fail before the whole app says so: one is a blip. */
+export const FAILING_RUNS = 2;
+
+export type SyncAlert = { title: string; detail: string };
+
+/**
+ * What the banner above every page says, or null when nothing needs the owner.
+ *
+ * A lapsed Garmin login is told at once, since nothing but signing in again fixes it and
+ * every run until then fails. Any other source is told only once it has failed
+ * `FAILING_RUNS` runs in a row (about twelve hours at the default), so a bad minute at
+ * Garmin does not put a banner on every page.
+ */
+export function syncAlert(
+  status: AutoSyncStatus | undefined,
+  now: Date = new Date(),
+): SyncAlert | null {
+  if (!status?.enabled) return null;
+  const labelled = (["garmin", "fitbit", "plan"] as const).flatMap((key) => {
+    const result = status.sources[key];
+    return result?.state === "error" ? [{ key, label: SOURCE_LABELS[key], result }] : [];
+  });
+  const lapsed = labelled.find((s) => s.result.needs_signin);
+  if (lapsed) {
+    return {
+      title: `${lapsed.label} needs you to sign in again`,
+      detail: `Your data has stopped updating since ${formatAgo(lapsed.result.failing_since, now)}. Sign in under Settings.`,
+    };
+  }
+  const failing = labelled.find((s) => s.result.failures >= FAILING_RUNS);
+  if (!failing) return null;
+  const { result, label } = failing;
+  return {
+    title: `${label} has failed to sync ${result.failures} times in a row`,
+    detail: `${result.message} It has not worked since ${formatAgo(result.failing_since, now)}.`,
+  };
+}

@@ -99,7 +99,8 @@ def sync_garmin(
     try:
         user = resume(settings.token_dir)
     except connect_mod.NotAuthenticated as exc:
-        return {"state": "error", "message": str(exc)}
+        # The one failure only the owner can fix, so it is flagged for the banner.
+        return {"state": "error", "message": str(exc), "needs_signin": True}
 
     fetcher = fetcher or connect_mod.fetch
     before = int(store.scalar("SELECT COUNT(*) FROM activities") or 0)
@@ -232,6 +233,32 @@ def sync_weather(store, settings) -> dict[str, Any]:
     return result
 
 
+def _previous_sources(store) -> dict[str, Any]:
+    """How each source fared in the run before this one, from the `auto` row's cursor."""
+    try:
+        sources = json.loads((last_run(store) or {}).get("cursor") or "{}")
+    except ValueError:
+        return {}
+    return sources if isinstance(sources, dict) else {}
+
+
+def _count_failures(
+    sources: dict[str, dict[str, Any]], previous: dict[str, Any], now: str
+) -> None:
+    """Stamp each failing source with how many runs in a row it has failed, and since when.
+
+    One failed run is a blip (Garmin has bad minutes). The same source failing run after
+    run is a problem the owner has to hear about, and the count is what tells the two
+    apart. A source that succeeds or is skipped (disconnected on purpose) starts again
+    from zero.
+    """
+    for name, result in sources.items():
+        before = previous.get(name) or {}
+        if result["state"] == "error":
+            result["failures"] = int(before.get("failures") or 0) + 1
+            result["failing_since"] = before.get("failing_since") or now
+
+
 def run_once(
     store,
     settings,
@@ -245,6 +272,7 @@ def run_once(
         JOB, state="running", phase="garmin", done=0, total=4,
         started_at=_now(), finished_at=None, message="automatic sync started",
     )
+    previous = _previous_sources(store)
     sources: dict[str, dict[str, Any]] = {}
     for done, (name, step) in enumerate((("garmin", garmin), ("fitbit", fitbit), ("plan", plan), ("weather", weather))):
         store.set_sync_status(JOB, phase=name, done=done)
@@ -254,6 +282,7 @@ def run_once(
             log.exception("auto-sync: %s failed", name)
             sources[name] = {"state": "error", "message": f"{type(exc).__name__}: {exc}"}
 
+    _count_failures(sources, previous, _now())
     errors = [n for n, r in sources.items() if r["state"] == "error"]
     if errors:
         state, message = "error", "; ".join(sources[n]["message"] for n in errors)

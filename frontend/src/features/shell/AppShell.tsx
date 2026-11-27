@@ -1,7 +1,8 @@
 import { Footprints, Settings } from "lucide-react";
-import { NavLink, Outlet, ScrollRestoration } from "react-router-dom";
+import { Link, NavLink, Outlet, ScrollRestoration } from "react-router-dom";
 import { useConfig } from "@/api/queries/useSettings";
 import { useAutoSync } from "@/api/queries/useStatus";
+import { syncAlert } from "@/features/settings/autoSyncSummary";
 import { cn } from "@/lib/utils";
 
 // Five: Today · Train (plan, race, load, trends) · Activities · Map · Health.
@@ -42,6 +43,24 @@ export function DemoBanner() {
   );
 }
 
+/** Above every page when the data has stopped updating and only the owner can fix it. */
+export function SyncAlertBanner() {
+  const { data } = useAutoSync();
+  const alert = syncAlert(data);
+  if (!alert) return null;
+  return (
+    <div
+      role="alert"
+      className="bg-destructive/10 text-foreground border-b px-[clamp(1.5rem,4vw,3rem)] py-2 text-center text-sm"
+    >
+      <span className="font-medium">{alert.title}.</span> {alert.detail}{" "}
+      <Link to="/settings" className="underline underline-offset-2">
+        Open Settings
+      </Link>
+    </div>
+  );
+}
+
 export function AppShell() {
   // Here rather than on Settings: a run that lands while any page is open refreshes it.
   useAutoSync();
@@ -49,6 +68,7 @@ export function AppShell() {
   return (
     <div className="min-h-svh">
       <DemoBanner />
+      <SyncAlertBanner />
       <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1480px] items-center gap-6 px-[clamp(1.5rem,4vw,3rem)]">
           <nav className="flex items-center gap-1">

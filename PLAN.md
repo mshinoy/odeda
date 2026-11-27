@@ -111,7 +111,7 @@ nicer.
 | 18 Page redesign | R: `open` | 2 / 6 |
 | 19 Data defects | S: `approved` | 5 / 6 (T88 dropped) |
 | 20 Race prep | T: `open` | 3 / 4 |
-| 21 Platform | U: `open` | 0 / 4 |
+| 21 Platform | U: `open` | 1 / 4 |
 | 22 Weather and wind | V: `approved` | 5 / 6 |
 | 23 Plan rules | W: `approved` | 2 / 2 |
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
@@ -188,7 +188,7 @@ Seen on the real data on 2026-11-09. Each one shows a wrong or meaningless numbe
 | ID | Task | Status | Depends on |
 |---|---|---|---|
 | T82 | Re-clustering in the background, not in the request: about 13 s for 500 tracks and it grows faster than linearly | todo | — |
-| T83 | Say when a sync source keeps failing or the Garmin login lapses | todo | — |
+| T83 | Say when a sync source keeps failing or the Garmin login lapses: the automatic run counts how many runs in a row each source has failed (`failures`, `failing_since`) and flags a lapsed Garmin session (`needs_signin`); a banner above every page says so, at once for a lapsed login and after two failed runs in a row for any other source, with what to do and a link to Settings | done (2026-11-26) | — |
 | T84 | A backup button in Settings: one file with the database and the raw archive | todo | — |
 | T85 | A weekly digest from the six-hourly sync: the week against the plan, in a few lines | todo | — |
 

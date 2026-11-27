@@ -65,7 +65,8 @@ class TestGarmin:
 
         out = A.sync_garmin(store, settings, resume=expired)
         assert out == {"state": "error",
-                       "message": "The saved Garmin session is no longer good."}
+                       "message": "The saved Garmin session is no longer good.",
+                       "needs_signin": True}
 
     def test_new_activity_gets_its_stream_and_derive_runs(
         self, store, settings, monkeypatch, derive_calls
@@ -246,6 +247,42 @@ class TestRunOnce:
         }
 
 
+class TestFailureStreak:
+    OK = {"state": "done", "message": "fine."}
+    BAD = {"state": "error", "message": "Garmin is not answering."}
+
+    def _run(self, store, settings, garmin):
+        A.run_once(store, settings, garmin=lambda st, s: dict(garmin),
+                   fitbit=lambda st, s: dict(self.OK),
+                   plan=lambda st, s: dict(self.OK), weather=lambda st, s: dict(self.OK))
+        return json.loads(store.sync_status(A.JOB)["cursor"])
+
+    def test_counts_runs_in_a_row_and_remembers_the_first(self, store, settings):
+        first = self._run(store, settings, self.BAD)["garmin"]
+        assert first["failures"] == 1 and first["failing_since"]
+        second = self._run(store, settings, self.BAD)["garmin"]
+        assert second["failures"] == 2
+        assert second["failing_since"] == first["failing_since"]
+
+    def test_a_good_run_starts_the_count_again(self, store, settings):
+        self._run(store, settings, self.BAD)
+        self._run(store, settings, self.BAD)
+        assert "failures" not in self._run(store, settings, self.OK)["garmin"]
+        assert self._run(store, settings, self.BAD)["garmin"]["failures"] == 1
+
+    def test_a_source_disconnected_on_purpose_is_not_failing(self, store, settings):
+        self._run(store, settings, self.BAD)
+        skipped = {"state": "skipped", "message": "Garmin is not connected."}
+        assert "failures" not in self._run(store, settings, skipped)["garmin"]
+
+    def test_the_status_carries_the_count_and_the_signin_flag(self, settings, store):
+        lapsed = {**self.BAD, "needs_signin": True}
+        self._run(store, settings, lapsed)
+        scheduler = A.AutoSync(settings, 6.0)
+        garmin = A.status(store, scheduler)["sources"]["garmin"]
+        assert garmin["failures"] == 1 and garmin["needs_signin"] is True
+
+
 # ---------------------------------------------------------------------------
 # The schedule
 # ---------------------------------------------------------------------------
@@ -345,7 +382,9 @@ class TestApi:
         assert body["enabled"] is True and body["interval_hours"] == 6.0
         assert body["state"] == "done" and body["message"] == "Nothing is connected."
         assert body["sources"]["garmin"] == {"state": "skipped",
-                                             "message": "Garmin is not connected."}
+                                             "message": "Garmin is not connected.",
+                                             "failures": 0, "failing_since": None,
+                                             "needs_signin": False}
         finished = A._epoch(body["finished_at"])
         assert A._epoch(body["next_run_at"]) == finished + 6 * HOUR
 
