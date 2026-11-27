@@ -179,7 +179,15 @@ describe("decisionLine", () => {
 describe("planAutoSyncProblem", () => {
   it("reports the plan source's own failure from the automatic run", () => {
     const status = autoSync({
-      sources: { plan: { state: "error", message: "the secret address was reset" } },
+      sources: {
+        plan: {
+          state: "error",
+          message: "the secret address was reset",
+          failures: 1,
+          failing_since: null,
+          needs_signin: false,
+        },
+      },
     } as Partial<AutoSyncStatus>);
     expect(planAutoSyncProblem(status)).toContain("reset");
   });
@@ -187,7 +195,15 @@ describe("planAutoSyncProblem", () => {
   it("stays quiet when the automatic sync is off", () => {
     const status = autoSync({
       enabled: false,
-      sources: { plan: { state: "error", message: "boom" } },
+      sources: {
+        plan: {
+          state: "error",
+          message: "boom",
+          failures: 1,
+          failing_since: null,
+          needs_signin: false,
+        },
+      },
     } as Partial<AutoSyncStatus>);
     expect(planAutoSyncProblem(status)).toBeNull();
   });

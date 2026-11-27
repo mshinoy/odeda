@@ -117,7 +117,7 @@ nicer.
 | 24 Flyover and video export | X: `approved` | 3 / 3 |
 | 25 Activity page additions and dev setup | Y: `approved` | 4 / 4 |
 | 26 The Plan page: steer, and change the plan | Z: `approved` | 8 / 8 |
-| 27 Ready to publish: the README and docs | AA: `open` | 20 / 21 |
+| 27 Ready to publish: the README and docs | AA: `open` | 21 / 22 |
 
 ### Phase 16 — Tidy and ship · Checkpoint P: `approved`
 
@@ -298,6 +298,7 @@ ideas are in `FUTURE.md` section 15.
 | T131 | Weeks in the aggregate view (weekly totals and the biggest-week record) are real ISO weeks, Monday to Sunday: SQLite's `%W` made a week 0 of the days before a year's first Monday and cut the week of New Year in two (Dec 28 to Jan 3 read as two light weeks) | done (2026-11-26) | T130 |
 | T132 | The Today card drops its "Today" label: the date line above already says it, and the label stays only for a rest day ("Rest day · next, Tue") | done (2026-11-27) | T131 |
 | T133 | Once today's session has an outcome the Today headline says what became of it ("Done · 10.2 km", "Short · 5.0 km of 9.7 km") with the session's name above it, instead of "Today's sessions are done" | done (2026-11-27) | T132 |
+| T134 | The frontend build passes again: two test files still built the sync source without the fields T83 added, which failed `tsc -b` and so the Docker build; found when redeploying. Tests only | done (2026-11-27) | T133 |
 
 ### Open decisions
 

@@ -80,8 +80,20 @@ describe("autoSyncProblems", () => {
       ...ran,
       state: "error",
       sources: {
-        garmin: { state: "error", message: "The saved Garmin session is no longer good." },
-        fitbit: { state: "skipped", message: "Google Health is not connected." },
+        garmin: {
+          state: "error",
+          message: "The saved Garmin session is no longer good.",
+          failures: 1,
+          failing_since: null,
+          needs_signin: false,
+        },
+        fitbit: {
+          state: "skipped",
+          message: "Google Health is not connected.",
+          failures: 0,
+          failing_since: null,
+          needs_signin: false,
+        },
       },
     };
     expect(autoSyncProblems(failed)).toEqual([
