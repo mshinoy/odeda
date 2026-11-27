@@ -123,10 +123,10 @@ describe("headline", () => {
   const next = { weekday: "Tue", title: "Hills run" };
 
   it("leads with the session still to do", () => {
-    expect(headline([done, todo], next)).toEqual({ label: "Today", title: "Easy run 5.6 km" });
+    expect(headline([done, todo], next)).toEqual({ label: "", title: "Easy run 5.6 km" });
   });
   it("says so when everything asked of today is done", () => {
-    expect(headline([done], next).title).toBe("Today's sessions are done");
+    expect(headline([done], next)).toEqual({ label: "", title: "Today's sessions are done" });
   });
   it("calls a day with nothing a rest day and points at the next session", () => {
     expect(headline([], next)).toEqual({

@@ -8,6 +8,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- **A quieter Today card:** it no longer repeats "Today" above the headline, since the date line already says it.
 - **A backup button:** Settings has a Download backup card, and `odeda backup` does the same from the command line. One zip holds the database (every Garmin response and every edit) and your course files. Your Garmin and Google sign-ins are left out on purpose, so the file is safe to keep in a cloud folder; sign in again after restoring. Restore steps are in the configuration docs.
 - **A banner when the data stops updating:** if your Garmin login lapses, every page says so at once and points to Settings. If any other source (Google Health, the training calendar) fails two automatic runs in a row, the banner says that too, with what the source reported. One failed run says nothing, and the banner goes when a run succeeds.
 - **Weeks are Monday to Sunday at New Year too:** the weekly totals in Activities and the biggest-week record cut the week of New Year in two (Dec 28 to Jan 3 read as two light weeks). They now use ISO weeks like the plan and Today.

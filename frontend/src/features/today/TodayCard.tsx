@@ -38,7 +38,8 @@ export function TodayCard({
     <section className="bg-card shadow-card short:gap-3 short:p-5 flex flex-col gap-6 rounded-2xl border p-7">
       <span className="text-muted-foreground text-sm">{formatLongDate(day)}</span>
       <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">{headline.label}</span>
+        {/* The date above already says it is today; the label is only for a rest day. */}
+        {headline.label && <span className="text-muted-foreground text-xs">{headline.label}</span>}
         <h1 className="text-3xl leading-tight font-semibold tracking-tight">{headline.title}</h1>
         {planCall && <p className="text-sm font-medium">{planCall}</p>}
         {readiness.recommendation && (
