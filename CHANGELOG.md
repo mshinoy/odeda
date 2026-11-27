@@ -8,6 +8,7 @@ version, tagged `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- **Today says what became of the session:** once today's run or ride has an outcome, the headline reads "Done · 10.2 km" (or "Short · 5.0 km of 9.7 km", "Missed") with the session's name above it, in place of "Today's sessions are done".
 - **A quieter Today card:** it no longer repeats "Today" above the headline, since the date line already says it.
 - **A backup button:** Settings has a Download backup card, and `odeda backup` does the same from the command line. One zip holds the database (every Garmin response and every edit) and your course files. Your Garmin and Google sign-ins are left out on purpose, so the file is safe to keep in a cloud folder; sign in again after restoring. Restore steps are in the configuration docs.
 - **A banner when the data stops updating:** if your Garmin login lapses, every page says so at once and points to Settings. If any other source (Google Health, the training calendar) fails two automatic runs in a row, the banner says that too, with what the source reported. One failed run says nothing, and the banner goes when a run succeeds.

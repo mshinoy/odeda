@@ -125,8 +125,20 @@ describe("headline", () => {
   it("leads with the session still to do", () => {
     expect(headline([done, todo], next)).toEqual({ label: "", title: "Easy run 5.6 km" });
   });
-  it("says so when everything asked of today is done", () => {
-    expect(headline([done], next)).toEqual({ label: "", title: "Today's sessions are done" });
+  it("says what became of the session once it has an outcome, under its name", () => {
+    expect(headline([{ ...done, outcome: "Done · 10.2 km" }], next)).toEqual({
+      label: "Easy run 5.6 km",
+      title: "Done · 10.2 km",
+    });
+    expect(
+      headline([{ ...done, verdict: "short", outcome: "Short · 5.0 km of 9.7 km" }], next).title,
+    ).toBe("Short · 5.0 km of 9.7 km");
+    expect(headline([done], next).title).toBe("Done");
+  });
+  it("joins the outcomes when a day had two sessions", () => {
+    const a = { ...done, outcome: "Done · 5.0 km" };
+    const b = { ...done, verdict: "missed", outcome: "Missed" } as const;
+    expect(headline([a, b], next).title).toBe("Done · 5.0 km · Missed");
   });
   it("calls a day with nothing a rest day and points at the next session", () => {
     expect(headline([], next)).toEqual({

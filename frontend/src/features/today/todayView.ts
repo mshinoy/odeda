@@ -146,8 +146,9 @@ export interface Headline {
 }
 
 /**
- * Today's one line. A session still to do leads; once everything asked of today is done
- * it says so; a day with nothing says rest and points at the next session.
+ * Today's one line. A session still to do leads; once everything asked of today has an
+ * outcome it says what became of it ("Done · 10.2 km", "Short · 5.0 km of 9.7 km"); a day
+ * with nothing says rest and points at the next session.
  */
 export function headline(
   today: readonly DaySession[],
@@ -156,7 +157,13 @@ export function headline(
   const counted = today.filter((s) => !s.optional);
   const pending = counted.find((s) => s.verdict === "upcoming");
   if (pending) return { label: "", title: pending.title };
-  if (counted.length > 0) return { label: "", title: "Today's sessions are done" };
+  if (counted.length === 1 && counted[0]) {
+    // What became of it, not what it was: the session's name is the small line above.
+    return { label: counted[0].title, title: counted[0].outcome || "Done" };
+  }
+  if (counted.length > 1) {
+    return { label: "", title: counted.map((s) => s.outcome || "Done").join(" · ") };
+  }
   if (next) return { label: `Rest day · next, ${next.weekday}`, title: next.title };
   return { label: "", title: "Rest day" };
 }
