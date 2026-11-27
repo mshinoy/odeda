@@ -141,7 +141,7 @@ export function planCallLine(
 export interface Headline {
   /** What the big line says: today's session, or what comes next, or that there is none. */
   title: string;
-  /** "Today", "Done today", "Next, Tuesday": how to read the title. */
+  /** Empty on a day with a session, since the date above says it is today; "Rest day · next, Tue" otherwise. */
   label: string;
 }
 
@@ -155,10 +155,10 @@ export function headline(
 ): Headline {
   const counted = today.filter((s) => !s.optional);
   const pending = counted.find((s) => s.verdict === "upcoming");
-  if (pending) return { label: "Today", title: pending.title };
-  if (counted.length > 0) return { label: "Today", title: "Today's sessions are done" };
+  if (pending) return { label: "", title: pending.title };
+  if (counted.length > 0) return { label: "", title: "Today's sessions are done" };
   if (next) return { label: `Rest day · next, ${next.weekday}`, title: next.title };
-  return { label: "Today", title: "Rest day" };
+  return { label: "", title: "Rest day" };
 }
 
 export interface SleepNight {
