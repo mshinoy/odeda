@@ -58,12 +58,36 @@ odeda report         today's readiness, load and race outlook
 
 Inside Docker: `docker compose exec app odeda doctor`.
 
-To back up everything — database, raw archive and token cache:
+To back up what cannot be fetched again, press **Download backup** in Settings, or from the
+command line:
+
+```bash
+docker compose exec app odeda backup /data      # writes /data/odeda-backup-<date>.zip
+```
+
+The zip holds `garmin.db` (every Garmin response ever fetched, and every edit you made),
+your course GPX files, and a `MANIFEST.json`. **It does not hold your Garmin or Google
+sign-in tokens**, on purpose: a backup is a file people keep in cloud folders, and it should
+not also be the key to an account. After restoring, sign in again in Settings.
+
+To restore into a fresh install, stop it, unzip into the data directory, then start it:
+
+```bash
+docker compose down
+docker run --rm -v garmin-analytics-data:/data -v "$PWD":/backup alpine \
+  unzip -o /backup/odeda-backup-2026-11-26.zip -d /data
+docker compose up -d
+```
+
+A copy of the whole volume, tokens included, is still the way to move the same install to
+another machine:
 
 ```bash
 docker run --rm -v garmin-analytics-data:/data -v "$PWD":/backup alpine \
   tar czf /backup/garmin-backup.tar.gz -C /data .
 ```
+
+Keep a backup somewhere other than the machine that runs Odeda.
 
 
 ## Running without Docker
